@@ -13,6 +13,12 @@ Tutorix is a comprehensive platform connecting students with tutors for online a
 ### 1. API (`apps/api`)
 The core backend service powered by NestJS. Exposes a GraphQL API.
 
+#### API Documentation (Swagger)
+Once the API is running, Swagger documentation is available at:
+- **URL**: `http://localhost:3000/api/docs`
+
+The Swagger UI provides interactive API testing and documentation for all endpoints.
+
 ### 2. Web App (`apps/web`)
 The main portal for students and tutors.
 - **URL**: `tutorix.com` (Local: `http://localhost:4200`)
