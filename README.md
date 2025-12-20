@@ -13,12 +13,6 @@ Tutorix is a comprehensive platform connecting students with tutors for online a
 ### 1. API (`apps/api`)
 The core backend service powered by NestJS. Exposes a GraphQL API.
 
-#### API Documentation (Swagger)
-Once the API is running, Swagger documentation is available at:
-- **URL**: `http://localhost:3000/api/docs`
-
-The Swagger UI provides interactive API testing and documentation for all endpoints.
-
 ### 2. Web App (`apps/web`)
 The main portal for students and tutors.
 - **URL**: `tutorix.com` (Local: `http://localhost:4200`)
@@ -42,11 +36,36 @@ npm install
 ```
 
 ### Running Applications
-- **API**: `npx nx serve api`
-- **Web**: `npx nx serve web`
-- **Admin**: `npx nx serve web-admin`
-- **Mobile (iOS)**: `npx nx run-ios mobile`
-- **Mobile (Android)**: `npx nx run-android mobile`
+
+All commands automatically watch for file changes and reload:
+
+- **API**: `npm run serve:api` or `npx nx serve api`
+  - Auto-rebuilds and restarts on file changes (via Nx continuous mode)
+  - **Note**: Requires Nx daemon to be running for auto-restart. Start it with `npm run nx:daemon` or `npx nx daemon --start`
+- **Web**: `npm run serve:web` or `npx nx serve web`
+  - Hot Module Replacement (HMR) via Vite - instant updates without full reload
+- **Admin**: `npm run serve:admin` or `npx nx serve web-admin`
+  - Hot Module Replacement (HMR) via Vite - instant updates without full reload
+- **Mobile (iOS)**: `npm run mobile:ios` or `npx nx run-ios mobile`
+  - Hot reloading via Metro bundler
+- **Mobile (Android)**: `npm run mobile:android` or `npx nx run-android mobile`
+  - Hot reloading via Metro bundler
+
+#### Enabling Auto-Restart for API
+
+For the API to automatically restart on file changes, the Nx daemon must be running:
+
+```bash
+# Start the Nx daemon (run this once, or in a separate terminal)
+npm run nx:daemon
+
+# Then in another terminal, start the API
+npm run serve:api
+```
+
+The daemon will automatically start in most cases, but if you see a warning about the daemon not running, start it explicitly.
+
+> **Note**: Nx provides built-in watch functionality for all projects. The API uses Nx's continuous mode (requires daemon), while web apps use Vite's HMR and mobile uses Metro's hot reloading.
 
 ## Testing
 Run unit tests:

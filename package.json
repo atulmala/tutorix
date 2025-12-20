@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
+    "nx:daemon": "nx daemon --start",
     "serve:api": "nx serve api",
     "serve:web": "nx serve web",
     "serve:admin": "nx serve web-admin",
@@ -101,7 +102,6 @@
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
-    "@nestjs/swagger": "^8.0.0",
     "axios": "^1.6.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
