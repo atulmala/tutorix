@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { HealthResponseDto } from './dto/health-response.dto';
 
 @Injectable()
 export class AppService {
-  getData(): HealthResponseDto {
+  getData(): { message: string } {
     return { message: 'Hello API' };
   }
 }
