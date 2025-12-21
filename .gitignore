@@ -111,3 +111,11 @@ yarn-error.log
 
 # testing
 /coverage
+
+# GraphQL auto-generated schema
+apps/api/src/schema.gql
+
+# Environment variables
+.env
+.env.local
+.env.*.local

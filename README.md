@@ -13,6 +13,20 @@ Tutorix is a comprehensive platform connecting students with tutors for online a
 ### 1. API (`apps/api`)
 The core backend service powered by NestJS. Exposes a GraphQL API.
 
+#### GraphQL Endpoints
+Once the API is running:
+- **GraphQL Playground**: `http://localhost:3000/api/graphql` - Interactive GraphQL IDE
+- **GraphQL Endpoint**: `http://localhost:3000/api/graphql` - GraphQL API endpoint
+
+The GraphQL schema is auto-generated from your resolvers and saved to `apps/api/src/schema.gql`.
+
+**Test Query Example:**
+```graphql
+query {
+  hello
+}
+```
+
 ### 2. Web App (`apps/web`)
 The main portal for students and tutors.
 - **URL**: `tutorix.com` (Local: `http://localhost:4200`)
@@ -35,6 +49,11 @@ Cross-platform mobile application for students and tutors.
 npm install
 ```
 
+### Environment Configuration
+1. Copy `.env.example` to `.env` (if it exists)
+2. Update the `.env` file with your configuration
+3. **Important**: See [SECURITY.md](./SECURITY.md) for best practices on managing secrets, especially for production environments.
+
 ### Running Applications
 
 All commands automatically watch for file changes and reload:
@@ -53,19 +72,33 @@ All commands automatically watch for file changes and reload:
 
 #### Enabling Auto-Restart for API
 
-For the API to automatically restart on file changes, the Nx daemon must be running:
+For the API to automatically restart on file changes, the Nx daemon must be running. Try these steps:
 
+**Step 1: Start the daemon explicitly**
 ```bash
-# Start the Nx daemon (run this once, or in a separate terminal)
-npm run nx:daemon
+# In a separate terminal, start the daemon and keep it running
+npx nx daemon --start
+```
 
-# Then in another terminal, start the API
+**Step 2: Verify the daemon is running**
+```bash
+# Check daemon status
+npx nx daemon --status
+```
+
+**Step 3: Start the API**
+```bash
+# In another terminal, start the API
 npm run serve:api
 ```
 
-The daemon will automatically start in most cases, but if you see a warning about the daemon not running, start it explicitly.
+**Troubleshooting:**
+- If the daemon still doesn't start, try: `npx nx reset` then `npx nx daemon --start`
+- The daemon must be running in a separate process/terminal
+- Make sure you're using the same Node.js version that Nx was installed with
+- If issues persist, you can manually restart the server when files change (the warning is informational)
 
-> **Note**: Nx provides built-in watch functionality for all projects. The API uses Nx's continuous mode (requires daemon), while web apps use Vite's HMR and mobile uses Metro's hot reloading.
+> **Note**: Nx provides built-in watch functionality for all projects. The API uses Nx's continuous mode (requires daemon), while web apps use Vite's HMR and mobile uses Metro's hot reloading. The warning about the daemon not running is informational - the server will still work, but won't auto-restart on file changes.
 
 ## Testing
 Run unit tests:
