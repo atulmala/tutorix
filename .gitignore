@@ -119,3 +119,5 @@ apps/api/src/schema.gql
 .env
 .env.local
 .env.*.local
+# Keep .env.example in git (it's a template)
+!.env.example

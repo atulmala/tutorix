@@ -4,7 +4,7 @@ Tutorix is a comprehensive platform connecting students with tutors for online a
 
 ## Tech Stack
 - **Monorepo**: Nx
-- **Backend**: NestJS, GraphQL, MongoDB
+- **Backend**: NestJS, GraphQL, PostgreSQL (with TypeORM)
 - **Web**: React (Student/Tutor Portal + Admin Dashboard)
 - **Mobile**: React Native (Student/Tutor App)
 
