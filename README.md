@@ -54,6 +54,31 @@ npm install
 2. Update the `.env` file with your configuration
 3. **Important**: See [SECURITY.md](./SECURITY.md) for best practices on managing secrets, especially for production environments.
 
+**Required Environment Variables for API:**
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=your_password
+DB_NAME=tutorix
+```
+
+### Database Migrations
+
+The project uses TypeORM migrations for database schema management. See [MIGRATIONS_GUIDE.md](./docs/MIGRATIONS_GUIDE.md) for detailed instructions.
+
+**Quick Migration Commands:**
+- Generate migration: `npm run migration:generate -- apps/api/src/migrations/MigrationName`
+- Run migrations: `npm run migration:run`
+- Revert last migration: `npm run migration:revert`
+- Show migration status: `npm run migration:show`
+
+**Workflow:**
+1. Create/modify entities in `apps/api/src/app/entities/`
+2. Generate migration: `npm run migration:generate -- apps/api/src/migrations/YourMigrationName`
+3. Review the generated migration file
+4. Run migration: `npm run migration:run`
+
 ### Running Applications
 
 All commands automatically watch for file changes and reload:

@@ -1,19 +1,23 @@
 import { Logger, Module, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource, TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { createDatabaseOptions } from './database.config';
+import { loadDatabaseCredentials } from './database-credentials.loader';
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432', 10),
-      username: process.env.DB_USERNAME || 'postgres',
-      password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_NAME || 'tutorix',
-      entities: [],
-      synchronize: process.env.NODE_ENV !== 'production',
-      logging: process.env.NODE_ENV === 'development',
+    TypeOrmModule.forRootAsync({
+      useFactory: async () => {
+        // Load credentials from .env (dev/staging) or AWS Secrets Manager (production)
+        const credentials = await loadDatabaseCredentials();
+        const options = createDatabaseOptions(credentials);
+
+        return {
+          ...options,
+          // Run migrations automatically on application start (optional)
+          migrationsRun: process.env.AUTO_RUN_MIGRATIONS === 'true',
+        };
+      },
     }),
   ],
 })
@@ -25,9 +29,19 @@ export class DatabaseModule implements OnModuleInit {
   async onModuleInit() {
     try {
       if (this.dataSource.isInitialized) {
-        const dbHost = process.env.DB_HOST || 'localhost';
-        const dbPort = process.env.DB_PORT || '5432';
-        const dbName = process.env.DB_NAME || 'tutorix';
+        // Access connection properties safely
+        const options = this.dataSource.options;
+        const dbHost =
+          (options as { host?: string }).host ||
+          process.env.DB_HOST ||
+          'localhost';
+        const dbPort =
+          (options as { port?: number }).port ||
+          parseInt(process.env.DB_PORT || '5432', 10);
+        const dbName =
+          (options as { database?: string }).database ||
+          process.env.DB_NAME ||
+          'tutorix';
         this.logger.log(
           `✅ Database connected successfully: ${dbName}@${dbHost}:${dbPort}`,
         );
