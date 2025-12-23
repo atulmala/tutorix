@@ -19,14 +19,13 @@ export abstract class QBaseEntity extends BaseEntity {
   @VersionColumn()
   version: number;
 
-  @Field()
   @Column({ default: false })
   @HideField()
   @Index()
   deleted: boolean;
 
-  @Field()
   @Column({ default: true })
+  @HideField()
   @Index()
   active: boolean;
 
