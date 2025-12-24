@@ -41,6 +41,9 @@ apps/api/src/app/
 │   │   ├── dto/                     # GraphQL Input types
 │   │   │   ├── create-tutor.input.dto.ts
 │   │   │   └── update-tutor.input.dto.ts
+│   │   ├── enums/                   # Module-specific enums
+│   │   │   ├── tutor-certificsatio-status.enum.ts
+│   │   │   └── tutor-specialization.enum.ts
 │   │   └── tutor.module.ts
 │   │
 │   ├── student/                     # Student domain module
@@ -53,6 +56,8 @@ apps/api/src/app/
 │   │   ├── dto/
 │   │   │   ├── create-student.input.dto.ts
 │   │   │   └── update-student.input.dto.ts
+│   │   ├── enums/                   # Module-specific enums
+│   │   │   └── student-status.enum.ts
 │   │   └── student.module.ts
 │   │
 │   └── classes/                     # Classes domain module
@@ -60,6 +65,7 @@ apps/api/src/app/
 │       ├── resolvers/
 │       ├── services/
 │       ├── dto/
+│       ├── enums/                   # Module-specific enums
 │       └── classes.module.ts
 │
 ├── database/                        # Database configuration
@@ -286,8 +292,8 @@ export class CreateTutorInput {
 
 **Example: `tutor/dto/update-tutor.input.dto.ts`**
 ```typescript
-import { InputType, Field, PartialType } from '@nestjs/graphql';
-import { CreateTutorInput } from './create-tutor.input';
+import { InputType, PartialType } from '@nestjs/graphql';
+import { CreateTutorInput } from './create-tutor.input.dto';
 
 @InputType()
 export class UpdateTutorInput extends PartialType(CreateTutorInput) {
@@ -303,7 +309,66 @@ export class UpdateTutorInput extends PartialType(CreateTutorInput) {
 
 ---
 
-### 5. **Module File** (`tutor.module.ts`)
+### 5. **Enums** (`enums/`)
+
+Module-specific enums for GraphQL. Use `registerEnumType()` to make them available in the GraphQL schema.
+
+**Example: `tutor/enums/tutor-status.enum.ts`**
+```typescript
+import { registerEnumType } from '@nestjs/graphql';
+
+export enum TutorStatus {
+  PENDING = 'PENDING',
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  SUSPENDED = 'SUSPENDED',
+  VERIFIED = 'VERIFIED',
+}
+
+// Register enum with GraphQL
+registerEnumType(TutorStatus, {
+  name: 'TutorStatus',
+  description: 'Status of a tutor in the system',
+});
+```
+
+**Using enums in entities:**
+```typescript
+import { TutorStatus } from '../enums/tutor-status.enum';
+
+@ObjectType()
+@Entity('tutor')
+export class Tutor extends QBaseEntity {
+  // ... other fields
+
+  @Field(() => TutorStatus)
+  @Column({ type: 'enum', enum: TutorStatus, default: TutorStatus.PENDING })
+  status: TutorStatus;
+}
+```
+
+**Using enums in DTOs:**
+```typescript
+import { TutorStatus } from '../enums/tutor-status.enum';
+
+@InputType()
+export class CreateTutorInput {
+  // ... other fields
+
+  @Field(() => TutorStatus, { defaultValue: TutorStatus.PENDING })
+  status: TutorStatus;
+}
+```
+
+**Key Points:**
+- Use `registerEnumType()` to register with GraphQL
+- Import and use in entities with `@Field(() => EnumType)`
+- Can be used in DTOs for input validation
+- Enums are automatically included in GraphQL schema
+
+---
+
+### 6. **Module File** (`tutor.module.ts`)
 
 Wires everything together - imports, providers, exports.
 
@@ -516,6 +581,7 @@ modules/
     ├── resolvers/       # GraphQL queries/mutations (@Resolver)
     ├── services/        # Business logic (@Injectable)
     ├── dto/            # Input types for mutations (@InputType)
+    ├── enums/          # Module-specific enums (registerEnumType)
     └── module.ts        # Module configuration
 ```
 
