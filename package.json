@@ -26,11 +26,13 @@
     "lint:admin": "nx lint web-admin",
     "lint:mobile": "nx lint mobile",
     "lint:all": "nx run-many -t lint",
-    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d apps/api/src/data-source.ts",
-    "migration:create": "typeorm-ts-node-commonjs migration:create",
-    "migration:run": "typeorm-ts-node-commonjs migration:run -d apps/api/src/data-source.ts",
-    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d apps/api/src/data-source.ts",
-    "migration:show": "typeorm-ts-node-commonjs migration:show -d apps/api/src/data-source.ts"
+    "migration:generate": "node apps/api/src/app/common/scripts/migration-helper.js generate",
+    "migration:create": "node apps/api/src/app/common/scripts/migration-helper.js create",
+    "migration:run": "ts-node --project apps/api/tsconfig.app.json ./node_modules/typeorm/cli.js migration:run -d apps/api/src/data-source.ts",
+    "migration:revert": "ts-node --project apps/api/tsconfig.app.json ./node_modules/typeorm/cli.js migration:revert -d apps/api/src/data-source.ts",
+    "migration:show": "ts-node --project apps/api/tsconfig.app.json ./node_modules/typeorm/cli.js migration:show -d apps/api/src/data-source.ts",
+    "git:list-untracked": "bash scripts/list-untracked-files.sh",
+    "git:add-untracked": "bash scripts/add-untracked-files.sh"
   },
   "private": true,
   "devDependencies": {
