@@ -1,6 +1,7 @@
 import { Entity, Column } from 'typeorm';
 import { ObjectType, Field } from '@nestjs/graphql';
 import { QBaseEntity } from '../../../common/base-entities/base.entity';
+import { TutorCertificationStageEnum } from '../enums/tutor.enums';
 
 /**
  * Tutor Entity
@@ -12,6 +13,15 @@ import { QBaseEntity } from '../../../common/base-entities/base.entity';
 @ObjectType()
 @Entity('tutor')
 export class Tutor extends QBaseEntity {
+  @Field(() => TutorCertificationStageEnum, { nullable: true })
+  @Column({
+    type: 'enum',
+    enum: TutorCertificationStageEnum,
+    nullable: true,
+    default: TutorCertificationStageEnum.REGISTERED,
+  })
+  certificationStage?: TutorCertificationStageEnum;
+
   @Field()
   @Column({ default: false })
   regFeePaid: boolean;

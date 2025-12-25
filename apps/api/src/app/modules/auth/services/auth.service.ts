@@ -30,7 +30,9 @@ export class AuthService {
     // Validate role-specific requirements
     if (input.role === UserRole.ADMIN) {
       if (!input.email) {
-        throw new BadRequestException('Email is required for admin registration');
+        throw new BadRequestException(
+          'Email is required for admin registration',
+        );
       }
       // Check if email already exists
       const existingUser = await this.userRepository.findOne({
@@ -56,7 +58,9 @@ export class AuthService {
     }
 
     // Hash password
-    const hashedPassword = await this.passwordService.hashPassword(input.password);
+    const hashedPassword = await this.passwordService.hashPassword(
+      input.password,
+    );
 
     // Create user
     const user = this.userRepository.create({
@@ -91,20 +95,54 @@ export class AuthService {
   async login(input: LoginInput): Promise<AuthResponse> {
     // Determine if loginId is email or mobile based on format
     const isEmail = input.loginId.includes('@');
-    
+
     let user: User | null = null;
 
     if (isEmail) {
       // Admin login - search by email
       user = await this.userRepository.findOne({
         where: { email: input.loginId },
-        select: ['id', 'email', 'mobile', 'password', 'role', 'firstName', 'lastName', 'profilePicture', 'isEmailVerified', 'isMobileVerified', 'active', 'lastLoginAt', 'createdDate', 'updatedDate', 'version', 'm_id'],
+        select: [
+          'id',
+          'email',
+          'mobile',
+          'password',
+          'role',
+          'firstName',
+          'lastName',
+          'profilePicture',
+          'isEmailVerified',
+          'isMobileVerified',
+          'active',
+          'lastLoginAt',
+          'createdDate',
+          'updatedDate',
+          'version',
+          'm_id',
+        ],
       });
     } else {
       // Tutor/Student login - search by mobile
       user = await this.userRepository.findOne({
         where: { mobile: input.loginId },
-        select: ['id', 'email', 'mobile', 'password', 'role', 'firstName', 'lastName', 'profilePicture', 'isEmailVerified', 'isMobileVerified', 'active', 'lastLoginAt', 'createdDate', 'updatedDate', 'version', 'm_id'],
+        select: [
+          'id',
+          'email',
+          'mobile',
+          'password',
+          'role',
+          'firstName',
+          'lastName',
+          'profilePicture',
+          'isEmailVerified',
+          'isMobileVerified',
+          'active',
+          'lastLoginAt',
+          'createdDate',
+          'updatedDate',
+          'version',
+          'm_id',
+        ],
       });
     }
 
@@ -194,4 +232,3 @@ export class AuthService {
     await this.jwtService.revokeAllUserTokens(userId);
   }
 }
-

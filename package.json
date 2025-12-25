@@ -31,6 +31,8 @@
     "migration:run": "ts-node --project apps/api/tsconfig.app.json ./node_modules/typeorm/cli.js migration:run -d apps/api/src/data-source.ts",
     "migration:revert": "ts-node --project apps/api/tsconfig.app.json ./node_modules/typeorm/cli.js migration:revert -d apps/api/src/data-source.ts",
     "migration:show": "ts-node --project apps/api/tsconfig.app.json ./node_modules/typeorm/cli.js migration:show -d apps/api/src/data-source.ts",
+    "generate:jwt-secret": "node apps/api/src/app/common/scripts/generate-jwt-secret.js",
+    "test:auth": "bash apps/api/src/app/common/scripts/test-auth.sh",
     "git:list-untracked": "bash scripts/list-untracked-files.sh",
     "git:add-untracked": "bash scripts/add-untracked-files.sh"
   },
