@@ -13,27 +13,20 @@ import { QBaseEntity } from '../../../common/base-entities/base.entity';
 @Entity('tutor')
 export class Tutor extends QBaseEntity {
   @Field()
-  @Column({ unique: true })
-  email: string;
-
-  @Field()
-  @Column()
-  firstName: string;
-
-  @Field()
-  @Column()
-  lastName: string;
+  @Column({ default: false })
+  regFeePaid: boolean;
 
   @Field({ nullable: true })
-  @Column({ nullable: true })
-  bio: string;
+  @Column({ type: 'decimal', precision: 8, scale: 2, default: 0 })
+  regFeeAmount: number;
 
-  @Field()
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
-  hourlyRate: number;
+  @Field({ nullable: true })
+  @Column({ type: 'decimal', precision: 8, scale: 2, default: 999 })
+  regFeeAmountToBePaid: number;
 
-  @Field()
-  @Column({ default: false })
-  isVerified: boolean;
+  @Field({ nullable: true })
+  @Column('timestamp', { nullable: true })
+  regFeeDate: Date;
+
 }
 

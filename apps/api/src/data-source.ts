@@ -1,8 +1,6 @@
 import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
 import { join } from 'path';
-import { createDatabaseOptions } from './app/database/database.config';
-import { loadDatabaseCredentials } from './app/database/database-credentials.loader';
 
 // Load environment variables from project root
 // __dirname will be apps/api/src after compilation
@@ -13,24 +11,35 @@ config({ path: envPath });
  * TypeORM DataSource configuration for CLI operations (migrations, etc.)
  * This file is used by TypeORM CLI commands and is separate from the NestJS module configuration.
  * 
- * TypeORM CLI supports async data source creation via a function export.
- * This allows us to load credentials from AWS Secrets Manager in production.
+ * For CLI operations (migrations), we use synchronous .env loading since:
+ * - Migrations are typically run in development/staging where .env files are used
+ * - TypeORM CLI requires a synchronous DataSource instance
+ * - Production migrations should be run with proper environment setup
  * 
- * Credential loading:
- * - Development/Staging: From .env file (via loadDatabaseCredentials)
- * - Production: From AWS Secrets Manager (via loadDatabaseCredentials)
+ * Note: For production, ensure NODE_ENV and database credentials are set as environment variables
+ * before running migrations (not from .env file).
  */
-async function createDataSource(): Promise<DataSource> {
-  // Load credentials based on environment
-  // loadDatabaseCredentials() automatically detects NODE_ENV and:
-  // - For development/staging: loads from .env file
-  // - For production: loads from AWS Secrets Manager
-  const credentials = await loadDatabaseCredentials();
-  const options = createDatabaseOptions(credentials);
-  return new DataSource(options);
-}
+const dataSource = new DataSource({
+  type: 'postgres',
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  username: process.env.DB_USERNAME || 'postgres',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'tutorix',
 
-// Export async function for TypeORM CLI (supports async data source creation)
-export default createDataSource;
+  // Load all entity files from app modules (including common)
+  entities: [join(__dirname, 'app', '**', '*.entity.ts')],
+
+  // Migrations configuration
+  migrations: [join(__dirname, 'migrations', '*.ts')],
+  migrationsTableName: 'migrations',
+
+  // IMPORTANT: Disable synchronize when using migrations
+  synchronize: false,
+
+  logging: process.env.NODE_ENV === 'development',
+});
+
+export default dataSource;
 
 
