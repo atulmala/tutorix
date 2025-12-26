@@ -28,4 +28,19 @@ export default defineConfig(() => ({
       transformMixedEsModules: true,
     },
   },
+  optimizeDeps: {
+    exclude: [
+      'react-native',
+      '@react-native-firebase/analytics',
+      '@react-native-firebase/app',
+    ],
+  },
+  ssr: {
+    noExternal: [],
+    external: [
+      'react-native',
+      '@react-native-firebase/analytics',
+      '@react-native-firebase/app',
+    ],
+  },
 }));

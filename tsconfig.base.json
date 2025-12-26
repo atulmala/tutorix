@@ -14,7 +14,10 @@
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
-    "paths": {}
+    "paths": {
+      "@tutorix/analytics": ["libs/common/analytics/index.ts"],
+      "@tutorix/analytics/*": ["libs/common/analytics/*"]
+    }
   },
   "exclude": ["node_modules", "tmp"]
 }
