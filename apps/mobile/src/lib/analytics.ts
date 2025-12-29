@@ -14,12 +14,14 @@ let analyticsInstance: FirebaseMobileAnalytics | null = null;
  */
 export async function initializeAnalytics(config?: Record<string, unknown>): Promise<void> {
   if (analyticsInstance) {
-    console.warn('Analytics already initialized');
+    console.warn('⚠️ Analytics already initialized');
     return;
   }
 
+  console.log('🔄 Starting Firebase Analytics initialization...');
   analyticsInstance = new FirebaseMobileAnalytics();
   await analyticsInstance.initialize(config);
+  console.log('✅ Analytics initialization complete');
 }
 
 /**
@@ -140,5 +142,29 @@ export const analytics = {
     trackEvent(AnalyticsEvent.PAYMENT_COMPLETED, { amount, currency, transaction_id: transactionId });
   },
 };
+
+/**
+ * Verify analytics is working by sending a test event
+ */
+export async function verifyAnalytics(): Promise<boolean> {
+  if (!analyticsInstance) {
+    console.warn('⚠️ Analytics not initialized - cannot verify');
+    return false;
+  }
+
+  try {
+    console.log('🧪 Verifying analytics by sending test event...');
+    trackEvent(AnalyticsEvent.BUTTON_CLICK, {
+      button_name: 'analytics_verification_test',
+      test: true,
+      timestamp: new Date().toISOString(),
+    });
+    console.log('✅ Analytics verification test event sent successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Analytics verification failed:', error);
+    return false;
+  }
+}
 
 
