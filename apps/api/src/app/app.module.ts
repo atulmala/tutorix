@@ -4,12 +4,14 @@ import { AppService } from './app.service';
 import { GraphqlModule } from './graphql/graphql.module';
 import { AppResolver } from './graphql/resolvers/app.resolver';
 import { DatabaseModule } from './database/database.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TutorModule } from './modules/tutor/tutor.module';
 
 @Module({
   imports: [
     DatabaseModule,
+    AnalyticsModule, // Analytics module (global) - should be imported early
     AuthModule, // AuthModule must be imported before GraphqlModule
     GraphqlModule,
     TutorModule,
