@@ -1,0 +1,6 @@
+/**
+ * @format
+ */
+
+import './src/main';
+
