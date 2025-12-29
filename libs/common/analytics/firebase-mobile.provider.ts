@@ -14,15 +14,33 @@ export class FirebaseMobileAnalytics implements IAnalyticsService {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async initialize(_config?: Record<string, unknown>): Promise<void> {
     try {
+      console.log('🔄 Initializing Firebase Analytics (Mobile)...');
+      
       // React Native Firebase Analytics initializes automatically
       // Store the analytics function that returns the instance
       this.analyticsInstance = analytics;
       
+      // Get the analytics instance to verify it's working
+      const analyticsInstance = this.analyticsInstance();
+      
       // Enable analytics collection (disabled in debug mode by default)
-      // Note: In React Native, you may want to enable this for testing
-      // For production, analytics collection is enabled by default
+      // For testing, we can enable it in debug mode
+      await analyticsInstance.setAnalyticsCollectionEnabled(true);
+      
+      // Log a test event to verify it's working
+      try {
+        await analyticsInstance.logEvent('analytics_initialized', {
+          platform: 'mobile',
+          timestamp: new Date().toISOString(),
+        });
+        console.log('✅ Firebase Analytics initialized and verified (Mobile)');
+        console.log('📊 Test event "analytics_initialized" sent successfully');
+      } catch (testError) {
+        console.warn('⚠️ Analytics initialized but test event failed:', testError);
+        console.log('✅ Firebase Analytics initialized (Mobile) - but test event failed');
+      }
     } catch (error) {
-      console.error('Failed to initialize Firebase Analytics:', error);
+      console.error('❌ Failed to initialize Firebase Analytics:', error);
       throw error;
     }
   }
