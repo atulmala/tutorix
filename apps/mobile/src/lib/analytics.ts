@@ -160,9 +160,15 @@ export async function verifyAnalytics(): Promise<boolean> {
       timestamp: new Date().toISOString(),
     });
     console.log('✅ Analytics verification test event sent successfully');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('✅✅✅ FIREBASE ANALYTICS IS WORKING CORRECTLY ✅✅✅');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     return true;
   } catch (error) {
     console.error('❌ Analytics verification failed:', error);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('❌❌❌ FIREBASE ANALYTICS VERIFICATION FAILED ❌❌❌');
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     return false;
   }
 }

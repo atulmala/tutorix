@@ -120,3 +120,5 @@ dependencies {
 
 // Apply Google Services plugin for Firebase
 apply plugin: 'com.google.gms.google-services'
+// Apply Crashlytics plugin for Firebase Crashlytics
+apply plugin: 'com.google.firebase.crashlytics'
