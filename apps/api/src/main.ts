@@ -22,7 +22,7 @@ async function bootstrap() {
     `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`,
   );
   Logger.log(
-    `📊 GraphQL Playground is available at: http://localhost:${port}/${globalPrefix}/graphql`,
+    `📊 GraphQL Playground is available at: http://localhost:${port}/graphql`,
   );
 }
 
