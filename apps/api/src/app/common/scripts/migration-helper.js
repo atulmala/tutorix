@@ -16,55 +16,36 @@ const fs = require('fs');
 const path = require('path');
 
 const command = process.argv[2]; // 'generate' or 'create'
-// Migration name (optional, defaults to 'migration')
+const migrationNameArg = process.argv[3] || 'migration';
 
 const tsNodeCmd = 'ts-node --project apps/api/tsconfig.app.json';
 const dataSourcePath = 'apps/api/src/data-source.ts';
 const migrationsDir = 'apps/api/src/migrations';
 
-/**
- * Get date in ddmmyyyy format
- */
-function getDatePrefix() {
-  const now = new Date();
-  const day = String(now.getDate()).padStart(2, '0');
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const year = now.getFullYear();
-  return `${day}${month}${year}`;
-}
+const timestamp = () => Date.now();
+
+const slugify = (str) =>
+  str
+    .toString()
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase() || 'migration';
+
+const toCamel = (str) =>
+  str
+    .split(/[^a-zA-Z0-9]/)
+    .filter(Boolean)
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join('');
 
 /**
- * Get the next sequence number for migrations on the same date
+ * Generate migration base name in format: <timestamp>-<slug>.migration
  */
-function getNextSequenceNumber(datePrefix) {
-  if (!fs.existsSync(migrationsDir)) {
-    return 1;
-  }
-
-  const files = fs.readdirSync(migrationsDir);
-  const pattern = new RegExp(`^${datePrefix}-(\\d+)\\.migration\\.ts$`);
-  
-  let maxSequence = 0;
-  files.forEach(file => {
-    const match = file.match(pattern);
-    if (match) {
-      const seq = parseInt(match[1], 10);
-      if (seq > maxSequence) {
-        maxSequence = seq;
-      }
-    }
-  });
-
-  return maxSequence + 1;
-}
-
-/**
- * Generate migration file name in format: ddmmyyyy-x.migration.ts
- */
-function generateMigrationFileName() {
-  const datePrefix = getDatePrefix();
-  const sequence = getNextSequenceNumber(datePrefix);
-  return `${datePrefix}-${sequence}.migration`;
+function generateMigrationFileName(customName) {
+  const ts = timestamp();
+  const slug = slugify(customName);
+  return `${ts}-${slug}.migration`;
 }
 
 /**
@@ -92,26 +73,18 @@ function updateMigrationClassName(filePath, className) {
 
 /**
  * Convert migration file name to class name
- * Format: ddmmyyyy-x.migration -> MigrationDdmmyyyyX
- * Example: 25122025-1.migration -> Migration251220251
+ * Format: 1735603200000-name.migration -> Migration1735603200000Name
  */
 function toMigrationClassName(fileName) {
   // Remove .migration extension
   const nameWithoutExt = fileName.replace('.migration', '');
-  // Format: ddmmyyyy-x -> MigrationDdmmyyyyX
-  // Replace dashes and ensure it starts with Migration prefix
-  const parts = nameWithoutExt.split('-');
-  if (parts.length === 2) {
-    const datePart = parts[0]; // ddmmyyyy
-    const seqPart = parts[1];   // x
-    return `Migration${datePart}${seqPart}`;
-  }
-  // Fallback: just prefix with Migration
-  return `Migration${nameWithoutExt.replace(/[-_\s]/g, '')}`;
+  const [ts, ...rest] = nameWithoutExt.split('-');
+  const suffix = toCamel(rest.join('-'));
+  return `Migration${ts}${suffix}`;
 }
 
 if (command === 'generate') {
-  const targetFileName = generateMigrationFileName();
+  const targetFileName = generateMigrationFileName(migrationNameArg);
   const targetPath = path.join(migrationsDir, `${targetFileName}.ts`);
   const className = toMigrationClassName(targetFileName);
   
@@ -167,7 +140,7 @@ if (command === 'generate') {
     process.exit(1);
   }
 } else if (command === 'create') {
-  const targetFileName = generateMigrationFileName();
+  const targetFileName = generateMigrationFileName(migrationNameArg);
   const targetPath = path.join(migrationsDir, `${targetFileName}.ts`);
   const className = toMigrationClassName(targetFileName);
   

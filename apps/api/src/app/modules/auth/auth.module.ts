@@ -7,13 +7,14 @@ import { AuthService } from './services/auth.service';
 import { AuthResolver } from './resolvers/auth.resolver';
 import { User } from './entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { Tutor } from '../tutor/entities/tutor.entity';
 import { PasswordService } from './services/password.service';
 import { JwtService } from './services/jwt.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, RefreshToken]),
+    TypeOrmModule.forFeature([User, RefreshToken, Tutor]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
