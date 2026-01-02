@@ -5,6 +5,7 @@ import { DatabaseCredentials } from './database-credentials.loader';
 // Explicitly import all entities to ensure they're registered
 import { User } from '../modules/auth/entities/user.entity';
 import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
+import { Otp } from '../modules/auth/entities/otp.entity';
 import { Tutor } from '../modules/tutor/entities/tutor.entity';
 import { Example } from '../entities/example.entity';
 // Add other entities as they are created
@@ -29,6 +30,7 @@ export function createDatabaseOptions(
     entities: [
       User,
       RefreshToken,
+      Otp,
       Tutor,
       Example, // Remove this when you no longer need the example entity
       // Add other entities here as they are created
