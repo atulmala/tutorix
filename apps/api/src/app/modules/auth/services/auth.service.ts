@@ -14,6 +14,7 @@ import { LoginInput } from '../dto/login.dto';
 import { RegisterInput } from '../dto/register.dto';
 import { AuthResponse } from '../dto/auth-response.dto';
 import { AnalyticsService } from '../../analytics/services/analytics.service';
+import { UserSignupInput } from '../dto/user-signup.input';
 
 @Injectable()
 export class AuthService {
@@ -103,6 +104,68 @@ export class AuthService {
   }
 
   /**
+   * User signup (declares intent as Tutor or Student). No profile created here.
+   */
+  async userSignup(input: UserSignupInput): Promise<AuthResponse> {
+    const countryCode = input.mobileCountryCode || '+91';
+    const mobileNumber = input.mobileNumber;
+    const fullMobile = `${countryCode}${mobileNumber}`;
+
+    // Validate email unique
+    const existingEmail = await this.userRepository.findOne({
+      where: { email: input.email },
+    });
+    if (existingEmail) {
+      throw new ConflictException('Email already registered');
+    }
+
+    // Validate mobile present/unique
+    const existing = await this.userRepository.findOne({
+      where: [{ mobile: fullMobile }, { mobileNumber }],
+    });
+    if (existing) {
+      throw new ConflictException('Mobile number already registered');
+    }
+
+    // Default to UNKNOWN; caller can decide intended role during onboarding
+    const role = UserRole.UNKNOWN;
+
+    const hashedPassword = await this.passwordService.hashPassword(
+      input.password,
+    );
+
+    const user = this.userRepository.create({
+      email: input.email,
+      mobile: fullMobile,
+      mobileCountryCode: countryCode,
+      mobileNumber,
+      password: hashedPassword,
+      role,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      isMobileVerified: false,
+    });
+
+    const savedUser = await this.userRepository.save(user);
+    const tokens = await this.jwtService.generateTokens(savedUser);
+
+    this.analyticsService
+      .trackUserRegistration({
+        userId: savedUser.id,
+        userRole: savedUser.role,
+        method: 'mobile',
+      })
+      .catch((error) =>
+        console.error('Failed to track registration event:', error),
+      );
+
+    return {
+      ...tokens,
+      user: savedUser,
+    };
+  }
+
+  /**
    * Login user with mobile (tutors/students) or email (admins)
    */
   async login(input: LoginInput): Promise<AuthResponse> {
@@ -115,6 +178,7 @@ export class AuthService {
       // Admin login - search by email
       user = await this.userRepository.findOne({
         where: { email: input.loginId },
+        relations: ['tutor'],
         select: [
           'id',
           'email',
@@ -138,6 +202,7 @@ export class AuthService {
       // Tutor/Student login - search by mobile
       user = await this.userRepository.findOne({
         where: { mobile: input.loginId },
+        relations: ['tutor'],
         select: [
           'id',
           'email',
@@ -208,6 +273,7 @@ export class AuthService {
   async validateUser(userId: number): Promise<User | null> {
     const user = await this.userRepository.findOne({
       where: { id: userId, active: true },
+      relations: ['tutor'],
     });
 
     return user || null;
@@ -219,6 +285,7 @@ export class AuthService {
   async findById(id: number): Promise<User | null> {
     return this.userRepository.findOne({
       where: { id },
+      relations: ['tutor'],
     });
   }
 

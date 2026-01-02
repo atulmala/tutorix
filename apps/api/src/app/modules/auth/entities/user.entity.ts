@@ -1,8 +1,9 @@
-import { Entity, Column, OneToMany, Index } from 'typeorm';
+import { Entity, Column, OneToMany, Index, OneToOne } from 'typeorm';
 import { ObjectType, Field } from '@nestjs/graphql';
 import { QBaseEntity } from '../../../common/base-entities/base.entity';
 import { UserRole } from '../enums/user-role.enum';
 import { RefreshToken } from './refresh-token.entity';
+import { Tutor } from '../../tutor/entities/tutor.entity';
 
 /**
  * User Entity
@@ -19,6 +20,14 @@ export class User extends QBaseEntity {
   @Column({ nullable: true, unique: true })
   @Index()
   mobile?: string; // For Tutors and Students
+
+  @Field({ nullable: true, defaultValue: '+91' })
+  @Column({ name: 'mobile_country_code', nullable: true, default: '+91' })
+  mobileCountryCode?: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'mobile_number', nullable: true, length: 10 })
+  mobileNumber?: string;
 
   @Field({ nullable: true })
   @Column({ nullable: true, unique: true })
@@ -66,5 +75,12 @@ export class User extends QBaseEntity {
     cascade: true,
   })
   refreshTokens: RefreshToken[];
+
+  @Field(() => Tutor, { nullable: true })
+  @OneToOne(() => Tutor, (tutor) => tutor.user, {
+    cascade: ['insert', 'update'],
+    nullable: true,
+  })
+  tutor?: Tutor;
 }
 

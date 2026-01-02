@@ -1,7 +1,8 @@
-import { Entity, Column } from 'typeorm';
-import { ObjectType, Field } from '@nestjs/graphql';
+import { Entity, Column, OneToOne, JoinColumn } from 'typeorm';
+import { ObjectType, Field, Int } from '@nestjs/graphql';
 import { QBaseEntity } from '../../../common/base-entities/base.entity';
 import { TutorCertificationStageEnum } from '../enums/tutor.enums';
+import { User } from '../../auth/entities/user.entity';
 
 /**
  * Tutor Entity
@@ -13,6 +14,17 @@ import { TutorCertificationStageEnum } from '../enums/tutor.enums';
 @ObjectType()
 @Entity('tutor')
 export class Tutor extends QBaseEntity {
+  @Field(() => Int)
+  @Column({ name: 'user_id', unique: true, type: 'integer' })
+  userId: number;
+
+  @Field(() => User)
+  @OneToOne(() => User, (user) => user.tutor, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'user_id' })
+  user: User;
+
   @Field(() => TutorCertificationStageEnum, { nullable: true })
   @Column({
     type: 'enum',
@@ -38,5 +50,12 @@ export class Tutor extends QBaseEntity {
   @Column('timestamp', { nullable: true })
   regFeeDate: Date;
 
+  @Field({ nullable: true, defaultValue: '+91' })
+  @Column({ name: 'whatsapp_country_code', nullable: true, default: '+91' })
+  whatsappCountryCode?: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'whatsapp_number', nullable: true, length: 10 })
+  whatsappNumber?: string;
 }
 

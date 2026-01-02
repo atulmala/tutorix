@@ -5,6 +5,7 @@ import { LoginInput } from '../dto/login.dto';
 import { RegisterInput } from '../dto/register.dto';
 import { RefreshTokenInput } from '../dto/refresh-token.dto';
 import { AuthResponse } from '../dto/auth-response.dto';
+import { UserSignupInput } from '../dto/user-signup.input';
 import { User } from '../entities/user.entity';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
@@ -16,6 +17,13 @@ export class AuthResolver {
   @Mutation(() => AuthResponse)
   async register(@Args('input') input: RegisterInput): Promise<AuthResponse> {
     return this.authService.register(input);
+  }
+
+  @Mutation(() => AuthResponse)
+  async userSignup(
+    @Args('input') input: UserSignupInput,
+  ): Promise<AuthResponse> {
+    return this.authService.userSignup(input);
   }
 
   @Mutation(() => AuthResponse)
