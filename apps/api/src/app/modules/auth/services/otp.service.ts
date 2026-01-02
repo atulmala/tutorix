@@ -6,6 +6,8 @@ import { Otp } from '../entities/otp.entity';
 import { User } from '../entities/user.entity';
 import { GenerateOtpInput } from '../dto/generate-otp.input';
 import { GenerateOtpResponse } from '../dto/generate-otp-response.dto';
+import { VerifyOtpInput } from '../dto/verify-otp.input';
+import { VerifyOtpResponse } from '../dto/verify-otp-response.dto';
 
 @Injectable()
 export class OtpService {
@@ -64,6 +66,39 @@ export class OtpService {
       purpose: input.purpose,
       expiresAt,
       otp: otpValue,
+    };
+  }
+
+  /**
+   * Verify the provided OTP against the stored hash and expiry window.
+   */
+  async verifyOtp(input: VerifyOtpInput): Promise<VerifyOtpResponse> {
+    const record = await this.otpRepository.findOne({
+      where: { userId: input.userId, purpose: input.purpose },
+    });
+
+    if (!record) {
+      throw new BadRequestException('OTP not found for user and purpose');
+    }
+
+    const clientTime = new Date(input.timestamp);
+    if (Number.isNaN(clientTime.getTime())) {
+      throw new BadRequestException('Invalid timestamp');
+    }
+
+    // Ensure request time is within the validity window
+    if (clientTime > record.expiresAt) {
+      throw new BadRequestException('OTP has expired');
+    }
+
+    const incomingHash = this.hashOtp(input.otp);
+    if (incomingHash !== record.otpHash) {
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    return {
+      success: true,
+      message: 'OTP verified successfully',
     };
   }
 
