@@ -11,10 +11,13 @@ import { Tutor } from '../tutor/entities/tutor.entity';
 import { PasswordService } from './services/password.service';
 import { JwtService } from './services/jwt.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { Otp } from './entities/otp.entity';
+import { OtpService } from './services/otp.service';
+import { OtpResolver } from './resolvers/otp.resolver';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, RefreshToken, Tutor]),
+    TypeOrmModule.forFeature([User, RefreshToken, Tutor, Otp]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -33,6 +36,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   providers: [
     AuthService,
     AuthResolver,
+    OtpService,
+    OtpResolver,
     PasswordService,
     JwtService,
     JwtStrategy,
