@@ -16,7 +16,9 @@
     "baseUrl": ".",
     "paths": {
       "@tutorix/analytics": ["libs/common/analytics/index.ts"],
-      "@tutorix/analytics/*": ["libs/common/analytics/*"]
+      "@tutorix/analytics/*": ["libs/common/analytics/*"],
+      "@tutorix/tokens": ["libs/ui-tokens/src/index.ts"],
+      "@tutorix/tokens/*": ["libs/ui-tokens/src/*"]
     }
   },
   "exclude": ["node_modules", "tmp"]
