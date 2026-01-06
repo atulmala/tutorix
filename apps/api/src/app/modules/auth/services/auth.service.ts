@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as crypto from 'crypto';
 import { User } from '../entities/user.entity';
 import { UserRole } from '../enums/user-role.enum';
 import { PasswordService } from './password.service';
@@ -15,6 +16,9 @@ import { RegisterInput } from '../dto/register.dto';
 import { AuthResponse } from '../dto/auth-response.dto';
 import { AnalyticsService } from '../../analytics/services/analytics.service';
 import { UserSignupInput } from '../dto/user-signup.input';
+import { RegisterUserInput } from '../dto/register-user.input';
+import { SetPasswordInput } from '../dto/set-password.input';
+import { UpdateUserInput } from '../dto/update-user.input';
 
 @Injectable()
 export class AuthService {
@@ -101,6 +105,123 @@ export class AuthService {
       ...tokens,
       user: savedUser,
     };
+  }
+
+  /**
+   * Staged user creation (mobile required, email/password optional)
+   */
+  async registerUser(input: RegisterUserInput): Promise<User> {
+    const countryCode = input.mobileCountryCode || '+91';
+    const mobileNumber = input.mobileNumber;
+    const fullMobile = `${countryCode}${mobileNumber}`;
+
+    // Uniqueness checks
+    const existingMobile = await this.userRepository.findOne({
+      where: [{ mobile: fullMobile }, { mobileNumber }],
+    });
+    if (existingMobile) {
+      throw new ConflictException('Mobile number already registered');
+    }
+
+    if (input.email) {
+      const existingEmail = await this.userRepository.findOne({
+        where: { email: input.email },
+      });
+      if (existingEmail) {
+        throw new ConflictException('Email already registered');
+      }
+    }
+
+    const tempPassword =
+      input.password || crypto.randomBytes(12).toString('hex');
+    const hashedPassword = await this.passwordService.hashPassword(tempPassword);
+
+    const user = this.userRepository.create({
+      email: input.email,
+      mobile: fullMobile,
+      mobileCountryCode: countryCode,
+      mobileNumber,
+      password: hashedPassword, // placeholder if not provided; will be replaced by setPassword
+      role: input.role ?? UserRole.UNKNOWN,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      isMobileVerified: false,
+      isEmailVerified: false,
+    });
+
+    const savedUser = await this.userRepository.save(user);
+    return savedUser;
+  }
+
+  /**
+   * Set or update password
+   */
+  async setPassword(input: SetPasswordInput): Promise<boolean> {
+    const user = await this.userRepository.findOne({
+      where: { id: input.userId, active: true, deleted: false },
+      select: ['id', 'password'],
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found or inactive');
+    }
+
+    user.password = await this.passwordService.hashPassword(input.password);
+    await this.userRepository.save(user);
+    return true;
+  }
+
+  /**
+   * Update an existing user (email/mobile/name/role)
+   */
+  async updateUser(input: UpdateUserInput): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { id: input.userId, deleted: false },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found or inactive');
+    }
+
+    // Email uniqueness
+    if (input.email && input.email !== user.email) {
+      const existingEmail = await this.userRepository.findOne({
+        where: { email: input.email },
+      });
+      if (existingEmail) {
+        throw new ConflictException('Email already registered');
+      }
+      user.email = input.email;
+    }
+
+    // Mobile update and uniqueness
+    if (input.mobileNumber) {
+      const countryCode = input.mobileCountryCode || user.mobileCountryCode || '+91';
+      const fullMobile = `${countryCode}${input.mobileNumber}`;
+      if (
+        fullMobile !== user.mobile ||
+        input.mobileNumber !== user.mobileNumber ||
+        countryCode !== user.mobileCountryCode
+      ) {
+        const existingMobile = await this.userRepository.findOne({
+          where: [{ mobile: fullMobile }, { mobileNumber: input.mobileNumber }],
+        });
+        if (existingMobile && existingMobile.id !== user.id) {
+          throw new ConflictException('Mobile number already registered');
+        }
+        user.mobileCountryCode = countryCode;
+        user.mobileNumber = input.mobileNumber;
+        user.mobile = fullMobile;
+        user.isMobileVerified = false; // reset if mobile changed
+      }
+    }
+
+    if (input.firstName !== undefined) user.firstName = input.firstName;
+    if (input.lastName !== undefined) user.lastName = input.lastName;
+    if (input.role !== undefined) user.role = input.role;
+
+    const saved = await this.userRepository.save(user);
+    return saved;
   }
 
   /**
