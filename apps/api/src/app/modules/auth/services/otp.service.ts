@@ -8,6 +8,7 @@ import { GenerateOtpInput } from '../dto/generate-otp.input';
 import { GenerateOtpResponse } from '../dto/generate-otp-response.dto';
 import { VerifyOtpInput } from '../dto/verify-otp.input';
 import { VerifyOtpResponse } from '../dto/verify-otp-response.dto';
+import { OtpPurpose } from '../enums/otp-purpose.enum';
 
 @Injectable()
 export class OtpService {
@@ -72,7 +73,7 @@ export class OtpService {
   /**
    * Verify the provided OTP against the stored hash and expiry window.
    */
-  async   verifyOtp(input: VerifyOtpInput): Promise<VerifyOtpResponse> {
+  async verifyOtp(input: VerifyOtpInput): Promise<VerifyOtpResponse> {
     const record = await this.otpRepository.findOne({
       where: { userId: input.userId, purpose: input.purpose },
     });
@@ -94,6 +95,22 @@ export class OtpService {
     const incomingHash = this.hashOtp(input.otp);
     if (incomingHash !== record.otpHash) {
       throw new BadRequestException('Invalid OTP');
+    }
+
+    // Mark verification flags
+    const user = await this.userRepository.findOne({
+      where: { id: input.userId },
+      select: ['id', 'isMobileVerified', 'isEmailVerified'],
+    });
+
+    if (user) {
+      if (input.purpose === OtpPurpose.MOBILE_VERIFICATION) {
+        user.isMobileVerified = true;
+      }
+      if (input.purpose === OtpPurpose.EMAIL_VERIFICATION) {
+        user.isEmailVerified = true;
+      }
+      await this.userRepository.save(user);
     }
 
     return {

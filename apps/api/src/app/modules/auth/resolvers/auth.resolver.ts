@@ -6,6 +6,9 @@ import { RegisterInput } from '../dto/register.dto';
 import { RefreshTokenInput } from '../dto/refresh-token.dto';
 import { AuthResponse } from '../dto/auth-response.dto';
 import { UserSignupInput } from '../dto/user-signup.input';
+import { RegisterUserInput } from '../dto/register-user.input';
+import { SetPasswordInput } from '../dto/set-password.input';
+import { UpdateUserInput } from '../dto/update-user.input';
 import { User } from '../entities/user.entity';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
@@ -17,6 +20,27 @@ export class AuthResolver {
   @Mutation(() => AuthResponse)
   async register(@Args('input') input: RegisterInput): Promise<AuthResponse> {
     return this.authService.register(input);
+  }
+
+  @Mutation(() => User)
+  async registerUser(
+    @Args('input') input: RegisterUserInput,
+  ): Promise<User> {
+    return this.authService.registerUser(input);
+  }
+
+  @Mutation(() => Boolean)
+  async setPassword(
+    @Args('input') input: SetPasswordInput,
+  ): Promise<boolean> {
+    return this.authService.setPassword(input);
+  }
+
+  @Mutation(() => User)
+  async updateUser(
+    @Args('input') input: UpdateUserInput,
+  ): Promise<User> {
+    return this.authService.updateUser(input);
   }
 
   @Mutation(() => AuthResponse)
