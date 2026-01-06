@@ -4,9 +4,13 @@ import { VerificationTick } from './VerificationTick';
 
 type EmailVerificationProps = {
   onVerified: () => void;
+  disabled?: boolean;
 };
 
-export const EmailVerification: React.FC<EmailVerificationProps> = ({ onVerified }) => {
+export const EmailVerification: React.FC<EmailVerificationProps> = ({
+  onVerified,
+  disabled = false,
+}) => {
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [otpRequested, setOtpRequested] = useState(false);
@@ -29,6 +33,7 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({ onVerified
   };
 
   const requestOtp = () => {
+    if (disabled) return;
     if (email && !emailError) {
       setOtpRequested(true);
       setOtp('');
@@ -39,6 +44,7 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({ onVerified
   };
 
   const verify = () => {
+    if (disabled) return;
     if (otpRequested && otp && !otpError && otp.length >= 4) {
       setVerified(true);
       onVerified();
@@ -74,10 +80,11 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({ onVerified
             } bg-white px-md text-primary shadow-sm focus:border-primary focus:outline-none`}
             value={email}
             onChange={(e) => handleEmailChange(e.target.value)}
+            disabled={disabled}
           />
           <button
-            className="h-11 w-40 rounded-md bg-primary text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-primary/40"
-            disabled={!email || emailError !== ''}
+            className="h-11 w-40 rounded-md bg-[#5fa8ff] text-white shadow-sm transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:bg-[#5fa8ff]/40"
+            disabled={disabled || !email || emailError !== ''}
             onClick={requestOtp}
           >
             Get OTP
@@ -90,7 +97,12 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({ onVerified
         )}
 
         <div className="space-y-[22px]">
-          <OtpInputRow value={otp} onChange={handleOtpChange} disabled={!otpRequested} error={otpError} />
+          <OtpInputRow
+            value={otp}
+            onChange={handleOtpChange}
+            disabled={disabled || !otpRequested}
+            error={otpError}
+          />
           <p className="text-xs italic text-muted">Enter 6 digit OTP you received on your email</p>
           {otpError && (
             <p className="text-xs text-danger text-center" role="alert" aria-live="polite">
@@ -99,8 +111,8 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({ onVerified
           )}
           <div className="flex flex-col items-center gap-2">
             <button
-              className="h-10 w-40 rounded-md bg-primary text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-primary/50"
-              disabled={!otpRequested || !otp || otpError !== '' || otp.length < 4}
+              className="h-10 w-40 rounded-md bg-[#5fa8ff] text-white shadow-sm transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:bg-[#5fa8ff]/40"
+              disabled={disabled || !otpRequested || !otp || otpError !== '' || otp.length < 4}
               onClick={verify}
             >
               Verify OTP
@@ -110,7 +122,7 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({ onVerified
               <button
                 className="text-primary underline disabled:text-muted"
                 type="button"
-                disabled={!otpRequested || resendTimer > 0}
+                disabled={disabled || !otpRequested || resendTimer > 0}
                 onClick={() => {
                   setOtp('');
                   setOtpError('');

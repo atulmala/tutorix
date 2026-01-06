@@ -72,7 +72,7 @@ export class OtpService {
   /**
    * Verify the provided OTP against the stored hash and expiry window.
    */
-  async verifyOtp(input: VerifyOtpInput): Promise<VerifyOtpResponse> {
+  async   verifyOtp(input: VerifyOtpInput): Promise<VerifyOtpResponse> {
     const record = await this.otpRepository.findOne({
       where: { userId: input.userId, purpose: input.purpose },
     });

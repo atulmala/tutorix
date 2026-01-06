@@ -93,7 +93,7 @@ export const PhoneVerification: React.FC<PhoneVerificationProps> = ({ onVerified
               onChange={(e) => handleMobileChange(e.target.value)}
             />
             <button
-              className="h-11 w-40 rounded-md bg-primary text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-primary/40"
+              className="h-11 w-40 rounded-md bg-[#5fa8ff] text-white shadow-sm transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:bg-[#5fa8ff]/40"
               disabled={!mobile || mobileError !== '' || mobile.length < 6}
               onClick={requestOtp}
             >
@@ -117,7 +117,7 @@ export const PhoneVerification: React.FC<PhoneVerificationProps> = ({ onVerified
           )}
           <div className="flex flex-col items-center gap-2">
             <button
-              className="h-10 w-40 rounded-md bg-primary text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-primary/50"
+              className="h-10 w-40 rounded-md bg-[#5fa8ff] text-white shadow-sm transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:bg-[#5fa8ff]/40"
               disabled={!otpRequested || !otp || otpError !== '' || otp.length < 4}
               onClick={verify}
             >
