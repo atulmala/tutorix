@@ -55,9 +55,7 @@ export const OtpInputRow: React.FC<OtpInputRowProps> = ({
             refs.current[idx] = el;
           }}
           className={`h-10 w-10 rounded-md border ${
-            error
-              ? 'border-danger'
-              : !disabled && value ? 'border-[#9ab0d8]' : 'border-subtle'
+            error ? 'border-danger' : disabled ? 'border-subtle' : 'border-[#7b93c8]'
           } bg-white text-center text-lg font-semibold text-primary shadow-sm focus:border-primary focus:outline-none ${
             disabled ? 'opacity-60' : ''
           }`}
