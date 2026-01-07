@@ -5,19 +5,32 @@ import { VerificationTick } from './VerificationTick';
 type EmailVerificationProps = {
   onVerified: () => void;
   disabled?: boolean;
+  initialEmail?: string;
+  onBackToDetails?: () => void;
 };
 
 export const EmailVerification: React.FC<EmailVerificationProps> = ({
   onVerified,
   disabled = false,
+  initialEmail,
+  onBackToDetails,
 }) => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail ?? '');
   const [emailError, setEmailError] = useState('');
   const [otpRequested, setOtpRequested] = useState(false);
   const [otp, setOtp] = useState('');
   const [otpError, setOtpError] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
   const [verified, setVerified] = useState(false);
+
+  useEffect(() => {
+    if (initialEmail !== undefined) {
+      setEmail(initialEmail);
+      setOtp('');
+      setOtpRequested(false);
+      setVerified(false);
+    }
+  }, [initialEmail]);
 
   const handleEmailChange = (value: string) => {
     setEmail(value);
@@ -60,9 +73,9 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({
   }, [resendTimer]);
 
   return (
-    <div className="w-full text-center space-y-9 md:border-l-[6px] md:border-solid md:border-[#b0c4ff] md:pl-10">
-      <div className="space-y-1">
-        <div className="flex items-center justify-center gap-2">
+    <div className="w-full text-center space-y-9">
+      <div className="flex flex-col items-center justify-center space-y-2 text-center">
+        <div className="flex items-center gap-2">
           <h2 className="text-xl font-bold text-primary">Verify Email</h2>
           <VerificationTick visible={verified} label="email verified" />
         </div>
@@ -80,7 +93,7 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({
             } bg-white px-md text-primary shadow-sm focus:border-primary focus:outline-none`}
             value={email}
             onChange={(e) => handleEmailChange(e.target.value)}
-            disabled={disabled}
+            disabled
           />
           <button
             className="h-11 w-40 rounded-md bg-[#5fa8ff] text-white shadow-sm transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:bg-[#5fa8ff]/40"
