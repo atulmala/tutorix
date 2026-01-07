@@ -1,12 +1,6 @@
 import { InputType, Field } from '@nestjs/graphql';
-import {
-  IsNotEmpty,
-  IsString,
-  MinLength,
-  Matches,
-  IsOptional,
-  IsEmail,
-} from 'class-validator';
+import { IsNotEmpty, IsString, MinLength, Matches, IsOptional, IsEmail, IsEnum } from 'class-validator';
+import { Gender } from '../enums/gender.enum';
 
 @InputType()
 export class UserSignupInput {
@@ -42,5 +36,9 @@ export class UserSignupInput {
   @IsOptional()
   @IsString()
   lastName?: string;
+
+  @Field(() => Gender, { defaultValue: Gender.OTHER })
+  @IsEnum(Gender)
+  gender: Gender = Gender.OTHER;
 }
 
