@@ -76,6 +76,7 @@ export class AuthService {
       firstName: input.firstName,
       lastName: input.lastName,
       gender: input.gender ?? Gender.OTHER,
+      isSignupComplete: false,
       isEmailVerified: input.role === UserRole.ADMIN ? false : undefined,
       isMobileVerified: input.role !== UserRole.ADMIN ? false : undefined,
     });
@@ -146,6 +147,7 @@ export class AuthService {
       firstName: input.firstName,
       lastName: input.lastName,
       gender: input.gender ?? Gender.OTHER,
+      isSignupComplete: false,
       isMobileVerified: false,
       isEmailVerified: false,
     });
@@ -221,6 +223,8 @@ export class AuthService {
     if (input.lastName !== undefined) user.lastName = input.lastName;
     if (input.role !== undefined) user.role = input.role;
     if (input.gender !== undefined) user.gender = input.gender;
+    if (input.isSignupComplete !== undefined)
+      user.isSignupComplete = input.isSignupComplete;
 
     const saved = await this.userRepository.save(user);
     return saved;
@@ -267,6 +271,7 @@ export class AuthService {
       firstName: input.firstName,
       lastName: input.lastName,
       gender: input.gender ?? Gender.OTHER,
+      isSignupComplete: false,
       isMobileVerified: false,
     });
 

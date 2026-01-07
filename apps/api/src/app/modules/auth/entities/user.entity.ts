@@ -69,6 +69,10 @@ export class User extends QBaseEntity {
 
   @Field({ defaultValue: false })
   @Column({ default: false })
+  isSignupComplete: boolean;
+
+  @Field({ defaultValue: false })
+  @Column({ default: false })
   isEmailVerified: boolean;
 
   @Field({ defaultValue: false })

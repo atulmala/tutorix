@@ -54,5 +54,9 @@ export class UpdateUserInput {
   @IsOptional()
   @IsEnum(Gender)
   gender?: Gender;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  isSignupComplete?: boolean;
 }
 
