@@ -250,8 +250,8 @@ export class AuthService {
       throw new ConflictException('Mobile number already registered');
     }
 
-    // Default to UNKNOWN; caller can decide intended role during onboarding
-    const role = UserRole.UNKNOWN;
+    // Use provided role or default to UNKNOWN
+    const role = input.role ?? UserRole.UNKNOWN;
 
     const hashedPassword = await this.passwordService.hashPassword(
       input.password,

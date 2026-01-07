@@ -1,6 +1,7 @@
 import { InputType, Field } from '@nestjs/graphql';
 import { IsNotEmpty, IsString, MinLength, Matches, IsOptional, IsEmail, IsEnum } from 'class-validator';
 import { Gender } from '../enums/gender.enum';
+import { UserRole } from '../enums/user-role.enum';
 
 @InputType()
 export class UserSignupInput {
@@ -40,5 +41,9 @@ export class UserSignupInput {
   @Field(() => Gender, { defaultValue: Gender.OTHER })
   @IsEnum(Gender)
   gender: Gender = Gender.OTHER;
+
+  @Field(() => UserRole, { defaultValue: UserRole.UNKNOWN })
+  @IsEnum(UserRole)
+  role: UserRole = UserRole.UNKNOWN;
 }
 
