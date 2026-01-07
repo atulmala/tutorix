@@ -2,6 +2,7 @@ import { Entity, Column, OneToMany, Index, OneToOne } from 'typeorm';
 import { ObjectType, Field } from '@nestjs/graphql';
 import { QBaseEntity } from '../../../common/base-entities/base.entity';
 import { UserRole } from '../enums/user-role.enum';
+import { Gender } from '../enums/gender.enum';
 import { RefreshToken } from './refresh-token.entity';
 import { Tutor } from '../../tutor/entities/tutor.entity';
 
@@ -53,6 +54,14 @@ export class User extends QBaseEntity {
   @Field({ nullable: true })
   @Column({ nullable: true })
   lastName?: string;
+
+  @Field(() => Gender, { defaultValue: Gender.OTHER })
+  @Column({
+    type: 'enum',
+    enum: Gender,
+    default: Gender.OTHER,
+  })
+  gender: Gender;
 
   @Field({ nullable: true })
   @Column({ nullable: true })

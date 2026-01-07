@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
 import { User } from '../entities/user.entity';
 import { UserRole } from '../enums/user-role.enum';
+import { Gender } from '../enums/gender.enum';
 import { PasswordService } from './password.service';
 import { JwtService } from './jwt.service';
 import { LoginInput } from '../dto/login.dto';
@@ -34,22 +35,19 @@ export class AuthService {
    * Register a new user
    */
   async register(input: RegisterInput): Promise<AuthResponse> {
+    // Validate email (now required for all)
+    if (!input.email) {
+      throw new BadRequestException('Email is required for registration');
+    }
+    const existingEmail = await this.userRepository.findOne({
+      where: { email: input.email },
+    });
+    if (existingEmail) {
+      throw new ConflictException('Email already registered');
+    }
+
     // Validate role-specific requirements
-    if (input.role === UserRole.ADMIN) {
-      if (!input.email) {
-        throw new BadRequestException(
-          'Email is required for admin registration',
-        );
-      }
-      // Check if email already exists
-      const existingUser = await this.userRepository.findOne({
-        where: { email: input.email },
-      });
-      if (existingUser) {
-        throw new ConflictException('Email already registered');
-      }
-    } else {
-      // TUTOR or STUDENT
+    if (input.role !== UserRole.ADMIN) {
       if (!input.mobile) {
         throw new BadRequestException(
           'Mobile number is required for tutor/student registration',
@@ -77,6 +75,7 @@ export class AuthService {
       role: input.role,
       firstName: input.firstName,
       lastName: input.lastName,
+      gender: input.gender ?? Gender.OTHER,
       isEmailVerified: input.role === UserRole.ADMIN ? false : undefined,
       isMobileVerified: input.role !== UserRole.ADMIN ? false : undefined,
     });
@@ -123,13 +122,14 @@ export class AuthService {
       throw new ConflictException('Mobile number already registered');
     }
 
-    if (input.email) {
-      const existingEmail = await this.userRepository.findOne({
-        where: { email: input.email },
-      });
-      if (existingEmail) {
-        throw new ConflictException('Email already registered');
-      }
+    if (!input.email) {
+      throw new BadRequestException('Email is required for user registration');
+    }
+    const existingEmail = await this.userRepository.findOne({
+      where: { email: input.email },
+    });
+    if (existingEmail) {
+      throw new ConflictException('Email already registered');
     }
 
     const tempPassword =
@@ -145,6 +145,7 @@ export class AuthService {
       role: input.role ?? UserRole.UNKNOWN,
       firstName: input.firstName,
       lastName: input.lastName,
+      gender: input.gender ?? Gender.OTHER,
       isMobileVerified: false,
       isEmailVerified: false,
     });
@@ -219,6 +220,7 @@ export class AuthService {
     if (input.firstName !== undefined) user.firstName = input.firstName;
     if (input.lastName !== undefined) user.lastName = input.lastName;
     if (input.role !== undefined) user.role = input.role;
+    if (input.gender !== undefined) user.gender = input.gender;
 
     const saved = await this.userRepository.save(user);
     return saved;
@@ -264,6 +266,7 @@ export class AuthService {
       role,
       firstName: input.firstName,
       lastName: input.lastName,
+      gender: input.gender ?? Gender.OTHER,
       isMobileVerified: false,
     });
 

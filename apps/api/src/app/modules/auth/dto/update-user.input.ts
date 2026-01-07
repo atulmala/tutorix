@@ -9,6 +9,7 @@ import {
   Matches,
 } from 'class-validator';
 import { UserRole } from '../enums/user-role.enum';
+import { Gender } from '../enums/gender.enum';
 
 @InputType()
 export class UpdateUserInput {
@@ -48,5 +49,10 @@ export class UpdateUserInput {
   @IsOptional()
   @IsEnum(UserRole)
   role?: UserRole;
+
+  @Field(() => Gender, { nullable: true })
+  @IsOptional()
+  @IsEnum(Gender)
+  gender?: Gender;
 }
 

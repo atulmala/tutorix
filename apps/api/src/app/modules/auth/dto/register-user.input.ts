@@ -1,6 +1,7 @@
 import { InputType, Field } from '@nestjs/graphql';
 import { IsEmail, IsEnum, IsOptional, IsString, Matches, MinLength } from 'class-validator';
 import { UserRole } from '../enums/user-role.enum';
+import { Gender } from '../enums/gender.enum';
 
 @InputType()
 export class RegisterUserInput {
@@ -18,10 +19,9 @@ export class RegisterUserInput {
   @Matches(/^\d{6,15}$/, { message: 'Mobile number must be between 6 and 15 digits' })
   mobileNumber: string;
 
-  @Field({ nullable: true })
-  @IsOptional()
+  @Field()
   @IsEmail()
-  email?: string;
+  email: string;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -38,5 +38,9 @@ export class RegisterUserInput {
   @IsOptional()
   @IsString()
   lastName?: string;
+
+  @Field(() => Gender, { defaultValue: Gender.OTHER })
+  @IsEnum(Gender)
+  gender: Gender = Gender.OTHER;
 }
 
