@@ -4,17 +4,40 @@ import { VerificationTick } from './VerificationTick';
 
 type PhoneVerificationProps = {
   onVerified: () => void;
+  onBack?: () => void;
+  initialMobile?: string;
+  initialCountryCode?: string;
+  helperText?: string;
 };
 
-export const PhoneVerification: React.FC<PhoneVerificationProps> = ({ onVerified }) => {
-  const [countryCode, setCountryCode] = useState('IN');
-  const [mobile, setMobile] = useState('');
+export const PhoneVerification: React.FC<PhoneVerificationProps> = ({
+  onVerified,
+  onBack,
+  initialMobile,
+  initialCountryCode,
+  helperText,
+}) => {
+  const [countryCode, setCountryCode] = useState(initialCountryCode ?? 'IN');
+  const [mobile, setMobile] = useState(initialMobile ?? '');
   const [mobileError, setMobileError] = useState('');
   const [otpRequested, setOtpRequested] = useState(false);
   const [otp, setOtp] = useState('');
   const [otpError, setOtpError] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
   const [verified, setVerified] = useState(false);
+
+  useEffect(() => {
+    setCountryCode(initialCountryCode ?? 'IN');
+  }, [initialCountryCode]);
+
+  useEffect(() => {
+    if (initialMobile !== undefined) {
+      setMobile(initialMobile);
+      setOtp('');
+      setOtpRequested(false);
+      setVerified(false);
+    }
+  }, [initialMobile]);
 
   const handleMobileChange = (value: string) => {
     const digits = value.replace(/\D/g, '');
@@ -61,7 +84,9 @@ export const PhoneVerification: React.FC<PhoneVerificationProps> = ({ onVerified
           <h1 className="text-xl font-bold text-primary">Verify Phone</h1>
           <VerificationTick visible={verified} label="phone verified" />
         </div>
-        <p className="text-sm text-muted">We will send a 6 digit OTP to verify your identity.</p>
+        <p className="text-sm text-muted">
+          {helperText ?? 'We will send a 6 digit OTP to verify your identity.'}
+        </p>
       </div>
 
       <div className="space-y-[41px]">
@@ -72,6 +97,7 @@ export const PhoneVerification: React.FC<PhoneVerificationProps> = ({ onVerified
               className="h-11 w-[110px] rounded-md border border-subtle bg-white px-md text-primary shadow-sm focus:border-primary focus:outline-none"
               value={countryCode}
               onChange={(e) => setCountryCode(e.target.value)}
+            disabled
             >
               {/* eslint-disable jsx-a11y/accessible-emoji */}
               <option value="IN">🇮🇳 +91</option>
@@ -91,6 +117,7 @@ export const PhoneVerification: React.FC<PhoneVerificationProps> = ({ onVerified
               } bg-white px-md text-primary shadow-sm focus:border-primary focus:outline-none`}
               value={mobile}
               onChange={(e) => handleMobileChange(e.target.value)}
+              disabled
             />
             <button
               className="h-11 w-40 rounded-md bg-[#5fa8ff] text-white shadow-sm transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:bg-[#5fa8ff]/40"

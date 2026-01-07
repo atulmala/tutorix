@@ -1,113 +1,160 @@
 import React, { useState } from 'react';
 import { BRAND_NAME } from '../../config';
-import { PhoneVerification } from './PhoneVerification';
 import { EmailVerification } from './EmailVerification';
-import { PasswordModal } from './PasswordModal';
+import { BasicDetailsForm, BasicDetails, createEmptyDetails } from './BasicDetailsForm';
+import { PhoneVerification } from './PhoneVerification';
 
-export const SignUp: React.FC = () => {
-  const [role, setRole] = useState<'student' | 'tutor'>('student');
+type SignUpProps = {
+  onBackHome: () => void;
+  onLogin?: () => void;
+};
+
+type Step = 'basic' | 'phone' | 'email';
+
+const steps: Array<{ id: Step; label: string }> = [
+  { id: 'basic', label: 'Basic details' },
+  { id: 'phone', label: 'Verify phone' },
+  { id: 'email', label: 'Verify email' },
+];
+
+export const SignUp: React.FC<SignUpProps> = ({ onBackHome, onLogin }) => {
+  const [step, setStep] = useState<Step>('basic');
+  const [basicDetails, setBasicDetails] = useState<BasicDetails>(createEmptyDetails());
   const [mobileVerified, setMobileVerified] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
+  const [emailVerified, setEmailVerified] = useState(false);
 
-  const passwordsMatch =
-    password.length >= 6 && confirmPassword.length >= 6 && password === confirmPassword;
-
-  const handlePasswordChange = (value: string) => {
-    setPassword(value);
-    if (value && value.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
-    } else if (confirmPassword && value !== confirmPassword) {
-      setPasswordError('Passwords do not match');
-    } else {
-      setPasswordError('');
-    }
+  const handleBasicSubmit = (details: BasicDetails) => {
+    setBasicDetails(details);
+    setStep('phone');
+    setMobileVerified(false);
+    setEmailVerified(false);
   };
 
-  const handleConfirmChange = (value: string) => {
-    setConfirmPassword(value);
-    if (value && value.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
-    } else if (password && value !== password) {
-      setPasswordError('Passwords do not match');
-    } else {
-      setPasswordError('');
-    }
+  const handleMobileVerified = () => {
+    setMobileVerified(true);
+    setStep('email');
   };
 
-  const handleSubmitPassword = () => {
-    if (!passwordsMatch) {
-      setPasswordError('Passwords do not match');
-      return;
-    }
-    // TODO: wire to backend to set password
-    setShowPasswordModal(false);
+  const handleEmailVerified = () => {
+    setEmailVerified(true);
   };
 
   return (
-    <div className="w-full rounded-2xl border border-subtle bg-white p-8 shadow-md">
-      <div className="mb-6 text-center">
-        <p className="text-3xl font-bold text-primary">
-          Welcome to {BRAND_NAME}. Please complete your sign-up.
-        </p>
-      </div>
-      <div className="mb-6 flex flex-col items-center gap-2">
-        <p className="text-lg font-medium text-primary">I want to register as</p>
-        <div className="flex items-center gap-4 text-lg text-primary">
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="register-role"
-              value="student"
-              checked={role === 'student'}
-              onChange={() => setRole('student')}
-              className="h-4 w-4 accent-primary"
-            />
-            <span>Student</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="register-role"
-              value="tutor"
-              checked={role === 'tutor'}
-              onChange={() => setRole('tutor')}
-              className="h-4 w-4 accent-primary"
-            />
-            <span>Tutor</span>
-          </label>
+    <div className="w-full max-w-5xl rounded-2xl border border-subtle bg-white p-8 shadow-md">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-lg font-semibold text-primary">{BRAND_NAME} • Sign up</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {step === 'phone' && (
+            <button
+              type="button"
+              onClick={() => setStep('basic')}
+              className="rounded-lg border border-subtle px-4 py-2 text-sm font-semibold text-primary shadow-sm hover:border-primary"
+            >
+              Back to details
+            </button>
+          )}
+          {step === 'email' && (
+            <button
+              type="button"
+              onClick={() => setStep('basic')}
+              className="rounded-lg border border-subtle px-4 py-2 text-sm font-semibold text-primary shadow-sm hover:border-primary"
+            >
+              Back to details
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onBackHome}
+            className="rounded-lg border border-subtle px-4 py-2 text-sm font-semibold text-primary shadow-sm hover:border-primary"
+          >
+            Back to home
+          </button>
         </div>
       </div>
-      <div className="grid w-full gap-12 md:grid-cols-2">
-        <PhoneVerification onVerified={() => setMobileVerified(true)} />
-        <EmailVerification onVerified={() => undefined} disabled={!mobileVerified} />
+
+      <div className="mt-6 flex flex-wrap gap-3 text-sm font-semibold text-primary">
+        {steps.map(({ id, label }, idx) => {
+          const isActive = step === id;
+          const isComplete =
+            (id === 'phone' && mobileVerified) || (id === 'email' && emailVerified);
+          return (
+            <div
+              key={id}
+              className={`flex items-center gap-2 rounded-full border px-4 py-2 ${
+                isActive
+                  ? 'border-[#5fa8ff] bg-[#5fa8ff]/10 text-[#1d4ed8]'
+                  : isComplete
+                  ? 'border-green-200 bg-green-50 text-green-700'
+                  : 'border-subtle bg-[#f8fafc] text-primary'
+              }`}
+            >
+              <span className="text-xs font-medium text-muted">Step {idx + 1}</span>
+              <span className="font-semibold">{label}</span>
+            </div>
+          );
+        })}
       </div>
-      <div className="mt-10 flex justify-center">
-        <button
-          className="h-12 w-48 rounded-lg bg-[#5fa8ff] text-white text-base font-semibold shadow-sm transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:bg-[#5fa8ff]/40"
-          disabled={false}
-          onClick={() => {
-            setPassword('');
-            setConfirmPassword('');
-            setPasswordError('');
-            setShowPasswordModal(true);
-          }}
-        >
-          Continue
-        </button>
+
+      <div className="mt-8">
+        {step === 'basic' && (
+          <BasicDetailsForm
+            initialValue={basicDetails}
+            onSubmit={handleBasicSubmit}
+            onBackHome={onBackHome}
+            onLogin={onLogin}
+          />
+        )}
+
+        {step === 'phone' && (
+          <div className="space-y-6">
+            <PhoneVerification
+              initialCountryCode={basicDetails.countryCode}
+              initialMobile={basicDetails.phone}
+              onVerified={handleMobileVerified}
+              onBack={() => setStep('basic')}
+              helperText="We will send a 6 digit OTP to the phone number you provided."
+            />
+            {!mobileVerified && (
+              <p className="text-center text-xs text-muted">
+                After verifying your phone, we’ll move you to email verification.
+              </p>
+            )}
+          </div>
+        )}
+
+        {step === 'email' && (
+          <div className="space-y-6">
+            <EmailVerification
+              initialEmail={basicDetails.email}
+              disabled={false}
+              onVerified={handleEmailVerified}
+              onBackToDetails={() => setStep('basic')}
+            />
+            <div className="text-center text-sm text-muted">
+              We use email verification to keep your account secure.
+            </div>
+          </div>
+        )}
       </div>
-      <PasswordModal
-        open={showPasswordModal}
-        password={password}
-        confirmPassword={confirmPassword}
-        error={passwordError}
-        onChangePassword={handlePasswordChange}
-        onChangeConfirm={handleConfirmChange}
-        onClose={() => setShowPasswordModal(false)}
-        onSubmit={handleSubmitPassword}
-      />
+
+      {step === 'email' && emailVerified && (
+        <div className="mt-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="font-semibold">You’re all set!</p>
+              <p>Phone and email verified. Continue to complete your profile.</p>
+            </div>
+            <button
+              type="button"
+              className="mt-2 rounded-lg bg-[#22c55e] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#16a34a]"
+            >
+              Continue to build your profile
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
