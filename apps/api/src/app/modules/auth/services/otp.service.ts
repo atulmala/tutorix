@@ -100,7 +100,7 @@ export class OtpService {
     // Mark verification flags
     const user = await this.userRepository.findOne({
       where: { id: input.userId },
-      select: ['id', 'isMobileVerified', 'isEmailVerified'],
+      select: ['id', 'isMobileVerified', 'isEmailVerified', 'isSignupComplete'],
     });
 
     if (user) {
@@ -109,6 +109,9 @@ export class OtpService {
       }
       if (input.purpose === OtpPurpose.EMAIL_VERIFICATION) {
         user.isEmailVerified = true;
+      }
+      if (user.isMobileVerified && user.isEmailVerified) {
+        user.isSignupComplete = true;
       }
       await this.userRepository.save(user);
     }
