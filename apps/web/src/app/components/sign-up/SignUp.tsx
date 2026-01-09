@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BRAND_NAME } from '../../config';
 import { EmailVerification } from './EmailVerification';
 import { BasicDetailsForm, BasicDetails, createEmptyDetails } from './BasicDetailsForm';
 import { PhoneVerification } from './PhoneVerification';
+import { useSignupTracking } from '../../../hooks/useSignupTracking';
 
 type SignUpProps = {
   onBackHome: () => void;
@@ -20,23 +21,80 @@ const steps: Array<{ id: Step; label: string }> = [
 export const SignUp: React.FC<SignUpProps> = ({ onBackHome, onLogin }) => {
   const [step, setStep] = useState<Step>('basic');
   const [basicDetails, setBasicDetails] = useState<BasicDetails>(createEmptyDetails());
+  const [userId, setUserId] = useState<number | null>(null);
   const [mobileVerified, setMobileVerified] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
 
-  const handleBasicSubmit = (details: BasicDetails) => {
+  const {
+    startSignup,
+    trackStepStart,
+    trackStepComplete,
+    trackSignupCompleted,
+    trackAbandonment,
+    loadState,
+  } = useSignupTracking();
+
+  // Check for resume on mount
+  useEffect(() => {
+    const savedState = loadState();
+    if (savedState?.userId) {
+      // We'll check verification status from backend when form is submitted
+      // For now, just restore userId if available
+      setUserId(savedState.userId);
+    }
+  }, [loadState]);
+
+  const handleBasicSubmit = (
+    details: BasicDetails, 
+    registeredUserId: number,
+    userVerificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean }
+  ) => {
     setBasicDetails(details);
-    setStep('phone');
-    setMobileVerified(false);
-    setEmailVerified(false);
+    setUserId(registeredUserId);
+    
+    // Track signup start/resume
+    startSignup(registeredUserId);
+    
+    // Determine next step based on verification status (resume logic)
+    if (userVerificationStatus) {
+      const { isMobileVerified: isMobile, isEmailVerified: isEmail } = userVerificationStatus;
+      
+      if (isMobile && !isEmail) {
+        // Phone verified but email not - jump to email verification
+        setMobileVerified(true);
+        setStep('email');
+        trackStepStart('email');
+      } else if (!isMobile) {
+        // Phone not verified - go to phone verification
+        setStep('phone');
+        trackStepStart('phone');
+      } else {
+        // Both verified - shouldn't happen, but handle gracefully
+        setMobileVerified(true);
+        setEmailVerified(true);
+        trackSignupCompleted(registeredUserId);
+      }
+    } else {
+      // New signup - start with phone verification
+      setStep('phone');
+      trackStepStart('phone');
+    }
+    
+    // Track basic details submission
+    trackStepComplete('basic', registeredUserId);
   };
 
   const handleMobileVerified = () => {
     setMobileVerified(true);
+    trackStepComplete('phone', userId || undefined);
     setStep('email');
+    trackStepStart('email');
   };
 
   const handleEmailVerified = () => {
     setEmailVerified(true);
+    trackStepComplete('email', userId || undefined);
+    trackSignupCompleted(userId || undefined);
   };
 
   return (
@@ -66,7 +124,10 @@ export const SignUp: React.FC<SignUpProps> = ({ onBackHome, onLogin }) => {
           )}
           <button
             type="button"
-            onClick={onBackHome}
+            onClick={() => {
+              trackAbandonment('navigation');
+              onBackHome();
+            }}
             className="rounded-lg border border-subtle px-4 py-2 text-sm font-semibold text-primary shadow-sm hover:border-primary"
           >
             Back to home
@@ -107,9 +168,10 @@ export const SignUp: React.FC<SignUpProps> = ({ onBackHome, onLogin }) => {
           />
         )}
 
-        {step === 'phone' && (
+        {step === 'phone' && userId !== null && (
           <div className="space-y-6">
             <PhoneVerification
+              userId={userId}
               initialCountryCode={basicDetails.countryCode}
               initialMobile={basicDetails.phone}
               onVerified={handleMobileVerified}
@@ -118,15 +180,16 @@ export const SignUp: React.FC<SignUpProps> = ({ onBackHome, onLogin }) => {
             />
             {!mobileVerified && (
               <p className="text-center text-xs text-muted">
-                After verifying your phone, we’ll move you to email verification.
+                After verifying your phone, we'll move you to email verification.
               </p>
             )}
           </div>
         )}
 
-        {step === 'email' && (
+        {step === 'email' && userId !== null && (
           <div className="space-y-6">
             <EmailVerification
+              userId={userId}
               initialEmail={basicDetails.email}
               disabled={false}
               onVerified={handleEmailVerified}

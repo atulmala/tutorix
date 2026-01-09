@@ -109,30 +109,61 @@ export class AuthService {
 
   /**
    * Staged user creation (mobile required, email/password optional)
+   * Supports resuming incomplete signups
    */
   async registerUser(input: RegisterUserInput): Promise<User> {
     const countryCode = input.mobileCountryCode || '+91';
     const mobileNumber = input.mobileNumber;
     const fullMobile = `${countryCode}${mobileNumber}`;
 
-    // Uniqueness checks
-    const existingMobile = await this.userRepository.findOne({
-      where: [{ mobile: fullMobile }, { mobileNumber }],
-    });
-    if (existingMobile) {
-      throw new ConflictException('Mobile number already registered');
-    }
-
     if (!input.email) {
       throw new BadRequestException('Email is required for user registration');
     }
+
+    // Check for existing user with same email or mobile
+    const existingMobile = await this.userRepository.findOne({
+      where: [{ mobile: fullMobile }, { mobileNumber }],
+    });
+    
     const existingEmail = await this.userRepository.findOne({
       where: { email: input.email },
     });
-    if (existingEmail) {
-      throw new ConflictException('Email already registered');
+
+    // If user exists with same mobile or email, check if signup is incomplete
+    const existingUser = existingMobile || existingEmail;
+
+    if (existingUser) {
+      // Check if signup is already completed
+      if (existingUser.isSignupComplete) {
+        throw new ConflictException('User already registered and signup completed');
+      }
+
+      // User exists but signup is incomplete - allow resume
+      // Update user details if provided (allows updating name, etc. on resume)
+      if (input.firstName !== undefined) existingUser.firstName = input.firstName;
+      if (input.lastName !== undefined) existingUser.lastName = input.lastName;
+      if (input.gender !== undefined) existingUser.gender = input.gender;
+      if (input.role !== undefined && existingUser.role === UserRole.UNKNOWN) {
+        existingUser.role = input.role;
+      }
+
+      // Update password if provided (user might want to change it on resume)
+      if (input.password) {
+        const hashedPassword = await this.passwordService.hashPassword(input.password);
+        existingUser.password = hashedPassword;
+      }
+
+      // Ensure email and mobile are set correctly (handle case where user enters different format)
+      if (!existingUser.email) existingUser.email = input.email;
+      if (!existingUser.mobile) existingUser.mobile = fullMobile;
+      if (!existingUser.mobileCountryCode) existingUser.mobileCountryCode = countryCode;
+      if (!existingUser.mobileNumber) existingUser.mobileNumber = mobileNumber;
+
+      const savedUser = await this.userRepository.save(existingUser);
+      return savedUser;
     }
 
+    // New user - create fresh signup
     const tempPassword =
       input.password || crypto.randomBytes(12).toString('hex');
     const hashedPassword = await this.passwordService.hashPassword(tempPassword);

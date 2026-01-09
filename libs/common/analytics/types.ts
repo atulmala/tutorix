@@ -11,6 +11,17 @@ export enum AnalyticsEvent {
   USER_LOGOUT = 'user_logout',
   USER_PROFILE_UPDATED = 'user_profile_updated',
   
+  // Signup Journey Events
+  SIGNUP_STARTED = 'signup_started',
+  SIGNUP_BASIC_DETAILS_SUBMITTED = 'signup_basic_details_submitted',
+  SIGNUP_PHONE_VERIFICATION_STARTED = 'signup_phone_verification_started',
+  SIGNUP_PHONE_VERIFICATION_COMPLETED = 'signup_phone_verification_completed',
+  SIGNUP_EMAIL_VERIFICATION_STARTED = 'signup_email_verification_started',
+  SIGNUP_EMAIL_VERIFICATION_COMPLETED = 'signup_email_verification_completed',
+  SIGNUP_COMPLETED = 'signup_completed',
+  SIGNUP_ABANDONED = 'signup_abandoned',
+  SIGNUP_RESUMED = 'signup_resumed',
+  
   // Page/Screen Views
   PAGE_VIEW = 'page_view',
   SCREEN_VIEW = 'screen_view',
