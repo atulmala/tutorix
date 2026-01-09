@@ -1,4 +1,3 @@
-/* eslint-disable jsx-a11y/accessible-emoji */
 import React, { useRef, useState } from 'react';
 import {
   SafeAreaView,
@@ -11,8 +10,9 @@ import {
   Linking,
 } from 'react-native';
 import Svg, { G, Path } from 'react-native-svg';
+import { GraphQLProvider } from '@tutorix/shared-graphql';
 
-export const App = () => {
+const AppContent = () => {
   const [whatsNextYCoord, setWhatsNextYCoord] = useState<number>(0);
   const scrollViewRef = useRef<null | ScrollView>(null);
 
@@ -596,6 +596,16 @@ export const App = () => {
     </>
   );
 };
+
+// Export App wrapped with GraphQLProvider
+export const App = () => {
+  return (
+    <GraphQLProvider>
+      <AppContent />
+    </GraphQLProvider>
+  );
+};
+
 const styles = StyleSheet.create({
   scrollView: {
     backgroundColor: '#ffffff',

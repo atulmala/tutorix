@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useMutation } from '@apollo/client';
 import { BRAND_NAME } from '../../config';
+import { REGISTER_USER } from '@tutorix/shared-graphql';
+import { getPhoneCountryCode } from '@tutorix/shared-graphql';
 
 export type BasicDetails = {
   firstName: string;
@@ -27,7 +30,7 @@ export const createEmptyDetails = (): BasicDetails => ({
 
 type BasicDetailsFormProps = {
   initialValue: BasicDetails;
-  onSubmit: (value: BasicDetails) => void;
+  onSubmit: (value: BasicDetails, userId: number, user?: { isMobileVerified: boolean; isEmailVerified: boolean }) => void;
   onBackHome?: () => void;
   onLogin?: () => void;
 };
@@ -49,12 +52,20 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
   const [touchedPassword, setTouchedPassword] = useState(false);
   const [touchedConfirm, setTouchedConfirm] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const firstNameRef = useRef<HTMLInputElement | null>(null);
   const lastNameRef = useRef<HTMLInputElement | null>(null);
   const phoneRef = useRef<HTMLInputElement | null>(null);
   const emailRef = useRef<HTMLInputElement | null>(null);
   const passwordRef = useRef<HTMLInputElement | null>(null);
   const confirmRef = useRef<HTMLInputElement | null>(null);
+
+  const [registerUser, { loading: isSubmitting }] = useMutation(REGISTER_USER, {
+    onError: (error) => {
+      setSubmitError(error.message || 'Failed to create account. Please try again.');
+      console.error('Registration error:', error);
+    },
+  });
 
   useEffect(() => {
     setForm(initialValue);
@@ -159,14 +170,49 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
     }
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setSubmitAttempted(true);
+    setSubmitError(null);
     setErrors(validationErrors);
-    if (Object.keys(validationErrors).length === 0) {
-      onSubmit(form);
-    } else {
+    
+    if (Object.keys(validationErrors).length > 0) {
       focusFirstError(validationErrors);
+      return;
+    }
+
+    try {
+      const { data } = await registerUser({
+        variables: {
+          role: form.isTutor ? 'TUTOR' : 'STUDENT',
+          mobileCountryCode: getPhoneCountryCode(form.countryCode),
+          mobileNumber: form.phone,
+          email: form.email,
+          password: form.password,
+          firstName: form.firstName,
+          lastName: form.lastName,
+          gender: form.gender.toUpperCase() as 'MALE' | 'FEMALE' | 'OTHER',
+        },
+      });
+
+      if (data?.registerUser?.id) {
+        onSubmit(
+          form, 
+          data.registerUser.id,
+          {
+            isMobileVerified: data.registerUser.isMobileVerified || false,
+            isEmailVerified: data.registerUser.isEmailVerified || false,
+          }
+        );
+      } else {
+        setSubmitError('Registration successful but user ID not received.');
+      }
+    } catch {
+      // Error is handled by onError callback
+      // But we still need to handle it here in case of unexpected errors
+      if (!submitError) {
+        setSubmitError('An unexpected error occurred. Please try again.');
+      }
     }
   };
 
@@ -572,13 +618,19 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
         </div>
       </div>
 
+      {submitError && (
+        <div className="rounded-lg border border-danger bg-red-50 p-3 text-sm text-danger">
+          {submitError}
+        </div>
+      )}
+
       <div className="flex justify-end">
         <button
           type="submit"
-          disabled={!canSubmit}
+          disabled={!canSubmit || isSubmitting}
           className="h-11 rounded-lg bg-[#5fa8ff] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:bg-[#5fa8ff]/40"
         >
-          Verify Phone
+          {isSubmitting ? 'Creating Account...' : 'Verify Phone'}
         </button>
       </div>
     </form>

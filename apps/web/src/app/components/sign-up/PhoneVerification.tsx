@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useMutation } from '@apollo/client';
 import { OtpInputRow } from './OtpInputRow';
 import { VerificationTick } from './VerificationTick';
+import { GENERATE_PHONE_OTP, VERIFY_PHONE_OTP } from '@tutorix/shared-graphql';
 
 type PhoneVerificationProps = {
+  userId: number;
   onVerified: () => void;
   onBack?: () => void;
   initialMobile?: string;
@@ -11,6 +14,7 @@ type PhoneVerificationProps = {
 };
 
 export const PhoneVerification: React.FC<PhoneVerificationProps> = ({
+  userId,
   onVerified,
   onBack,
   initialMobile,
@@ -25,6 +29,20 @@ export const PhoneVerification: React.FC<PhoneVerificationProps> = ({
   const [otpError, setOtpError] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
   const [verified, setVerified] = useState(false);
+
+  const [generateOtp, { loading: isGeneratingOtp }] = useMutation(GENERATE_PHONE_OTP, {
+    onError: (error) => {
+      setOtpError(error.message || 'Failed to send OTP. Please try again.');
+      setOtpRequested(false);
+    },
+  });
+
+  const [verifyOtp, { loading: isVerifyingOtp }] = useMutation(VERIFY_PHONE_OTP, {
+    onError: (error) => {
+      setOtpError(error.message || 'Invalid OTP. Please try again.');
+      setOtp('');
+    },
+  });
 
   useEffect(() => {
     setCountryCode(initialCountryCode ?? 'IN');
@@ -52,20 +70,45 @@ export const PhoneVerification: React.FC<PhoneVerificationProps> = ({
     setOtpError(value === digits ? '' : 'Numbers only');
   };
 
-  const requestOtp = () => {
+  const requestOtp = async () => {
     if (mobile && !mobileError && mobile.length >= 6) {
-      setOtpRequested(true);
-      setOtp('');
       setOtpError('');
-      setResendTimer(60);
-      setVerified(false);
+      try {
+        await generateOtp({
+          variables: { userId },
+        });
+        setOtpRequested(true);
+        setOtp('');
+        setResendTimer(60);
+        setVerified(false);
+      } catch {
+        // Error handled by onError callback
+      }
     }
   };
 
-  const verify = () => {
-    if (otpRequested && otp && !otpError && otp.length >= 4) {
-      setVerified(true);
-      onVerified();
+  const verify = async () => {
+    if (otpRequested && otp && !otpError && otp.length === 6) {
+      setOtpError('');
+      try {
+        const { data } = await verifyOtp({
+          variables: {
+            userId,
+            otp,
+            timestamp: new Date().toISOString(),
+          },
+        });
+
+        if (data?.verifyOtp?.success) {
+          setVerified(true);
+          onVerified();
+        } else {
+          setOtpError(data?.verifyOtp?.message || 'Verification failed. Please try again.');
+          setOtp('');
+        }
+      } catch {
+        // Error handled by onError callback
+      }
     }
   };
 
@@ -121,10 +164,10 @@ export const PhoneVerification: React.FC<PhoneVerificationProps> = ({
             />
             <button
               className="h-11 w-40 rounded-md bg-[#5fa8ff] text-white shadow-sm transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:bg-[#5fa8ff]/40"
-              disabled={!mobile || mobileError !== '' || mobile.length < 6}
+              disabled={!mobile || mobileError !== '' || mobile.length < 6 || isGeneratingOtp}
               onClick={requestOtp}
             >
-              Get OTP
+              {isGeneratingOtp ? 'Sending...' : 'Get OTP'}
             </button>
           </div>
           {mobileError && (
@@ -145,22 +188,18 @@ export const PhoneVerification: React.FC<PhoneVerificationProps> = ({
           <div className="flex flex-col items-center gap-2">
             <button
               className="h-10 w-40 rounded-md bg-[#5fa8ff] text-white shadow-sm transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:bg-[#5fa8ff]/40"
-              disabled={!otpRequested || !otp || otpError !== '' || otp.length < 4}
+              disabled={!otpRequested || !otp || otpError !== '' || otp.length !== 6 || isVerifyingOtp}
               onClick={verify}
             >
-              Verify OTP
+              {isVerifyingOtp ? 'Verifying...' : 'Verify OTP'}
             </button>
             <p className="text-xs text-muted">
-              Didn’t receive OTP?{' '}
+              Didn't receive OTP?{' '}
               <button
                 className="text-primary underline disabled:text-muted"
                 type="button"
-                disabled={!otpRequested || resendTimer > 0}
-                onClick={() => {
-                  setOtp('');
-                  setOtpError('');
-                  setResendTimer(60);
-                }}
+                disabled={!otpRequested || resendTimer > 0 || isGeneratingOtp}
+                onClick={requestOtp}
               >
                 {resendTimer > 0 ? `Resend in 0:${resendTimer.toString().padStart(2, '0')}` : 'Resend'}
               </button>

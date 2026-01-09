@@ -13,6 +13,18 @@ async function bootstrap() {
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
   
+  // Enable CORS for frontend applications
+  app.enableCors({
+    origin: [
+      'http://localhost:4200', // Web app
+      'http://localhost:4201', // Web admin
+      process.env.FRONTEND_URL || 'http://localhost:4200',
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+  
   // Ensure JSON body parser is set up for Apollo Server
   app.use(json({ limit: '10mb' }));
   

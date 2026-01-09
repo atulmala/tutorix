@@ -4,6 +4,7 @@ import './styles.css';
 import App from './app/app';
 import { initializeAnalytics } from './lib/analytics';
 import { getFirebaseConfig } from './lib/firebase-config';
+import { GraphQLProvider } from '@tutorix/shared-graphql';
 
 // Initialize Firebase Analytics
 try {
@@ -25,6 +26,8 @@ const root = ReactDOM.createRoot(
 
 root.render(
   <StrictMode>
-    <App />
+    <GraphQLProvider>
+      <App />
+    </GraphQLProvider>
   </StrictMode>,
 );
