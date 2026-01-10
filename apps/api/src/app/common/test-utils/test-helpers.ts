@@ -9,7 +9,17 @@ import { User } from '../../modules/auth/entities/user.entity';
 import { UserRole } from '../../modules/auth/enums/user-role.enum';
 import { Gender } from '../../modules/auth/enums/gender.enum';
 import { PasswordService } from '../../modules/auth/services/password.service';
+import { LoginInput } from '../../modules/auth/dto/login.dto';
+import { AuthResponse } from '../../modules/auth/dto/auth-response.dto';
 import * as crypto from 'crypto';
+
+/**
+ * Minimal interface for AuthService's login method
+ * Used in test helpers to avoid circular dependencies
+ */
+interface AuthServiceLogin {
+  login(input: LoginInput): Promise<AuthResponse>;
+}
 
 /**
  * Create a test user in the database
@@ -65,15 +75,15 @@ export async function createCompletedTestUser(
  * Login as a test user and return JWT token
  * This is a helper that simulates the login flow for testing
  * 
- * @param authService - AuthService instance
+ * @param authService - AuthService instance (or mock with login method)
  * @param loginId - Email or mobile number
- * @param password - User password
+ * @param password - User password (defaults to 'Test123456')
  * @returns JWT access token
  */
 export async function loginAsTestUser(
-  authService: any, // Use proper type from auth.service
+  authService: AuthServiceLogin,
   loginId: string,
-  password: string = 'Test123456'
+  password = 'Test123456'
 ): Promise<string> {
   const response = await authService.login({ loginId, password });
   return response.accessToken;
@@ -93,11 +103,7 @@ export async function deleteTestUser(
  * Clean up all test users (those with test email domain)
  */
 export async function cleanupTestUsers(dataSource: DataSource): Promise<void> {
-  await dataSource.getRepository(User).delete({
-    email: 'example.com' as any, // This won't work - need proper query
-  });
-  
-  // Better approach: delete by email pattern
+  // Delete by email pattern using query builder
   const userRepo = dataSource.getRepository(User);
   await userRepo
     .createQueryBuilder()
@@ -110,14 +116,14 @@ export async function cleanupTestUsers(dataSource: DataSource): Promise<void> {
 /**
  * Generate random email for testing
  */
-export function generateTestEmail(prefix: string = 'test'): string {
+export function generateTestEmail(prefix = 'test'): string {
   return `${prefix}-${crypto.randomBytes(4).toString('hex')}@example.com`;
 }
 
 /**
  * Generate random mobile number for testing
  */
-export function generateTestMobile(countryCode: string = '+91'): string {
+export function generateTestMobile(countryCode = '+91'): string {
   const randomNumber = Math.floor(1000000000 + Math.random() * 9000000000);
   return `${countryCode}${randomNumber}`;
 }
