@@ -45,3 +45,13 @@ export const GET_USER_BY_ID = gql`
     }
   }
 `;
+
+/**
+ * Validate reset token
+ * Checks if a password reset token is valid (not expired and not used)
+ */
+export const VALIDATE_RESET_TOKEN = gql`
+  query ValidateResetToken($token: String!) {
+    validateResetToken(token: $token)
+  }
+`;

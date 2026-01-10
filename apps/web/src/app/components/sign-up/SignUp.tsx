@@ -8,6 +8,8 @@ import { useSignupTracking } from '../../../hooks/useSignupTracking';
 type SignUpProps = {
   onBackHome: () => void;
   onLogin?: () => void;
+  resumeUserId?: number;
+  resumeVerificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean };
 };
 
 type Step = 'basic' | 'phone' | 'email';
@@ -18,12 +20,17 @@ const steps: Array<{ id: Step; label: string }> = [
   { id: 'email', label: 'Verify email' },
 ];
 
-export const SignUp: React.FC<SignUpProps> = ({ onBackHome, onLogin }) => {
+export const SignUp: React.FC<SignUpProps> = ({ 
+  onBackHome, 
+  onLogin, 
+  resumeUserId, 
+  resumeVerificationStatus 
+}) => {
   const [step, setStep] = useState<Step>('basic');
   const [basicDetails, setBasicDetails] = useState<BasicDetails>(createEmptyDetails());
-  const [userId, setUserId] = useState<number | null>(null);
-  const [mobileVerified, setMobileVerified] = useState(false);
-  const [emailVerified, setEmailVerified] = useState(false);
+  const [userId, setUserId] = useState<number | null>(resumeUserId || null);
+  const [mobileVerified, setMobileVerified] = useState(resumeVerificationStatus?.isMobileVerified || false);
+  const [emailVerified, setEmailVerified] = useState(resumeVerificationStatus?.isEmailVerified || false);
 
   const {
     startSignup,
@@ -34,15 +41,37 @@ export const SignUp: React.FC<SignUpProps> = ({ onBackHome, onLogin }) => {
     loadState,
   } = useSignupTracking();
 
-  // Check for resume on mount
+  // Check for resume on mount or when resume props change
   useEffect(() => {
-    const savedState = loadState();
-    if (savedState?.userId) {
-      // We'll check verification status from backend when form is submitted
-      // For now, just restore userId if available
-      setUserId(savedState.userId);
+    if (resumeUserId && resumeVerificationStatus) {
+      // User is resuming from login - set userId and verification status
+      setUserId(resumeUserId);
+      setMobileVerified(resumeVerificationStatus.isMobileVerified);
+      setEmailVerified(resumeVerificationStatus.isEmailVerified);
+      
+      // Navigate directly to the appropriate step
+      if (!resumeVerificationStatus.isMobileVerified) {
+        setStep('phone');
+        trackStepStart('phone');
+        startSignup(resumeUserId);
+      } else if (!resumeVerificationStatus.isEmailVerified) {
+        setStep('email');
+        trackStepStart('email');
+        startSignup(resumeUserId);
+      } else {
+        // Both verified - signup should be complete, but handle gracefully
+        setStep('basic');
+      }
+    } else {
+      // Check for saved state from previous session
+      const savedState = loadState();
+      if (savedState?.userId) {
+        // We'll check verification status from backend when form is submitted
+        // For now, just restore userId if available
+        setUserId(savedState.userId);
+      }
     }
-  }, [loadState]);
+  }, [resumeUserId, resumeVerificationStatus, loadState, startSignup, trackStepStart]);
 
   const handleBasicSubmit = (
     details: BasicDetails, 

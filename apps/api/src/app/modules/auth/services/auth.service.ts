@@ -16,19 +16,27 @@ import { LoginInput } from '../dto/login.dto';
 import { RegisterInput } from '../dto/register.dto';
 import { AuthResponse } from '../dto/auth-response.dto';
 import { AnalyticsService } from '../../analytics/services/analytics.service';
+import { AnalyticsEvent } from '@tutorix/analytics';
 import { UserSignupInput } from '../dto/user-signup.input';
 import { RegisterUserInput } from '../dto/register-user.input';
 import { SetPasswordInput } from '../dto/set-password.input';
 import { UpdateUserInput } from '../dto/update-user.input';
+import { PasswordResetToken } from '../entities/password-reset-token.entity';
+import { ForgotPasswordInput } from '../dto/forgot-password.input';
+import { ResetPasswordInput } from '../dto/reset-password.input';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(PasswordResetToken)
+    private readonly passwordResetTokenRepository: Repository<PasswordResetToken>,
     private readonly passwordService: PasswordService,
     private readonly jwtService: JwtService,
     private readonly analyticsService: AnalyticsService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -350,6 +358,7 @@ export class AuthService {
           'profilePicture',
           'isEmailVerified',
           'isMobileVerified',
+          'isSignupComplete',
           'active',
           'lastLoginAt',
           'createdDate',
@@ -360,8 +369,18 @@ export class AuthService {
       });
     } else {
       // Tutor/Student login - search by mobile
+      // Extract number part for mobileNumber lookup
+      const digitsOnly = input.loginId.replace(/\D/g, '');
+      // Extract last 10 digits (standard mobile number length for most countries)
+      const numberPart = digitsOnly.slice(-10);
+      
+      // Search by both mobile (full with country code) and mobileNumber (just digits)
+      // This handles cases where mobile is stored in different formats
       user = await this.userRepository.findOne({
-        where: { mobile: input.loginId },
+        where: [
+          { mobile: input.loginId }, // Exact match on full mobile (e.g., +919876543210)
+          ...(numberPart.length >= 10 ? [{ mobileNumber: numberPart }] : []), // Match on number part (e.g., 9876543210)
+        ],
         relations: ['tutor'],
         select: [
           'id',
@@ -374,6 +393,7 @@ export class AuthService {
           'profilePicture',
           'isEmailVerified',
           'isMobileVerified',
+          'isSignupComplete',
           'active',
           'lastLoginAt',
           'createdDate',
@@ -401,6 +421,18 @@ export class AuthService {
     // Check if user is active
     if (!user.active) {
       throw new UnauthorizedException('Account is inactive');
+    }
+
+    // Check if signup is complete
+    if (!user.isSignupComplete) {
+      // Create error message with verification status and user ID for frontend parsing
+      const errorMessage = JSON.stringify({
+        message: 'Please complete your signup before logging in',
+        userId: user.id,
+        isMobileVerified: user.isMobileVerified || false,
+        isEmailVerified: user.isEmailVerified || false,
+      });
+      throw new BadRequestException(errorMessage);
     }
 
     // Update last login
@@ -517,5 +549,171 @@ export class AuthService {
     this.analyticsService.trackUserLogout(userId).catch((error) => {
       console.error('Failed to track logout event:', error);
     });
+  }
+
+  /**
+   * Forgot password - generate reset token and send email
+   */
+  async forgotPassword(input: ForgotPasswordInput): Promise<boolean> {
+    // Find user by email
+    const user = await this.userRepository.findOne({
+      where: { email: input.email },
+      select: ['id', 'email', 'firstName', 'lastName', 'active'],
+    });
+
+    // Always return true (don't reveal if email exists or not for security)
+    if (!user || !user.active) {
+      return true;
+    }
+
+    // Invalidate any existing password reset tokens for this user
+    await this.passwordResetTokenRepository.update(
+      { userId: user.id, isUsed: false },
+      { isUsed: true, usedAt: new Date() },
+    );
+
+    // Generate secure random token
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Set expiration to 1 hour from now
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1);
+
+    // Create password reset token
+    const passwordResetToken = this.passwordResetTokenRepository.create({
+      userId: user.id,
+      tokenHash,
+      expiresAt,
+      isUsed: false,
+    });
+
+    await this.passwordResetTokenRepository.save(passwordResetToken);
+
+    // Get frontend URL from environment (default to www.tutorix.com for production, localhost for dev)
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 
+      (process.env.NODE_ENV === 'production' ? 'https://www.tutorix.com' : 'http://localhost:4200');
+    const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+
+    // TODO: Integrate with proper email service (e.g., SendGrid, AWS SES, Nodemailer)
+    // For now, log the reset link (remove this in production and implement proper email sending)
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('📧 PASSWORD RESET LINK GENERATED');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`To: ${user.email}`);
+    console.log(`Subject: Password Reset Request`);
+    console.log(`Reset Link: ${resetLink}`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('⚠️ TODO: Replace this console.log with actual email sending');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    // Email template (for future implementation):
+    // Subject: Reset Your Password
+    // Body:
+    // Hi {firstName},
+    // 
+    // You requested to reset your password. Click the link below to reset it:
+    // {resetLink}
+    //
+    // This link will expire in 1 hour.
+    //
+    // If you didn't request this, please ignore this email.
+    //
+    // Best regards,
+    // Tutorix Team
+
+    return true;
+  }
+
+  /**
+   * Reset password using token
+   */
+  async resetPassword(input: ResetPasswordInput): Promise<boolean> {
+    // Hash the token to find it in the database
+    const tokenHash = crypto.createHash('sha256').update(input.token).digest('hex');
+
+    // Find the token
+    const resetToken = await this.passwordResetTokenRepository.findOne({
+      where: { tokenHash },
+      relations: ['user'],
+    });
+
+    if (!resetToken) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    // Check if token is already used
+    if (resetToken.isUsed || resetToken.usedAt) {
+      throw new BadRequestException('Reset token has already been used');
+    }
+
+    // Check if token has expired
+    if (resetToken.expiresAt < new Date()) {
+      throw new BadRequestException('Reset token has expired');
+    }
+
+    // Get the user
+    const user = await this.userRepository.findOne({
+      where: { id: resetToken.userId },
+      select: ['id', 'password', 'active'],
+    });
+
+    if (!user || !user.active) {
+      throw new BadRequestException('User not found or inactive');
+    }
+
+    // Hash the new password
+    const hashedPassword = await this.passwordService.hashPassword(input.password);
+
+    // Update user password
+    user.password = hashedPassword;
+    await this.userRepository.save(user);
+
+    // Mark token as used
+    resetToken.isUsed = true;
+    resetToken.usedAt = new Date();
+    await this.passwordResetTokenRepository.save(resetToken);
+
+    // Track password reset event (if analytics is configured)
+    // Note: Using a generic event type since password reset is not in the enum yet
+    // TODO: Add PASSWORD_RESET_COMPLETED to AnalyticsEvent enum if needed
+    this.analyticsService
+      .trackEvent(AnalyticsEvent.USER_PROFILE_UPDATED, {
+        event_type: 'password_reset',
+        userId: user.id,
+        platform: 'web', // Could be determined from context
+      })
+      .catch((error) => {
+        console.error('Failed to track password reset event:', error);
+      });
+
+    return true;
+  }
+
+  /**
+   * Validate reset token (for checking if token is valid before showing reset form)
+   */
+  async validateResetToken(token: string): Promise<boolean> {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const resetToken = await this.passwordResetTokenRepository.findOne({
+      where: { tokenHash },
+    });
+
+    if (!resetToken) {
+      return false;
+    }
+
+    // Check if token is already used
+    if (resetToken.isUsed || resetToken.usedAt) {
+      return false;
+    }
+
+    // Check if token has expired
+    if (resetToken.expiresAt < new Date()) {
+      return false;
+    }
+
+    return true;
   }
 }

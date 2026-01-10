@@ -57,8 +57,9 @@ export function getGraphQLEndpoint(): string {
       process.env['GRAPHQL_ENDPOINT'];
   }
   
-  // Default endpoint (matches backend: http://localhost:3000/graphql)
-  return endpoint || 'http://localhost:3000/graphql';
+  // Default endpoint (matches backend: http://localhost:3000/api/graphql)
+  // Backend uses global prefix 'api' set in main.ts
+  return endpoint || 'http://localhost:3000/api/graphql';
 }
 
 /**
