@@ -1,0 +1,378 @@
+/**
+ * AuthService Unit Tests
+ * 
+ * Example test file showing how to structure unit tests for AuthService
+ * Rename this file to auth.service.spec.ts and implement the tests
+ */
+
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { AuthService } from './auth.service';
+import { User } from '../entities/user.entity';
+import { PasswordResetToken } from '../entities/password-reset-token.entity';
+import { PasswordService } from './password.service';
+import { JwtService as CustomJwtService } from './jwt.service';
+import { AnalyticsService } from '../../analytics/services/analytics.service';
+import { UserRole } from '../enums/user-role.enum';
+
+describe('AuthService', () => {
+  let service: AuthService;
+  let userRepository: Repository<User>;
+  let passwordResetTokenRepository: Repository<PasswordResetToken>;
+  let passwordService: PasswordService;
+  let jwtService: CustomJwtService;
+  let analyticsService: AnalyticsService;
+
+  const mockUserRepository = {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  };
+
+  const mockPasswordResetTokenRepository = {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  };
+
+  const mockPasswordService = {
+    hashPassword: jest.fn(),
+    comparePassword: jest.fn(),
+  };
+
+  const mockJwtService = {
+    generateTokens: jest.fn(),
+    verifyAccessToken: jest.fn(),
+    refreshAccessToken: jest.fn(),
+  };
+
+  const mockAnalyticsService = {
+    trackEvent: jest.fn(),
+    trackUserRegistration: jest.fn(),
+    trackUserLogin: jest.fn(),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockUserRepository,
+        },
+        {
+          provide: getRepositoryToken(PasswordResetToken),
+          useValue: mockPasswordResetTokenRepository,
+        },
+        {
+          provide: PasswordService,
+          useValue: mockPasswordService,
+        },
+        {
+          provide: CustomJwtService,
+          useValue: mockJwtService,
+        },
+        {
+          provide: AnalyticsService,
+          useValue: mockAnalyticsService,
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string) => {
+              if (key === 'FRONTEND_URL') return 'http://localhost:4200';
+              return undefined;
+            }),
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get<AuthService>(AuthService);
+    userRepository = module.get<Repository<User>>(getRepositoryToken(User));
+    passwordResetTokenRepository = module.get<Repository<PasswordResetToken>>(
+      getRepositoryToken(PasswordResetToken),
+    );
+    passwordService = module.get<PasswordService>(PasswordService);
+    jwtService = module.get<CustomJwtService>(CustomJwtService);
+    analyticsService = module.get<AnalyticsService>(AnalyticsService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('login', () => {
+    it('should successfully login user with valid email and password', async () => {
+      // Arrange
+      const email = 'test@example.com';
+      const password = 'Test123456';
+      const hashedPassword = 'hashed_password';
+
+      const mockUser = {
+        id: 1,
+        email,
+        password: hashedPassword,
+        role: UserRole.STUDENT,
+        active: true,
+        isSignupComplete: true,
+        isMobileVerified: true,
+        isEmailVerified: true,
+      } as User;
+
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      mockPasswordService.comparePassword.mockResolvedValue(true);
+      mockJwtService.generateTokens.mockResolvedValue({
+        accessToken: 'access_token',
+        refreshToken: 'refresh_token',
+      });
+      mockUserRepository.save.mockResolvedValue(mockUser);
+
+      // Act
+      const result = await service.login({ loginId: email, password });
+
+      // Assert
+      expect(result).toBeDefined();
+      expect(result.accessToken).toBe('access_token');
+      expect(result.refreshToken).toBe('refresh_token');
+      expect(result.user).toEqual(mockUser);
+      expect(mockPasswordService.comparePassword).toHaveBeenCalledWith(
+        password,
+        hashedPassword,
+      );
+      expect(mockJwtService.generateTokens).toHaveBeenCalledWith(mockUser);
+      expect(mockAnalyticsService.trackUserLogin).toHaveBeenCalled();
+    });
+
+    it('should throw UnauthorizedException when user not found', async () => {
+      // Arrange
+      mockUserRepository.findOne.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        service.login({ loginId: 'test@example.com', password: 'password' }),
+      ).rejects.toThrow('Invalid login credentials');
+    });
+
+    it('should throw UnauthorizedException when password is invalid', async () => {
+      // Arrange
+      const mockUser = {
+        id: 1,
+        email: 'test@example.com',
+        password: 'hashed_password',
+        active: true,
+      } as User;
+
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      mockPasswordService.comparePassword.mockResolvedValue(false);
+
+      // Act & Assert
+      await expect(
+        service.login({
+          loginId: 'test@example.com',
+          password: 'wrong_password',
+        }),
+      ).rejects.toThrow('Invalid login credentials');
+    });
+
+    it('should throw BadRequestException when signup is incomplete', async () => {
+      // Arrange
+      const mockUser = {
+        id: 1,
+        email: 'test@example.com',
+        password: 'hashed_password',
+        active: true,
+        isSignupComplete: false,
+        isMobileVerified: false,
+        isEmailVerified: false,
+      } as User;
+
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      mockPasswordService.comparePassword.mockResolvedValue(true);
+
+      // Act & Assert
+      await expect(
+        service.login({
+          loginId: 'test@example.com',
+          password: 'Test123456',
+        }),
+      ).rejects.toThrow('Please complete your signup before logging in');
+    });
+
+    it('should handle mobile number login', async () => {
+      // Arrange
+      const mobile = '+919876543210';
+      const password = 'Test123456';
+
+      const mockUser = {
+        id: 1,
+        mobile,
+        password: 'hashed_password',
+        role: UserRole.STUDENT,
+        active: true,
+        isSignupComplete: true,
+      } as User;
+
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      mockPasswordService.comparePassword.mockResolvedValue(true);
+      mockJwtService.generateTokens.mockResolvedValue({
+        accessToken: 'access_token',
+        refreshToken: 'refresh_token',
+      });
+      mockUserRepository.save.mockResolvedValue(mockUser);
+
+      // Act
+      const result = await service.login({ loginId: mobile, password });
+
+      // Assert
+      expect(result).toBeDefined();
+      expect(result.accessToken).toBe('access_token');
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.arrayContaining([
+            { mobile },
+            expect.objectContaining({ mobileNumber: expect.any(String) }),
+          ]),
+        }),
+      );
+    });
+  });
+
+  describe('forgotPassword', () => {
+    it('should create password reset token for valid email', async () => {
+      // Arrange
+      const email = 'test@example.com';
+      const mockUser = {
+        id: 1,
+        email,
+      } as User;
+
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      mockPasswordResetTokenRepository.update.mockResolvedValue({ affected: 1 });
+      mockPasswordResetTokenRepository.create.mockReturnValue({
+        userId: 1,
+        tokenHash: 'hashed_token',
+        expiresAt: new Date(),
+        isUsed: false,
+      });
+      mockPasswordResetTokenRepository.save.mockResolvedValue({} as any);
+
+      // Act
+      const result = await service.forgotPassword({ email });
+
+      // Assert
+      expect(result).toBe(true);
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({
+        where: { email },
+      });
+      expect(mockPasswordResetTokenRepository.save).toHaveBeenCalled();
+    });
+
+    it('should not throw error for non-existent email (security)', async () => {
+      // Arrange
+      mockUserRepository.findOne.mockResolvedValue(null);
+
+      // Act & Assert (should not throw to prevent email enumeration)
+      const result = await service.forgotPassword({ email: 'nonexistent@example.com' });
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('should successfully reset password with valid token', async () => {
+      // Arrange
+      const token = 'valid_token';
+      const tokenHash = 'hashed_token';
+      const newPassword = 'NewPassword123';
+
+      const mockToken = {
+        id: 1,
+        userId: 1,
+        tokenHash,
+        expiresAt: new Date(Date.now() + 3600000), // 1 hour from now
+        isUsed: false,
+        usedAt: null,
+        user: {
+          id: 1,
+          active: true,
+        } as User,
+      } as PasswordResetToken;
+
+      const mockUser = {
+        id: 1,
+        password: 'old_hashed_password',
+        active: true,
+      } as User;
+
+      mockPasswordResetTokenRepository.findOne.mockResolvedValue(mockToken);
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      mockPasswordService.hashPassword.mockResolvedValue('new_hashed_password');
+      mockUserRepository.save.mockResolvedValue(mockUser);
+      mockPasswordResetTokenRepository.save.mockResolvedValue(mockToken);
+
+      // Act
+      const result = await service.resetPassword({
+        token,
+        password: newPassword,
+      });
+
+      // Assert
+      expect(result).toBe(true);
+      expect(mockUserRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          password: 'new_hashed_password',
+        }),
+      );
+      expect(mockPasswordResetTokenRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isUsed: true,
+          usedAt: expect.any(Date),
+        }),
+      );
+    });
+
+    it('should throw error for expired token', async () => {
+      // Arrange
+      const mockToken = {
+        id: 1,
+        tokenHash: 'hashed_token',
+        expiresAt: new Date(Date.now() - 3600000), // 1 hour ago
+        isUsed: false,
+      } as PasswordResetToken;
+
+      mockPasswordResetTokenRepository.findOne.mockResolvedValue(mockToken);
+
+      // Act & Assert
+      await expect(
+        service.resetPassword({ token: 'expired_token', password: 'NewPassword123' }),
+      ).rejects.toThrow('Reset token has expired');
+    });
+
+    it('should throw error for already used token', async () => {
+      // Arrange
+      const mockToken = {
+        id: 1,
+        tokenHash: 'hashed_token',
+        expiresAt: new Date(Date.now() + 3600000),
+        isUsed: true,
+        usedAt: new Date(),
+      } as PasswordResetToken;
+
+      mockPasswordResetTokenRepository.findOne.mockResolvedValue(mockToken);
+
+      // Act & Assert
+      await expect(
+        service.resetPassword({ token: 'used_token', password: 'NewPassword123' }),
+      ).rejects.toThrow('Reset token has already been used');
+    });
+  });
+
+  // Add more test cases for other methods...
+});
