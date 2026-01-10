@@ -41,7 +41,12 @@ export class FirebaseWebAnalytics implements IAnalyticsService {
     }
 
     try {
-      logEvent(this.analytics, event as string, params);
+      // Automatically include platform information for all events
+      const eventParams = {
+        ...params,
+        platform: 'web',
+      };
+      logEvent(this.analytics, event as string, eventParams);
     } catch (error) {
       console.error('Failed to track event:', error);
     }
@@ -58,6 +63,7 @@ export class FirebaseWebAnalytics implements IAnalyticsService {
         page_path: pagePath,
         page_title: pageTitle || document.title,
         page_location: window.location.href,
+        platform: 'web',
       });
     } catch (error) {
       console.error('Failed to track page view:', error);
@@ -128,10 +134,12 @@ export class FirebaseWebAnalytics implements IAnalyticsService {
 
     try {
       const errorMessage = error instanceof Error ? error.message : error;
+      // Ensure platform is always included and not overridden
       logEvent(this.analytics, AnalyticsEvent.EXCEPTION as string, {
         description: errorMessage,
         fatal,
         ...additionalData,
+        platform: 'web',
       });
     } catch (err) {
       console.error('Failed to track error:', err);

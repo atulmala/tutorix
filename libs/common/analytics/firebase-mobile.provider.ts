@@ -52,7 +52,12 @@ export class FirebaseMobileAnalytics implements IAnalyticsService {
     }
 
     try {
-      await this.analyticsInstance().logEvent(event, params);
+      // Automatically include platform information for all events
+      const eventParams = {
+        ...params,
+        platform: 'mobile',
+      };
+      await this.analyticsInstance().logEvent(event, eventParams);
     } catch (error) {
       console.error('Failed to track event:', error);
     }
@@ -70,7 +75,8 @@ export class FirebaseMobileAnalytics implements IAnalyticsService {
     }
 
     try {
-      await this.analyticsInstance().logScreenView({
+      // Use trackEvent to ensure platform is automatically included
+      await this.trackEvent(AnalyticsEvent.SCREEN_VIEW, {
         screen_name: screenName,
         screen_class: screenClass || screenName,
       });
@@ -135,10 +141,12 @@ export class FirebaseMobileAnalytics implements IAnalyticsService {
 
     try {
       const errorMessage = error instanceof Error ? error.message : error;
+      // Ensure platform is always included and not overridden
       await this.analyticsInstance().logEvent(AnalyticsEvent.EXCEPTION, {
         description: errorMessage,
         fatal,
         ...additionalData,
+        platform: 'mobile',
       });
     } catch (err) {
       console.error('Failed to track error:', err);
