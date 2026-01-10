@@ -139,3 +139,23 @@ export const LOGOUT = gql`
     logout
   }
 `;
+
+/**
+ * Forgot password mutation
+ * Sends password reset link to user's email
+ */
+export const FORGOT_PASSWORD = gql`
+  mutation ForgotPassword($input: ForgotPasswordInput!) {
+    forgotPassword(input: $input)
+  }
+`;
+
+/**
+ * Reset password mutation
+ * Resets user password using the token from email
+ */
+export const RESET_PASSWORD = gql`
+  mutation ResetPassword($input: ResetPasswordInput!) {
+    resetPassword(input: $input)
+  }
+`;

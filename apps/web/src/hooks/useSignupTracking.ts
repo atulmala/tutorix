@@ -194,20 +194,18 @@ export function useSignupTracking() {
 
   /**
    * Track signup completion
+   * Note: This should be called AFTER trackStepComplete('email', ...) to avoid duplicate events
    */
   const trackSignupCompleted = useCallback((userId?: number) => {
-    if (!stepStartTimeRef.current || !totalStartTimeRef.current) {
+    if (!totalStartTimeRef.current) {
       return;
     }
 
-    const stepDuration = getTimeElapsed(stepStartTimeRef.current);
     const totalDuration = getTimeElapsed(totalStartTimeRef.current);
+    const stepDuration = stepStartTimeRef.current ? getTimeElapsed(stepStartTimeRef.current) : 0;
 
-    trackEvent(AnalyticsEvent.SIGNUP_EMAIL_VERIFICATION_COMPLETED, {
-      user_id: userId || userIdRef.current,
-      step_duration_seconds: stepDuration,
-    });
-
+    // Only track SIGNUP_COMPLETED here
+    // SIGNUP_EMAIL_VERIFICATION_COMPLETED should already be tracked by trackStepComplete('email', ...)
     trackEvent(AnalyticsEvent.SIGNUP_COMPLETED, {
       user_id: userId || userIdRef.current,
       total_time_seconds: totalDuration,
