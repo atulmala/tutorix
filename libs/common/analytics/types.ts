@@ -22,6 +22,12 @@ export enum AnalyticsEvent {
   SIGNUP_ABANDONED = 'signup_abandoned',
   SIGNUP_RESUMED = 'signup_resumed',
   
+  // OTP Events
+  OTP_REQUESTED = 'otp_requested',
+  OTP_VERIFICATION_ATTEMPTED = 'otp_verification_attempted',
+  OTP_VERIFICATION_FAILED = 'otp_verification_failed',
+  OTP_RESEND_REQUESTED = 'otp_resend_requested',
+  
   // Page/Screen Views
   PAGE_VIEW = 'page_view',
   SCREEN_VIEW = 'screen_view',

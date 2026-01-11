@@ -53,6 +53,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
   const [touchedConfirm, setTouchedConfirm] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const hasErrorRef = useRef(false);
   const firstNameRef = useRef<HTMLInputElement | null>(null);
   const lastNameRef = useRef<HTMLInputElement | null>(null);
   const phoneRef = useRef<HTMLInputElement | null>(null);
@@ -62,7 +63,13 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
 
   const [registerUser, { loading: isSubmitting }] = useMutation(REGISTER_USER, {
     onError: (error) => {
-      setSubmitError(error.message || 'Failed to create account. Please try again.');
+      hasErrorRef.current = true;
+      // Extract the specific error message from GraphQL errors
+      const errorMessage = 
+        error.graphQLErrors?.[0]?.message ||
+        error.message ||
+        'Failed to create account. Please try again.';
+      setSubmitError(errorMessage);
       console.error('Registration error:', error);
     },
   });
@@ -174,6 +181,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
     event.preventDefault();
     setSubmitAttempted(true);
     setSubmitError(null);
+    hasErrorRef.current = false;
     setErrors(validationErrors);
     
     if (Object.keys(validationErrors).length > 0) {
@@ -195,6 +203,12 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
         },
       });
 
+      // Only check data if there was no error (onError callback sets hasErrorRef)
+      if (hasErrorRef.current) {
+        // Error was already handled by onError callback
+        return;
+      }
+
       if (data?.registerUser?.id) {
         onSubmit(
           form, 
@@ -207,11 +221,15 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
       } else {
         setSubmitError('Registration successful but user ID not received.');
       }
-    } catch {
+    } catch (error) {
       // Error is handled by onError callback
-      // But we still need to handle it here in case of unexpected errors
-      if (!submitError) {
-        setSubmitError('An unexpected error occurred. Please try again.');
+      // This catch block is for unexpected errors only
+      if (!hasErrorRef.current) {
+        const errorMessage = 
+          (error as any)?.graphQLErrors?.[0]?.message ||
+          (error as any)?.message ||
+          'An unexpected error occurred. Please try again.';
+        setSubmitError(errorMessage);
       }
     }
   };

@@ -31,6 +31,9 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.NX_GRAPHQL_ENDPOINT': JSON.stringify(
         env.NX_GRAPHQL_ENDPOINT || env.VITE_NX_GRAPHQL_ENDPOINT || ''
       ),
+      // Expose NODE_ENV for environment tracking in analytics
+      'import.meta.env.NODE_ENV': JSON.stringify(env.NODE_ENV || env.VITE_NODE_ENV || mode || 'development'),
+      'import.meta.env.MODE': JSON.stringify(mode || 'development'),
     },
     // Uncomment this if you are using workers.
     // worker: {

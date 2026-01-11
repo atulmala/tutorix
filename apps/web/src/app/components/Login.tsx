@@ -207,7 +207,7 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
                 // (since email takes precedence, mobile errors are not relevant)
                 setErrors((prev) => ({ ...prev, email: undefined, mobile: undefined, general: undefined }));
               }}
-              placeholder="your@email.com"
+              placeholder="Enter your registered Email"
               className={`w-full rounded-lg border px-4 py-2.5 text-sm font-medium transition focus:outline-none focus:ring-2 ${
                 errors.email
                   ? 'border-red-300 bg-red-50 text-red-900 focus:border-red-500 focus:ring-red-200'
@@ -270,7 +270,7 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
                 pattern="[0-9]*"
                 value={mobile}
                 onChange={(e) => handleMobileChange(e.target.value)}
-                placeholder="9876543210"
+                placeholder="Enter your registered Mobile Number"
                 className={`flex-1 rounded-lg border px-4 py-2.5 text-sm font-medium transition focus:outline-none focus:ring-2 ${
                   errors.mobile
                     ? 'border-red-300 bg-red-50 text-red-900 focus:border-red-500 focus:ring-red-200'

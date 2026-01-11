@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useMutation } from '@apollo/client';
 import { OtpInputRow } from './OtpInputRow';
 import { VerificationTick } from './VerificationTick';
 import { GENERATE_EMAIL_OTP, VERIFY_EMAIL_OTP } from '@tutorix/shared-graphql';
+import { trackEvent } from '../../../lib/analytics';
+import { AnalyticsEvent } from '@tutorix/analytics';
 
 type EmailVerificationProps = {
   userId: number;
@@ -26,6 +28,8 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({
   const [otpError, setOtpError] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
   const [verified, setVerified] = useState(false);
+  const otpRequestTimeRef = useRef<number | null>(null);
+  const resendCountRef = useRef<number>(0);
 
   const [generateOtp, { loading: isGeneratingOtp }] = useMutation(GENERATE_EMAIL_OTP, {
     onError: (error) => {
@@ -47,6 +51,8 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({
       setOtp('');
       setOtpRequested(false);
       setVerified(false);
+      otpRequestTimeRef.current = null;
+      resendCountRef.current = 0;
     }
   }, [initialEmail]);
 
@@ -67,6 +73,8 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({
     if (disabled) return;
     if (email && !emailError) {
       setOtpError('');
+      const isResend = otpRequested;
+      
       try {
         await generateOtp({
           variables: { userId },
@@ -75,6 +83,22 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({
         setOtp('');
         setResendTimer(60);
         setVerified(false);
+        otpRequestTimeRef.current = Date.now();
+        
+        // Track OTP request (first request or resend)
+        if (isResend) {
+          resendCountRef.current += 1;
+          trackEvent(AnalyticsEvent.OTP_RESEND_REQUESTED, {
+            user_id: userId,
+            verification_type: 'email',
+            resend_count: resendCountRef.current,
+          });
+        } else {
+          trackEvent(AnalyticsEvent.OTP_REQUESTED, {
+            user_id: userId,
+            verification_type: 'email',
+          });
+        }
       } catch {
         // Error handled by onError callback
       }
@@ -85,6 +109,11 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({
     if (disabled) return;
     if (otpRequested && otp && !otpError && otp.length === 6) {
       setOtpError('');
+      const verificationStartTime = Date.now();
+      const timeSinceOtpRequest = otpRequestTimeRef.current 
+        ? Math.round((verificationStartTime - otpRequestTimeRef.current) / 1000)
+        : 0;
+      
       try {
         const { data } = await verifyOtp({
           variables: {
@@ -95,13 +124,60 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({
         });
 
         if (data?.verifyOtp?.success) {
+          const verificationDuration = Math.round((Date.now() - verificationStartTime) / 1000);
+          
+          // Track successful verification attempt
+          trackEvent(AnalyticsEvent.OTP_VERIFICATION_ATTEMPTED, {
+            user_id: userId,
+            verification_type: 'email',
+            success: true,
+            time_since_otp_request_seconds: timeSinceOtpRequest,
+            verification_duration_seconds: verificationDuration,
+            resend_count: resendCountRef.current,
+          });
+          
           setVerified(true);
           onVerified();
         } else {
+          // Track failed verification attempt
+          trackEvent(AnalyticsEvent.OTP_VERIFICATION_FAILED, {
+            user_id: userId,
+            verification_type: 'email',
+            failure_reason: data?.verifyOtp?.message || 'Invalid OTP',
+            time_since_otp_request_seconds: timeSinceOtpRequest,
+            resend_count: resendCountRef.current,
+          });
+          
+          // Also track as attempted (with success: false)
+          trackEvent(AnalyticsEvent.OTP_VERIFICATION_ATTEMPTED, {
+            user_id: userId,
+            verification_type: 'email',
+            success: false,
+            time_since_otp_request_seconds: timeSinceOtpRequest,
+            resend_count: resendCountRef.current,
+          });
+          
           setOtpError(data?.verifyOtp?.message || 'Verification failed. Please try again.');
           setOtp('');
         }
-      } catch {
+      } catch (error) {
+        // Track failed verification attempt due to error
+        trackEvent(AnalyticsEvent.OTP_VERIFICATION_FAILED, {
+          user_id: userId,
+          verification_type: 'email',
+          failure_reason: error instanceof Error ? error.message : 'Network error',
+          time_since_otp_request_seconds: timeSinceOtpRequest,
+          resend_count: resendCountRef.current,
+        });
+        
+        trackEvent(AnalyticsEvent.OTP_VERIFICATION_ATTEMPTED, {
+          user_id: userId,
+          verification_type: 'email',
+          success: false,
+          time_since_otp_request_seconds: timeSinceOtpRequest,
+          resend_count: resendCountRef.current,
+        });
+        
         // Error handled by onError callback
       }
     }
