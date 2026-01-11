@@ -1,0 +1,268 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # Unit and Integration Tests
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        project: [api, web, web-admin, mobile]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run unit tests for ${{ matrix.project }}
+        run: npm run test:${{ matrix.project }} -- --coverage --passWithNoTests
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: ${{ matrix.project }}
+          name: ${{ matrix.project }}-coverage
+          fail_ci_if_error: false
+
+  # Integration Tests (API)
+  integration-tests:
+    name: Integration Tests (API)
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tutorix_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: tutorix_test
+      NODE_ENV: test
+      JWT_SECRET: test-jwt-secret-for-ci
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run database migrations
+        run: npm run migration:run
+      
+      - name: Run integration tests
+        run: npm run test:api -- --testPathPattern=integration --coverage
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: integration
+          name: api-integration-coverage
+          fail_ci_if_error: false
+
+  # E2E Tests (Web)
+  e2e-web-tests:
+    name: E2E Tests (Web)
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tutorix_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: tutorix_test
+      NODE_ENV: test
+      JWT_SECRET: test-jwt-secret-for-ci
+      PORT: 3000
+      VITE_GRAPHQL_ENDPOINT: http://localhost:3000/api/graphql
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Cypress dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libgconf-2-4 libnss3 libxss1 libasound2 libxtst6 xauth xvfb
+      
+      - name: Run database migrations
+        run: npm run migration:run
+      
+      - name: Build API
+        run: npm run build:api
+      
+      - name: Build Web App
+        run: npm run build:web
+      
+      - name: Start API server
+        run: |
+          npm run serve:api &
+          sleep 5
+          # Wait for API to be ready
+          timeout 30 bash -c 'until curl -f http://localhost:3000/api; do sleep 1; done'
+      
+      - name: Start Web server
+        run: |
+          npm run serve:web &
+          sleep 5
+          # Wait for Web to be ready
+          timeout 30 bash -c 'until curl -f http://localhost:4200; do sleep 1; done'
+      
+      - name: Run E2E tests
+        run: npm run e2e:web -- --headless
+      
+      - name: Upload Cypress screenshots on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-screenshots
+          path: apps/web-e2e/screenshots
+          retention-days: 7
+      
+      - name: Upload Cypress videos on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-videos
+          path: apps/web-e2e/videos
+          retention-days: 7
+
+  # E2E Tests (API)
+  e2e-api-tests:
+    name: E2E Tests (API)
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tutorix_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: tutorix_test
+      NODE_ENV: test
+      JWT_SECRET: test-jwt-secret-for-ci
+      PORT: 3000
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run database migrations
+        run: npm run migration:run
+      
+      - name: Build API
+        run: npm run build:api
+      
+      - name: Start API server
+        run: |
+          npm run serve:api &
+          sleep 5
+          # Wait for API to be ready
+          timeout 30 bash -c 'until curl -f http://localhost:3000/api; do sleep 1; done'
+      
+      - name: Run E2E tests
+        run: npm run e2e:api
+
+  # Linting
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run linter
+        run: npm run lint:all

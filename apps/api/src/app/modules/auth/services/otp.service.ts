@@ -8,6 +8,7 @@ import { GenerateOtpInput } from '../dto/generate-otp.input';
 import { GenerateOtpResponse } from '../dto/generate-otp-response.dto';
 import { VerifyOtpInput } from '../dto/verify-otp.input';
 import { VerifyOtpResponse } from '../dto/verify-otp-response.dto';
+import { OtpPurpose } from '../enums/otp-purpose.enum';
 
 @Injectable()
 export class OtpService {
@@ -21,13 +22,14 @@ export class OtpService {
   ) {}
 
   /**
-   * Generate a 4-digit OTP for the given user and purpose.
+   * Generate a 6-digit OTP for the given user and purpose.
    * If an entry already exists for the same user and purpose,
    * update it with a new OTP and expiry.
    */
   async generateOtp(input: GenerateOtpInput): Promise<GenerateOtpResponse> {
     const user = await this.userRepository.findOne({
       where: { id: input.userId, active: true, deleted: false },
+      select: ['id', 'email', 'mobileCountryCode', 'mobileNumber', 'firstName', 'lastName'],
     });
 
     if (!user) {
@@ -58,6 +60,32 @@ export class OtpService {
       });
       await this.otpRepository.save(otp);
     }
+
+    // TODO: Remove this console.log once SMS/Email delivery is implemented
+    // Temporary: Log OTP to console for development/testing purposes
+    const purposeLabel = 
+      input.purpose === OtpPurpose.MOBILE_VERIFICATION ? '📱 MOBILE VERIFICATION' :
+      input.purpose === OtpPurpose.EMAIL_VERIFICATION ? '📧 EMAIL VERIFICATION' :
+      input.purpose;
+    
+    const userInfo = user.email 
+      ? `Email: ${user.email}`
+      : user.mobileNumber 
+      ? `Phone: ${user.mobileCountryCode || '+91'} ${user.mobileNumber}`
+      : `User ID: ${user.id}`;
+    
+    const userName = user.firstName || user.lastName 
+      ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
+      : null;
+    
+    console.log('\n' + '='.repeat(50));
+    console.log(`🔐 OTP GENERATED [${purposeLabel}]`);
+    if (userName) console.log(`   User: ${userName}`);
+    console.log(`   ${userInfo}`);
+    console.log(`   User ID: ${input.userId}`);
+    console.log(`   OTP Code: ${otpValue}`);
+    console.log(`   Expires At: ${expiresAt.toLocaleString()}`);
+    console.log('='.repeat(50) + '\n');
 
     // NOTE: Hook email/SMS/WhatsApp delivery here. For now we return
     // the OTP so callers can wire delivery or use for testing.
@@ -96,6 +124,25 @@ export class OtpService {
       throw new BadRequestException('Invalid OTP');
     }
 
+    // Mark verification flags
+    const user = await this.userRepository.findOne({
+      where: { id: input.userId },
+      select: ['id', 'isMobileVerified', 'isEmailVerified', 'isSignupComplete'],
+    });
+
+    if (user) {
+      if (input.purpose === OtpPurpose.MOBILE_VERIFICATION) {
+        user.isMobileVerified = true;
+      }
+      if (input.purpose === OtpPurpose.EMAIL_VERIFICATION) {
+        user.isEmailVerified = true;
+      }
+      if (user.isMobileVerified && user.isEmailVerified) {
+        user.isSignupComplete = true;
+      }
+      await this.userRepository.save(user);
+    }
+
     return {
       success: true,
       message: 'OTP verified successfully',
@@ -103,9 +150,10 @@ export class OtpService {
   }
 
   private createOtpCode(): string {
-    return Math.floor(Math.random() * 10000)
+    // Generate 6-digit OTP
+    return Math.floor(Math.random() * 1000000)
       .toString()
-      .padStart(4, '0');
+      .padStart(6, '0');
   }
 
   private hashOtp(otp: string): string {

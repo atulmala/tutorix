@@ -16,7 +16,11 @@
     "baseUrl": ".",
     "paths": {
       "@tutorix/analytics": ["libs/common/analytics/index.ts"],
-      "@tutorix/analytics/*": ["libs/common/analytics/*"]
+      "@tutorix/analytics/*": ["libs/common/analytics/*"],
+      "@tutorix/tokens": ["libs/ui-tokens/src/index.ts"],
+      "@tutorix/tokens/*": ["libs/ui-tokens/src/*"],
+      "@tutorix/shared-graphql": ["libs/shared-graphql/src/index.ts"],
+      "@tutorix/shared-graphql/*": ["libs/shared-graphql/src/*"]
     }
   },
   "exclude": ["node_modules", "tmp"]
