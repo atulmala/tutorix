@@ -20,6 +20,41 @@ export interface FirebaseConfig {
 let analyticsInstance: FirebaseWebAnalytics | null = null;
 
 /**
+ * Get the current environment (development, staging, production)
+ * Uses NODE_ENV from environment variables
+ */
+function getEnvironment(): string {
+  // Check for Vite environment variable (browser/web)
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    return import.meta.env.NODE_ENV || import.meta.env.MODE || 'development';
+  }
+
+  // Check for Node.js/React Native environment variable
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env.NODE_ENV || 'development';
+  }
+
+  return 'development';
+}
+
+/**
+ * Normalize environment name (development -> dev, production -> prod, etc.)
+ */
+function normalizeEnvironment(env: string): string {
+  const envLower = env.toLowerCase();
+  if (envLower.includes('production') || envLower === 'prod') {
+    return 'production';
+  }
+  if (envLower.includes('staging') || envLower === 'stage') {
+    return 'staging';
+  }
+  if (envLower.includes('development') || envLower === 'dev') {
+    return 'development';
+  }
+  return envLower;
+}
+
+/**
  * Initialize Firebase Analytics
  */
 export async function initializeAnalytics(config: FirebaseConfig): Promise<void> {
@@ -44,13 +79,21 @@ export function getAnalytics(): FirebaseWebAnalytics {
 
 /**
  * Track an event
+ * Automatically includes environment information in all events
  */
 export function trackEvent(event: AnalyticsEvent, params?: Record<string, unknown>): void {
   if (!analyticsInstance) {
     console.warn('Analytics not initialized');
     return;
   }
-  analyticsInstance.trackEvent(event, params);
+
+  // Automatically add environment to all events
+  const eventParams = {
+    ...params,
+    environment: normalizeEnvironment(getEnvironment()),
+  };
+
+  analyticsInstance.trackEvent(event, eventParams);
 }
 
 /**
