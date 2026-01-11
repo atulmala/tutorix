@@ -1,6 +1,7 @@
 import { InputType, Field } from '@nestjs/graphql';
-import { IsNotEmpty, IsString, MinLength, IsOptional, IsEmail, IsEnum, Matches } from 'class-validator';
+import { IsNotEmpty, IsString, MinLength, IsEmail, IsEnum, Matches, IsOptional } from 'class-validator';
 import { UserRole } from '../enums/user-role.enum';
+import { Gender } from '../enums/gender.enum';
 
 @InputType()
 export class RegisterInput {
@@ -18,9 +19,8 @@ export class RegisterInput {
   mobile?: string; // Required for TUTOR and STUDENT
 
   @Field({ nullable: true })
-  @IsOptional()
   @IsEmail()
-  email?: string; // Required for ADMIN
+  email: string; // Now required for all
 
   @Field()
   @IsNotEmpty()
@@ -37,5 +37,9 @@ export class RegisterInput {
   @IsOptional()
   @IsString()
   lastName?: string;
+
+  @Field(() => Gender, { defaultValue: Gender.OTHER })
+  @IsEnum(Gender)
+  gender: Gender = Gender.OTHER;
 }
 

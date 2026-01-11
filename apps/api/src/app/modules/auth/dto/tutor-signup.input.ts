@@ -5,7 +5,9 @@ import {
   MinLength,
   Matches,
   IsOptional,
+  IsEnum,
 } from 'class-validator';
+import { Gender } from '../enums/gender.enum';
 
 @InputType()
 export class TutorSignupInput {
@@ -36,5 +38,8 @@ export class TutorSignupInput {
   @IsOptional()
   @IsString()
   lastName?: string;
-}
 
+  @Field(() => Gender, { defaultValue: Gender.OTHER })
+  @IsEnum(Gender)
+  gender: Gender = Gender.OTHER;
+}

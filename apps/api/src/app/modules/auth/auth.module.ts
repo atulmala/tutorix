@@ -14,10 +14,11 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { Otp } from './entities/otp.entity';
 import { OtpService } from './services/otp.service';
 import { OtpResolver } from './resolvers/otp.resolver';
+import { PasswordResetToken } from './entities/password-reset-token.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, RefreshToken, Tutor, Otp]),
+    TypeOrmModule.forFeature([User, RefreshToken, Tutor, Otp, PasswordResetToken]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
