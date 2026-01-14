@@ -24,7 +24,13 @@ export default defineConfig(({ mode }) => {
     // Expose environment variables to the client
     // Note: Only VITE_ prefixed vars are exposed by default, but we can use define to expose others
     define: {
-      // Expose GRAPHQL_ENDPOINT and NX_GRAPHQL_ENDPOINT from .env file
+      // Expose GraphQL endpoint variables from .env file (checking both VITE_ and non-VITE_ prefixed)
+      'import.meta.env.VITE_GRAPHQL_ENDPOINT': JSON.stringify(
+        env.VITE_GRAPHQL_ENDPOINT || env.GRAPHQL_ENDPOINT || ''
+      ),
+      'import.meta.env.VITE_NX_GRAPHQL_ENDPOINT': JSON.stringify(
+        env.VITE_NX_GRAPHQL_ENDPOINT || env.NX_GRAPHQL_ENDPOINT || ''
+      ),
       'import.meta.env.GRAPHQL_ENDPOINT': JSON.stringify(
         env.GRAPHQL_ENDPOINT || env.VITE_GRAPHQL_ENDPOINT || ''
       ),

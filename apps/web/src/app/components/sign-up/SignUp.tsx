@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@apollo/client';
 import { BRAND_NAME } from '../../config';
 import { EmailVerification } from './EmailVerification';
 import { BasicDetailsForm, BasicDetails, createEmptyDetails } from './BasicDetailsForm';
 import { PhoneVerification } from './PhoneVerification';
 import { useSignupTracking } from '../../../hooks/useSignupTracking';
+import { GET_USER_BY_ID } from '@tutorix/shared-graphql';
+import { getIsoCountryCode } from '@tutorix/shared-graphql';
 
 type SignUpProps = {
   onBackHome: () => void;
@@ -41,6 +44,13 @@ export const SignUp: React.FC<SignUpProps> = ({
     loadState,
   } = useSignupTracking();
 
+  // Fetch user data when resuming signup from login
+  const { data: userData } = useQuery(GET_USER_BY_ID, {
+    variables: { id: resumeUserId?.toString() },
+    skip: !resumeUserId, // Only fetch if resumeUserId is provided
+    fetchPolicy: 'network-only', // Always fetch fresh data
+  });
+
   // Check for resume on mount or when resume props change
   useEffect(() => {
     if (resumeUserId && resumeVerificationStatus) {
@@ -72,6 +82,22 @@ export const SignUp: React.FC<SignUpProps> = ({
       }
     }
   }, [resumeUserId, resumeVerificationStatus, loadState, startSignup, trackStepStart]);
+
+  // Populate basicDetails with user data when fetched (for resuming signup)
+  useEffect(() => {
+    if (userData?.user && resumeUserId) {
+      const user = userData.user;
+      setBasicDetails((prev) => ({
+        ...prev,
+        phone: user.mobileNumber || '',
+        countryCode: user.mobileCountryCode ? getIsoCountryCode(user.mobileCountryCode) : 'IN',
+        email: user.email || '',
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        gender: (user.gender?.toLowerCase() as 'male' | 'female' | 'other') || 'male',
+      }));
+    }
+  }, [userData, resumeUserId]);
 
   const handleBasicSubmit = (
     details: BasicDetails, 

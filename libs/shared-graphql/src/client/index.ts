@@ -1,8 +1,9 @@
 /**
- * Apollo Client Setup
+ * Apollo Client Setup with Auto-Detection
  * 
- * This module provides the Apollo Client configuration and provider
- * that all apps (web, web-admin, mobile) can use.
+ * Automatically detects the platform and exports the appropriate client:
+ * - Web/Web-Admin: Uses web client (import.meta.env)
+ * - Mobile: Uses mobile client (process.env)
  * 
  * Usage:
  * import { GraphQLProvider, createApolloClient } from '@tutorix/shared-graphql/client';
@@ -19,6 +20,16 @@
  * </GraphQLProvider>
  */
 
-export * from './apollo-client';
-export * from './apollo-provider';
-export * from './token-storage';
+// Import web client (for web/web-admin apps)
+// Mobile apps should import directly from './mobile' to avoid Metro parsing import.meta
+import * as webClient from './web';
+
+// Re-export shared utilities (always available)
+export * from './shared';
+
+// Export web client for web/web-admin apps
+// Note: Mobile apps should use '@tutorix/shared-graphql/client/mobile' instead
+export const GraphQLProvider = webClient.GraphQLProvider;
+export const createApolloClient = webClient.createApolloClient;
+export const apolloClient = webClient.apolloClient;
+export type GraphQLProviderProps = webClient.GraphQLProviderProps;
