@@ -1,4 +1,5 @@
 import { ApolloClient, from } from '@apollo/client';
+import { Platform } from 'react-native';
 import {
   createHttpLinkForClient,
   createAuthLink,
@@ -19,12 +20,29 @@ function getNodeEnv(): string {
 }
 
 /**
+ * Get GraphQL endpoint for mobile
+ * Handles Android emulator special case (10.0.2.2 instead of localhost)
+ */
+function getMobileGraphQLEndpoint(): string {
+  let endpoint = getGraphQLEndpoint();
+  
+  // For Android emulator, replace localhost with 10.0.2.2
+  // iOS simulator works fine with localhost
+  if (Platform.OS === 'android' && endpoint.includes('localhost')) {
+    endpoint = endpoint.replace('localhost', '10.0.2.2');
+    console.log('[Apollo Client - Mobile] Android detected, using:', endpoint);
+  }
+  
+  return endpoint;
+}
+
+/**
  * Create Apollo Client instance for mobile
  * Uses process.env for environment variables (React Native)
  */
 export function createApolloClient() {
   console.log('[Apollo Client - Mobile] Creating Apollo Client instance...');
-  const endpoint = getGraphQLEndpoint();
+  const endpoint = getMobileGraphQLEndpoint();
   const httpLink = createHttpLinkForClient(endpoint);
   const authLink = createAuthLink();
   const errorLink = createErrorLink();
