@@ -18,6 +18,12 @@ const customConfig = {
   resolver: {
     assetExts: assetExts.filter((ext) => ext !== 'svg'),
     sourceExts: [...sourceExts, 'cjs', 'mjs', 'svg'],
+    // Ensure React resolves to a single instance to avoid "Invalid hook call" errors
+    // This is critical for Apollo Client which uses React hooks internally
+    extraNodeModules: {
+      react: require.resolve('react'),
+      'react-native': require.resolve('react-native'),
+    },
   },
 };
 

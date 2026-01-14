@@ -1,4 +1,4 @@
-import { Resolver, Mutation, Query, Args } from '@nestjs/graphql';
+import { Resolver, Mutation, Query, Args, ID } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
 import { LoginInput } from '../dto/login.dto';
@@ -84,6 +84,15 @@ export class AuthResolver {
   @UseGuards(JwtAuthGuard)
   async me(@CurrentUser() user: User): Promise<User> {
     return user;
+  }
+
+  @Query(() => User, { nullable: true })
+  async user(@Args('id', { type: () => ID }) id: string): Promise<User | null> {
+    const userId = parseInt(id, 10);
+    if (isNaN(userId)) {
+      return null;
+    }
+    return this.authService.findById(userId);
   }
 
   @Mutation(() => Boolean)

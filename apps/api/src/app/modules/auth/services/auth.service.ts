@@ -473,11 +473,12 @@ export class AuthService {
 
   /**
    * Get user by ID
+   * Note: Does not load relations by default for efficiency.
+   * Use findByIdWithRelations() if you need related entities like tutor.
    */
   async findById(id: number): Promise<User | null> {
     return this.userRepository.findOne({
       where: { id },
-      relations: ['tutor'],
     });
   }
 

@@ -10,7 +10,8 @@ import {
   Linking,
 } from 'react-native';
 import Svg, { G, Path } from 'react-native-svg';
-import { GraphQLProvider } from '@tutorix/shared-graphql';
+// Import from mobile-specific client to avoid Metro bundler parsing web client (import.meta)
+import { GraphQLProvider } from '@tutorix/shared-graphql/client/mobile';
 
 const AppContent = () => {
   const [whatsNextYCoord, setWhatsNextYCoord] = useState<number>(0);

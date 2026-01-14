@@ -3,7 +3,7 @@ import { ApolloProvider, ApolloClient, NormalizedCacheObject } from '@apollo/cli
 import { apolloClient } from './apollo-client';
 
 /**
- * ApolloProvider wrapper component
+ * ApolloProvider wrapper component for mobile
  * 
  * Usage in apps:
  * ```tsx
