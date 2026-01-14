@@ -1,5 +1,6 @@
 const { withNxMetro } = require('@nx/react-native');
 const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
+const path = require('path');
 
 const defaultConfig = getDefaultConfig(__dirname);
 const { assetExts, sourceExts } = defaultConfig.resolver;
@@ -18,12 +19,19 @@ const customConfig = {
   resolver: {
     assetExts: assetExts.filter((ext) => ext !== 'svg'),
     sourceExts: [...sourceExts, 'cjs', 'mjs', 'svg'],
-    // Ensure React resolves to a single instance to avoid "Invalid hook call" errors
+    // Ensure a single React and Apollo Client instance is resolved to avoid "Invalid hook call" errors
     // This is critical for Apollo Client which uses React hooks internally
+    // Force resolution from root node_modules to ensure single instance
     extraNodeModules: {
-      react: require.resolve('react'),
-      'react-native': require.resolve('react-native'),
+      'react': path.resolve(__dirname, '../../node_modules/react'),
+      'react-native': path.resolve(__dirname, '../../node_modules/react-native'),
+      '@apollo/client': path.resolve(__dirname, '../../node_modules/@apollo/client'),
     },
+    nodeModulesPaths: [
+      path.resolve(__dirname, '../../node_modules'),
+      // Don't include local node_modules to force using root
+      // path.resolve(__dirname, './node_modules'),
+    ],
   },
 };
 
