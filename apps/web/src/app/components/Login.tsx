@@ -28,7 +28,7 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
   const [incompleteSignupError, setIncompleteSignupError] = useState<IncompleteSignupError | null>(null);
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successTimerRef = useRef<number | null>(null);
 
   const [login, { loading }] = useMutation(LOGIN, {
     onCompleted: (data) => {
@@ -36,7 +36,7 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
       console.log('Login successful:', data);
       setShowSuccessModal(true);
       if (successTimerRef.current) {
-        clearTimeout(successTimerRef.current);
+        window.clearTimeout(successTimerRef.current);
       }
       successTimerRef.current = window.setTimeout(() => {
         setShowSuccessModal(false);
@@ -182,7 +182,7 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
   useEffect(() => {
     return () => {
       if (successTimerRef.current) {
-        clearTimeout(successTimerRef.current);
+        window.clearTimeout(successTimerRef.current);
       }
     };
   }, []);
