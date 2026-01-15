@@ -12,6 +12,7 @@ import {
   ScrollView,
   Modal,
 } from 'react-native';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { useMutation } from '@apollo/client';
 import { LOGIN } from '@tutorix/shared-graphql/mutations';
 import { getPhoneCountryCode } from '@tutorix/shared-graphql/utils';
@@ -21,6 +22,7 @@ import { BRAND_NAME } from '../config';
 type LoginScreenProps = {
   onLoginSuccess?: () => void;
   onForgotPassword?: () => void;
+  onSignUp?: (userId?: number, verificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean }) => void;
 };
 
 type IncompleteSignupError = {
@@ -30,7 +32,7 @@ type IncompleteSignupError = {
   isEmailVerified: boolean;
 };
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSignUp }) => {
   const [email, setEmail] = useState('');
   const [countryCode] = useState('IN');
   const [mobile, setMobile] = useState('');
@@ -78,11 +80,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword }) =>
             try {
               const errorData = JSON.parse(jsonMatch[0]) as IncompleteSignupError;
               if (errorData.userId !== undefined) {
-                Alert.alert(
-                  'Complete Signup',
-                  'Please complete your signup process before logging in.',
-                  [{ text: 'OK' }]
-                );
+                Alert.alert('Complete Signup', 'Please complete your signup process before logging in.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Complete Signup',
+                    onPress: () => {
+                      onSignUp?.(errorData.userId, {
+                        isMobileVerified: errorData.isMobileVerified,
+                        isEmailVerified: errorData.isEmailVerified,
+                      });
+                    },
+                  },
+                ]);
                 return;
               }
             } catch {
@@ -265,7 +274,38 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword }) =>
                 onPress={() => setShowPassword(!showPassword)}
                 disabled={loading}
               >
-                <Text style={styles.showPasswordText}>{showPassword ? 'Hide' : 'Show'}</Text>
+                {showPassword ? (
+                  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#1d4ed8">
+                    <Path
+                      d="M3 3 21 21"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.8}
+                    />
+                    <Path
+                      d="M10.6 10.6a3 3 0 0 0 4.8 3.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.8}
+                    />
+                    <Path
+                      d="M9.9 4.2A9.53 9.53 0 0 1 12 4c5 0 9 4.5 9.5 8-.12.79-.61 1.93-1.54 3.07M6.3 6.3C4.3 7.67 3 9.64 2.5 12c.27 1.31 1.07 2.84 2.36 4.17A11.88 11.88 0 0 0 12 20c1.14 0 2.24-.17 3.28-.52"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.8}
+                    />
+                  </Svg>
+                ) : (
+                  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#1d4ed8">
+                    <Path
+                      d="M1.5 12C2.5 8.5 6.5 4 12 4s9.5 4.5 10.5 8c-1 3.5-5 8-10.5 8S2.5 15.5 1.5 12Z"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.8}
+                    />
+                    <Circle cx="12" cy="12" r="3" strokeWidth={1.8} />
+                  </Svg>
+                )}
               </TouchableOpacity>
             </View>
             {errors.password && <Text style={styles.fieldError}>{errors.password}</Text>}
@@ -291,6 +331,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword }) =>
               <Text style={styles.loginButtonText}>Login</Text>
             )}
           </TouchableOpacity>
+
+          {onSignUp && (
+            <TouchableOpacity
+              style={styles.signupButton}
+              onPress={() => onSignUp()}
+              disabled={loading}
+            >
+              <Text style={styles.signupText}>Don't have an account? Sign up</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
 
@@ -433,11 +483,6 @@ const styles = StyleSheet.create({
     top: 12,
     padding: 4,
   },
-  showPasswordText: {
-    color: '#1d4ed8',
-    fontSize: 14,
-    fontWeight: '500',
-  },
   forgotPasswordButton: {
     marginTop: 8,
     alignSelf: 'flex-end',
@@ -460,6 +505,15 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: '#ffffff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  signupButton: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  signupText: {
+    color: '#1d4ed8',
+    fontSize: 14,
     fontWeight: '600',
   },
   modalOverlay: {
