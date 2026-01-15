@@ -6,8 +6,9 @@ import { apolloClient } from '@tutorix/shared-graphql/client/mobile';
 import { SplashScreen } from './components/SplashScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { ForgotPasswordScreen } from './components/ForgotPasswordScreen';
+import { SignUpScreen } from './components/sign-up/SignUpScreen';
 
-type View = 'splash' | 'login' | 'forgotPassword';
+type View = 'splash' | 'login' | 'forgotPassword' | 'signup';
 
 /**
  * App component wrapped with ApolloProvider directly
@@ -25,6 +26,10 @@ type View = 'splash' | 'login' | 'forgotPassword';
  */
 export const App = () => {
   const [currentView, setCurrentView] = useState<View>('splash');
+  const [signupResume, setSignupResume] = useState<{
+    userId?: number;
+    verificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean };
+  } | null>(null);
 
   const handleSplashFinish = () => {
     setCurrentView('login');
@@ -39,8 +44,17 @@ export const App = () => {
     setCurrentView('forgotPassword');
   };
 
+  const handleSignUp = (
+    userId?: number,
+    verificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean }
+  ) => {
+    setSignupResume(userId ? { userId, verificationStatus } : null);
+    setCurrentView('signup');
+  };
+
   const handleBackToLogin = () => {
     setCurrentView('login');
+    setSignupResume(null);
   };
 
   // Type assertion to handle potential multiple @apollo/client instances during Metro bundling
@@ -49,10 +63,21 @@ export const App = () => {
     <ApolloProvider client={apolloClient as unknown as ApolloClient<NormalizedCacheObject>}>
       {currentView === 'splash' ? (
         <SplashScreen onFinish={handleSplashFinish} />
+      ) : currentView === 'signup' ? (
+        <SignUpScreen
+          onBackHome={handleBackToLogin}
+          onLogin={handleBackToLogin}
+          resumeUserId={signupResume?.userId}
+          resumeVerificationStatus={signupResume?.verificationStatus}
+        />
       ) : currentView === 'forgotPassword' ? (
         <ForgotPasswordScreen onBackToLogin={handleBackToLogin} />
       ) : (
-        <LoginScreen onLoginSuccess={handleLoginSuccess} onForgotPassword={handleForgotPassword} />
+        <LoginScreen
+          onLoginSuccess={handleLoginSuccess}
+          onForgotPassword={handleForgotPassword}
+          onSignUp={handleSignUp}
+        />
       )}
     </ApolloProvider>
   );
