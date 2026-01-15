@@ -5,8 +5,9 @@ import { ApolloProvider, ApolloClient, NormalizedCacheObject } from '@apollo/cli
 import { apolloClient } from '@tutorix/shared-graphql/client/mobile';
 import { SplashScreen } from './components/SplashScreen';
 import { LoginScreen } from './components/LoginScreen';
+import { ForgotPasswordScreen } from './components/ForgotPasswordScreen';
 
-type View = 'splash' | 'login';
+type View = 'splash' | 'login' | 'forgotPassword';
 
 /**
  * App component wrapped with ApolloProvider directly
@@ -34,14 +35,24 @@ export const App = () => {
     console.log('Login successful - navigate to home/dashboard');
   };
 
+  const handleForgotPassword = () => {
+    setCurrentView('forgotPassword');
+  };
+
+  const handleBackToLogin = () => {
+    setCurrentView('login');
+  };
+
   // Type assertion to handle potential multiple @apollo/client instances during Metro bundling
   // Metro config should resolve to single instance, but this ensures compatibility
   return (
     <ApolloProvider client={apolloClient as unknown as ApolloClient<NormalizedCacheObject>}>
       {currentView === 'splash' ? (
         <SplashScreen onFinish={handleSplashFinish} />
+      ) : currentView === 'forgotPassword' ? (
+        <ForgotPasswordScreen onBackToLogin={handleBackToLogin} />
       ) : (
-        <LoginScreen onLoginSuccess={handleLoginSuccess} />
+        <LoginScreen onLoginSuccess={handleLoginSuccess} onForgotPassword={handleForgotPassword} />
       )}
     </ApolloProvider>
   );
