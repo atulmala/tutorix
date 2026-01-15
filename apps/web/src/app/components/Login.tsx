@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { BRAND_NAME } from '../config';
 import { LOGIN } from '@tutorix/shared-graphql';
@@ -27,19 +27,22 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
   const [errors, setErrors] = useState<{ email?: string; mobile?: string; password?: string; general?: string }>({});
   const [incompleteSignupError, setIncompleteSignupError] = useState<IncompleteSignupError | null>(null);
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [login, { loading }] = useMutation(LOGIN, {
     onCompleted: (data) => {
       // Store tokens if needed (handled by auth context/token storage)
       console.log('Login successful:', data);
+      setShowSuccessModal(true);
+      if (successTimerRef.current) {
+        clearTimeout(successTimerRef.current);
+      }
+      successTimerRef.current = window.setTimeout(() => {
+        setShowSuccessModal(false);
+      }, 2000);
       
       // Track login event
-      if (onLoginSuccess) {
-        onLoginSuccess();
-      } else {
-        // Default: go back to home or dashboard
-        onBackHome();
-      }
     },
     onError: (error) => {
       console.error('Login error:', error);
@@ -175,6 +178,14 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
       setIncompleteSignupError(null);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) {
+        clearTimeout(successTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <>
@@ -335,7 +346,29 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
             disabled={loading || (!email.trim() && !mobile.trim()) || !password}
             className="w-full rounded-lg bg-[#5fa8ff] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="h-4 w-4 animate-spin text-white" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                  />
+                </svg>
+                Logging in...
+              </span>
+            ) : (
+              'Login'
+            )}
           </button>
         </form>
 
@@ -407,6 +440,17 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
                 Complete Signup
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-subtle bg-white p-6 shadow-xl">
+            <h2 className="text-xl font-bold text-primary text-center">Login Successful</h2>
+            <p className="mt-2 text-sm text-muted text-center">
+              You have logged in successfully.
+            </p>
           </div>
         </div>
       )}

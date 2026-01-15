@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { useMutation } from '@apollo/client';
 import { LOGIN } from '@tutorix/shared-graphql/mutations';
@@ -19,6 +20,7 @@ import { BRAND_NAME } from '../config';
 
 type LoginScreenProps = {
   onLoginSuccess?: () => void;
+  onForgotPassword?: () => void;
 };
 
 type IncompleteSignupError = {
@@ -28,12 +30,14 @@ type IncompleteSignupError = {
   isEmailVerified: boolean;
 };
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onForgotPassword }) => {
   const [email, setEmail] = useState('');
   const [countryCode, setCountryCode] = useState('IN');
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [errors, setErrors] = useState<{
     email?: string;
     mobile?: string;
@@ -49,10 +53,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           await setAuthToken(data.login.accessToken);
         }
         console.log('Login successful:', data.login?.user);
-        
-        if (onLoginSuccess) {
-          onLoginSuccess();
+        setShowSuccessModal(true);
+        if (successTimerRef.current) {
+          clearTimeout(successTimerRef.current);
         }
+        successTimerRef.current = setTimeout(() => {
+          setShowSuccessModal(false);
+        }, 2000);
+        
       } catch (error) {
         console.error('Error storing token:', error);
         setErrors({ general: 'Login successful but failed to save session' });
@@ -161,6 +169,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
   };
 
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) {
+        clearTimeout(successTimerRef.current);
+      }
+    };
+  }, []);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -253,6 +269,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               </TouchableOpacity>
             </View>
             {errors.password && <Text style={styles.fieldError}>{errors.password}</Text>}
+            {onForgotPassword && (
+              <TouchableOpacity
+                style={styles.forgotPasswordButton}
+                onPress={onForgotPassword}
+                disabled={loading}
+              >
+                <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <TouchableOpacity
@@ -268,6 +293,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <Modal transparent visible={showSuccessModal} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Login Successful</Text>
+            <Text style={styles.modalMessage}>
+              You have logged in successfully.
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -287,12 +323,14 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     alignSelf: 'center',
     backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
     borderRadius: 16,
     padding: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 6,
     elevation: 4,
   },
   title: {
@@ -329,7 +367,7 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#cbd5e1',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
@@ -367,7 +405,7 @@ const styles = StyleSheet.create({
   },
   countryCodeContainer: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#cbd5e1',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
@@ -400,6 +438,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  forgotPasswordButton: {
+    marginTop: 8,
+    alignSelf: 'flex-end',
+  },
+  forgotPasswordText: {
+    color: '#1d4ed8',
+    fontSize: 13,
+    fontWeight: '600',
+  },
   loginButton: {
     backgroundColor: '#1d4ed8',
     borderRadius: 8,
@@ -414,5 +461,39 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 320,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 16,
   },
 });
