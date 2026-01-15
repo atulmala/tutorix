@@ -30,9 +30,9 @@ type IncompleteSignupError = {
   isEmailVerified: boolean;
 };
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onForgotPassword }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword }) => {
   const [email, setEmail] = useState('');
-  const [countryCode, setCountryCode] = useState('IN');
+  const [countryCode] = useState('IN');
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
