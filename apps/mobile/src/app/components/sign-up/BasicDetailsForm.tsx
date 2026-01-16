@@ -52,10 +52,10 @@ type BasicDetailsFormProps = {
 type ErrorMap = Partial<Record<keyof BasicDetails, string>>;
 
 const COUNTRY_OPTIONS = [
-  { code: 'IN', label: 'India (+91)' },
-  { code: 'US', label: 'United States (+1)' },
-  { code: 'GB', label: 'United Kingdom (+44)' },
-  { code: 'AU', label: 'Australia (+61)' },
+  { code: 'IN', label: 'IND (+91)' },
+  { code: 'US', label: 'US (+1)' },
+  { code: 'GB', label: 'UK (+44)' },
+  { code: 'AU', label: 'AUS (+61)' },
 ];
 
 export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
