@@ -14,10 +14,18 @@ import {
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useMutation } from '@apollo/client';
-import { LOGIN } from '@tutorix/shared-graphql/mutations';
+import { LOGIN, REFRESH_TOKEN } from '@tutorix/shared-graphql/mutations';
 import { getPhoneCountryCode } from '@tutorix/shared-graphql/utils';
 import { setAuthToken } from '@tutorix/shared-graphql/client/shared';
 import { BRAND_NAME } from '../config';
+import { AnalyticsEvent } from '@tutorix/analytics';
+import { trackEvent } from '../../lib/analytics';
+import {
+  getBiometricToken,
+  getSupportedBiometryType,
+  hasBiometricToken,
+  saveBiometricToken,
+} from '../lib/biometric-auth';
 
 type LoginScreenProps = {
   onLoginSuccess?: () => void;
@@ -32,14 +40,26 @@ type IncompleteSignupError = {
   isEmailVerified: boolean;
 };
 
+const COUNTRY_OPTIONS = [
+  { code: 'IN', label: 'IND (+91)' },
+  { code: 'US', label: 'US (+1)' },
+  { code: 'GB', label: 'UK (+44)' },
+  { code: 'AU', label: 'AUS (+61)' },
+];
+
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSignUp }) => {
   const [email, setEmail] = useState('');
-  const [countryCode] = useState('IN');
+  const [countryCode, setCountryCode] = useState('IN');
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showCountryModal, setShowCountryModal] = useState(false);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loginMethodRef = useRef<'email' | 'mobile' | 'biometric' | 'unknown'>('unknown');
+  const [biometryType, setBiometryType] = useState<'FaceID' | 'TouchID' | 'Biometrics' | null>(null);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
   const [errors, setErrors] = useState<{
     email?: string;
     mobile?: string;
@@ -55,13 +75,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
           await setAuthToken(data.login.accessToken);
         }
         console.log('Login successful:', data.login?.user);
-        setShowSuccessModal(true);
-        if (successTimerRef.current) {
-          clearTimeout(successTimerRef.current);
-        }
-        successTimerRef.current = setTimeout(() => {
-          setShowSuccessModal(false);
-        }, 2000);
+        trackEvent(AnalyticsEvent.USER_LOGIN, {
+          method: loginMethodRef.current,
+          platform: Platform.OS,
+          success: true,
+        });
+        showLoginSuccess(data.login?.refreshToken);
         
       } catch (error) {
         console.error('Error storing token:', error);
@@ -70,6 +89,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
     },
     onError: (error) => {
       console.error('Login error:', error);
+      trackEvent(AnalyticsEvent.USER_LOGIN, {
+        method: loginMethodRef.current ?? 'unknown',
+        platform: Platform.OS,
+        success: false,
+        error_message: error.message,
+      });
       
       // Try to parse incomplete signup error
       try {
@@ -114,6 +139,43 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
     },
   });
 
+  const [refreshTokenMutation] = useMutation(REFRESH_TOKEN);
+
+  const showLoginSuccess = (refreshToken?: string) => {
+    setShowSuccessModal(true);
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current);
+    }
+    successTimerRef.current = setTimeout(() => {
+      setShowSuccessModal(false);
+      if (refreshToken) {
+        maybePromptEnableBiometrics(refreshToken);
+      }
+    }, 2000);
+  };
+
+  const maybePromptEnableBiometrics = (refreshToken: string) => {
+    if (!biometryType || biometricEnabled) {
+      return;
+    }
+    const label =
+      biometryType === 'FaceID'
+        ? 'Face ID'
+        : biometryType === 'TouchID'
+        ? 'Touch ID'
+        : 'Biometrics';
+    Alert.alert(`Enable ${label}?`, `Use ${label} to login faster next time.`, [
+      { text: 'Not now', style: 'cancel' },
+      {
+        text: 'Enable',
+        onPress: async () => {
+          await saveBiometricToken(refreshToken);
+          setBiometricEnabled(true);
+        },
+      },
+    ]);
+  };
+
   const validateForm = (): boolean => {
     const newErrors: { email?: string; mobile?: string; password?: string } = {};
     
@@ -153,6 +215,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
     }
     
     try {
+      loginMethodRef.current = email.trim() ? 'email' : 'mobile';
       const loginId = email.trim()
         ? email.trim()
         : `${getPhoneCountryCode(countryCode)}${mobile.replace(/\D/g, '')}`;
@@ -170,6 +233,61 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
     }
   };
 
+  const handleBiometricLogin = async () => {
+    if (!biometryType || biometricLoading) {
+      return;
+    }
+    setErrors({});
+    setBiometricLoading(true);
+    loginMethodRef.current = 'biometric';
+    try {
+      const label =
+        biometryType === 'FaceID'
+          ? 'Face ID'
+          : biometryType === 'TouchID'
+          ? 'Touch ID'
+          : 'Biometrics';
+      const storedRefreshToken = await getBiometricToken(`Login with ${label}`);
+      if (!storedRefreshToken) {
+        trackEvent(AnalyticsEvent.USER_LOGIN, {
+          method: 'biometric',
+          platform: Platform.OS,
+          success: false,
+          error_message: 'Biometric auth cancelled or no token stored',
+        });
+        setErrors({ general: 'Biometric login cancelled or unavailable.' });
+        return;
+      }
+      const { data } = await refreshTokenMutation({
+        variables: { refreshToken: storedRefreshToken },
+      });
+      if (data?.refreshToken?.accessToken) {
+        await setAuthToken(data.refreshToken.accessToken);
+        if (data.refreshToken.refreshToken) {
+          await saveBiometricToken(data.refreshToken.refreshToken);
+        }
+        trackEvent(AnalyticsEvent.USER_LOGIN, {
+          method: 'biometric',
+          platform: Platform.OS,
+          success: true,
+        });
+        showLoginSuccess();
+      } else {
+        throw new Error('Failed to refresh session');
+      }
+    } catch (error) {
+      trackEvent(AnalyticsEvent.USER_LOGIN, {
+        method: 'biometric',
+        platform: Platform.OS,
+        success: false,
+        error_message: error instanceof Error ? error.message : 'Biometric login failed',
+      });
+      setErrors({ general: 'Biometric login failed. Please try again.' });
+    } finally {
+      setBiometricLoading(false);
+    }
+  };
+
   const handleMobileChange = (value: string) => {
     const digitsOnly = value.replace(/\D/g, '');
     setMobile(digitsOnly);
@@ -183,6 +301,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
       if (successTimerRef.current) {
         clearTimeout(successTimerRef.current);
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadBiometricState = async () => {
+      const type = await getSupportedBiometryType();
+      if (!mounted) return;
+      setBiometryType(type);
+      if (type) {
+        const hasToken = await hasBiometricToken();
+        if (!mounted) return;
+        setBiometricEnabled(hasToken);
+      }
+    };
+    loadBiometricState();
+    return () => {
+      mounted = false;
     };
   }, []);
 
@@ -235,11 +371,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Mobile Number</Text>
             <View style={styles.mobileRow}>
-              <View style={styles.countryCodeContainer}>
+              <TouchableOpacity
+                style={styles.countryCodeContainer}
+                onPress={() => setShowCountryModal(true)}
+                disabled={loading}
+              >
                 <Text style={styles.countryCodeText}>
-                  {countryCode === 'IN' ? '+91' : countryCode === 'US' ? '+1' : '+91'}
+                  {COUNTRY_OPTIONS.find((c) => c.code === countryCode)?.label || 'Select'}
                 </Text>
-              </View>
+              </TouchableOpacity>
               <TextInput
                 style={[styles.input, styles.mobileInput, errors.mobile && styles.inputError]}
                 value={mobile}
@@ -332,6 +472,27 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
             )}
           </TouchableOpacity>
 
+          {biometryType && biometricEnabled && (
+            <TouchableOpacity
+              style={styles.biometricButton}
+              onPress={handleBiometricLogin}
+              disabled={loading || biometricLoading}
+            >
+              {biometricLoading ? (
+                <ActivityIndicator color="#1d4ed8" />
+              ) : (
+                <Text style={styles.biometricButtonText}>
+                  Login with{' '}
+                  {biometryType === 'FaceID'
+                    ? 'Face ID'
+                    : biometryType === 'TouchID'
+                    ? 'Touch ID'
+                    : 'Biometrics'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
+
           {onSignUp && (
             <TouchableOpacity
               style={styles.signupButton}
@@ -351,6 +512,32 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
             <Text style={styles.modalMessage}>
               You have logged in successfully.
             </Text>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={showCountryModal} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.countryModalCard}>
+            <Text style={styles.countryModalTitle}>Select Country</Text>
+            {COUNTRY_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option.code}
+                style={styles.countryOption}
+                onPress={() => {
+                  setCountryCode(option.code);
+                  setShowCountryModal(false);
+                }}
+              >
+                <Text style={styles.countryOptionText}>{option.label}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={styles.countryModalClose}
+              onPress={() => setShowCountryModal(false)}
+            >
+              <Text style={styles.countryModalCloseText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -461,7 +648,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     justifyContent: 'center',
     backgroundColor: '#f8fafc',
-    minWidth: 60,
+    width: 120,
   },
   countryCodeText: {
     fontSize: 16,
@@ -507,6 +694,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  biometricButton: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  biometricButtonText: {
+    color: '#1d4ed8',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   signupButton: {
     marginTop: 12,
     alignItems: 'center',
@@ -549,5 +745,35 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
     marginBottom: 16,
+  },
+  countryModalCard: {
+    width: '100%',
+    maxWidth: 320,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  countryModalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 12,
+  },
+  countryOption: {
+    paddingVertical: 10,
+  },
+  countryOptionText: {
+    fontSize: 14,
+    color: '#1e293b',
+  },
+  countryModalClose: {
+    marginTop: 8,
+    alignItems: 'flex-end',
+  },
+  countryModalCloseText: {
+    color: '#1d4ed8',
+    fontWeight: '600',
   },
 });
