@@ -18,6 +18,10 @@ async function bootstrap() {
     origin: [
       'http://localhost:4200', // Web app
       'http://localhost:4201', // Web admin
+      // Mobile apps (React Native)
+      // Android emulator uses 10.0.2.2, iOS simulator uses localhost
+      // For physical devices, you'll need to add your machine's IP
+      'http://10.0.2.2:3000', // Android emulator
       process.env.FRONTEND_URL || 'http://localhost:4200',
     ],
     credentials: true,
