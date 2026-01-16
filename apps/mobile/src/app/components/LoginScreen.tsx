@@ -332,6 +332,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
+          <View style={styles.headerRow}>
+            <View style={styles.headerSpacer} />
+            {onSignUp && (
+              <TouchableOpacity
+                style={styles.signupLinkButton}
+                onPress={() => onSignUp()}
+                disabled={loading}
+              >
+                <Text style={styles.signupLinkText}>Don't have an account? Sign up</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <Text style={styles.title}>{BRAND_NAME} • Login</Text>
           <Text style={styles.subtitle}>
             Enter your registered email or mobile number and password to continue
@@ -493,15 +505,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
             </TouchableOpacity>
           )}
 
-          {onSignUp && (
-            <TouchableOpacity
-              style={styles.signupButton}
-              onPress={() => onSignUp()}
-              disabled={loading}
-            >
-              <Text style={styles.signupText}>Don't have an account? Sign up</Text>
-            </TouchableOpacity>
-          )}
         </View>
       </ScrollView>
 
@@ -575,6 +578,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1e293b',
     marginBottom: 8,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: -12,
+  },
+  headerSpacer: {
+    flex: 1,
+  },
+  signupLinkButton: {
+    paddingVertical: 0,
+  },
+  signupLinkText: {
+    color: '#1d4ed8',
+    fontSize: 14,
+    fontWeight: '600',
   },
   subtitle: {
     fontSize: 14,
@@ -699,15 +720,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   biometricButtonText: {
-    color: '#1d4ed8',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  signupButton: {
-    marginTop: 12,
-    alignItems: 'center',
-  },
-  signupText: {
     color: '#1d4ed8',
     fontSize: 14,
     fontWeight: '600',
