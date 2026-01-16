@@ -368,19 +368,15 @@ export class AuthService {
         ],
       });
     } else {
-      // Tutor/Student login - search by mobile
-      // Extract number part for mobileNumber lookup
-      const digitsOnly = input.loginId.replace(/\D/g, '');
-      // Extract last 10 digits (standard mobile number length for most countries)
-      const numberPart = digitsOnly.slice(-10);
-      
-      // Search by both mobile (full with country code) and mobileNumber (just digits)
-      // This handles cases where mobile is stored in different formats
+      // Tutor/Student login - search by full mobile (country code + number)
+      const normalizedLoginId = input.loginId.replace(/\s/g, '');
+      const digitsOnly = normalizedLoginId.replace(/\D/g, '');
+      const fullMobile = normalizedLoginId.startsWith('+')
+        ? normalizedLoginId
+        : `+${digitsOnly}`;
+
       user = await this.userRepository.findOne({
-        where: [
-          { mobile: input.loginId }, // Exact match on full mobile (e.g., +919876543210)
-          ...(numberPart.length >= 10 ? [{ mobileNumber: numberPart }] : []), // Match on number part (e.g., 9876543210)
-        ],
+        where: [{ mobile: fullMobile }, { mobile: normalizedLoginId }],
         relations: ['tutor'],
         select: [
           'id',
