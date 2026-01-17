@@ -1,8 +1,9 @@
-import { Entity, Column, OneToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, OneToOne, JoinColumn, OneToMany } from 'typeorm';
 import { ObjectType, Field, Int } from '@nestjs/graphql';
 import { QBaseEntity } from '../../../common/base-entities/base.entity';
 import { TutorCertificationStageEnum } from '../enums/tutor.enums';
 import { User } from '../../auth/entities/user.entity';
+import { AddressEntity } from '../../address/entities/address.entity';
 
 /**
  * Tutor Entity
@@ -57,5 +58,11 @@ export class Tutor extends QBaseEntity {
   @Field({ nullable: true })
   @Column({ name: 'whatsapp_number', nullable: true, length: 10 })
   whatsappNumber?: string;
+
+  @Field(() => [AddressEntity], { nullable: true })
+  @OneToMany(() => AddressEntity, (address) => address.tutor, {
+    cascade: ['insert', 'update', 'remove'],
+  })
+  addresses: AddressEntity[];
 }
 

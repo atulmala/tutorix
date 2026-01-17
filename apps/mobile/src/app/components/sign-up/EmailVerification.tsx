@@ -26,7 +26,6 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({
   onVerified,
   disabled = false,
   initialEmail,
-  onBackToDetails,
 }) => {
   const [email, setEmail] = useState(initialEmail ?? '');
   const [emailError, setEmailError] = useState('');
