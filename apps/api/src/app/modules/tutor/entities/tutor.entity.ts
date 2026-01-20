@@ -39,6 +39,10 @@ export class Tutor extends QBaseEntity {
   @Column({ default: false })
   regFeePaid: boolean;
 
+  @Field()
+  @Column({ name: 'on_boarding_complete', default: false })
+  onBoardingComplete: boolean;
+
   @Field({ nullable: true })
   @Column({ type: 'decimal', precision: 8, scale: 2, default: 0 })
   regFeeAmount: number;

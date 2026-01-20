@@ -14,8 +14,9 @@
  */
 
 export * from './auth.queries';
+export * from './address.queries';
+export * from './tutor.queries';
 
 // Export other query modules here as they are created:
-// export * from './tutor.queries';
 // export * from './student.queries';
 // export * from './class.queries';

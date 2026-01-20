@@ -3,11 +3,12 @@ import { useMutation } from '@apollo/client';
 import { BRAND_NAME } from '../config';
 import { LOGIN } from '@tutorix/shared-graphql';
 import { getPhoneCountryCode } from '@tutorix/shared-graphql';
+import { setAuthToken } from '@tutorix/shared-graphql/client/shared/token-storage';
 
 type LoginProps = {
   onBackHome: () => void;
   onSignUp: (userId?: number, verificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean }) => void;
-  onLoginSuccess?: () => void;
+  onLoginSuccess?: (user?: { id: number; role: string }) => void;
   onForgotPassword?: () => void;
 };
 
@@ -31,8 +32,13 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
   const successTimerRef = useRef<number | null>(null);
 
   const [login, { loading }] = useMutation(LOGIN, {
-    onCompleted: (data) => {
-      // Store tokens if needed (handled by auth context/token storage)
+    onCompleted: async (data) => {
+      // Store access token for authenticated requests
+      if (data?.login?.accessToken) {
+        await setAuthToken(data.login.accessToken);
+        console.log('Access token stored');
+      }
+      
       console.log('Login successful:', data);
       setShowSuccessModal(true);
       if (successTimerRef.current) {
@@ -40,6 +46,10 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
       }
       successTimerRef.current = window.setTimeout(() => {
         setShowSuccessModal(false);
+        // Call onLoginSuccess with user data
+        if (onLoginSuccess && data?.login?.user) {
+          onLoginSuccess(data.login.user);
+        }
       }, 2000);
       
       // Track login event
