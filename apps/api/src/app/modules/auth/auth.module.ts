@@ -15,6 +15,7 @@ import { Otp } from './entities/otp.entity';
 import { OtpService } from './services/otp.service';
 import { OtpResolver } from './resolvers/otp.resolver';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
+import { TutorModule } from '../tutor/tutor.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { PasswordResetToken } from './entities/password-reset-token.entity';
       inject: [ConfigService],
     }),
     ConfigModule,
+    TutorModule,
   ],
   providers: [
     AuthService,
