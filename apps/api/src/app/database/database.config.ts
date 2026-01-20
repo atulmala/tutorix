@@ -50,7 +50,9 @@ export function createDatabaseOptions(
     // Use migrations instead for production-safe schema changes
     synchronize: false,
 
-    logging: process.env.NODE_ENV === 'development',
+    // Logging configuration: disable SQL query logs (too verbose)
+    // Set to ['error', 'warn'] to keep important logs but exclude SQL queries
+    logging: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : false,
   };
 }
 

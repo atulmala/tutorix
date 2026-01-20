@@ -7,6 +7,7 @@ import {
   IsPositive,
   IsString,
   Matches,
+  IsDateString,
 } from 'class-validator';
 import { UserRole } from '../enums/user-role.enum';
 import { Gender } from '../enums/gender.enum';
@@ -54,6 +55,11 @@ export class UpdateUserInput {
   @IsOptional()
   @IsEnum(Gender)
   gender?: Gender;
+
+  @Field(() => Date, { nullable: true })
+  @IsOptional()
+  @IsDateString()
+  dob?: Date;
 
   @Field({ nullable: true })
   @IsOptional()

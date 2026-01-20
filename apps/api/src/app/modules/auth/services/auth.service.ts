@@ -25,6 +25,7 @@ import { PasswordResetToken } from '../entities/password-reset-token.entity';
 import { ForgotPasswordInput } from '../dto/forgot-password.input';
 import { ResetPasswordInput } from '../dto/reset-password.input';
 import { ConfigService } from '@nestjs/config';
+import { TutorService } from '../../tutor/services/tutor.service';
 
 @Injectable()
 export class AuthService {
@@ -37,6 +38,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly analyticsService: AnalyticsService,
     private readonly configService: ConfigService,
+    private readonly tutorService: TutorService,
   ) {}
 
   /**
@@ -151,6 +153,7 @@ export class AuthService {
       if (input.firstName !== undefined) existingUser.firstName = input.firstName;
       if (input.lastName !== undefined) existingUser.lastName = input.lastName;
       if (input.gender !== undefined) existingUser.gender = input.gender;
+      if (input.dob !== undefined) existingUser.dob = input.dob;
       if (input.role !== undefined && existingUser.role === UserRole.UNKNOWN) {
         existingUser.role = input.role;
       }
@@ -168,6 +171,19 @@ export class AuthService {
       if (!existingUser.mobileNumber) existingUser.mobileNumber = mobileNumber;
 
       const savedUser = await this.userRepository.save(existingUser);
+      
+      // Create tutor if user role is TUTOR
+      if (savedUser.role === UserRole.TUTOR) {
+        console.log(`🎓 Existing user is TUTOR, ensuring tutor exists for userId: ${savedUser.id}`);
+        try {
+          const tutor = await this.tutorService.ensureTutorExists(savedUser.id);
+          console.log(`✅ Tutor ensured for existing user. Tutor ID: ${tutor.id}`);
+        } catch (error) {
+          console.error('❌ Failed to create tutor for existing user:', error);
+          // Don't fail registration if tutor creation fails
+        }
+      }
+      
       return savedUser;
     }
 
@@ -175,6 +191,14 @@ export class AuthService {
     const tempPassword =
       input.password || crypto.randomBytes(12).toString('hex');
     const hashedPassword = await this.passwordService.hashPassword(tempPassword);
+
+    console.log(`📝 RegisterUser - Creating user with role: ${input.role ?? UserRole.UNKNOWN}`);
+    console.log(`📝 RegisterUser - Input role value:`, {
+      role: input.role,
+      roleType: typeof input.role,
+      UserRoleTUTOR: UserRole.TUTOR,
+      rolesMatch: input.role === UserRole.TUTOR,
+    });
 
     const user = this.userRepository.create({
       email: input.email,
@@ -186,12 +210,34 @@ export class AuthService {
       firstName: input.firstName,
       lastName: input.lastName,
       gender: input.gender ?? Gender.OTHER,
+      dob: input.dob,
       isSignupComplete: false,
       isMobileVerified: false,
       isEmailVerified: false,
     });
 
+    console.log(`💾 RegisterUser - User entity created with role: ${user.role}`);
     const savedUser = await this.userRepository.save(user);
+    console.log(`✅ RegisterUser - User saved with ID: ${savedUser.id}, Role: ${savedUser.role}`);
+    
+    // Create tutor if user role is TUTOR (when "Verify Phone" button is clicked)
+    if (savedUser.role === UserRole.TUTOR) {
+      console.log(`🎓 New user is TUTOR, creating tutor for userId: ${savedUser.id}`);
+      try {
+        const tutor = await this.tutorService.ensureTutorExists(savedUser.id);
+        console.log(`✅ Tutor created successfully for new user. Tutor ID: ${tutor.id}`);
+      } catch (error) {
+        console.error('❌ Failed to create tutor for new user:', error);
+        console.error('Error details:', {
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+        // Don't fail registration if tutor creation fails
+      }
+    } else {
+      console.log(`ℹ️ User role is ${savedUser.role}, not TUTOR. Skipping tutor creation.`);
+    }
+    
     return savedUser;
   }
 
@@ -262,6 +308,7 @@ export class AuthService {
     if (input.lastName !== undefined) user.lastName = input.lastName;
     if (input.role !== undefined) user.role = input.role;
     if (input.gender !== undefined) user.gender = input.gender;
+    if (input.dob !== undefined) user.dob = input.dob;
     if (input.isSignupComplete !== undefined)
       user.isSignupComplete = input.isSignupComplete;
 
