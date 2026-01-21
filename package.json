@@ -136,7 +136,6 @@
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/typeorm": "^10.0.2",
     "@react-native-async-storage/async-storage": "^2.1.0",
-    "@react-native-community/datetimepicker": "^8.2.0",
     "@react-native-firebase/analytics": "^23.7.0",
     "@react-native-firebase/app": "^23.7.0",
     "@react-native-firebase/crashlytics": "^23.7.0",
