@@ -24,8 +24,8 @@
 // Mobile apps should import directly from './mobile' to avoid Metro parsing import.meta
 import * as webClient from './web';
 
-// Re-export shared utilities (always available)
-export * from './shared';
+// Shared utilities have been moved to platform-specific locations
+// Use './mobile' or './web' directly instead
 
 // Export web client for web/web-admin apps
 // Note: Mobile apps should use '@tutorix/shared-graphql/client/mobile' instead

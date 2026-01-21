@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { BRAND_NAME } from '../config';
 import { LOGIN } from '@tutorix/shared-graphql';
-import { getPhoneCountryCode } from '@tutorix/shared-graphql';
-import { setAuthToken } from '@tutorix/shared-graphql/client/shared/token-storage';
+import { getPhoneCountryCode } from '@tutorix/shared-utils';
+import { setAuthToken } from '@tutorix/shared-graphql/client/web/token-storage';
 
 type LoginProps = {
   onBackHome: () => void;

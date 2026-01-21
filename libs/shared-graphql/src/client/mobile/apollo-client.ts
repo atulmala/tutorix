@@ -1,3 +1,4 @@
+import React from 'react';
 import { ApolloClient, from } from '@apollo/client';
 import { Platform } from 'react-native';
 import {
@@ -5,9 +6,22 @@ import {
   createAuthLink,
   createErrorLink,
   createRetryLink,
-} from '../shared/links';
-import { createCache } from '../shared/cache-config';
-import { getGraphQLEndpoint } from '../shared/endpoint';
+} from './links';
+import { createCache } from './cache-config';
+import { getGraphQLEndpoint } from './endpoint';
+
+// CRITICAL: Ensure React is available globally before Apollo Client uses it
+// Apollo Client's context.cjs internally uses React.useContext, and if React
+// is null or from a different instance, it will fail
+if (typeof global !== 'undefined') {
+  if (!global.React) {
+    global.React = React;
+    console.log('[Apollo Client - Mobile] 🔧 Set global.React for Apollo Client');
+  } else if (global.React !== React) {
+    console.warn('[Apollo Client - Mobile] ⚠️ global.React differs from imported React, updating...');
+    global.React = React;
+  }
+}
 
 /**
  * Get NODE_ENV value from process.env (React Native)
