@@ -65,8 +65,6 @@ export const App = () => {
         <SplashScreen onFinish={handleSplashFinish} />
       ) : currentView === 'signup' ? (
         <SignUpScreen
-          onBackHome={handleBackToLogin}
-          onLogin={handleBackToLogin}
           resumeUserId={signupResume?.userId}
           resumeVerificationStatus={signupResume?.verificationStatus}
         />
