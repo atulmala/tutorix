@@ -6,7 +6,7 @@ import { BasicDetailsForm, BasicDetails, createEmptyDetails } from './BasicDetai
 import { PhoneVerification } from './PhoneVerification';
 import { useSignupTracking } from '../../../hooks/useSignupTracking';
 import { GET_USER_BY_ID } from '@tutorix/shared-graphql';
-import { getIsoCountryCode } from '@tutorix/shared-graphql';
+import { getIsoCountryCode } from '@tutorix/shared-utils';
 
 type SignUpProps = {
   onBackHome: () => void;
@@ -90,15 +90,21 @@ export const SignUp: React.FC<SignUpProps> = ({
   useEffect(() => {
     if (userData?.user && resumeUserId) {
       const user = userData.user;
-      setBasicDetails((prev) => ({
-        ...prev,
-        phone: user.mobileNumber || '',
-        countryCode: user.mobileCountryCode ? getIsoCountryCode(user.mobileCountryCode) : 'IN',
-        email: user.email || '',
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        gender: (user.gender?.toLowerCase() as 'male' | 'female' | 'other') || 'male',
-      }));
+      const userGender = user.gender?.toLowerCase();
+      // Ensure gender is only 'male' or 'female' to match BasicDetails type
+      const validGender: 'male' | 'female' = (userGender === 'male' || userGender === 'female') ? userGender : 'male';
+      setBasicDetails((prev) => {
+        const updated: BasicDetails = {
+          ...prev,
+          phone: user.mobileNumber || '',
+          countryCode: user.mobileCountryCode ? getIsoCountryCode(user.mobileCountryCode) : 'IN',
+          email: user.email || '',
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
+          gender: validGender,
+        };
+        return updated;
+      });
     }
   }, [userData, resumeUserId]);
 

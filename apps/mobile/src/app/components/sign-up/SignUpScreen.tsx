@@ -6,7 +6,7 @@ import { BasicDetailsForm, BasicDetails, createEmptyDetails } from './BasicDetai
 import { PhoneVerification } from './PhoneVerification';
 import { EmailVerification } from './EmailVerification';
 import { GET_USER_BY_ID } from '@tutorix/shared-graphql/queries';
-import { getIsoCountryCode } from '@tutorix/shared-graphql/utils';
+import { getIsoCountryCode } from '@tutorix/shared-utils';
 
 type SignUpProps = {
   resumeUserId?: number;

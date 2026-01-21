@@ -7,16 +7,13 @@ import { initializeCrashlytics, verifyCrashlytics } from './lib/crashlytics';
 // Initialize Firebase Analytics
 // Note: React Native Firebase Analytics initializes automatically when the app starts
 // This just ensures our wrapper is ready
-console.log('🚀 Starting app initialization...');
 initializeAnalytics()
   .then(async () => {
-    console.log('✅ Firebase Analytics initialized (Mobile)');
     // Verify analytics is working
     await verifyAnalytics();
   })
-  .catch((error) => {
-    console.error('❌ Failed to initialize Firebase Analytics:', error);
-    console.error('Error details:', error.message);
+  .catch(() => {
+    // Silently handle initialization errors
   });
 
 // Initialize Firebase Crashlytics
@@ -25,13 +22,11 @@ initializeAnalytics()
 // Completely separate from Analytics initialization
 initializeCrashlytics()
   .then(async () => {
-    console.log('✅ Firebase Crashlytics initialized (Mobile)');
     // Verify crashlytics is working
     await verifyCrashlytics();
   })
-  .catch((error) => {
-    console.error('❌ Failed to initialize Firebase Crashlytics:', error);
-    console.error('Error details:', error.message);
+  .catch(() => {
+    // Silently handle initialization errors
   });
 
 AppRegistry.registerComponent('Mobile', () => App);

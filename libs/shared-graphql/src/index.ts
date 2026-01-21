@@ -60,5 +60,4 @@ export * from './mutations';
 // Export fragments
 export * from './fragments';
 
-// Export utilities
-export * from './utils';
+// Utilities moved to @tutorix/shared-utils library

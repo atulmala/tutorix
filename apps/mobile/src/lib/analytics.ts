@@ -14,14 +14,11 @@ let analyticsInstance: FirebaseMobileAnalytics | null = null;
  */
 export async function initializeAnalytics(config?: Record<string, unknown>): Promise<void> {
   if (analyticsInstance) {
-    console.warn('⚠️ Analytics already initialized');
     return;
   }
 
-  console.log('🔄 Starting Firebase Analytics initialization...');
   analyticsInstance = new FirebaseMobileAnalytics();
   await analyticsInstance.initialize(config);
-  console.log('✅ Analytics initialization complete');
 }
 
 /**
@@ -39,7 +36,6 @@ export function getAnalytics(): FirebaseMobileAnalytics {
  */
 export function trackEvent(event: AnalyticsEvent, params?: Record<string, unknown>): void {
   if (!analyticsInstance) {
-    console.warn('Analytics not initialized');
     return;
   }
   analyticsInstance.trackEvent(event, params);
@@ -50,7 +46,6 @@ export function trackEvent(event: AnalyticsEvent, params?: Record<string, unknow
  */
 export function trackScreenView(screenName: string, screenClass?: string): void {
   if (!analyticsInstance) {
-    console.warn('Analytics not initialized');
     return;
   }
   analyticsInstance.trackScreenView(screenName, screenClass);
@@ -61,7 +56,6 @@ export function trackScreenView(screenName: string, screenClass?: string): void 
  */
 export function setUserProperties(properties: UserProperties): void {
   if (!analyticsInstance) {
-    console.warn('Analytics not initialized');
     return;
   }
   analyticsInstance.setUserProperties(properties);
@@ -72,7 +66,6 @@ export function setUserProperties(properties: UserProperties): void {
  */
 export function setUserId(userId: string | number | null): void {
   if (!analyticsInstance) {
-    console.warn('Analytics not initialized');
     return;
   }
   analyticsInstance.setUserId(userId);
@@ -83,7 +76,6 @@ export function setUserId(userId: string | number | null): void {
  */
 export function resetAnalytics(): void {
   if (!analyticsInstance) {
-    console.warn('Analytics not initialized');
     return;
   }
   analyticsInstance.reset();
@@ -94,7 +86,6 @@ export function resetAnalytics(): void {
  */
 export function trackError(error: Error | string, fatal = false, additionalData?: Record<string, unknown>): void {
   if (!analyticsInstance) {
-    console.warn('Analytics not initialized');
     return;
   }
   analyticsInstance.trackError(error, fatal, additionalData);
@@ -148,27 +139,17 @@ export const analytics = {
  */
 export async function verifyAnalytics(): Promise<boolean> {
   if (!analyticsInstance) {
-    console.warn('⚠️ Analytics not initialized - cannot verify');
     return false;
   }
 
   try {
-    console.log('🧪 Verifying analytics by sending test event...');
     trackEvent(AnalyticsEvent.BUTTON_CLICK, {
       button_name: 'analytics_verification_test',
       test: true,
       timestamp: new Date().toISOString(),
     });
-    console.log('✅ Analytics verification test event sent successfully');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('✅✅✅ FIREBASE ANALYTICS IS WORKING CORRECTLY ✅✅✅');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     return true;
-  } catch (error) {
-    console.error('❌ Analytics verification failed:', error);
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.error('❌❌❌ FIREBASE ANALYTICS VERIFICATION FAILED ❌❌❌');
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  } catch {
     return false;
   }
 }

@@ -15,4 +15,5 @@
 
 export * from './apollo-client';
 export * from './apollo-provider';
-export * from '../shared';
+// Shared utilities have been moved to platform-specific locations
+// Do NOT export from '../shared' to avoid Metro bundling web-specific code

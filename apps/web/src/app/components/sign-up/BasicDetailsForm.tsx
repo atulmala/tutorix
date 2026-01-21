@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { BRAND_NAME } from '../../config';
 import { REGISTER_USER } from '@tutorix/shared-graphql';
-import { getPhoneCountryCode } from '@tutorix/shared-graphql';
+import { getPhoneCountryCode } from '@tutorix/shared-utils';
 
 export type BasicDetails = {
   firstName: string;

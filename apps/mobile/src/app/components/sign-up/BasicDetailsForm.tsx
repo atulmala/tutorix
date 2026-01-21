@@ -12,7 +12,7 @@ import {
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useMutation } from '@apollo/client';
 import { REGISTER_USER } from '@tutorix/shared-graphql/mutations';
-import { getPhoneCountryCode } from '@tutorix/shared-graphql/utils';
+import { getPhoneCountryCode } from '@tutorix/shared-utils';
 
 // Dynamically import DateTimePicker to handle cases where native module isn't available
 // Note: This will only work after rebuilding the app with the native module linked
