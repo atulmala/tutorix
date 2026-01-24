@@ -1,7 +1,30 @@
 import '@react-native-firebase/app';
 import { AppRegistry, View, Text } from 'react-native';
+import React from 'react';
 import { initializeAnalytics, verifyAnalytics } from './lib/analytics';
 import { initializeCrashlytics, verifyCrashlytics } from './lib/crashlytics';
+
+// CRITICAL: Patch rehackt to use the same React instance as React Native
+// Apollo Client uses rehackt which does require('react') at runtime
+// We need to ensure it gets the SAME React instance that React Native is using
+if (typeof global !== 'undefined') {
+  global.React = React;
+  
+  // Patch rehackt's React instance before Apollo Client loads
+  try {
+    const rehackt = require('rehackt');
+    // Force rehackt to use our React instance by replacing all its React methods
+    if (rehackt && (!rehackt.useContext || rehackt.useContext !== React.useContext)) {
+      // Copy all React properties to rehackt
+      Object.keys(React).forEach(key => {
+        rehackt[key] = React[key];
+      });
+      console.log('[main.tsx] ✅ Patched rehackt to use React Native React instance');
+    }
+  } catch (error) {
+    console.warn('[main.tsx] ⚠️ Could not patch rehackt:', error);
+  }
+}
 
 console.log('[main.tsx] Starting app registration...');
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ApolloClient, from } from '@apollo/client';
 import { Platform } from 'react-native';
+
 import {
   createHttpLinkForClient,
   createAuthLink,
@@ -9,29 +10,6 @@ import {
 } from './links';
 import { createCache } from './cache-config';
 import { getGraphQLEndpoint } from './endpoint';
-
-// CRITICAL: Ensure React is available globally before Apollo Client uses it
-// Apollo Client's context.cjs internally uses React.useContext, and if React
-// is null or from a different instance, it will fail
-if (typeof global !== 'undefined') {
-  if (!global.React) {
-    global.React = React;
-    console.log('[Apollo Client - Mobile] 🔧 Set global.React for Apollo Client');
-  } else if (global.React !== React) {
-    console.warn('[Apollo Client - Mobile] ⚠️ global.React differs from imported React, updating...');
-    global.React = React;
-  }
-}
-
-/**
- * Get NODE_ENV value from process.env (React Native)
- */
-function getNodeEnv(): string {
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env['NODE_ENV'] || 'development';
-  }
-  return 'development';
-}
 
 /**
  * Get GraphQL endpoint for mobile
@@ -84,8 +62,9 @@ export function createApolloClient() {
         errorPolicy: 'all',
       },
     },
-    // Enable cache in development for debugging
-    connectToDevTools: getNodeEnv() !== 'production',
+    // Note: connectToDevTools is deprecated in Apollo Client 3.14+
+    // DevTools will auto-connect in development mode (when __DEV__ is true)
+    // Removing the option to avoid deprecation warnings
   });
   
   console.log('[Apollo Client - Mobile] Apollo Client created successfully');
@@ -119,22 +98,21 @@ function getApolloClient(): ReturnType<typeof createApolloClient> {
   }
 }
 
-// Export as a getter to enable lazy initialization
-export const apolloClient = new Proxy({} as ReturnType<typeof createApolloClient>, {
-  get(_target, prop) {
-    const client = getApolloClient();
-    const value = (client as any)[prop];
-    if (typeof value === 'function') {
-      return value.bind(client);
-    }
-    return value;
-  },
-  ownKeys() {
-    const client = getApolloClient();
-    return Object.keys(client);
-  },
-  getOwnPropertyDescriptor(_target, prop) {
-    const client = getApolloClient();
-    return Object.getOwnPropertyDescriptor(client, prop);
-  },
-});
+// Export client instance - created lazily on first access
+// This is accessed via a getter to ensure lazy initialization
+// The actual client is created when apolloClient is first accessed
+export const apolloClient = (() => {
+  // Return a Proxy that creates the client on first property access
+  // This ensures the client is only created when actually used
+  return new Proxy({} as ReturnType<typeof createApolloClient>, {
+    get(_target, prop) {
+      const client = getApolloClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const value = (client as any)[prop];
+      if (typeof value === 'function') {
+        return (value as (...args: unknown[]) => unknown).bind(client);
+      }
+      return value;
+    },
+  });
+})();
