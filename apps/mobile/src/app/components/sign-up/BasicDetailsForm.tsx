@@ -7,36 +7,11 @@ import {
   StyleSheet,
   Modal,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useMutation } from '@apollo/client';
 import { REGISTER_USER } from '@tutorix/shared-graphql/mutations';
 import { getPhoneCountryCode } from '@tutorix/shared-utils';
-
-// Dynamically import DateTimePicker to handle cases where native module isn't available
-// Note: This will only work after rebuilding the app with the native module linked
-// For now, we'll use a text input fallback until the app is rebuilt
-// Using any since the module is conditionally loaded and types may not be available
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let DateTimePicker: React.ComponentType<any> | null = null;
-let isDateTimePickerAvailable = false;
-
-// Temporarily disable DateTimePicker until native module is linked
-// Set this to true after rebuilding the app
-const USE_NATIVE_DATEPICKER = false;
-
-if (USE_NATIVE_DATEPICKER && typeof require !== 'undefined') {
-  try {
-    const DateTimePickerModule = require('@react-native-community/datetimepicker');
-    DateTimePicker = DateTimePickerModule.default || DateTimePickerModule;
-    // Check if native module is actually available by checking if it's a valid component
-    isDateTimePickerAvailable = DateTimePicker !== null && DateTimePicker !== undefined && typeof DateTimePicker === 'function';
-  } catch {
-    // Native module not available - will use fallback text input
-    isDateTimePickerAvailable = false;
-  }
-}
 
 export type BasicDetails = {
   firstName: string;
@@ -533,88 +508,39 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
         </View>
       </Modal>
 
-      {isDateTimePickerAvailable && DateTimePicker && Platform.OS === 'ios' && showDatePicker && (
-        <Modal transparent visible={showDatePicker} animationType="slide">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
-              <View style={styles.datePickerHeader}>
-                <Text style={styles.modalTitle}>Select Date of Birth</Text>
-                <TouchableOpacity
-                  onPress={() => setShowDatePicker(false)}
-                  style={styles.datePickerDoneButton}
-                >
-                  <Text style={styles.modalCloseText}>Done</Text>
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker
-                value={form.dob ? new Date(form.dob) : new Date()}
-                mode="date"
-                display="spinner"
-                maximumDate={new Date()}
-                onChange={(event: unknown, selectedDate?: Date) => {
-                  const e = event as { type?: string };
-                  if (e.type === 'set' && selectedDate) {
-                    updateField('dob', selectedDate.toISOString().split('T')[0]);
-                  }
-                }}
-                style={styles.datePicker}
-              />
-            </View>
+      <Modal transparent visible={showDatePicker} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Select Date of Birth</Text>
+            <TextInput
+              style={[styles.input, { marginBottom: 12 }]}
+              value={form.dob || ''}
+              onChangeText={(value) => {
+                // Format input as YYYY-MM-DD
+                let formatted = value.replace(/\D/g, ''); // Remove non-digits
+                if (formatted.length > 4) {
+                  formatted = formatted.slice(0, 4) + '-' + formatted.slice(4);
+                }
+                if (formatted.length > 7) {
+                  formatted = formatted.slice(0, 7) + '-' + formatted.slice(7, 9);
+                }
+                updateField('dob', formatted || null);
+              }}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor="#9ca3af"
+              keyboardType="numeric"
+              maxLength={10}
+            />
+            <Text style={styles.modalHint}>Format: YYYY-MM-DD (e.g., 1990-01-15)</Text>
+            <TouchableOpacity
+              style={styles.modalClose}
+              onPress={() => setShowDatePicker(false)}
+            >
+              <Text style={styles.modalCloseText}>Done</Text>
+            </TouchableOpacity>
           </View>
-        </Modal>
-      )}
-      {isDateTimePickerAvailable && DateTimePicker && Platform.OS === 'android' && showDatePicker && (
-        <DateTimePicker
-          value={form.dob ? new Date(form.dob) : new Date()}
-          mode="date"
-          display="default"
-          maximumDate={new Date()}
-          onChange={(event: unknown, selectedDate?: Date) => {
-            const e = event as { type?: string };
-            setShowDatePicker(false);
-            if (e.type === 'set' && selectedDate) {
-              updateField('dob', selectedDate.toISOString().split('T')[0]);
-            } else if (e.type === 'dismissed') {
-              setShowDatePicker(false);
-            }
-          }}
-        />
-      )}
-      {(!isDateTimePickerAvailable || !DateTimePicker) && showDatePicker && (
-        <Modal transparent visible={showDatePicker} animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
-              <Text style={styles.modalTitle}>Select Date of Birth</Text>
-              <TextInput
-                style={[styles.input, { marginBottom: 12 }]}
-                value={form.dob || ''}
-                onChangeText={(value) => {
-                  // Format input as YYYY-MM-DD
-                  let formatted = value.replace(/\D/g, ''); // Remove non-digits
-                  if (formatted.length > 4) {
-                    formatted = formatted.slice(0, 4) + '-' + formatted.slice(4);
-                  }
-                  if (formatted.length > 7) {
-                    formatted = formatted.slice(0, 7) + '-' + formatted.slice(7, 9);
-                  }
-                  updateField('dob', formatted || null);
-                }}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor="#9ca3af"
-                keyboardType="numeric"
-                maxLength={10}
-              />
-              <Text style={styles.modalHint}>Format: YYYY-MM-DD (e.g., 1990-01-15)</Text>
-              <TouchableOpacity
-                style={styles.modalClose}
-                onPress={() => setShowDatePicker(false)}
-              >
-                <Text style={styles.modalCloseText}>Done</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      )}
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -819,19 +745,5 @@ const styles = StyleSheet.create({
   modalCloseText: {
     color: '#1d4ed8',
     fontWeight: '600',
-  },
-  datePickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  datePickerDoneButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-  },
-  datePicker: {
-    width: '100%',
-    height: 200,
   },
 });

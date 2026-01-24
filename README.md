@@ -94,6 +94,11 @@ All commands automatically watch for file changes and reload:
   - Hot reloading via Metro bundler
 - **Mobile (Android)**: `npm run mobile:android` or `npx nx run-android mobile`
   - Hot reloading via Metro bundler
+  - **Note**: If you see a black screen, ensure Metro bundler is running first:
+    1. Start Metro in a separate terminal: `npm run mobile:start`
+    2. Wait for Metro to be ready (you'll see "Metro waiting on...")
+    3. Then run: `npm run mobile:android`
+  - **Alternative**: Use `npm run mobile:android:dev` which automatically starts Metro first
 
 #### Enabling Auto-Restart for API
 

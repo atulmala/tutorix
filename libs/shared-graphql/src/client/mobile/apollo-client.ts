@@ -93,22 +93,48 @@ export function createApolloClient() {
 }
 
 /**
- * Export default client instance
- * Apps can import this directly or create their own instance using createApolloClient()
- * 
- * Note: Client is created at module load time. For lazy initialization,
- * use createApolloClient() instead.
+ * Export default client instance with lazy initialization
+ * Client is created on first access, not at module load time
+ * This prevents initialization errors from blocking the app from loading
  */
 let _apolloClient: ReturnType<typeof createApolloClient> | null = null;
+let _initializationError: Error | null = null;
 
-export const apolloClient = (() => {
+function getApolloClient(): ReturnType<typeof createApolloClient> {
+  if (_apolloClient) {
+    return _apolloClient;
+  }
+  
+  if (_initializationError) {
+    throw _initializationError;
+  }
+  
   try {
-    if (!_apolloClient) {
-      _apolloClient = createApolloClient();
-    }
+    _apolloClient = createApolloClient();
     return _apolloClient;
   } catch (error) {
+    _initializationError = error instanceof Error ? error : new Error(String(error));
     console.error('[Apollo Client - Mobile] Error creating client:', error);
-    throw error;
+    throw _initializationError;
   }
-})();
+}
+
+// Export as a getter to enable lazy initialization
+export const apolloClient = new Proxy({} as ReturnType<typeof createApolloClient>, {
+  get(_target, prop) {
+    const client = getApolloClient();
+    const value = (client as any)[prop];
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    return value;
+  },
+  ownKeys() {
+    const client = getApolloClient();
+    return Object.keys(client);
+  },
+  getOwnPropertyDescriptor(_target, prop) {
+    const client = getApolloClient();
+    return Object.getOwnPropertyDescriptor(client, prop);
+  },
+});
