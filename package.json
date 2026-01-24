@@ -9,6 +9,8 @@
     "serve:admin": "nx serve web-admin",
     "mobile:ios": "nx run-ios mobile",
     "mobile:android": "nx run-android mobile",
+    "mobile:start": "nx start mobile",
+    "mobile:android:dev": "bash scripts/start-android.sh",
     "build:api": "nx build api",
     "build:web": "nx build web",
     "build:admin": "nx build web-admin",
@@ -75,8 +77,8 @@
     "@types/node": "20.19.9",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
-    "@types/react": "^19.0.10",
-    "@types/react-dom": "^19.0.6",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
     "@types/supertest": "^6.0.3",
     "@vitejs/plugin-react": "^4.2.0",
     "@vitest/ui": "^4.0.0",
@@ -109,7 +111,7 @@
     "react-native-svg-transformer": "~1.5.1",
     "react-native-svg-web": "~1.0.9",
     "react-native-web": "~0.20.0",
-    "react-test-renderer": "19.0.0",
+    "react-test-renderer": "18.2.0",
     "supertest": "^7.2.2",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^3.4.14",
@@ -150,16 +152,18 @@
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
     "pg": "^8.11.3",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
     "react-native": "~0.79.3",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.2",
     "typeorm": "^0.3.20"
   },
   "overrides": {
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
-    "react-test-renderer": "19.0.0"
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-test-renderer": "18.2.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0"
   }
 }

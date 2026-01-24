@@ -1,8 +1,38 @@
 import '@react-native-firebase/app';
-import { AppRegistry } from 'react-native';
-import App from './app/App';
+import { AppRegistry, View, Text } from 'react-native';
 import { initializeAnalytics, verifyAnalytics } from './lib/analytics';
 import { initializeCrashlytics, verifyCrashlytics } from './lib/crashlytics';
+
+console.log('[main.tsx] Starting app registration...');
+
+// Import App with error handling
+let App;
+try {
+  console.log('[main.tsx] Attempting to import App...');
+  App = require('./app/App').default;
+  console.log('[main.tsx] ✅ App imported successfully, type:', typeof App);
+} catch (error) {
+  console.error('[main.tsx] ❌ Failed to import App:', error);
+  // Fallback component to show error
+  App = () => (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#fff' }}>
+      <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 10, color: '#f00' }}>
+        App Import Error
+      </Text>
+      <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 10 }}>
+        Failed to load App component
+      </Text>
+      <Text style={{ fontSize: 12, color: '#999' }}>
+        {error instanceof Error ? error.message : String(error)}
+      </Text>
+      {error instanceof Error && error.stack && (
+        <Text style={{ fontSize: 10, color: '#ccc', marginTop: 10 }}>
+          {error.stack}
+        </Text>
+      )}
+    </View>
+  );
+}
 
 // Initialize Firebase Analytics
 // Note: React Native Firebase Analytics initializes automatically when the app starts
@@ -29,4 +59,16 @@ initializeCrashlytics()
     // Silently handle initialization errors
   });
 
-AppRegistry.registerComponent('Mobile', () => App);
+// Register the component with a wrapper to catch errors
+AppRegistry.registerComponent('Mobile', () => {
+  console.log('[main.tsx] 🚀 Registering Mobile component, App type:', typeof App);
+  if (!App) {
+    console.error('[main.tsx] ❌ App is null or undefined!');
+    return () => (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f00' }}>
+        <Text style={{ color: '#fff', fontSize: 20 }}>App is null!</Text>
+      </View>
+    );
+  }
+  return App;
+});

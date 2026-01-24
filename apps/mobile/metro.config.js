@@ -1,6 +1,15 @@
 const { withNxMetro } = require('@nx/react-native');
 const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
 const path = require('path');
+const { config } = require('dotenv');
+
+// Load environment variables from .env file
+// This makes them available to Metro bundler's process.env
+try {
+  config({ path: path.resolve(__dirname, '../../.env') });
+} catch {
+  // Silently fail if .env doesn't exist
+}
 
 const defaultConfig = getDefaultConfig(__dirname);
 const { assetExts, sourceExts } = defaultConfig.resolver;
@@ -29,8 +38,6 @@ const customConfig = {
     },
     nodeModulesPaths: [
       path.resolve(__dirname, '../../node_modules'),
-      // Don't include local node_modules to force using root
-      // path.resolve(__dirname, './node_modules'),
     ],
   },
 };
@@ -38,7 +45,7 @@ const customConfig = {
 module.exports = withNxMetro(mergeConfig(defaultConfig, customConfig), {
   // Change this to true to see debugging info.
   // Useful if you have issues resolving modules
-  debug: false,
+  debug: true,
   // all the file extensions used for imports other than 'ts', 'tsx', 'js', 'jsx', 'json'
   extensions: [],
   // Specify folders to watch, in addition to Nx defaults (workspace libraries and node_modules)
