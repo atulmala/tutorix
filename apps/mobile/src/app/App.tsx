@@ -5,6 +5,7 @@ import { LoginScreen } from './components/LoginScreen';
 import { ForgotPasswordScreen } from './components/ForgotPasswordScreen';
 import { SignUpScreen } from './components/sign-up/SignUpScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { createApolloClient } from '@tutorix/shared-graphql/client/mobile';
 
 // Import Apollo Client lazily to prevent module load errors
 // This ensures the App component can load even if Apollo Client fails
@@ -19,13 +20,9 @@ function getApolloClient(): ApolloClient<NormalizedCacheObject> | null {
     return null;
   }
   try {
-    // Use createApolloClient directly to avoid Proxy issues
-    const clientModule = require('@tutorix/shared-graphql/client/mobile');
-    if (clientModule.createApolloClient) {
-      apolloClient = clientModule.createApolloClient();
-      return apolloClient;
-    }
-    throw new Error('createApolloClient not found in module');
+    // Use createApolloClient directly
+    apolloClient = createApolloClient();
+    return apolloClient;
   } catch (error) {
     apolloClientError = error instanceof Error ? error : new Error(String(error));
     console.error('[App] Failed to create Apollo Client:', error);
@@ -38,7 +35,7 @@ type AppView = 'splash' | 'login' | 'forgotPassword' | 'signup';
 export const App = () => {
   console.log('[App] 🎯 App component rendering - this should show SplashScreen');
   console.log('[App] Component function called');
-  const [currentView, setCurrentView] = useState<AppView>('login');
+  const [currentView, setCurrentView] = useState<AppView>('splash');
   console.log('[App] State initialized, currentView:', currentView);
   const [signupResume, setSignupResume] = useState<{
     userId?: number;
@@ -84,26 +81,24 @@ export const App = () => {
   }
 
   return (
-    <ErrorBoundary>
-      <ApolloProvider client={client}>
-        {currentView === 'splash' ? (
-          <SplashScreen onFinish={handleSplashFinish} />
-        ) : currentView === 'signup' ? (
-          <SignUpScreen
-            resumeUserId={signupResume?.userId}
-            resumeVerificationStatus={signupResume?.verificationStatus}
-          />
-        ) : currentView === 'forgotPassword' ? (
-          <ForgotPasswordScreen onBackToLogin={handleBackToLogin} />
-        ) : (
-          <LoginScreen
-            onLoginSuccess={handleLoginSuccess}
-            onForgotPassword={handleForgotPassword}
-            onSignUp={handleSignUp}
-          />
-        )}
-      </ApolloProvider>
-    </ErrorBoundary>
+    <ApolloProvider client={client}>
+      {currentView === 'splash' ? (
+        <SplashScreen onFinish={handleSplashFinish} />
+      ) : currentView === 'signup' ? (
+        <SignUpScreen
+          resumeUserId={signupResume?.userId}
+          resumeVerificationStatus={signupResume?.verificationStatus}
+        />
+      ) : currentView === 'forgotPassword' ? (
+        <ForgotPasswordScreen onBackToLogin={handleBackToLogin} />
+      ) : (
+        <LoginScreen
+          onLoginSuccess={handleLoginSuccess}
+          onForgotPassword={handleForgotPassword}
+          onSignUp={handleSignUp}
+        />
+      )}
+    </ApolloProvider>
   );
 };
 
