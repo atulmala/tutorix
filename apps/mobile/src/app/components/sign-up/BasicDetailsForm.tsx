@@ -10,14 +10,14 @@ import {
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useMutation } from '@apollo/client';
-import { BRAND_NAME } from '../../config';
 import { REGISTER_USER } from '@tutorix/shared-graphql/mutations';
-import { getPhoneCountryCode } from '@tutorix/shared-graphql/utils';
+import { getPhoneCountryCode } from '@tutorix/shared-utils';
 
 export type BasicDetails = {
   firstName: string;
   lastName: string;
-  gender: 'male' | 'female' | 'other';
+  dob: string | null;
+  gender: 'male' | 'female';
   countryCode: string;
   phone: string;
   email: string;
@@ -29,6 +29,7 @@ export type BasicDetails = {
 export const createEmptyDetails = (): BasicDetails => ({
   firstName: '',
   lastName: '',
+  dob: null,
   gender: 'male',
   countryCode: 'IN',
   phone: '',
@@ -45,8 +46,6 @@ type BasicDetailsFormProps = {
     userId: number,
     user?: { isMobileVerified: boolean; isEmailVerified: boolean }
   ) => void;
-  onBackHome?: () => void;
-  onLogin?: () => void;
 };
 
 type ErrorMap = Partial<Record<keyof BasicDetails, string>>;
@@ -61,8 +60,6 @@ const COUNTRY_OPTIONS = [
 export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
   initialValue,
   onSubmit,
-  onBackHome,
-  onLogin,
 }) => {
   const [form, setForm] = useState<BasicDetails>(initialValue);
   const [errors, setErrors] = useState<ErrorMap>({});
@@ -71,6 +68,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showCountryModal, setShowCountryModal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [hasError, setHasError] = useState(false);
 
   const [registerUser, { loading: isSubmitting }] = useMutation(REGISTER_USER, {
@@ -108,6 +106,17 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
     return undefined;
   };
 
+  const validateDate = (value: string | null) => {
+    if (!value || !value.trim()) return undefined; // DOB is optional
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(value)) return 'Format: YYYY-MM-DD';
+    const date = new Date(value);
+    const today = new Date();
+    if (isNaN(date.getTime())) return 'Invalid date';
+    if (date > today) return 'Date cannot be in the future';
+    return undefined;
+  };
+
   const validatePasswords = (password: string, confirm: string) => {
     let passwordError: string | undefined;
     let confirmError: string | undefined;
@@ -130,6 +139,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
     const next: ErrorMap = {};
     if (!form.firstName.trim()) next.firstName = 'First name is required';
     if (!form.lastName.trim()) next.lastName = 'Last name is required';
+    next.dob = validateDate(form.dob);
     next.phone = validatePhone(form.phone);
     next.email = validateEmail(form.email);
     const { passwordError, confirmError } = validatePasswords(form.password, form.confirmPassword);
@@ -175,6 +185,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
           firstName: form.firstName,
           lastName: form.lastName,
           gender: form.gender.toUpperCase() as 'MALE' | 'FEMALE' | 'OTHER',
+          dob: form.dob ? new Date(form.dob).toISOString() : null,
         },
       });
 
@@ -192,10 +203,19 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
       }
     } catch (error) {
       if (!hasError) {
-        const errorMessage =
-          (error as any)?.graphQLErrors?.[0]?.message ||
-          (error as any)?.message ||
-          'An unexpected error occurred. Please try again.';
+        let errorMessage = 'An unexpected error occurred. Please try again.';
+        
+        if (error && typeof error === 'object') {
+          const errorObj = error as { graphQLErrors?: Array<{ message?: string }>; message?: string };
+          if (errorObj.graphQLErrors?.[0]?.message) {
+            errorMessage = errorObj.graphQLErrors[0].message;
+          } else if (errorObj.message && typeof errorObj.message === 'string') {
+            errorMessage = errorObj.message;
+          }
+        } else if (error instanceof Error) {
+          errorMessage = error.message;
+        }
+        
         setSubmitError(errorMessage);
       }
     }
@@ -205,6 +225,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
   const showEmailError = (submitAttempted && errors.email) || errors.email;
   const showPasswordError = (submitAttempted && errors.password) || errors.password;
   const showConfirmError = (submitAttempted && errors.confirmPassword) || errors.confirmPassword;
+  const showDobError = (submitAttempted && errors.dob) || errors.dob;
 
   return (
     <View style={styles.container}>
@@ -233,21 +254,41 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
         </View>
       </View>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Gender</Text>
-        <View style={styles.radioRow}>
-          {(['male', 'female', 'other'] as const).map((option) => (
-            <TouchableOpacity
-              key={option}
-              style={[
-                styles.radioOption,
-                form.gender === option && styles.radioOptionSelected,
-              ]}
-              onPress={() => updateField('gender', option)}
-            >
-              <Text style={styles.radioLabel}>{option}</Text>
-            </TouchableOpacity>
-          ))}
+      <View style={styles.row}>
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Date of Birth</Text>
+          <TouchableOpacity
+            style={[styles.input, styles.dateInput, showDobError && styles.inputError]}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={form.dob ? styles.dateInputText : styles.dateInputPlaceholder}>
+              {form.dob 
+                ? new Date(form.dob).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })
+                : 'Select date of birth'}
+            </Text>
+          </TouchableOpacity>
+          {showDobError && <Text style={styles.fieldError}>{errors.dob}</Text>}
+        </View>
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Gender</Text>
+          <View style={styles.radioRow}>
+            {(['male', 'female'] as const).map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.radioOption,
+                  form.gender === option && styles.radioOptionSelected,
+                ]}
+                onPress={() => updateField('gender', option)}
+              >
+                <Text style={styles.radioLabel}>{option}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       </View>
 
@@ -308,7 +349,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
               onPress={() => setShowPassword((prev) => !prev)}
             >
               {showPassword ? (
-                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#1d4ed8">
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#1d4ed8">
                   <Path
                     d="M3 3 21 21"
                     strokeLinecap="round"
@@ -329,7 +370,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
                   />
                 </Svg>
               ) : (
-                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#1d4ed8">
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#1d4ed8">
                   <Path
                     d="M1.5 12C2.5 8.5 6.5 4 12 4s9.5 4.5 10.5 8c-1 3.5-5 8-10.5 8S2.5 15.5 1.5 12Z"
                     strokeLinecap="round"
@@ -359,7 +400,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
               onPress={() => setShowConfirm((prev) => !prev)}
             >
               {showConfirm ? (
-                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#1d4ed8">
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#1d4ed8">
                   <Path
                     d="M3 3 21 21"
                     strokeLinecap="round"
@@ -380,7 +421,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
                   />
                 </Svg>
               ) : (
-                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#1d4ed8">
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#1d4ed8">
                   <Path
                     d="M1.5 12C2.5 8.5 6.5 4 12 4s9.5 4.5 10.5 8c-1 3.5-5 8-10.5 8S2.5 15.5 1.5 12Z"
                     strokeLinecap="round"
@@ -466,6 +507,40 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
           </View>
         </View>
       </Modal>
+
+      <Modal transparent visible={showDatePicker} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Select Date of Birth</Text>
+            <TextInput
+              style={[styles.input, { marginBottom: 12 }]}
+              value={form.dob || ''}
+              onChangeText={(value) => {
+                // Format input as YYYY-MM-DD
+                let formatted = value.replace(/\D/g, ''); // Remove non-digits
+                if (formatted.length > 4) {
+                  formatted = formatted.slice(0, 4) + '-' + formatted.slice(4);
+                }
+                if (formatted.length > 7) {
+                  formatted = formatted.slice(0, 7) + '-' + formatted.slice(7, 9);
+                }
+                updateField('dob', formatted || null);
+              }}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor="#9ca3af"
+              keyboardType="numeric"
+              maxLength={10}
+            />
+            <Text style={styles.modalHint}>Format: YYYY-MM-DD (e.g., 1990-01-15)</Text>
+            <TouchableOpacity
+              style={styles.modalClose}
+              onPress={() => setShowDatePicker(false)}
+            >
+              <Text style={styles.modalCloseText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -491,10 +566,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#cbd5e1',
     borderRadius: 8,
-    padding: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     fontSize: 15,
     color: '#1e293b',
     backgroundColor: '#ffffff',
+    height: 35,
+  },
+  dateInput: {
+    justifyContent: 'center',
+  },
+  dateInputText: {
+    fontSize: 15,
+    color: '#1e293b',
+  },
+  dateInputPlaceholder: {
+    fontSize: 15,
+    color: '#9ca3af',
   },
   inputError: {
     borderColor: '#f87171',
@@ -515,8 +603,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#cbd5e1',
     borderRadius: 8,
-    padding: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     backgroundColor: '#ffffff',
+    height: 35,
+    justifyContent: 'center',
   },
   countrySelectText: {
     fontSize: 14,
@@ -548,12 +639,16 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   passwordInput: {
-    paddingRight: 60,
+    paddingRight: 50,
+    height: 35,
   },
   showPasswordButton: {
     position: 'absolute',
-    right: 12,
-    top: 12,
+    right: 8,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 4,
   },
   roleRow: {
@@ -636,6 +731,12 @@ const styles = StyleSheet.create({
   modalOptionText: {
     fontSize: 14,
     color: '#1e293b',
+  },
+  modalHint: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 8,
+    marginBottom: 4,
   },
   modalClose: {
     marginTop: 8,

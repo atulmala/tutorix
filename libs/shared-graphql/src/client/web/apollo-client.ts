@@ -5,9 +5,9 @@ import {
   createAuthLink,
   createErrorLink,
   createRetryLink,
-} from '../shared/links';
-import { createCache } from '../shared/cache-config';
-import { getGraphQLEndpoint as getBaseEndpoint } from '../shared/endpoint';
+} from './links';
+import { createCache } from './cache-config';
+import { getGraphQLEndpoint } from './endpoint';
 
 /**
  * Get NODE_ENV value from Vite environment
@@ -19,35 +19,6 @@ function getNodeEnv(): string {
   return 'development';
 }
 
-/**
- * Get the GraphQL API endpoint for web
- * Reads from Vite environment variables (import.meta.env)
- * Falls back to process.env if available
- */
-function getGraphQLEndpoint(): string {
-  let endpoint: string | undefined;
-  
-  // Check for Vite environment variable (browser/web)
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    endpoint = 
-      import.meta.env['VITE_GRAPHQL_ENDPOINT'] || 
-      import.meta.env['VITE_NX_GRAPHQL_ENDPOINT'] ||
-      import.meta.env['NX_GRAPHQL_ENDPOINT'] ||
-      import.meta.env['GRAPHQL_ENDPOINT'];
-  }
-  
-  // Fallback to base endpoint (checks process.env)
-  const finalEndpoint = endpoint || getBaseEndpoint();
-  
-  console.log('[GraphQL Endpoint - Web] Using endpoint:', finalEndpoint);
-  if (endpoint) {
-    console.log('[GraphQL Endpoint - Web] Source: Vite import.meta.env');
-  } else {
-    console.log('[GraphQL Endpoint - Web] Source: Fallback (shared endpoint)');
-  }
-  
-  return finalEndpoint;
-}
 
 /**
  * Create Apollo Client instance for web

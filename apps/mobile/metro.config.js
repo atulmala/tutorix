@@ -1,6 +1,15 @@
 const { withNxMetro } = require('@nx/react-native');
 const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
 const path = require('path');
+const { config } = require('dotenv');
+
+// Load environment variables from .env file
+// This makes them available to Metro bundler's process.env
+try {
+  config({ path: path.resolve(__dirname, '../../.env') });
+} catch {
+  // Silently fail if .env doesn't exist
+}
 
 const defaultConfig = getDefaultConfig(__dirname);
 const { assetExts, sourceExts } = defaultConfig.resolver;
@@ -19,9 +28,7 @@ const customConfig = {
   resolver: {
     assetExts: assetExts.filter((ext) => ext !== 'svg'),
     sourceExts: [...sourceExts, 'cjs', 'mjs', 'svg'],
-    // Ensure a single React and Apollo Client instance is resolved to avoid "Invalid hook call" errors
-    // This is critical for Apollo Client which uses React hooks internally
-    // Force resolution from root node_modules to ensure single instance
+    // CRITICAL: Force resolution to root node_modules to ensure single React instance
     extraNodeModules: {
       'react': path.resolve(__dirname, '../../node_modules/react'),
       'react-native': path.resolve(__dirname, '../../node_modules/react-native'),
@@ -29,8 +36,11 @@ const customConfig = {
     },
     nodeModulesPaths: [
       path.resolve(__dirname, '../../node_modules'),
-      // Don't include local node_modules to force using root
-      // path.resolve(__dirname, './node_modules'),
+    ],
+    // Block parent directory by adding explicit blockList
+    blockList: [
+      // Block parent directory node_modules to prevent interference
+      new RegExp(`${path.resolve(__dirname, '../../../node_modules').replace(/[/\\]/g, '[/\\\\]')}/.*`),
     ],
   },
 };
@@ -42,5 +52,6 @@ module.exports = withNxMetro(mergeConfig(defaultConfig, customConfig), {
   // all the file extensions used for imports other than 'ts', 'tsx', 'js', 'jsx', 'json'
   extensions: [],
   // Specify folders to watch, in addition to Nx defaults (workspace libraries and node_modules)
-  watchFolders: [],
+  // Include workspace root to ensure shared libraries are watched
+  watchFolders: [path.resolve(__dirname, '../..')],
 });

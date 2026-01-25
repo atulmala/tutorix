@@ -14,14 +14,11 @@ let crashlyticsInstance: FirebaseMobileCrashlytics | null = null;
  */
 export async function initializeCrashlytics(config?: Record<string, unknown>): Promise<void> {
   if (crashlyticsInstance) {
-    console.warn('⚠️ Crashlytics already initialized');
     return;
   }
 
-  console.log('🔄 Starting Firebase Crashlytics initialization...');
   crashlyticsInstance = new FirebaseMobileCrashlytics();
   await crashlyticsInstance.initialize(config);
-  console.log('✅ Crashlytics initialization complete');
 }
 
 /**
@@ -39,7 +36,6 @@ export function getCrashlytics(): FirebaseMobileCrashlytics {
  */
 export function log(message: string): void {
   if (!crashlyticsInstance) {
-    console.warn('Crashlytics not initialized');
     return;
   }
   crashlyticsInstance.log(message);
@@ -50,7 +46,6 @@ export function log(message: string): void {
  */
 export function setAttribute(key: string, value: string | number | boolean): void {
   if (!crashlyticsInstance) {
-    console.warn('Crashlytics not initialized');
     return;
   }
   crashlyticsInstance.setAttribute(key, value);
@@ -61,7 +56,6 @@ export function setAttribute(key: string, value: string | number | boolean): voi
  */
 export function setAttributes(attributes: Record<string, string | number | boolean>): void {
   if (!crashlyticsInstance) {
-    console.warn('Crashlytics not initialized');
     return;
   }
   crashlyticsInstance.setAttributes(attributes);
@@ -72,7 +66,6 @@ export function setAttributes(attributes: Record<string, string | number | boole
  */
 export function setUserId(userId: string): void {
   if (!crashlyticsInstance) {
-    console.warn('Crashlytics not initialized');
     return;
   }
   crashlyticsInstance.setUserId(userId);
@@ -83,7 +76,6 @@ export function setUserId(userId: string): void {
  */
 export function recordError(error: Error | string, jsErrorName?: string): void {
   if (!crashlyticsInstance) {
-    console.warn('Crashlytics not initialized');
     return;
   }
   crashlyticsInstance.recordError(error, jsErrorName);
@@ -94,7 +86,6 @@ export function recordError(error: Error | string, jsErrorName?: string): void {
  */
 export function crash(): void {
   if (!crashlyticsInstance) {
-    console.warn('Crashlytics not initialized');
     return;
   }
   crashlyticsInstance.crash();
@@ -105,7 +96,6 @@ export function crash(): void {
  */
 export function setCrashlyticsCollectionEnabled(enabled: boolean): void {
   if (!crashlyticsInstance) {
-    console.warn('Crashlytics not initialized');
     return;
   }
   crashlyticsInstance.setCrashlyticsCollectionEnabled(enabled);
@@ -116,23 +106,13 @@ export function setCrashlyticsCollectionEnabled(enabled: boolean): void {
  */
 export async function verifyCrashlytics(): Promise<boolean> {
   if (!crashlyticsInstance) {
-    console.warn('⚠️ Crashlytics not initialized - cannot verify');
     return false;
   }
 
   try {
-    console.log('🧪 Verifying Crashlytics by sending test log...');
     await crashlyticsInstance.log('Crashlytics verification test - ' + new Date().toISOString());
-    console.log('✅ Crashlytics verification test log sent successfully');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('✅✅✅ FIREBASE CRASHLYTICS IS WORKING CORRECTLY ✅✅✅');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     return true;
-  } catch (error) {
-    console.error('❌ Crashlytics verification failed:', error);
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.error('❌❌❌ FIREBASE CRASHLYTICS VERIFICATION FAILED ❌❌❌');
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  } catch {
     return false;
   }
 }

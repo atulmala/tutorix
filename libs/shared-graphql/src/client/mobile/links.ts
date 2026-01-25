@@ -16,11 +16,11 @@ export function createHttpLinkForClient(endpoint: string) {
 
 /**
  * Create auth link that adds JWT token to requests
- * Token is retrieved using the unified token storage utility
+ * Token is retrieved using the mobile token storage utility
  */
 export function createAuthLink() {
   return setContext(async (_, { headers }) => {
-    // Get token from storage using unified utility
+    // Get token from storage using mobile utility
     const token = await getAuthToken();
 
     return {
@@ -47,10 +47,6 @@ export function createErrorLink() {
         if (extensions?.code === 'UNAUTHENTICATED') {
           // Clear token (fire and forget)
           removeAuthToken().catch(console.error);
-          // Optionally redirect to login page (web only)
-          if (typeof window !== 'undefined') {
-            // window.location.href = '/login';
-          }
         }
       });
     }
