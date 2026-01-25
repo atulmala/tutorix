@@ -44,6 +44,7 @@ export const REGISTER_USER = gql`
     $firstName: String
     $lastName: String
     $gender: Gender!
+    $dob: DateTime
   ) {
     registerUser(
       input: {
@@ -55,6 +56,7 @@ export const REGISTER_USER = gql`
         firstName: $firstName
         lastName: $lastName
         gender: $gender
+        dob: $dob
       }
     ) {
       id
@@ -64,6 +66,7 @@ export const REGISTER_USER = gql`
       firstName
       lastName
       gender
+      dob
       role
       isSignupComplete
       isEmailVerified

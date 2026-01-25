@@ -2,12 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { BRAND_NAME } from '../../config';
 import { REGISTER_USER } from '@tutorix/shared-graphql';
-import { getPhoneCountryCode } from '@tutorix/shared-graphql';
+import { getPhoneCountryCode } from '@tutorix/shared-utils';
 
 export type BasicDetails = {
   firstName: string;
   lastName: string;
-  gender: 'male' | 'female' | 'other';
+  dob: string | null;
+  gender: 'male' | 'female';
   countryCode: string;
   phone: string;
   email: string;
@@ -19,6 +20,7 @@ export type BasicDetails = {
 export const createEmptyDetails = (): BasicDetails => ({
   firstName: '',
   lastName: '',
+  dob: null,
   gender: 'male',
   countryCode: 'IN',
   phone: '',
@@ -147,6 +149,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
     const order: Array<keyof BasicDetails> = [
       'firstName',
       'lastName',
+      'dob',
       'phone',
       'email',
       'password',
@@ -158,6 +161,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
     > = {
       firstName: firstNameRef,
       lastName: lastNameRef,
+      dob: undefined,
       phone: phoneRef,
       email: emailRef,
       password: passwordRef,
@@ -200,6 +204,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
           firstName: form.firstName,
           lastName: form.lastName,
           gender: form.gender.toUpperCase() as 'MALE' | 'FEMALE' | 'OTHER',
+          dob: form.dob ? new Date(form.dob).toISOString() : null,
         },
       });
 
@@ -225,10 +230,13 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
       // Error is handled by onError callback
       // This catch block is for unexpected errors only
       if (!hasErrorRef.current) {
-        const errorMessage = 
-          (error as any)?.graphQLErrors?.[0]?.message ||
-          (error as any)?.message ||
-          'An unexpected error occurred. Please try again.';
+        let errorMessage = 'An unexpected error occurred. Please try again.';
+        
+        if (error instanceof Error) {
+          const graphQLError = error as Error & { graphQLErrors?: Array<{ message?: string }> };
+          errorMessage = graphQLError.graphQLErrors?.[0]?.message || error.message || errorMessage;
+        }
+        
         setSubmitError(errorMessage);
       }
     }
@@ -289,7 +297,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="space-y-1">
           <label htmlFor="first-name" className="text-sm font-medium text-primary">
             First Name
@@ -320,10 +328,24 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
           />
           {errors.lastName && <p className="text-xs text-danger">{errors.lastName}</p>}
         </div>
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-primary">Gender</p>
-          <div className="flex flex-wrap items-center gap-4">
-            {(['male', 'female', 'other'] as const).map((option) => (
+        <div className="space-y-1">
+          <label htmlFor="dob" className="text-sm font-medium text-primary">
+            Date of Birth
+          </label>
+          <input
+            id="dob"
+            type="date"
+            value={form.dob || ''}
+            onChange={(e) => updateField('dob', e.target.value || null)}
+            max={new Date().toISOString().split('T')[0]}
+            className="h-11 w-full rounded-md border border-subtle bg-white px-3 text-primary shadow-sm focus:border-primary focus:outline-none"
+          />
+          {errors.dob && <p className="text-xs text-danger">{errors.dob}</p>}
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-primary mb-2">Gender</p>
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            {(['male', 'female'] as const).map((option) => (
               <label key={option} className="flex items-center gap-2 text-sm text-primary">
                 <input
                   type="radio"
@@ -448,13 +470,13 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
-                className="absolute inset-y-0 right-2 flex items-center text-muted hover:text-primary"
+                className="absolute inset-y-0 right-1 flex items-center justify-center text-muted hover:text-primary"
               >
                 {showPassword ? (
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
-                    className="h-5 w-5"
+                    className="h-4 w-4"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.8"
@@ -469,7 +491,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
-                    className="h-5 w-5"
+                    className="h-4 w-4"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.8"
@@ -517,13 +539,13 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
                 type="button"
                 onClick={() => setShowConfirm((prev) => !prev)}
                 aria-label={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
-                className="absolute inset-y-0 right-2 flex items-center text-muted hover:text-primary"
+                className="absolute inset-y-0 right-1 flex items-center justify-center text-muted hover:text-primary"
               >
                 {showConfirm ? (
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
-                    className="h-5 w-5"
+                    className="h-4 w-4"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.8"
@@ -538,7 +560,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
-                    className="h-5 w-5"
+                    className="h-4 w-4"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.8"

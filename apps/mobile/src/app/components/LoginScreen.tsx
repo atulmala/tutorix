@@ -15,8 +15,8 @@ import {
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useMutation } from '@apollo/client';
 import { LOGIN, REFRESH_TOKEN } from '@tutorix/shared-graphql/mutations';
-import { getPhoneCountryCode } from '@tutorix/shared-graphql/utils';
-import { setAuthToken } from '@tutorix/shared-graphql/client/shared';
+import { getPhoneCountryCode } from '@tutorix/shared-utils';
+import { setAuthToken } from '@tutorix/shared-graphql/client/mobile/token-storage';
 import { BRAND_NAME } from '../config';
 import { AnalyticsEvent } from '@tutorix/analytics';
 import { trackEvent } from '../../lib/analytics';

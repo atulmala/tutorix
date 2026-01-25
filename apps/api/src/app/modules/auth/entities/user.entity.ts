@@ -63,6 +63,10 @@ export class User extends QBaseEntity {
   })
   gender: Gender;
 
+  @Field(() => Date, { nullable: true })
+  @Column({ type: 'date', nullable: true })
+  dob?: Date;
+
   @Field({ nullable: true })
   @Column({ nullable: true })
   profilePicture?: string;

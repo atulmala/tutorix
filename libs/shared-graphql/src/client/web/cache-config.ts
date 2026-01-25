@@ -2,7 +2,7 @@ import { InMemoryCache } from '@apollo/client';
 
 /**
  * Create cache with recommended configuration
- * Shared across web and mobile platforms
+ * Web-specific Apollo Client cache configuration
  */
 export function createCache() {
   return new InMemoryCache({

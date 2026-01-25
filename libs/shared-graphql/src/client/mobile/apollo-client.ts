@@ -1,23 +1,15 @@
+import React from 'react';
 import { ApolloClient, from } from '@apollo/client';
 import { Platform } from 'react-native';
+
 import {
   createHttpLinkForClient,
   createAuthLink,
   createErrorLink,
   createRetryLink,
-} from '../shared/links';
-import { createCache } from '../shared/cache-config';
-import { getGraphQLEndpoint } from '../shared/endpoint';
-
-/**
- * Get NODE_ENV value from process.env (React Native)
- */
-function getNodeEnv(): string {
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env['NODE_ENV'] || 'development';
-  }
-  return 'development';
-}
+} from './links';
+import { createCache } from './cache-config';
+import { getGraphQLEndpoint } from './endpoint';
 
 /**
  * Get GraphQL endpoint for mobile
@@ -70,8 +62,9 @@ export function createApolloClient() {
         errorPolicy: 'all',
       },
     },
-    // Enable cache in development for debugging
-    connectToDevTools: getNodeEnv() !== 'production',
+    // Note: connectToDevTools is deprecated in Apollo Client 3.14+
+    // DevTools will auto-connect in development mode (when __DEV__ is true)
+    // Removing the option to avoid deprecation warnings
   });
   
   console.log('[Apollo Client - Mobile] Apollo Client created successfully');
@@ -79,22 +72,47 @@ export function createApolloClient() {
 }
 
 /**
- * Export default client instance
- * Apps can import this directly or create their own instance using createApolloClient()
- * 
- * Note: Client is created at module load time. For lazy initialization,
- * use createApolloClient() instead.
+ * Export default client instance with lazy initialization
+ * Client is created on first access, not at module load time
+ * This prevents initialization errors from blocking the app from loading
  */
 let _apolloClient: ReturnType<typeof createApolloClient> | null = null;
+let _initializationError: Error | null = null;
 
-export const apolloClient = (() => {
+function getApolloClient(): ReturnType<typeof createApolloClient> {
+  if (_apolloClient) {
+    return _apolloClient;
+  }
+  
+  if (_initializationError) {
+    throw _initializationError;
+  }
+  
   try {
-    if (!_apolloClient) {
-      _apolloClient = createApolloClient();
-    }
+    _apolloClient = createApolloClient();
     return _apolloClient;
   } catch (error) {
+    _initializationError = error instanceof Error ? error : new Error(String(error));
     console.error('[Apollo Client - Mobile] Error creating client:', error);
-    throw error;
+    throw _initializationError;
   }
+}
+
+// Export client instance - created lazily on first access
+// This is accessed via a getter to ensure lazy initialization
+// The actual client is created when apolloClient is first accessed
+export const apolloClient = (() => {
+  // Return a Proxy that creates the client on first property access
+  // This ensures the client is only created when actually used
+  return new Proxy({} as ReturnType<typeof createApolloClient>, {
+    get(_target, prop) {
+      const client = getApolloClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const value = (client as any)[prop];
+      if (typeof value === 'function') {
+        return (value as (...args: unknown[]) => unknown).bind(client);
+      }
+      return value;
+    },
+  });
 })();

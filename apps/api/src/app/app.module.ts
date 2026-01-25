@@ -7,6 +7,7 @@ import { DatabaseModule } from './database/database.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TutorModule } from './modules/tutor/tutor.module';
+import { AddressModule } from './modules/address/address.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { TutorModule } from './modules/tutor/tutor.module';
     AuthModule, // AuthModule must be imported before GraphqlModule
     GraphqlModule,
     TutorModule,
+    AddressModule,
     // Add other modules here as they are created:
     // StudentModule,
     // ClassesModule,

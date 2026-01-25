@@ -6,11 +6,9 @@ import { BasicDetailsForm, BasicDetails, createEmptyDetails } from './BasicDetai
 import { PhoneVerification } from './PhoneVerification';
 import { EmailVerification } from './EmailVerification';
 import { GET_USER_BY_ID } from '@tutorix/shared-graphql/queries';
-import { getIsoCountryCode } from '@tutorix/shared-graphql/utils';
+import { getIsoCountryCode } from '@tutorix/shared-utils';
 
 type SignUpProps = {
-  onBackHome: () => void;
-  onLogin?: () => void;
   resumeUserId?: number;
   resumeVerificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean };
 };
@@ -24,8 +22,6 @@ const steps: Array<{ id: Step; label: string }> = [
 ];
 
 export const SignUpScreen: React.FC<SignUpProps> = ({
-  onBackHome,
-  onLogin,
   resumeUserId,
   resumeVerificationStatus,
 }) => {
@@ -67,7 +63,8 @@ export const SignUpScreen: React.FC<SignUpProps> = ({
         email: user.email || '',
         firstName: user.firstName || '',
         lastName: user.lastName || '',
-        gender: (user.gender?.toLowerCase() as 'male' | 'female' | 'other') || 'male',
+        gender: user.gender?.toLowerCase() === 'female' ? 'female' : 'male',
+        dob: user.dob || null,
       }));
     }
   }, [userData, resumeUserId]);
@@ -155,8 +152,6 @@ export const SignUpScreen: React.FC<SignUpProps> = ({
               <BasicDetailsForm
                 initialValue={basicDetails}
                 onSubmit={handleBasicSubmit}
-                onBackHome={onBackHome}
-                onLogin={onLogin}
               />
             )}
             {step === 'phone' && userId !== null && (
@@ -235,7 +230,7 @@ const styles = StyleSheet.create({
   headerDividerHorizontal: {
     height: 2,
     backgroundColor: '#9ca3af',
-    marginTop: 8,
+    marginTop: 0,
   },
   headerTitleRow: {
     flexDirection: 'row',
@@ -299,7 +294,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   body: {
-    marginTop: 8,
+    marginTop: 0,
   },
   successCard: {
     borderWidth: 1,

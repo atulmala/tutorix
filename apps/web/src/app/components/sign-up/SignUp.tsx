@@ -6,11 +6,12 @@ import { BasicDetailsForm, BasicDetails, createEmptyDetails } from './BasicDetai
 import { PhoneVerification } from './PhoneVerification';
 import { useSignupTracking } from '../../../hooks/useSignupTracking';
 import { GET_USER_BY_ID } from '@tutorix/shared-graphql';
-import { getIsoCountryCode } from '@tutorix/shared-graphql';
+import { getIsoCountryCode } from '@tutorix/shared-utils';
 
 type SignUpProps = {
   onBackHome: () => void;
   onLogin?: () => void;
+  onTutorOnboarding?: () => void;
   resumeUserId?: number;
   resumeVerificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean };
 };
@@ -25,7 +26,8 @@ const steps: Array<{ id: Step; label: string }> = [
 
 export const SignUp: React.FC<SignUpProps> = ({ 
   onBackHome, 
-  onLogin, 
+  onLogin,
+  onTutorOnboarding,
   resumeUserId, 
   resumeVerificationStatus 
 }) => {
@@ -34,6 +36,7 @@ export const SignUp: React.FC<SignUpProps> = ({
   const [userId, setUserId] = useState<number | null>(resumeUserId || null);
   const [mobileVerified, setMobileVerified] = useState(resumeVerificationStatus?.isMobileVerified || false);
   const [emailVerified, setEmailVerified] = useState(resumeVerificationStatus?.isEmailVerified || false);
+  const [isTutor, setIsTutor] = useState<boolean | null>(null);
 
   const {
     startSignup,
@@ -87,15 +90,21 @@ export const SignUp: React.FC<SignUpProps> = ({
   useEffect(() => {
     if (userData?.user && resumeUserId) {
       const user = userData.user;
-      setBasicDetails((prev) => ({
-        ...prev,
-        phone: user.mobileNumber || '',
-        countryCode: user.mobileCountryCode ? getIsoCountryCode(user.mobileCountryCode) : 'IN',
-        email: user.email || '',
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        gender: (user.gender?.toLowerCase() as 'male' | 'female' | 'other') || 'male',
-      }));
+      const userGender = user.gender?.toLowerCase();
+      // Ensure gender is only 'male' or 'female' to match BasicDetails type
+      const validGender: 'male' | 'female' = (userGender === 'male' || userGender === 'female') ? userGender : 'male';
+      setBasicDetails((prev) => {
+        const updated: BasicDetails = {
+          ...prev,
+          phone: user.mobileNumber || '',
+          countryCode: user.mobileCountryCode ? getIsoCountryCode(user.mobileCountryCode) : 'IN',
+          email: user.email || '',
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
+          gender: validGender,
+        };
+        return updated;
+      });
     }
   }, [userData, resumeUserId]);
 
@@ -106,6 +115,7 @@ export const SignUp: React.FC<SignUpProps> = ({
   ) => {
     setBasicDetails(details);
     setUserId(registeredUserId);
+    setIsTutor(details.isTutor);
     
     // Track signup start/resume
     startSignup(registeredUserId);
@@ -150,6 +160,11 @@ export const SignUp: React.FC<SignUpProps> = ({
     setEmailVerified(true);
     trackStepComplete('email', userId || undefined);
     trackSignupCompleted(userId || undefined);
+    
+    // If user is a tutor, redirect to onboarding
+    if (isTutor === true && onTutorOnboarding) {
+      onTutorOnboarding();
+    }
   };
 
   return (

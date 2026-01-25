@@ -15,6 +15,7 @@
 
 export * from './auth.mutations';
 export * from './otp.mutations';
+export * from './address.mutations';
 
 // Export other mutation modules here as they are created:
 // export * from './tutor.mutations';

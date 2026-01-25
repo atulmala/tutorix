@@ -20,7 +20,9 @@
       "@tutorix/tokens": ["libs/ui-tokens/src/index.ts"],
       "@tutorix/tokens/*": ["libs/ui-tokens/src/*"],
       "@tutorix/shared-graphql": ["libs/shared-graphql/src/index.ts"],
-      "@tutorix/shared-graphql/*": ["libs/shared-graphql/src/*"]
+      "@tutorix/shared-graphql/*": ["libs/shared-graphql/src/*"],
+      "@tutorix/shared-utils": ["libs/shared-utils/src/index.ts"],
+      "@tutorix/shared-utils/*": ["libs/shared-utils/src/*"]
     }
   },
   "exclude": ["node_modules", "tmp"]

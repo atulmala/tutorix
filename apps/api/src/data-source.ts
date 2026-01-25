@@ -37,7 +37,9 @@ const dataSource = new DataSource({
   // IMPORTANT: Disable synchronize when using migrations
   synchronize: false,
 
-  logging: process.env.NODE_ENV === 'development',
+  // Logging configuration: disable SQL query logs (too verbose)
+  // Set to ['error', 'warn'] to keep important logs but exclude SQL queries
+  logging: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : false,
 });
 
 export default dataSource;
