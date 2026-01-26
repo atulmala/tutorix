@@ -33,25 +33,19 @@ const customConfig = {
       'react': path.resolve(__dirname, '../../node_modules/react'),
       'react-native': path.resolve(__dirname, '../../node_modules/react-native'),
       '@apollo/client': path.resolve(__dirname, '../../node_modules/@apollo/client'),
+      '@react-native-async-storage/async-storage': path.resolve(__dirname, '../../node_modules/@react-native-async-storage/async-storage'),
     },
     nodeModulesPaths: [
       path.resolve(__dirname, '../../node_modules'),
     ],
-    // Block parent directory by adding explicit blockList
     blockList: [
-      // Block parent directory node_modules to prevent interference
       new RegExp(`${path.resolve(__dirname, '../../../node_modules').replace(/[/\\]/g, '[/\\\\]')}/.*`),
     ],
   },
 };
 
 module.exports = withNxMetro(mergeConfig(defaultConfig, customConfig), {
-  // Change this to true to see debugging info.
-  // Useful if you have issues resolving modules
   debug: false,
-  // all the file extensions used for imports other than 'ts', 'tsx', 'js', 'jsx', 'json'
   extensions: [],
-  // Specify folders to watch, in addition to Nx defaults (workspace libraries and node_modules)
-  // Include workspace root to ensure shared libraries are watched
   watchFolders: [path.resolve(__dirname, '../..')],
 });

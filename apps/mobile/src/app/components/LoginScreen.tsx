@@ -16,7 +16,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import { useMutation } from '@apollo/client';
 import { LOGIN, REFRESH_TOKEN } from '@tutorix/shared-graphql/mutations';
 import { getPhoneCountryCode } from '@tutorix/shared-utils';
-import { setAuthToken } from '@tutorix/shared-graphql/client/mobile/token-storage';
+import { setAuthToken, getAuthToken } from '@tutorix/shared-graphql/client/mobile/token-storage';
 import { BRAND_NAME } from '../config';
 import { AnalyticsEvent } from '@tutorix/analytics';
 import { trackEvent } from '../../lib/analytics';
@@ -73,8 +73,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
         // Store access token
         if (data.login?.accessToken) {
           await setAuthToken(data.login.accessToken);
+          // Verify token was stored by reading it back
+          const storedToken = await getAuthToken();
+          if (storedToken === data.login.accessToken) {
+            console.log('✅ Token verified in AsyncStorage - matches stored token');
+          } else {
+            console.warn('⚠️ Token verification failed - stored token does not match');
+          }
         }
-        console.log('Login successful:', data.login?.user);
+        console.log('Login successful - FULL RESPONSE:', data);
+        console.log('Access token:', data.login?.accessToken);
+        console.log('Refresh token:', data.login?.refreshToken);
+        console.log('User:', data.login?.user);
         trackEvent(AnalyticsEvent.USER_LOGIN, {
           method: loginMethodRef.current,
           platform: Platform.OS,
