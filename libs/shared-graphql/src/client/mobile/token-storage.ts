@@ -16,6 +16,8 @@
  * await removeAuthToken();
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const TOKEN_KEY = 'auth_token';
 
 /**
@@ -24,16 +26,11 @@ const TOKEN_KEY = 'auth_token';
  */
 export async function getAuthToken(): Promise<string | null> {
   try {
-    const AsyncStorageModule = await import('@react-native-async-storage/async-storage');
-    const AsyncStorage = AsyncStorageModule.default;
-    if (AsyncStorage && typeof AsyncStorage.getItem === 'function') {
-      return await AsyncStorage.getItem(TOKEN_KEY);
-    }
-  } catch {
-    // AsyncStorage not available or not installed
+    return await AsyncStorage.getItem(TOKEN_KEY);
+  } catch (error) {
+    console.warn('Failed to get auth token:', error);
     return null;
   }
-  return null;
 }
 
 /**
@@ -42,13 +39,15 @@ export async function getAuthToken(): Promise<string | null> {
  */
 export async function setAuthToken(token: string): Promise<void> {
   try {
-    const AsyncStorageModule = await import('@react-native-async-storage/async-storage');
-    const AsyncStorage = AsyncStorageModule.default;
-    if (AsyncStorage && typeof AsyncStorage.setItem === 'function') {
-      await AsyncStorage.setItem(TOKEN_KEY, token);
+    await AsyncStorage.setItem(TOKEN_KEY, token);
+    // Verify token was stored successfully
+    const storedToken = await AsyncStorage.getItem(TOKEN_KEY);
+    if (storedToken === token) {
+      console.log('✅ Token successfully stored in AsyncStorage');
+    } else {
+      console.warn('⚠️ Token storage verification failed - token mismatch');
     }
   } catch (error) {
-    // AsyncStorage not available or not installed
     console.warn('Failed to store auth token:', error);
   }
 }
@@ -58,13 +57,8 @@ export async function setAuthToken(token: string): Promise<void> {
  */
 export async function removeAuthToken(): Promise<void> {
   try {
-    const AsyncStorageModule = await import('@react-native-async-storage/async-storage');
-    const AsyncStorage = AsyncStorageModule.default;
-    if (AsyncStorage && typeof AsyncStorage.removeItem === 'function') {
-      await AsyncStorage.removeItem(TOKEN_KEY);
-    }
+    await AsyncStorage.removeItem(TOKEN_KEY);
   } catch (error) {
-    // AsyncStorage not available or not installed
     console.warn('Failed to remove auth token:', error);
   }
 }
