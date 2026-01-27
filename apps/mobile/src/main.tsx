@@ -1,8 +1,8 @@
 import '@react-native-firebase/app';
-import { AppRegistry, View, Text } from 'react-native';
+import { AppRegistry, View, Text, ErrorUtils } from 'react-native';
 import React from 'react';
 import { initializeAnalytics, verifyAnalytics } from './lib/analytics';
-import { initializeCrashlytics, verifyCrashlytics } from './lib/crashlytics';
+import { initializeCrashlytics, verifyCrashlytics, recordError } from './lib/crashlytics';
 
 // CRITICAL: Patch rehackt to use the same React instance as React Native
 // Apollo Client uses rehackt which does require('react') at runtime
@@ -77,6 +77,27 @@ initializeCrashlytics()
   .then(async () => {
     // Verify crashlytics is working
     await verifyCrashlytics();
+    
+    // Set up global error handler to catch unhandled errors
+    // This will catch errors that aren't caught by ErrorBoundary
+    const originalHandler = ErrorUtils.getGlobalHandler();
+    
+    ErrorUtils.setGlobalHandler((error: Error, isFatal?: boolean) => {
+      // Record to Crashlytics
+      try {
+        recordError(error, isFatal ? 'FatalError' : 'UnhandledError');
+        console.log(`[Global Error Handler] Recorded ${isFatal ? 'fatal' : 'non-fatal'} error to Crashlytics`);
+      } catch (crashlyticsError) {
+        console.warn('[Global Error Handler] Failed to record error to Crashlytics:', crashlyticsError);
+      }
+      
+      // Call original handler to maintain default behavior
+      if (originalHandler) {
+        originalHandler(error, isFatal);
+      }
+    });
+    
+    console.log('[main.tsx] ✅ Global error handler configured for Crashlytics');
   })
   .catch(() => {
     // Silently handle initialization errors

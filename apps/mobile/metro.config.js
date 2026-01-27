@@ -33,19 +33,21 @@ const customConfig = {
       'react': path.resolve(__dirname, '../../node_modules/react'),
       'react-native': path.resolve(__dirname, '../../node_modules/react-native'),
       '@apollo/client': path.resolve(__dirname, '../../node_modules/@apollo/client'),
-      '@react-native-async-storage/async-storage': path.resolve(__dirname, '../../node_modules/@react-native-async-storage/async-storage'),
+      // Fix for async-storage metro resolution issue
+      '@react-native-async-storage/async-storage': path.resolve(__dirname, '../../node_modules/@react-native-async-storage/async-storage/lib/module/index.js'),
     },
     nodeModulesPaths: [
       path.resolve(__dirname, '../../node_modules'),
-    ],
-    blockList: [
-      new RegExp(`${path.resolve(__dirname, '../../../node_modules').replace(/[/\\]/g, '[/\\\\]')}/.*`),
     ],
   },
 };
 
 module.exports = withNxMetro(mergeConfig(defaultConfig, customConfig), {
+  // Change this to true to see debugging info.
+  // Useful if you have issues resolving modules
   debug: false,
+  // all the file extensions used for imports other than 'ts', 'tsx', 'js', 'jsx', 'json'
   extensions: [],
-  watchFolders: [path.resolve(__dirname, '../..')],
+  // Specify folders to watch, in addition to Nx defaults (workspace libraries and node_modules)
+  watchFolders: [],
 });

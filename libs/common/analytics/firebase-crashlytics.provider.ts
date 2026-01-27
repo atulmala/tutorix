@@ -61,12 +61,24 @@ export class FirebaseMobileCrashlytics implements ICrashlyticsService {
       // We just need to ensure the crashlytics instance is ready
       this.crashlyticsInstance = crashlytics();
       
+      console.log('[Crashlytics] Instance created successfully');
+      
       // Enable crashlytics collection (disabled in debug mode by default)
       // For production, crashlytics collection is enabled by default
-      // You can enable it for testing in debug mode if needed
-      // await this.crashlyticsInstance.setCrashlyticsCollectionEnabled(true);
+      // Enable it for debug mode to test and see errors during development
+      // You can disable this if you don't want debug errors in Crashlytics
+      if (__DEV__) {
+        try {
+          await this.crashlyticsInstance.setCrashlyticsCollectionEnabled(true);
+          console.log('[Crashlytics] ✅ Enabled for debug mode');
+        } catch (enableError) {
+          console.warn('[Crashlytics] ⚠️ Could not enable collection (may already be enabled):', enableError);
+        }
+      } else {
+        console.log('[Crashlytics] Production mode - collection enabled by default');
+      }
     } catch (error) {
-      console.error('Failed to initialize Firebase Crashlytics:', error);
+      console.error('[Crashlytics] ❌ Failed to initialize Firebase Crashlytics:', error);
       throw error;
     }
   }
@@ -127,33 +139,40 @@ export class FirebaseMobileCrashlytics implements ICrashlyticsService {
 
   async recordError(error: Error | string, jsErrorName?: string): Promise<void> {
     if (!this.crashlyticsInstance) {
-      console.warn('Crashlytics not initialized');
+      console.warn('[Crashlytics] Not initialized - cannot record error');
       return;
     }
 
     try {
+      console.log('[Crashlytics] Recording error...');
+      console.log('[Crashlytics] Error:', error instanceof Error ? error.message : error);
+      console.log('[Crashlytics] Error name:', jsErrorName || 'UnnamedError');
+      
       if (error instanceof Error) {
         await this.crashlyticsInstance.recordError(error, jsErrorName);
+        console.log('[Crashlytics] ✅ Error recorded successfully');
       } else {
         // Create an Error object from string
         const errorObj = new Error(error);
         await this.crashlyticsInstance.recordError(errorObj, jsErrorName);
+        console.log('[Crashlytics] ✅ Error recorded successfully (from string)');
       }
     } catch (err) {
-      console.error('Failed to record error to Crashlytics:', err);
+      console.error('[Crashlytics] ❌ Failed to record error to Crashlytics:', err);
     }
   }
 
   crash(): void {
     if (!this.crashlyticsInstance) {
-      console.warn('Crashlytics not initialized');
+      console.warn('[Crashlytics] Not initialized - cannot trigger crash');
       return;
     }
 
     try {
+      console.log('[Crashlytics] 🚨 Triggering test crash...');
       this.crashlyticsInstance.crash();
     } catch (error) {
-      console.error('Failed to trigger crash:', error);
+      console.error('[Crashlytics] ❌ Failed to trigger crash:', error);
     }
   }
 

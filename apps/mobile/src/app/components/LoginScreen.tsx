@@ -26,6 +26,7 @@ import {
   hasBiometricToken,
   saveBiometricToken,
 } from '../lib/biometric-auth';
+import { crash, recordError, isCrashlyticsCollectionEnabled } from '../../lib/crashlytics';
 
 type LoginScreenProps = {
   onLoginSuccess?: () => void;
@@ -515,6 +516,61 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
             </TouchableOpacity>
           )}
 
+          {/* DEBUG: Crashlytics Test Buttons - Remove in production */}
+          {__DEV__ && (
+            <View style={styles.debugSection}>
+              <Text style={styles.debugTitle}>🧪 Crashlytics Test</Text>
+              <TouchableOpacity
+                style={[styles.debugButton, { backgroundColor: '#3b82f6' }]}
+                onPress={async () => {
+                  try {
+                    const status = await isCrashlyticsCollectionEnabled();
+                    Alert.alert(
+                      'Crashlytics Status',
+                      `Collection Enabled: ${status ? 'YES ✅' : 'NO ❌'}\n\nCheck console for detailed logs.\n\nNote: Errors may take 5-10 minutes to appear in Firebase console.`
+                    );
+                  } catch (error) {
+                    Alert.alert('Error', `Failed to check status: ${error}`);
+                  }
+                }}
+              >
+                <Text style={styles.debugButtonText}>Check Status</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.debugButton, { backgroundColor: '#f59e0b' }]}
+                onPress={() => {
+                  console.log('[LoginScreen] Testing non-fatal error...');
+                  recordError(new Error('Test non-fatal error from LoginScreen - ' + new Date().toISOString()), 'TestError');
+                  Alert.alert('Test Error', 'Non-fatal error recorded. Check console for confirmation.');
+                }}
+              >
+                <Text style={styles.debugButtonText}>Test Error</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.debugButton, { backgroundColor: '#dc2626' }]}
+                onPress={() => {
+                  Alert.alert(
+                    'Test Crash',
+                    'This will force a crash. Are you sure?',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Crash',
+                        style: 'destructive',
+                        onPress: () => {
+                          console.log('[LoginScreen] Triggering test crash...');
+                          crash();
+                        },
+                      },
+                    ]
+                  );
+                }}
+              >
+                <Text style={styles.debugButtonText}>Force Crash</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
         </View>
       </ScrollView>
 
@@ -796,6 +852,32 @@ const styles = StyleSheet.create({
   },
   countryModalCloseText: {
     color: '#1d4ed8',
+    fontWeight: '600',
+  },
+  debugSection: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  debugTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#475569',
+    marginBottom: 12,
+  },
+  debugButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  debugButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
     fontWeight: '600',
   },
 });

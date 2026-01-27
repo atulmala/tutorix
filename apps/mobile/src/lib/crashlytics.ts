@@ -106,14 +106,53 @@ export function setCrashlyticsCollectionEnabled(enabled: boolean): void {
  */
 export async function verifyCrashlytics(): Promise<boolean> {
   if (!crashlyticsInstance) {
+    console.warn('[Crashlytics] Not initialized');
     return false;
   }
 
   try {
     await crashlyticsInstance.log('Crashlytics verification test - ' + new Date().toISOString());
+    console.log('[Crashlytics] ✅ Verification log sent');
     return true;
-  } catch {
+  } catch (error) {
+    console.error('[Crashlytics] ❌ Verification failed:', error);
     return false;
+  }
+}
+
+/**
+ * Check if Crashlytics collection is enabled
+ * Note: In React Native Firebase, isCrashlyticsCollectionEnabled is a boolean property, not a function
+ */
+export async function isCrashlyticsCollectionEnabled(): Promise<boolean> {
+  if (!crashlyticsInstance) {
+    console.warn('[Crashlytics] Not initialized');
+    return false;
+  }
+  
+  try {
+    // Access the native instance through the provider
+    const nativeInstance = (crashlyticsInstance as any).crashlyticsInstance;
+    if (!nativeInstance) {
+      console.warn('[Crashlytics] Native instance not available');
+      return false;
+    }
+    
+    // isCrashlyticsCollectionEnabled is a boolean property, not a function
+    // Check if it exists as a property
+    if ('isCrashlyticsCollectionEnabled' in nativeInstance) {
+      const value = nativeInstance.isCrashlyticsCollectionEnabled;
+      console.log('[Crashlytics] Collection enabled (property):', value);
+      return Boolean(value);
+    } else {
+      // Property not available - assume enabled if instance exists
+      console.log('[Crashlytics] isCrashlyticsCollectionEnabled property not available, assuming enabled');
+      return true;
+    }
+  } catch (error) {
+    console.error('[Crashlytics] Failed to check collection status:', error);
+    // Assume enabled if we can't check
+    return true;
   }
 }
 
