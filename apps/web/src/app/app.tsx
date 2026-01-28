@@ -6,7 +6,7 @@ import { Login } from './components/Login';
 import { ForgotPassword } from './components/ForgotPassword';
 import { ResetPassword } from './components/ResetPassword';
 import { PasswordResetAcknowledgement } from './components/PasswordResetAcknowledgement';
-import { TutorOnboarding } from './components/TutorOnboarding';
+import { TutorOnboarding } from './components/tutor-onboarding';
 import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql';
 
 type View = 'home' | 'signup' | 'login' | 'forgot-password' | 'reset-password' | 'password-reset-ack' | 'tutor-onboarding';
