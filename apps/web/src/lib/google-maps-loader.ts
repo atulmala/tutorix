@@ -1,4 +1,12 @@
-/** Minimal type for the Google Maps JS API we use (loader + places). */
+/**
+ * Loads the Google Maps JavaScript API and the Places library (legacy).
+ * Uses callback-based loading with libraries=places.
+ *
+ * Prerequisites:
+ * - Enable "Maps JavaScript API" and "Places API" in Google Cloud.
+ * - Set VITE_GOOGLE_MAPS_API_KEY in .env.
+ */
+
 interface GoogleMapsPlaces {
   AutocompleteService: new () => {
     getPlacePredictions: (
@@ -34,17 +42,17 @@ export function loadGoogleMaps(): Promise<GoogleMapsApi> {
   }
 
   if (window.google?.maps?.places) {
-    return Promise.resolve(window.google as GoogleMapsApi);
+    return Promise.resolve(window.google);
+  }
+
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  if (!apiKey) {
+    return Promise.reject(
+      new Error('VITE_GOOGLE_MAPS_API_KEY is not set in the environment')
+    );
   }
 
   if (!googleMapsPromise) {
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-    if (!apiKey) {
-      return Promise.reject(
-        new Error('VITE_GOOGLE_MAPS_API_KEY is not set in the environment')
-      );
-    }
-
     googleMapsPromise = new Promise((resolve, reject) => {
       const cleanup = () => {
         delete (window as unknown as Record<string, unknown>)[CALLBACK_NAME];
@@ -53,7 +61,7 @@ export function loadGoogleMaps(): Promise<GoogleMapsApi> {
       (window as unknown as Record<string, unknown>)[CALLBACK_NAME] = () => {
         cleanup();
         if (window.google?.maps?.places) {
-          resolve(window.google as GoogleMapsApi);
+          resolve(window.google);
         } else {
           googleMapsPromise = null;
           reject(new Error('Google Maps JS loaded but places library is missing'));
@@ -77,4 +85,3 @@ export function loadGoogleMaps(): Promise<GoogleMapsApi> {
 
   return googleMapsPromise;
 }
-

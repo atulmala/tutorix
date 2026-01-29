@@ -165,7 +165,7 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = ({
       }>;
     };
 
-    const components = p.address_components || [];
+    const components = p.address_components ?? [];
 
     const getComponent = (type: string): string | undefined => {
       const comp = components.find((c) => c.types.includes(type));
@@ -187,7 +187,7 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = ({
     const lng = location ? location.lng() : 0;
 
     return {
-      displayName: p.formatted_address || '',
+      displayName: p.formatted_address ?? '',
       latitude: lat,
       longitude: lng,
       city: city || undefined,
