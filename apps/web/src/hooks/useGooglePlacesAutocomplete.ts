@@ -116,4 +116,3 @@ export function useGooglePlacesAutocomplete(): UseGooglePlacesAutocompleteResult
 
   return { ready, error, getPredictions, getPlaceDetails };
 }
-
