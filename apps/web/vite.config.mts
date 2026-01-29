@@ -45,8 +45,14 @@ export default defineConfig(({ mode }) => {
         env.NX_GRAPHQL_ENDPOINT || env.VITE_NX_GRAPHQL_ENDPOINT || ''
       ),
       // Expose NODE_ENV for environment tracking in analytics
-      'import.meta.env.NODE_ENV': JSON.stringify(env.NODE_ENV || env.VITE_NODE_ENV || mode || 'development'),
+      'import.meta.env.NODE_ENV': JSON.stringify(
+        env.NODE_ENV || env.VITE_NODE_ENV || mode || 'development'
+      ),
       'import.meta.env.MODE': JSON.stringify(mode || 'development'),
+      // Google Maps API key for Places autocomplete (frontend-only)
+      'import.meta.env.VITE_GOOGLE_MAPS_API_KEY': JSON.stringify(
+        env.VITE_GOOGLE_MAPS_API_KEY || env.GOOGLE_MAPS_API_KEY || ''
+      ),
     },
     // Uncomment this if you are using workers.
     // worker: {
