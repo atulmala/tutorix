@@ -21,17 +21,17 @@ export enum TutorOnboardingStepEnum {
  * Tutor Certification Stage Enum
  *
  * Aligned with onboarding steps. Indicates the current/pending step for a tutor.
- * Use TutorOnboardingStepEnum for step ordering; this enum is used in DB/GraphQL.
+ * Keys must match DB values (camelCase) so GraphQL can serialize DB strings correctly.
  */
 export enum TutorCertificationStageEnum {
-  ADDRESS = 'address',
-  QUALIFICATION_EXPERIENCE = 'qualificationExperience',
-  OFFERINGS = 'offerings',
-  PT = 'pt',
-  REGISTRATION_PAYMENT = 'registrationPayment',
-  DOCS = 'docs',
-  INTERVIEW = 'interview',
-  COMPLETE = 'complete',
+  address = 'address',
+  qualificationExperience = 'qualificationExperience',
+  offerings = 'offerings',
+  pt = 'pt',
+  registrationPayment = 'registrationPayment',
+  docs = 'docs',
+  interview = 'interview',
+  complete = 'complete',
 }
 
 registerEnumType(TutorOnboardingStepEnum, {
