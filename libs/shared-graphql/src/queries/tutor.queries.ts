@@ -10,13 +10,24 @@ export const GET_MY_TUTOR_PROFILE = gql`
       id
       userId
       onBoardingComplete
+      certificationStage
+      user {
+        id
+        firstName
+        lastName
+      }
       addresses {
         id
+        type
         street
+        subArea
         city
         state
         country
+        postalCode
         fullAddress
+        latitude
+        longitude
       }
     }
   }

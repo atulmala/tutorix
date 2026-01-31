@@ -23,7 +23,7 @@ export interface TokenResponse {
 
 @Injectable()
 export class JwtService {
-  private readonly ACCESS_TOKEN_EXPIRY = '15m'; // 15 minutes
+  private readonly ACCESS_TOKEN_EXPIRY = '24h'; // 24 hours - refresh token handles longer sessions
   private readonly REFRESH_TOKEN_EXPIRY_DAYS = 30; // 30 days
 
   constructor(
@@ -67,7 +67,7 @@ export class JwtService {
     return {
       accessToken,
       refreshToken,
-      expiresIn: 15 * 60, // 15 minutes in seconds
+      expiresIn: 24 * 60 * 60, // 24 hours in seconds
     };
   }
 

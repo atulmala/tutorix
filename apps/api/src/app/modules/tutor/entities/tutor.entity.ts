@@ -31,7 +31,7 @@ export class Tutor extends QBaseEntity {
     type: 'enum',
     enum: TutorCertificationStageEnum,
     nullable: true,
-    default: TutorCertificationStageEnum.REGISTERED,
+    default: TutorCertificationStageEnum.ADDRESS,
   })
   certificationStage?: TutorCertificationStageEnum;
 
