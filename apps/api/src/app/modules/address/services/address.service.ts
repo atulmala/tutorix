@@ -1,12 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import axios from 'axios';
 import { AddressEntity } from '../entities/address.entity';
+import { AddressType } from '../enums/address-type.enum';
 import { GeocodingService } from './geocoding.service';
 import { Tutor } from '../../tutor/entities/tutor.entity';
 import { TutorService } from '../../tutor/services/tutor.service';
-import { LocationSuggestion } from '../dto/location-suggestion.dto';
+import { TutorCertificationStageEnum } from '../../tutor/enums/tutor.enums';
 
 @Injectable()
 export class AddressService {
@@ -18,58 +18,14 @@ export class AddressService {
   ) {}
 
   /**
-   * Search for location suggestions based on query string
-   * Uses Nominatim search API for autocomplete
-   */
-  async searchLocations(query: string): Promise<LocationSuggestion[]> {
-    if (!query || query.trim().length < 2) {
-      return [];
-    }
-
-    try {
-      // Use Nominatim search API for autocomplete
-      const httpClient = axios.create({
-        timeout: 10000,
-      });
-
-      const url = 'https://nominatim.openstreetmap.org/search';
-      const response = await httpClient.get(url, {
-        params: {
-          q: query,
-          format: 'json',
-          limit: 10,
-          addressdetails: 1,
-        },
-        headers: {
-          'User-Agent': 'Tutorix-App/1.0',
-        },
-      });
-
-      if (response.data && Array.isArray(response.data)) {
-        return response.data.map((result: any) => ({
-          displayName: result.display_name,
-          latitude: parseFloat(result.lat),
-          longitude: parseFloat(result.lon),
-          city: result.address?.city || result.address?.town || result.address?.village,
-          state: result.address?.state,
-          country: result.address?.country,
-          postalCode: result.address?.postcode,
-        }));
-      }
-
-      return [];
-    } catch (error) {
-      console.error('Error searching locations:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Create an address for a tutor
+   * Create or update an address for a tutor by type (HOME, TEACHING, etc.)
+   * If an address with the given type already exists for the tutor, it is overwritten.
+   * Otherwise, a new address is created.
    */
   async createAddressForTutor(
     tutorId: number,
     addressData: {
+      type?: AddressType;
       street?: string;
       subArea?: string;
       city?: string;
@@ -82,15 +38,18 @@ export class AddressService {
       longitude?: number;
     },
   ): Promise<AddressEntity> {
+    const addressType = addressData.type ?? AddressType.HOME;
+
     // Verify tutor exists
-    const tutor = await this.tutorService.findOne(tutorId);
+    await this.tutorService.findOne(tutorId);
 
     // If coordinates not provided, geocode the address
     let latitude = addressData.latitude;
     let longitude = addressData.longitude;
 
     if (!latitude || !longitude) {
-      const addressString = addressData.fullAddress || 
+      const addressString =
+        addressData.fullAddress ||
         [
           addressData.street,
           addressData.subArea,
@@ -103,7 +62,8 @@ export class AddressService {
           .join(', ');
 
       if (addressString) {
-        const geocodeResult = await this.geocodingService.geocodeAddress(addressString);
+        const geocodeResult =
+          await this.geocodingService.geocodeAddress(addressString);
         if (geocodeResult) {
           latitude = geocodeResult.latitude;
           longitude = geocodeResult.longitude;
@@ -111,8 +71,46 @@ export class AddressService {
       }
     }
 
+    // Check if address with this type already exists for the tutor
+    const existingAddress = await this.addressRepository.findOne({
+      where: {
+        tutor: { id: tutorId },
+        type: addressType,
+        deleted: false,
+      },
+    });
+
+    if (existingAddress) {
+      // Overwrite existing address
+      existingAddress.street = addressData.street ?? existingAddress.street;
+      existingAddress.subArea = addressData.subArea ?? existingAddress.subArea;
+      existingAddress.city = addressData.city ?? existingAddress.city;
+      existingAddress.state = addressData.state ?? existingAddress.state;
+      existingAddress.country = addressData.country ?? existingAddress.country;
+      existingAddress.landmark = addressData.landmark ?? existingAddress.landmark;
+      existingAddress.postalCode =
+        addressData.postalCode ?? existingAddress.postalCode;
+      existingAddress.fullAddress =
+        addressData.fullAddress ?? existingAddress.fullAddress;
+      existingAddress.latitude = latitude ?? existingAddress.latitude;
+      existingAddress.longitude = longitude ?? existingAddress.longitude;
+
+      const saved = await this.addressRepository.save(existingAddress);
+      await this.tutorService.updateCertificationStage(
+        tutorId,
+        TutorCertificationStageEnum.QUALIFICATION_EXPERIENCE,
+      );
+      return saved;
+    }
+
+    // No existing address with this type - create new
+    const isFirstAddress = !(await this.addressRepository.findOne({
+      where: { tutor: { id: tutorId }, deleted: false },
+    }));
+
     const address = this.addressRepository.create({
       tutor: { id: tutorId } as Tutor,
+      type: addressType,
       street: addressData.street,
       subArea: addressData.subArea,
       city: addressData.city,
@@ -124,15 +122,16 @@ export class AddressService {
       latitude: latitude || 0,
       longitude: longitude || 0,
       verified: false,
-      primary: true, // First address is primary
+      primary: isFirstAddress,
     });
 
     const savedAddress = await this.addressRepository.save(address);
 
-    // Mark onboarding as complete when first address is created
-    if (!tutor.onBoardingComplete) {
-      await this.tutorService.updateOnboardingStatus(tutorId, true);
-    }
+    // Advance certification stage to next step (qualification & experience)
+    await this.tutorService.updateCertificationStage(
+      tutorId,
+      TutorCertificationStageEnum.QUALIFICATION_EXPERIENCE,
+    );
 
     return savedAddress;
   }

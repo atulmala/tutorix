@@ -3,7 +3,7 @@ import { useMutation } from '@apollo/client';
 import { BRAND_NAME } from '../config';
 import { LOGIN } from '@tutorix/shared-graphql';
 import { getPhoneCountryCode } from '@tutorix/shared-utils';
-import { setAuthToken } from '@tutorix/shared-graphql/client/web/token-storage';
+import { setAuthTokens } from '@tutorix/shared-graphql/client/web/token-storage';
 
 type LoginProps = {
   onBackHome: () => void;
@@ -33,10 +33,12 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
 
   const [login, { loading }] = useMutation(LOGIN, {
     onCompleted: async (data) => {
-      // Store access token for authenticated requests
+      // Store both tokens for authenticated requests and refresh
       if (data?.login?.accessToken) {
-        await setAuthToken(data.login.accessToken);
-        console.log('Access token stored');
+        await setAuthTokens(
+          data.login.accessToken,
+          data.login.refreshToken
+        );
       }
       
       console.log('Login successful:', data);

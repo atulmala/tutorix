@@ -40,10 +40,10 @@ export function getGraphQLEndpoint(): string {
   }
   
   // Default endpoint configuration
-  // Backend uses global prefix 'api' set in main.ts, so endpoint is /api/graphql
+  // Backend uses global prefix 'api' set in main.ts, so full path is /api/graphql
   const host = 'localhost';
   const port = '3000';
-  const path = '/graphql';
+  const path = '/api/graphql';
   
   const finalEndpoint = `http://${host}:${port}${path}`;
   
