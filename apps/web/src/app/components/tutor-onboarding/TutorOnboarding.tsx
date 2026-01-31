@@ -69,8 +69,8 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
   const tutorName = useMemo(() => {
     const user = profileData?.myTutorProfile?.user;
     if (!user) return null;
-    const first = user.firstName?.trim() || '';
-    const last = user.lastName?.trim() || '';
+    const first = user?.firstName?.trim() || '';
+    const last = user?.lastName?.trim() || '';
     return [first, last].filter(Boolean).join(' ') || null;
   }, [profileData]);
 

@@ -19,7 +19,7 @@ export class Tutor extends QBaseEntity {
   @Column({ name: 'user_id', unique: true, type: 'integer' })
   userId: number;
 
-  @Field(() => User)
+  @Field(() => User, { nullable: true })
   @OneToOne(() => User, (user) => user.tutor, {
     onDelete: 'CASCADE',
   })
@@ -31,7 +31,7 @@ export class Tutor extends QBaseEntity {
     type: 'enum',
     enum: TutorCertificationStageEnum,
     nullable: true,
-    default: TutorCertificationStageEnum.ADDRESS,
+    default: TutorCertificationStageEnum.address,
   })
   certificationStage?: TutorCertificationStageEnum;
 
