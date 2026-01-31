@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useLazyQuery } from '@apollo/client';
+import { useLazyQuery, useApolloClient } from '@apollo/client';
 import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql';
+import { removeAuthToken } from '@tutorix/shared-graphql/client/web/token-storage';
 import { HomeScreen } from './components/HomeScreen';
 import { SignUp } from './components/sign-up/SignUp';
 import { Login } from './components/Login';
@@ -8,8 +9,17 @@ import { ForgotPassword } from './components/ForgotPassword';
 import { ResetPassword } from './components/ResetPassword';
 import { PasswordResetAcknowledgement } from './components/PasswordResetAcknowledgement';
 import { TutorOnboarding } from './components/tutor-onboarding';
+import { AppHeader } from './components/AppHeader';
 
 type View = 'home' | 'signup' | 'login' | 'forgot-password' | 'reset-password' | 'password-reset-ack' | 'tutor-onboarding';
+
+type User = {
+  id: number;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  role?: string;
+};
 
 export function App() {
   const [currentView, setCurrentViewInternal] = useState<View>('home');
@@ -17,6 +27,9 @@ export function App() {
   const [resumeVerificationStatus, setResumeVerificationStatus] = useState<{ isMobileVerified: boolean; isEmailVerified: boolean } | undefined>(undefined);
   const [resetPasswordToken, setResetPasswordToken] = useState<string | undefined>(undefined);
   const [tutorProfileForOnboarding, setTutorProfileForOnboarding] = useState<{ certificationStage?: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  
+  const apolloClient = useApolloClient();
 
   // Wrapper to log all view changes
   const setCurrentView = (view: View) => {
@@ -101,13 +114,48 @@ export function App() {
     setCurrentView('login');
   };
 
-  const handleLoginSuccess = async (user?: { id: number; role?: string }) => {
+  const handleLoginSuccess = async (user?: { id: number; role?: string; firstName?: string; lastName?: string; email?: string }) => {
+    // Store user info for displaying name in header
+    if (user) {
+      setCurrentUser({
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+      });
+    }
+    
     const isTutor = user?.role != null && String(user.role).toUpperCase() === 'TUTOR';
     if (isTutor) {
       getMyTutorProfile();
     } else {
       setCurrentView('home');
     }
+  };
+
+  const handleLogout = async () => {
+    console.log('[App] Logout initiated');
+    
+    // 1. Clear auth tokens from localStorage
+    await removeAuthToken();
+    
+    // 2. Clear Apollo cache
+    await apolloClient.clearStore();
+    
+    // 3. Reset user state
+    setCurrentUser(null);
+    
+    // 4. Reset all app state
+    setTutorProfileForOnboarding(null);
+    setResumeUserId(undefined);
+    setResumeVerificationStatus(undefined);
+    setResetPasswordToken(undefined);
+    
+    // 5. Redirect to home
+    setCurrentView('home');
+    
+    console.log('[App] Logout complete');
   };
 
   const handleForgotPassword = () => {
@@ -131,6 +179,7 @@ export function App() {
   if (currentView === 'signup') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
         <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
           <SignUp 
             onBackHome={handleBackHome} 
@@ -147,6 +196,7 @@ export function App() {
   if (currentView === 'tutor-onboarding') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
         <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
           <TutorOnboarding 
             initialProfile={tutorProfileForOnboarding}
@@ -167,6 +217,7 @@ export function App() {
   if (currentView === 'login') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
         <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
           <Login 
             onBackHome={handleBackHome} 
@@ -182,6 +233,7 @@ export function App() {
   if (currentView === 'forgot-password') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
         <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
           <ForgotPassword 
             onBackHome={handleBackHome} 
@@ -195,6 +247,7 @@ export function App() {
   if (currentView === 'reset-password') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
         <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
           <ResetPassword 
             token={resetPasswordToken}
@@ -209,6 +262,7 @@ export function App() {
   if (currentView === 'password-reset-ack') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
         <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
           <PasswordResetAcknowledgement 
             onBackHome={handleBackHome}
@@ -219,7 +273,7 @@ export function App() {
     );
   }
 
-  return <HomeScreen onLogin={handleLogin} onSignUp={handleSignUp} />;
+  return <HomeScreen onLogin={handleLogin} onSignUp={handleSignUp} currentUser={currentUser} onLogout={handleLogout} />;
 }
 
 export default App;
