@@ -71,7 +71,7 @@ export class TutorService {
         userId,
         onBoardingComplete: false,
         regFeePaid: false,
-        certificationStage: TutorCertificationStageEnum.ADDRESS,
+        certificationStage: TutorCertificationStageEnum.address,
       });
       
       this.logger.debug(`📝 Tutor entity created: ${JSON.stringify({ userId: tutor.userId, onBoardingComplete: tutor.onBoardingComplete, regFeePaid: tutor.regFeePaid })}`);
