@@ -1,0 +1,1 @@
+export { TutorRegistrationPayment } from './TutorRegistrationPayment';
