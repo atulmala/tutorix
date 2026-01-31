@@ -98,7 +98,7 @@ export class AddressService {
       const saved = await this.addressRepository.save(existingAddress);
       await this.tutorService.updateCertificationStage(
         tutorId,
-        TutorCertificationStageEnum.QUALIFICATION_EXPERIENCE,
+        TutorCertificationStageEnum.qualificationExperience,
       );
       return saved;
     }
@@ -130,7 +130,7 @@ export class AddressService {
     // Advance certification stage to next step (qualification & experience)
     await this.tutorService.updateCertificationStage(
       tutorId,
-      TutorCertificationStageEnum.QUALIFICATION_EXPERIENCE,
+      TutorCertificationStageEnum.qualificationExperience,
     );
 
     return savedAddress;
