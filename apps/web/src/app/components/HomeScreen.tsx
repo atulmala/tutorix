@@ -1,29 +1,74 @@
 import React from 'react';
 import { BRAND_NAME } from '../config';
 
+// User type for logged-in user display
+type User = {
+  id: number;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  role?: string;
+};
+
 type HomeScreenProps = {
   onLogin: () => void;
   onSignUp: () => void;
+  currentUser: User | null;
+  onLogout: () => void;
 };
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onLogin, onSignUp }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({ onLogin, onSignUp, currentUser, onLogout }) => {
+  const getUserDisplayName = () => {
+    if (!currentUser) return null;
+    
+    const firstName = currentUser.firstName || '';
+    const lastName = currentUser.lastName || '';
+    
+    if (firstName && lastName) {
+      return `${firstName} ${lastName}`;
+    } else if (firstName) {
+      return firstName;
+    } else if (lastName) {
+      return lastName;
+    } else if (currentUser.email) {
+      return currentUser.email.split('@')[0];
+    }
+    return 'User';
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-white via-[#eef3ff] to-[#e5e7eb] text-primary">
       <header className="flex items-center justify-between px-6 py-4 md:px-12 md:py-6">
         <div className="text-2xl font-bold text-primary">{BRAND_NAME}</div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={onLogin}
-            className="rounded-lg px-4 py-2 text-sm font-semibold text-primary underline decoration-primary/60 decoration-2 underline-offset-4"
-          >
-            Login
-          </button>
-          <button
-            onClick={onSignUp}
-            className="rounded-lg bg-[#5fa8ff] px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5]"
-          >
-            Sign up
-          </button>
+          {currentUser ? (
+            <>
+              <span className="text-sm font-semibold text-primary">
+                {getUserDisplayName()}
+              </span>
+              <button
+                onClick={onLogout}
+                className="rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={onLogin}
+                className="rounded-lg px-4 py-2 text-sm font-semibold text-primary underline decoration-primary/60 decoration-2 underline-offset-4"
+              >
+                Login
+              </button>
+              <button
+                onClick={onSignUp}
+                className="rounded-lg bg-[#5fa8ff] px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5]"
+              >
+                Sign up
+              </button>
+            </>
+          )}
         </div>
       </header>
 
