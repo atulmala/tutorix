@@ -1,5 +1,8 @@
 /**
  * Shared types for tutor onboarding flow.
+ *
+ * Aligned with TutorCertificationStageEnum / TutorOnboardingStepEnum in
+ * apps/api/.../tutor/enums/tutor.enums.ts
  */
 
 export type OnboardingStepId =
@@ -64,4 +67,29 @@ export const ONBOARDING_STEPS: OnboardingStepConfig[] = [
 export interface StepComponentProps {
   onComplete: () => void;
   onBack?: () => void;
+}
+
+/**
+ * Normalize certificationStage from API (may be SCREAMING_SNAKE_CASE)
+ * to step id format (camelCase).
+ */
+export function normalizeCertificationStage(
+  stage: string | undefined
+): OnboardingStepId | undefined {
+  if (!stage || typeof stage !== 'string') return undefined;
+  const trimmed = stage.trim();
+  if (!trimmed) return undefined;
+  // Already in camelCase - check if it matches a step id
+  if (ONBOARDING_STEPS.some((s) => s.id === trimmed)) return trimmed as OnboardingStepId;
+  // Convert SCREAMING_SNAKE_CASE to camelCase
+  const camel = trimmed
+    .toLowerCase()
+    .split('_')
+    .map((part, i) =>
+      i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)
+    )
+    .join('');
+  return ONBOARDING_STEPS.some((s) => s.id === camel)
+    ? (camel as OnboardingStepId)
+    : undefined;
 }

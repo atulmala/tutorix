@@ -1,8 +1,14 @@
 import { InputType, Field, Int } from '@nestjs/graphql';
-import { IsOptional, IsString, IsNumber, IsInt, Min, Max } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsInt, IsEnum } from 'class-validator';
+import { AddressType } from '../enums/address-type.enum';
 
 @InputType()
 export class CreateAddressInput {
+  @Field(() => AddressType, { nullable: true })
+  @IsOptional()
+  @IsEnum(AddressType)
+  type?: AddressType;
+
   @Field({ nullable: true })
   @IsOptional()
   @IsString()

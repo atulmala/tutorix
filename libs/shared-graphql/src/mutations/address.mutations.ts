@@ -8,6 +8,7 @@ export const CREATE_TUTOR_ADDRESS = gql`
   mutation CreateTutorAddress($input: CreateAddressInput!) {
     createTutorAddress(input: $input) {
       id
+      type
       street
       subArea
       city

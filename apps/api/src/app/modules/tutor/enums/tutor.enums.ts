@@ -1,26 +1,47 @@
 import { registerEnumType } from '@nestjs/graphql';
 
 /**
+ * Tutor Onboarding Step Enum
+ *
+ * Aligned with OnboardingStepId in apps/web/.../tutor-onboarding/types.ts
+ * Represents each step in the tutor onboarding flow.
+ */
+export enum TutorOnboardingStepEnum {
+  ADDRESS = 'address',
+  QUALIFICATION_EXPERIENCE = 'qualificationExperience',
+  OFFERINGS = 'offerings',
+  PT = 'pt',
+  REGISTRATION_PAYMENT = 'registrationPayment',
+  DOCS = 'docs',
+  INTERVIEW = 'interview',
+  COMPLETE = 'complete',
+}
+
+/**
  * Tutor Certification Stage Enum
- * 
- * Represents the current Certification Stage of a tutor in the system.
+ *
+ * Aligned with onboarding steps. Indicates the current/pending step for a tutor.
+ * Use TutorOnboardingStepEnum for step ordering; this enum is used in DB/GraphQL.
  */
 export enum TutorCertificationStageEnum {
-  REGISTERED = 'REGISTERED',
-  OFFERING_PENDING = 'OFFERING_PENDING',
-  SUBJECT_CHANGE = 'SUBJECT_CHANGE',
-  PROFICIENCY_TEST_PENDING = 'PROFICIENCY_TEST_PENDING',
-  REGISTRATION_FEE_PENDING = 'REGISTRATION_FEE_PENDING',
-  THANKS = 'THANKS',
-  PROFILE_COMPLETION_PENDING = 'PROFILE_COMPLETION_PENDING',
-  INTERVIEW_PENDING = 'INTERVIEW_PENDING',
-  BACKGROUND_CHECK_PENDING = 'BACKGROUND_CHECK_PENDING',
-  CERTIFICATION_PROCESS_COMPLETED = 'CERTIFICATION_PROCESS_COMPLETED',
+  ADDRESS = 'address',
+  QUALIFICATION_EXPERIENCE = 'qualificationExperience',
+  OFFERINGS = 'offerings',
+  PT = 'pt',
+  REGISTRATION_PAYMENT = 'registrationPayment',
+  DOCS = 'docs',
+  INTERVIEW = 'interview',
+  COMPLETE = 'complete',
 }
+
+registerEnumType(TutorOnboardingStepEnum, {
+  name: 'TutorOnboardingStepEnum',
+  description: 'Onboarding steps for tutors - aligned with frontend OnboardingStepId',
+});
 
 registerEnumType(TutorCertificationStageEnum, {
   name: 'TutorCertificationStageEnum',
-  description: 'Status of a tutor Certification Stage in the system',
+  description: 'Current certification/onboarding stage of a tutor',
 });
 
 

@@ -70,6 +70,7 @@ export function useGooglePlacesAutocomplete(): UseGooglePlacesAutocompleteResult
         {
           input,
           types: ['geocode'],
+          componentRestrictions: { country: 'in' },
         },
         (predictions: unknown[] | null, status: string) => {
           if (status !== 'OK' || !predictions || !predictions.length) {

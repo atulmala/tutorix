@@ -2,7 +2,6 @@ import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { AddressEntity } from '../entities/address.entity';
 import { AddressService } from '../services/address.service';
-import { LocationSuggestion } from '../dto/location-suggestion.dto';
 import { CreateAddressInput } from '../dto/create-address.input';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
@@ -15,19 +14,6 @@ export class AddressResolver {
     private readonly addressService: AddressService,
     private readonly tutorService: TutorService,
   ) {}
-
-  /**
-   * Query: Search for location suggestions (autocomplete)
-   */
-  @Query(() => [LocationSuggestion], {
-    name: 'searchLocations',
-    description: 'Search for location suggestions based on query string',
-  })
-  async searchLocations(
-    @Args('query') query: string,
-  ): Promise<LocationSuggestion[]> {
-    return this.addressService.searchLocations(query);
-  }
 
   /**
    * Mutation: Create address for tutor

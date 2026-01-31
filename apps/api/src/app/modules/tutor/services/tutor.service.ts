@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Tutor } from '../entities/tutor.entity';
+import { TutorCertificationStageEnum } from '../enums/tutor.enums';
 
 @Injectable()
 export class TutorService {
@@ -51,17 +52,17 @@ export class TutorService {
 
   /**
    * Ensure tutor exists for a user (create if doesn't exist)
-   * @returns Tutor (existing or newly created)
-   * Note: Addresses are not loaded here as they are created later in the onboarding process
+   * @returns Tutor with addresses loaded
    */
   async ensureTutorExists(userId: number): Promise<Tutor> {
     this.logger.debug(`🔍 ensureTutorExists called for userId: ${userId}`);
     
     let tutor = await this.tutorRepository.findOne({
       where: { userId, deleted: false },
+      relations: ['user', 'addresses'],
     });
     
-    this.logger.debug(`📊 Existing tutor lookup result: ${tutor ? `Found tutor ID: ${tutor.id}` : 'No tutor found'}`);
+    this.logger.debug(`📊 Existing tutor lookup result: ${tutor ? `Found tutor ID: ${tutor.id}, addresses: ${tutor.addresses?.length || 0}` : 'No tutor found'}`);
     
     if (!tutor) {
       this.logger.log(`➕ Creating new tutor for userId: ${userId}`);
@@ -70,12 +71,18 @@ export class TutorService {
         userId,
         onBoardingComplete: false,
         regFeePaid: false,
+        certificationStage: TutorCertificationStageEnum.ADDRESS,
       });
       
       this.logger.debug(`📝 Tutor entity created: ${JSON.stringify({ userId: tutor.userId, onBoardingComplete: tutor.onBoardingComplete, regFeePaid: tutor.regFeePaid })}`);
       
       try {
         tutor = await this.tutorRepository.save(tutor);
+        tutor = await this.tutorRepository.findOne({
+          where: { id: tutor.id },
+          relations: ['user', 'addresses'],
+        }) as Tutor;
+        tutor.addresses = tutor.addresses ?? [];
         this.logger.log(`✅ Tutor successfully created with ID: ${tutor.id} for userId: ${userId}`);
       } catch (error) {
         this.logger.error(`❌ Failed to save tutor for userId: ${userId}`, error);
@@ -94,6 +101,18 @@ export class TutorService {
   async updateOnboardingStatus(tutorId: number, onBoardingComplete: boolean): Promise<Tutor> {
     const tutor = await this.findOne(tutorId);
     tutor.onBoardingComplete = onBoardingComplete;
+    return this.tutorRepository.save(tutor);
+  }
+
+  /**
+   * Update tutor certification stage (current onboarding step)
+   */
+  async updateCertificationStage(
+    tutorId: number,
+    stage: TutorCertificationStageEnum,
+  ): Promise<Tutor> {
+    const tutor = await this.findOne(tutorId);
+    tutor.certificationStage = stage;
     return this.tutorRepository.save(tutor);
   }
 

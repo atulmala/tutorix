@@ -1,10 +1,14 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { useQuery } from '@apollo/client';
+import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql';
 import { BRAND_NAME } from '../../config';
 import {
   ONBOARDING_STEPS,
+  normalizeCertificationStage,
   type OnboardingStepId,
   type StepComponentProps,
 } from './types';
+import { OnboardingStepper } from './OnboardingStepper';
 import { TutorAddressEntry } from './tutor-address-entry';
 import { TutorQualificationExperience } from './tutor-qualification-experience';
 import { TutorOfferings } from './tutor-offerings';
@@ -15,6 +19,8 @@ import { TutorInterview } from './tutor-interview';
 import { TutorOnboardingComplete } from './tutor-onboarding-complete';
 
 type TutorOnboardingProps = {
+  /** Initial profile (e.g. from App after login) - used to show correct step immediately */
+  initialProfile?: { certificationStage?: string } | null;
   onComplete?: () => void;
   onBack?: () => void;
 };
@@ -30,11 +36,43 @@ const STEP_COMPONENTS: Record<OnboardingStepId, React.FC<StepComponentProps>> = 
   complete: TutorOnboardingComplete,
 };
 
+function stepIndexFromStage(stage: string | undefined): number {
+  const normalized = normalizeCertificationStage(stage);
+  if (!normalized) return 0;
+  const idx = ONBOARDING_STEPS.findIndex((s) => s.id === normalized);
+  return idx >= 0 ? idx : 0;
+}
+
 export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
+  initialProfile,
   onComplete,
   onBack,
 }) => {
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [currentStepIndex, setCurrentStepIndex] = useState(() =>
+    stepIndexFromStage(initialProfile?.certificationStage)
+  );
+  const { data: profileData } = useQuery(GET_MY_TUTOR_PROFILE, {
+    fetchPolicy: 'cache-and-network',
+  });
+
+  // Sync step with certificationStage when profile loads (e.g. tutor returns to onboarding)
+  useEffect(() => {
+    const rawStage =
+      profileData?.myTutorProfile?.certificationStage ??
+      initialProfile?.certificationStage;
+    const stage = normalizeCertificationStage(rawStage);
+    if (!stage) return;
+    const idx = ONBOARDING_STEPS.findIndex((s) => s.id === stage);
+    if (idx >= 0) setCurrentStepIndex(idx);
+  }, [profileData?.myTutorProfile?.certificationStage, initialProfile?.certificationStage]);
+
+  const tutorName = useMemo(() => {
+    const user = profileData?.myTutorProfile?.user;
+    if (!user) return null;
+    const first = user.firstName?.trim() || '';
+    const last = user.lastName?.trim() || '';
+    return [first, last].filter(Boolean).join(' ') || null;
+  }, [profileData]);
 
   const stepConfig = useMemo(
     () => ONBOARDING_STEPS[currentStepIndex],
@@ -63,23 +101,35 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
     }
   };
 
+  const showStepper = stepConfig.id !== 'complete';
+
   return (
-    <div className="w-full max-w-5xl rounded-2xl border border-subtle bg-white p-8 shadow-md">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-primary">
-          Welcome to {BRAND_NAME}
-        </h1>
-        <p className="mt-2 text-base text-muted">
-          Please complete your onboarding
-        </p>
-        <div className="mt-4 flex items-center gap-2 text-sm text-muted">
-          <span>
-            Step {currentStepIndex + 1} of {ONBOARDING_STEPS.length}
-          </span>
-          <span aria-hidden>·</span>
-          <span className="font-medium text-primary">{stepConfig.title}</span>
+    <div className="w-full max-w-5xl rounded-2xl border border-subtle bg-white p-8 shadow-lg">
+      {/* Header with tutor name */}
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-primary">
+            {BRAND_NAME} - Onboarding & Certification
+          </h1>
+          <p className="mt-1 text-sm text-muted">
+            {stepConfig.id === 'complete'
+              ? "You're all set!"
+              : `Step ${currentStepIndex + 1} of ${ONBOARDING_STEPS.length} · ${stepConfig.title}`}
+          </p>
         </div>
+        {tutorName && (
+          <div className="shrink-0 rounded-lg bg-primary/5 px-4 py-2">
+            <span className="text-sm font-medium text-primary">{tutorName}</span>
+          </div>
+        )}
       </div>
+
+      {/* Step progress indicator - circles with icons and connection lines */}
+      {showStepper && (
+        <div className="mb-8 rounded-lg border border-subtle bg-gray-50/80 px-6 py-5">
+          <OnboardingStepper currentStepIndex={currentStepIndex} />
+        </div>
+      )}
 
       <StepComponent
         onComplete={handleStepComplete}
