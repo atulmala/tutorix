@@ -163,6 +163,7 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
           input: {
             loginId,
             password,
+            platform: 'web',
           },
         },
       });

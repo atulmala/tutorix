@@ -2,6 +2,7 @@ import { Entity, Column, ManyToOne, Index } from 'typeorm';
 import { ObjectType, Field } from '@nestjs/graphql';
 import { QBaseEntity } from '../../../common/base-entities/base.entity';
 import { User } from './user.entity';
+import { SessionPlatform } from '../enums/session-platform.enum';
 
 /**
  * RefreshToken Entity
@@ -35,6 +36,14 @@ export class RefreshToken extends QBaseEntity {
   @Field(() => String, { nullable: true })
   @Column({ nullable: true })
   ipAddress?: string; // Optional: store IP address
+
+  /** Platform: web | ios | android */
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  platform?: SessionPlatform;
+
+  /** Last time user made an API call or heartbeat; used for inactive-session count */
+  @Column({ type: 'timestamp', nullable: true })
+  lastActivityAt?: Date;
 
   // Relations
   @ManyToOne(() => User, (user) => user.refreshTokens, {

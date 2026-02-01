@@ -7,6 +7,7 @@ import { Request } from 'express';
 import { AuthModule } from '../modules/auth/auth.module';
 import { AuthService } from '../modules/auth/services/auth.service';
 import { JwtService } from '../modules/auth/services/jwt.service';
+import { SessionService } from '../modules/auth/services/session.service';
 import { User } from '../modules/auth/entities/user.entity';
 import { AddressEntity } from '../modules/address/entities/address.entity';
 
@@ -37,7 +38,11 @@ interface RequestWithUser extends Omit<Request, 'user'> {
     GraphQLModule.forRootAsync<ApolloDriverConfig>({
       imports: [AuthModule], // Import AuthModule to make its exports available
       driver: ApolloDriver,
-      useFactory: (jwtService: JwtService, authService: AuthService) => ({
+      useFactory: (
+        jwtService: JwtService,
+        authService: AuthService,
+        sessionService: SessionService,
+      ) => ({
         autoSchemaFile: join(__dirname, '../../schema.gql'),
         sortSchema: true,
         orphanedTypes: [AddressEntity],
@@ -45,24 +50,28 @@ interface RequestWithUser extends Omit<Request, 'user'> {
         introspection: true,
         plugins: [graphqlLoggingPlugin],
         context: async ({ req }: { req: RequestWithUser }) => {
-          // Extract user from JWT token if present
           const authHeader = req?.headers?.authorization;
           if (authHeader && authHeader.startsWith('Bearer ')) {
             try {
               const token = authHeader.substring(7);
               const payload = jwtService.verifyAccessToken(token);
-              // Load full user from database
               const user = await authService.findById(payload.sub);
               req.user = user || null;
+              if (payload.sid && req.user) {
+                sessionService
+                  .updateLastActivity(payload.sid)
+                  .catch((err) =>
+                    console.error('[Session] updateLastActivity failed:', err),
+                  );
+              }
             } catch {
-              // Invalid or expired token, continue without user
               req.user = null;
             }
           }
           return { req };
         },
       }),
-      inject: [JwtService, AuthService],
+      inject: [JwtService, AuthService, SessionService],
     }),
   ],
 })

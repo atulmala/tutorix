@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './services/auth.service';
+import { SessionService } from './services/session.service';
 import { AuthResolver } from './resolvers/auth.resolver';
 import { User } from './entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
@@ -11,6 +12,7 @@ import { Tutor } from '../tutor/entities/tutor.entity';
 import { PasswordService } from './services/password.service';
 import { JwtService } from './services/jwt.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { RolesGuard } from './guards/roles.guard';
 import { Otp } from './entities/otp.entity';
 import { OtpService } from './services/otp.service';
 import { OtpResolver } from './resolvers/otp.resolver';
@@ -38,6 +40,8 @@ import { TutorModule } from '../tutor/tutor.module';
   ],
   providers: [
     AuthService,
+    SessionService,
+    RolesGuard,
     AuthResolver,
     OtpService,
     OtpResolver,
@@ -45,7 +49,7 @@ import { TutorModule } from '../tutor/tutor.module';
     JwtService,
     JwtStrategy,
   ],
-  exports: [AuthService, JwtService],
+  exports: [AuthService, JwtService, SessionService],
 })
 export class AuthModule {}
 
