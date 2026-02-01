@@ -63,7 +63,7 @@ function tryRefreshAndRetry(
               refreshToken
             }
           }`,
-          variables: { input: { refreshToken } },
+          variables: { input: { refreshToken, platform: 'web' } },
         });
 
         try {

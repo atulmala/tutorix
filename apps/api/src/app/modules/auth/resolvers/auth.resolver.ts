@@ -1,6 +1,8 @@
 import { Resolver, Mutation, Query, Args, ID } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
+import { SessionService } from '../services/session.service';
+import { SessionStats } from '../dto/session-stats.dto';
 import { LoginInput } from '../dto/login.dto';
 import { RegisterInput } from '../dto/register.dto';
 import { RefreshTokenInput } from '../dto/refresh-token.dto';
@@ -13,11 +15,17 @@ import { ForgotPasswordInput } from '../dto/forgot-password.input';
 import { ResetPasswordInput } from '../dto/reset-password.input';
 import { User } from '../entities/user.entity';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { RolesGuard } from '../guards/roles.guard';
+import { Roles } from '../decorators/roles.decorator';
+import { UserRole } from '../enums/user-role.enum';
 import { CurrentUser } from '../decorators/current-user.decorator';
 
 @Resolver(() => User)
 export class AuthResolver {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly sessionService: SessionService,
+  ) {}
 
   @Mutation(() => AuthResponse)
   async register(@Args('input') input: RegisterInput): Promise<AuthResponse> {
@@ -61,7 +69,7 @@ export class AuthResolver {
   async refreshToken(
     @Args('input') input: RefreshTokenInput,
   ): Promise<AuthResponse> {
-    return this.authService.refreshToken(input.refreshToken);
+    return this.authService.refreshToken(input.refreshToken, input.platform);
   }
 
   @Mutation(() => Boolean)
@@ -84,6 +92,21 @@ export class AuthResolver {
   @UseGuards(JwtAuthGuard)
   async me(@CurrentUser() user: User): Promise<User> {
     return user;
+  }
+
+  /** Heartbeat: keeps session marked as active. Call periodically (e.g. every 2 min) when app is in foreground. */
+  @Mutation(() => Boolean)
+  @UseGuards(JwtAuthGuard)
+  async heartbeat(): Promise<boolean> {
+    return true;
+  }
+
+  /** Session stats: total, active (activity in last 5 min), inactive. Admin only. */
+  @Query(() => SessionStats)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async sessionStats(): Promise<SessionStats> {
+    return this.sessionService.getSessionStats();
   }
 
   @Query(() => User, { nullable: true })

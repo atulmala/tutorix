@@ -97,8 +97,8 @@ export class AuthService {
     savedUser.lastLoginAt = new Date();
     await this.userRepository.save(savedUser);
 
-    // Generate tokens
-    const tokens = await this.jwtService.generateTokens(savedUser);
+    const platform = input.platform || 'web';
+    const tokens = await this.jwtService.generateTokens(savedUser, platform);
 
     // Track registration event
     const registrationMethod = input.role === UserRole.ADMIN ? 'email' : 'mobile';
@@ -362,7 +362,8 @@ export class AuthService {
     });
 
     const savedUser = await this.userRepository.save(user);
-    const tokens = await this.jwtService.generateTokens(savedUser);
+    const platform = input.platform || 'web';
+    const tokens = await this.jwtService.generateTokens(savedUser, platform);
 
     this.analyticsService
       .trackUserRegistration({
@@ -482,8 +483,8 @@ export class AuthService {
     user.lastLoginAt = new Date();
     await this.userRepository.save(user);
 
-    // Generate tokens
-    const tokens = await this.jwtService.generateTokens(user);
+    const platform = input.platform || 'web';
+    const tokens = await this.jwtService.generateTokens(user, platform);
 
     // Track login event
     const loginMethod = isEmail ? 'email' : 'mobile';
@@ -528,8 +529,11 @@ export class AuthService {
   /**
    * Refresh access token using refresh token
    */
-  async refreshToken(refreshToken: string): Promise<AuthResponse> {
-    const tokens = await this.jwtService.refreshAccessToken(refreshToken);
+  async refreshToken(
+    refreshToken: string,
+    platform?: string,
+  ): Promise<AuthResponse> {
+    const tokens = await this.jwtService.refreshAccessToken(refreshToken, platform);
 
     // Get user from the new access token
     const payload = this.jwtService.verifyAccessToken(tokens.accessToken);
