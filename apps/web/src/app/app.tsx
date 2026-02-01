@@ -37,7 +37,9 @@ export function App() {
     const HEARTBEAT_INTERVAL_MS = 2 * 60 * 1000;
     const sendHeartbeat = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        heartbeatMutation().catch(() => {});
+        heartbeatMutation().catch(() => {
+          /* ignore heartbeat errors */
+        });
       }
     };
     sendHeartbeat();
