@@ -135,6 +135,16 @@ export const REFRESH_TOKEN = gql`
 `;
 
 /**
+ * Heartbeat: keeps session marked as active for inactive-session tracking.
+ * Call periodically (e.g. every 2 min) when app is in foreground and user is logged in.
+ */
+export const HEARTBEAT = gql`
+  mutation Heartbeat {
+    heartbeat
+  }
+`;
+
+/**
  * Example mutation: Logout
  */
 export const LOGOUT = gql`
