@@ -6,9 +6,11 @@ import { RefreshToken } from '../entities/refresh-token.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
+import { SessionPlatform } from '../enums/session-platform.enum';
 
 export interface JwtPayload {
   sub: number; // user id
+  sid?: number; // session id (refresh token id) for activity tracking
   email?: string;
   mobile?: string;
   role: string;
@@ -33,25 +35,28 @@ export class JwtService {
   ) {}
 
   /**
-   * Generate access and refresh tokens for a user
+   * Generate access and refresh tokens for a user.
+   * @param user - User entity
+   * @param platform - web | ios | android (default: web)
    */
-  async generateTokens(user: User): Promise<TokenResponse> {
-    // Determine loginId based on role (ADMIN uses email, others use mobile)
+  async generateTokens(
+    user: User,
+    platform: SessionPlatform | string = SessionPlatform.web,
+  ): Promise<TokenResponse> {
     let loginId: string;
     if (user.role === UserRole.ADMIN) {
-      if (!user.email) {
-        throw new Error('Admin user must have an email address');
-      }
+      if (!user.email) throw new Error('Admin user must have an email address');
       loginId = user.email;
     } else {
-      if (!user.mobile) {
-        throw new Error('Tutor/Student user must have a mobile number');
-      }
+      if (!user.mobile) throw new Error('Tutor/Student user must have a mobile number');
       loginId = user.mobile;
     }
 
+    const { rawToken, entityId } = await this.generateRefreshToken(user, platform);
+
     const payload: JwtPayload = {
       sub: user.id,
+      sid: entityId,
       email: user.email,
       mobile: user.mobile,
       role: user.role,
@@ -62,72 +67,65 @@ export class JwtService {
       expiresIn: this.ACCESS_TOKEN_EXPIRY,
     });
 
-    const refreshToken = await this.generateRefreshToken(user);
-
     return {
       accessToken,
-      refreshToken,
+      refreshToken: rawToken,
       expiresIn: 24 * 60 * 60, // 24 hours in seconds
     };
   }
 
   /**
-   * Generate a secure refresh token and store it in the database
+   * Generate a secure refresh token and store it in the database.
+   * Sets lastActivityAt = now so new sessions start as "active".
    */
-  private async generateRefreshToken(user: User): Promise<string> {
-    // Generate a random token
+  private async generateRefreshToken(
+    user: User,
+    platform: SessionPlatform | string = SessionPlatform.web,
+  ): Promise<{ rawToken: string; entityId: number }> {
     const token = crypto.randomBytes(64).toString('hex');
-    
-    // Hash the token before storing
-    const hashedToken = crypto
-      .createHash('sha256')
-      .update(token)
-      .digest('hex');
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
-    // Calculate expiration date (30 days from now)
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + this.REFRESH_TOKEN_EXPIRY_DAYS);
 
-    // Store in database
+    const now = new Date();
+    const effectivePlatform: SessionPlatform =
+      platform === SessionPlatform.ios || platform === SessionPlatform.android
+        ? platform
+        : SessionPlatform.web;
+
     const refreshTokenEntity = this.refreshTokenRepository.create({
       token: hashedToken,
       expiresAt,
       user,
       userId: user.id,
+      platform: effectivePlatform,
+      lastActivityAt: now,
     });
 
-    await this.refreshTokenRepository.save(refreshTokenEntity);
-
-    // Return the plain token (will be hashed when validated)
-    return token;
+    const saved = await this.refreshTokenRepository.save(refreshTokenEntity);
+    return { rawToken: token, entityId: saved.id };
   }
 
   /**
-   * Validate and refresh tokens
+   * Validate and refresh tokens. Platform is inherited from the old token if not provided.
    */
-  async refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
-    // Hash the provided token to compare with stored hash
-    const hashedToken = crypto
-      .createHash('sha256')
-      .update(refreshToken)
-      .digest('hex');
+  async refreshAccessToken(
+    refreshToken: string,
+    platform?: SessionPlatform | string,
+  ): Promise<TokenResponse> {
+    const hashedToken = crypto.createHash('sha256').update(refreshToken).digest('hex');
 
     const tokenEntity = await this.refreshTokenRepository.findOne({
       where: { token: hashedToken, isRevoked: false },
       relations: ['user'],
     });
 
-    if (!tokenEntity) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
+    if (!tokenEntity) throw new UnauthorizedException('Invalid refresh token');
+    if (new Date() > tokenEntity.expiresAt) throw new UnauthorizedException('Refresh token has expired');
 
-    // Check if token is expired
-    if (new Date() > tokenEntity.expiresAt) {
-      throw new UnauthorizedException('Refresh token has expired');
-    }
-
-    // Generate new tokens
-    return this.generateTokens(tokenEntity.user);
+    const effectivePlatform = platform || tokenEntity.platform || SessionPlatform.web;
+    return this.generateTokens(tokenEntity.user, effectivePlatform);
   }
 
   /**

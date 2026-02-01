@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useLazyQuery, useApolloClient } from '@apollo/client';
-import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql';
+import { useLazyQuery, useApolloClient, useMutation } from '@apollo/client';
+import { GET_MY_TUTOR_PROFILE, HEARTBEAT } from '@tutorix/shared-graphql';
 import { removeAuthToken } from '@tutorix/shared-graphql/client/web/token-storage';
 import { HomeScreen } from './components/HomeScreen';
 import { SignUp } from './components/sign-up/SignUp';
@@ -30,6 +30,20 @@ export function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   const apolloClient = useApolloClient();
+  const [heartbeatMutation] = useMutation(HEARTBEAT);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const HEARTBEAT_INTERVAL_MS = 2 * 60 * 1000;
+    const sendHeartbeat = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        heartbeatMutation().catch(() => {});
+      }
+    };
+    sendHeartbeat();
+    const id = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [currentUser, heartbeatMutation]);
 
   // Wrapper to log all view changes
   const setCurrentView = (view: View) => {
