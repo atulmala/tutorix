@@ -235,6 +235,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
           input: {
             loginId,
             password,
+            platform: Platform.OS,
           },
         },
       });
@@ -269,7 +270,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
         return;
       }
       const { data } = await refreshTokenMutation({
-        variables: { refreshToken: storedRefreshToken },
+        variables: {
+          input: { refreshToken: storedRefreshToken, platform: Platform.OS },
+        },
       });
       if (data?.refreshToken?.accessToken) {
         await setAuthToken(data.refreshToken.accessToken);
