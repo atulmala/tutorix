@@ -24,6 +24,9 @@ node_modules
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# Babel env debug (mobile)
+apps/mobile/babel-env-debug.txt
+
 # misc
 /.sass-cache
 /connect.lock

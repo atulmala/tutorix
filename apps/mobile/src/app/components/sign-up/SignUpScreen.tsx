@@ -11,6 +11,8 @@ import { getIsoCountryCode } from '@tutorix/shared-utils';
 type SignUpProps = {
   resumeUserId?: number;
   resumeVerificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean };
+  /** Called when user taps "Continue to build your profile" after verification (e.g. go to login then onboarding). */
+  onContinueToOnboarding?: () => void;
 };
 
 type Step = 'basic' | 'phone' | 'email';
@@ -24,6 +26,7 @@ const steps: Array<{ id: Step; label: string }> = [
 export const SignUpScreen: React.FC<SignUpProps> = ({
   resumeUserId,
   resumeVerificationStatus,
+  onContinueToOnboarding,
 }) => {
   const [step, setStep] = useState<Step>('basic');
   const [basicDetails, setBasicDetails] = useState<BasicDetails>(createEmptyDetails());
@@ -179,7 +182,11 @@ export const SignUpScreen: React.FC<SignUpProps> = ({
             <View style={styles.successCard}>
               <Text style={styles.successTitle}>You are all set.</Text>
               <Text style={styles.successText}>Phone and email verified. Continue to complete your profile.</Text>
-              <TouchableOpacity style={styles.successButton}>
+              <TouchableOpacity
+                style={styles.successButton}
+                onPress={onContinueToOnboarding}
+                activeOpacity={0.8}
+              >
                 <Text style={styles.successButtonText}>Continue to build your profile</Text>
               </TouchableOpacity>
             </View>

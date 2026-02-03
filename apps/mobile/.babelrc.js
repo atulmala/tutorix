@@ -36,7 +36,11 @@ module.exports = function (api) {
               varName = path.node.property.name;
             }
 
-            if (varName === 'NX_GRAPHQL_ENDPOINT' || varName === 'GRAPHQL_ENDPOINT') {
+            if (
+              varName === 'NX_GRAPHQL_ENDPOINT' ||
+              varName === 'GRAPHQL_ENDPOINT' ||
+              varName === 'GOOGLE_MAPS_API_KEY'
+            ) {
               const value = process.env[varName];
               if (value !== undefined) {
                 path.replaceWith(t.stringLiteral(value));

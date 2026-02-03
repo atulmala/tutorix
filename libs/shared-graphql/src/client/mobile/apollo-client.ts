@@ -1,4 +1,3 @@
-import React from 'react';
 import { ApolloClient, from } from '@apollo/client';
 import { Platform } from 'react-native';
 
