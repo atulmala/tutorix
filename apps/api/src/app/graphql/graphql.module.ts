@@ -13,11 +13,13 @@ import { AddressEntity } from '../modules/address/entities/address.entity';
 
 /**
  * Logs every GraphQL query and mutation to the console.
+ * Skips IntrospectionQuery to avoid flooding logs (Playground/Studio).
  */
 const graphqlLoggingPlugin: ApolloServerPlugin = {
   async requestDidStart(): Promise<GraphQLRequestListener<Record<string, unknown>>> {
     return {
       async didResolveOperation({ operationName, operation }) {
+        if (operationName === 'IntrospectionQuery') return;
         const opType = operation?.operation ?? 'unknown';
         const name = operationName ?? 'anonymous';
         console.log(`[GraphQL] ${opType.toUpperCase()}: ${name}`);
