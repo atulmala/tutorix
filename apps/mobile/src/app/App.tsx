@@ -1,18 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   ApolloProvider,
   ApolloClient,
   NormalizedCacheObject,
   useLazyQuery,
+  useApolloClient,
 } from '@apollo/client';
-import { View, Text, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { SplashScreen } from './components/SplashScreen';
+import { HomeScreen } from './components/HomeScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { ForgotPasswordScreen } from './components/ForgotPasswordScreen';
 import { SignUpScreen } from './components/sign-up/SignUpScreen';
 import { TutorOnboarding } from './components/tutor-onboarding';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { createApolloClient } from '@tutorix/shared-graphql/client/mobile';
+import { removeAuthToken } from '@tutorix/shared-graphql/client/mobile/token-storage';
 import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
 
 let apolloClient: ApolloClient<NormalizedCacheObject> | null = null;
@@ -40,6 +43,7 @@ type AppView =
   | 'home';
 
 function AppContent() {
+  const apolloClient = useApolloClient();
   const [currentView, setCurrentView] = useState<AppView>('splash');
   const [tutorProfileForOnboarding, setTutorProfileForOnboarding] = useState<{
     certificationStage?: string;
@@ -48,6 +52,14 @@ function AppContent() {
     userId?: number;
     verificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean };
   } | null>(null);
+
+  const handleLogout = useCallback(async () => {
+    await removeAuthToken();
+    await apolloClient.clearStore();
+    setCurrentView('login');
+    setTutorProfileForOnboarding(null);
+    setSignupResume(null);
+  }, [apolloClient]);
 
   const [getMyTutorProfile] = useLazyQuery(GET_MY_TUTOR_PROFILE, {
     onCompleted: (data) => {
@@ -131,16 +143,12 @@ function AppContent() {
         initialProfile={tutorProfileForOnboarding}
         onComplete={handleOnboardingComplete}
         onBack={handleOnboardingBack}
+        onLogout={handleLogout}
       />
     );
   }
   if (currentView === 'home') {
-    return (
-      <View style={styles.homePlaceholder}>
-        <Text style={styles.homeTitle}>You're all set!</Text>
-        <Text style={styles.homeSubtitle}>Onboarding complete.</Text>
-      </View>
-    );
+    return <HomeScreen onLogout={handleLogout} />;
   }
 
   return (
@@ -152,25 +160,7 @@ function AppContent() {
   );
 }
 
-const styles = StyleSheet.create({
-  homePlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#f8fafc',
-  },
-  homeTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#0f172a',
-  },
-  homeSubtitle: {
-    fontSize: 16,
-    color: '#64748b',
-    marginTop: 8,
-  },
-});
+const styles = StyleSheet.create({});
 
 export const App = () => {
   const client = getApolloClient();
