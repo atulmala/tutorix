@@ -27,8 +27,10 @@ import {
   saveBiometricToken,
 } from '../lib/biometric-auth';
 
+type LoginUser = { id: number; role?: string; firstName?: string; lastName?: string };
+
 type LoginScreenProps = {
-  onLoginSuccess?: () => void;
+  onLoginSuccess?: (user?: LoginUser) => void;
   onForgotPassword?: () => void;
   onSignUp?: (userId?: number, verificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean }) => void;
 };
@@ -47,7 +49,7 @@ const COUNTRY_OPTIONS = [
   { code: 'AU', label: 'AUS (+61)' },
 ];
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSignUp }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onForgotPassword, onSignUp }) => {
   const [email, setEmail] = useState('');
   const [countryCode, setCountryCode] = useState('IN');
   const [mobile, setMobile] = useState('');
@@ -90,7 +92,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
           platform: Platform.OS,
           success: true,
         });
-        showLoginSuccess(data.login?.refreshToken);
+        showLoginSuccess(data.login?.refreshToken, data.login?.user);
         
       } catch (error) {
         console.error('Error storing token:', error);
@@ -151,13 +153,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
 
   const [refreshTokenMutation] = useMutation(REFRESH_TOKEN);
 
-  const showLoginSuccess = (refreshToken?: string) => {
+  const showLoginSuccess = (
+    refreshToken?: string,
+    user?: LoginUser,
+  ) => {
     setShowSuccessModal(true);
     if (successTimerRef.current) {
       clearTimeout(successTimerRef.current);
     }
     successTimerRef.current = setTimeout(() => {
       setShowSuccessModal(false);
+      onLoginSuccess?.(user);
       if (refreshToken) {
         maybePromptEnableBiometrics(refreshToken);
       }
@@ -281,7 +287,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onForgotPassword, onSi
           platform: Platform.OS,
           success: true,
         });
-        showLoginSuccess();
+        showLoginSuccess(data.refreshToken.refreshToken, undefined);
       } else {
         throw new Error('Failed to refresh session');
       }
