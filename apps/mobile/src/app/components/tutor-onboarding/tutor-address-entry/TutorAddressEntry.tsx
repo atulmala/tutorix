@@ -210,7 +210,7 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = ({
         const results = await getPlacePredictions(trimmed);
         setSuggestions(results);
         setShowSuggestions(results.length > 0);
-      } catch (err) {
+      } catch {
         setSuggestions([]);
         setShowSuggestions(false);
       } finally {
