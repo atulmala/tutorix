@@ -31,6 +31,45 @@ interface AddressForm {
   country: string;
 }
 
+// 1. Define the InputGroup component outside and wrap it with React.memo
+const InputGroup = React.memo(
+  ({
+    label,
+    value,
+    onChangeText,
+    placeholder,
+    required,
+    onFocus,
+    error,
+    editable,
+  }: {
+    label: string;
+    value: string;
+    onChangeText: (text: string) => void;
+    placeholder: string;
+    required?: boolean;
+    onFocus?: () => void;
+    error?: string;
+    editable?: boolean;
+  }) => (
+    <View style={styles.inputGroup}>
+      <Text style={styles.label}>
+        {label} {required && <Text style={styles.required}>*</Text>}
+      </Text>
+      <TextInput
+        style={[styles.input, !!error && styles.inputError]}
+        value={value}
+        onChangeText={onChangeText}
+        onFocus={onFocus}
+        placeholder={placeholder}
+        placeholderTextColor="#9ca3af"
+        editable={editable}
+      />
+      {!!error && <Text style={styles.fieldError}>{error}</Text>}
+    </View>
+  )
+);
+
 export const TutorAddressEntry: React.FC<StepComponentProps> = ({
   onComplete,
   onBack,
@@ -169,11 +208,9 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = ({
     debounceRef.current = setTimeout(async () => {
       try {
         const results = await getPlacePredictions(trimmed);
-        console.log('[TutorAddressEntry] got results:', results.length, 'showSuggestions will be:', results.length > 0);
         setSuggestions(results);
         setShowSuggestions(results.length > 0);
       } catch (err) {
-        console.log('[TutorAddressEntry] getPlacePredictions failed:', err);
         setSuggestions([]);
         setShowSuggestions(false);
       } finally {
@@ -265,38 +302,6 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = ({
     });
   };
 
-  const InputGroup = ({
-    label,
-    field,
-    placeholder,
-    required,
-    onFocus,
-  }: {
-    label: string;
-    field: keyof AddressForm;
-    placeholder: string;
-    required?: boolean;
-    onFocus?: () => void;
-  }) => (
-    <View style={styles.inputGroup}>
-      <Text style={styles.label}>
-        {label} {required && <Text style={styles.required}>*</Text>}
-      </Text>
-      <TextInput
-        style={[styles.input, errors[field] && styles.inputError]}
-        value={form[field]}
-        onChangeText={(v) => handleFieldChange(field, v)}
-        onFocus={onFocus}
-        placeholder={placeholder}
-        placeholderTextColor="#9ca3af"
-        editable={!isSubmitting}
-      />
-      {errors[field] && (
-        <Text style={styles.fieldError}>{errors[field]}</Text>
-      )}
-    </View>
-  );
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -314,7 +319,7 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = ({
             <TextInput
               style={[
                 styles.localityInput,
-                errors.locality && styles.inputError,
+                !!errors.locality && styles.inputError,
               ]}
               value={form.locality}
               onChangeText={handleLocalityChange}
@@ -329,9 +334,7 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = ({
               </View>
             )}
           </View>
-          {showSuggestions && suggestions.length > 0 && (() => {
-            console.log('[TutorAddressEntry] rendering suggestions list, count:', suggestions.length);
-            return (
+          {showSuggestions && suggestions.length > 0 && (
             <View style={styles.suggestions}>
               {suggestions.map((item) => (
                 <TouchableOpacity
@@ -349,30 +352,36 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = ({
                 </TouchableOpacity>
               ))}
             </View>
-          );
-          })()}
+          )}
           {errors.locality && (
             <Text style={styles.fieldError}>{errors.locality}</Text>
           )}
         </View>
 
+        {/* 2. Use the memoized InputGroup component */}
         <View style={styles.row}>
           <View style={styles.half}>
             <InputGroup
               label="House No."
-              field="houseNo"
+              value={form.houseNo}
+              onChangeText={(v) => handleFieldChange('houseNo', v)}
               placeholder="House/Flat No."
               required
               onFocus={onOtherFieldFocus}
+              error={errors.houseNo}
+              editable={!isSubmitting}
             />
           </View>
           <View style={styles.half}>
             <InputGroup
               label="Address Line 1"
-              field="addressLine1"
+              value={form.addressLine1}
+              onChangeText={(v) => handleFieldChange('addressLine1', v)}
               placeholder="Street, Area"
               required
               onFocus={onOtherFieldFocus}
+              error={errors.addressLine1}
+              editable={!isSubmitting}
             />
           </View>
         </View>
@@ -380,19 +389,25 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = ({
           <View style={styles.half}>
             <InputGroup
               label="City"
-              field="city"
+              value={form.city}
+              onChangeText={(v) => handleFieldChange('city', v)}
               placeholder="City"
               required
               onFocus={onOtherFieldFocus}
+              error={errors.city}
+              editable={!isSubmitting}
             />
           </View>
           <View style={styles.half}>
             <InputGroup
               label="State"
-              field="state"
+              value={form.state}
+              onChangeText={(v) => handleFieldChange('state', v)}
               placeholder="State"
               required
               onFocus={onOtherFieldFocus}
+              error={errors.state}
+              editable={!isSubmitting}
             />
           </View>
         </View>
@@ -400,19 +415,25 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = ({
           <View style={styles.half}>
             <InputGroup
               label="Post Code"
-              field="postalCode"
+              value={form.postalCode}
+              onChangeText={(v) => handleFieldChange('postalCode', v)}
               placeholder="Post Code"
               required
               onFocus={onOtherFieldFocus}
+              error={errors.postalCode}
+              editable={!isSubmitting}
             />
           </View>
           <View style={styles.half}>
             <InputGroup
               label="Country"
-              field="country"
+              value={form.country}
+              onChangeText={(v) => handleFieldChange('country', v)}
               placeholder="Country"
               required
               onFocus={onOtherFieldFocus}
+              error={errors.country}
+              editable={!isSubmitting}
             />
           </View>
         </View>
