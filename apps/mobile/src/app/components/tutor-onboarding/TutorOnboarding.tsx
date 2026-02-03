@@ -4,6 +4,7 @@ import { useQuery } from '@apollo/client';
 import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
 import { ONBOARDING_STEPS, normalizeCertificationStage } from '@tutorix/shared-utils';
 import { TutorAddressEntry } from './tutor-address-entry/TutorAddressEntry';
+import { NavHeader } from '../NavHeader';
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -23,6 +24,7 @@ type TutorOnboardingProps = {
   initialProfile?: { certificationStage?: string } | null;
   onComplete?: () => void;
   onBack?: () => void;
+  onLogout?: () => void;
 };
 
 function PlaceholderStep({
@@ -52,6 +54,7 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
   initialProfile,
   onComplete,
   onBack,
+  onLogout,
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(() =>
     stepIndexFromStage(initialProfile?.certificationStage)
@@ -116,26 +119,32 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
     );
   };
 
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Onboarding & Certification</Text>
-          <Text style={styles.subtitle}>
-            {stepConfig.id === 'complete'
-              ? "You're all set!"
-              : `Step ${currentStepIndex + 1} of ${ONBOARDING_STEPS.length} · ${stepConfig.title}`}
-          </Text>
-        </View>
-        {tutorName ? (
-          <View style={styles.initialsCircle}>
-            <Text style={styles.initialsText}>{getInitials(tutorName)}</Text>
-          </View>
-        ) : null}
-      </View>
+  const screenTitle =
+    stepConfig.id === 'complete'
+      ? "You're all set!"
+      : stepConfig.id === 'address'
+        ? 'Address Entry'
+        : stepConfig.title;
+  const stepLabel =
+    stepConfig.id === 'complete'
+      ? undefined
+      : `Step ${currentStepIndex + 1} of ${ONBOARDING_STEPS.length}`;
+  const showBack = isFirstStep ? !!onBack : true;
+  const handleBack = isFirstStep ? onBack : handleStepBack;
 
-      {renderStep()}
-    </ScrollView>
+  return (
+    <View style={styles.container}>
+      <NavHeader
+        title={screenTitle}
+        stepLabel={stepLabel}
+        onBack={showBack ? handleBack : undefined}
+        userInitials={tutorName ? getInitials(tutorName) : null}
+        onLogout={onLogout}
+      />
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        {renderStep()}
+      </ScrollView>
+    </View>
   );
 };
 
@@ -144,37 +153,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
+  scroll: {
+    flex: 1,
+  },
   content: {
     padding: 24,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#0f172a',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#64748b',
-    marginTop: 4,
-  },
-  initialsCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#e2e8f0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  initialsText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0f172a',
   },
   placeholder: {
     padding: 24,
