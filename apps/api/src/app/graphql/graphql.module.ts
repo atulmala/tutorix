@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ApolloServerPlugin, GraphQLRequestListener } from '@apollo/server';
@@ -11,8 +11,10 @@ import { SessionService } from '../modules/auth/services/session.service';
 import { User } from '../modules/auth/entities/user.entity';
 import { AddressEntity } from '../modules/address/entities/address.entity';
 
+const graphqlLogger = new Logger('GraphQL');
+
 /**
- * Logs every GraphQL query and mutation to the console.
+ * Logs every GraphQL query and mutation via NestJS Logger.
  * Skips IntrospectionQuery to avoid flooding logs (Playground/Studio).
  */
 const graphqlLoggingPlugin: ApolloServerPlugin = {
@@ -22,7 +24,7 @@ const graphqlLoggingPlugin: ApolloServerPlugin = {
         if (operationName === 'IntrospectionQuery') return;
         const opType = operation?.operation ?? 'unknown';
         const name = operationName ?? 'anonymous';
-        console.log(`[GraphQL] ${opType.toUpperCase()}: ${name}`);
+        graphqlLogger.log(`${opType.toUpperCase()}: ${name}`);
       },
     };
   },
