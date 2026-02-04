@@ -1,5 +1,3 @@
-import { registerEnumType } from '@nestjs/graphql';
-
 /**
  * Educational qualification enum.
  * Shared by web and mobile for tutor onboarding (qualification step).
@@ -13,11 +11,6 @@ export enum EducationalQualification {
   MPHIL = 'MPHIL',
   PHD = 'PHD',
 }
-
-registerEnumType(EducationalQualification, {
-  name: 'EducationalQualification',
-  description: 'Educational qualification levels for tutor onboarding',
-});
 
 /** All qualification values in display order (for dropdowns, etc.) */
 export const EDUCATIONAL_QUALIFICATION_LIST: EducationalQualification[] = [
