@@ -17,7 +17,8 @@ export class TutorQualificationService {
   ) {}
 
   /**
-   * Replace all qualifications for a tutor with the given list.
+   * Save qualifications for a tutor. One row per (tutorId, qualificationType).
+   * Existing rows are updated; new types are inserted; types no longer in the list are soft-deleted.
    * At least one qualification must be HIGHER_SECONDARY.
    */
   async saveForTutor(
@@ -43,22 +44,55 @@ export class TutorQualificationService {
       );
     }
 
-    await this.qualificationRepository.softDelete({ tutorId });
-
-    const entities = inputs.map((input, index) =>
-      this.qualificationRepository.create({
-        tutor: { id: tutorId } as Tutor,
-        qualificationType: input.qualificationType,
-        boardOrUniversity: input.boardOrUniversity,
-        gradeType: input.gradeType,
-        gradeValue: input.gradeValue,
-        yearObtained: input.yearObtained,
-        fieldOfStudy: input.fieldOfStudy ?? undefined,
-        displayOrder: input.displayOrder ?? index,
-      }),
+    const existing = await this.qualificationRepository.find({
+      where: { tutorId, deleted: false },
+      order: { displayOrder: 'ASC', id: 'ASC' },
+    });
+    const existingByType = new Map(
+      existing.map((e) => [e.qualificationType, e])
     );
+    const inputTypes = new Set(types);
 
-    const saved = await this.qualificationRepository.save(entities);
+    const toSave: TutorQualificationEntity[] = [];
+
+    for (let index = 0; index < inputs.length; index++) {
+      const input = inputs[index];
+      const displayOrder = input.displayOrder ?? index;
+      const existingRow = existingByType.get(input.qualificationType);
+
+      if (existingRow) {
+        existingRow.boardOrUniversity = input.boardOrUniversity;
+        existingRow.gradeType = input.gradeType;
+        existingRow.gradeValue = input.gradeValue;
+        existingRow.yearObtained = input.yearObtained;
+        existingRow.fieldOfStudy = input.fieldOfStudy ?? undefined;
+        existingRow.displayOrder = displayOrder;
+        toSave.push(existingRow);
+      } else {
+        const entity = this.qualificationRepository.create({
+          tutor: { id: tutorId } as Tutor,
+          qualificationType: input.qualificationType,
+          boardOrUniversity: input.boardOrUniversity,
+          gradeType: input.gradeType,
+          gradeValue: input.gradeValue,
+          yearObtained: input.yearObtained,
+          fieldOfStudy: input.fieldOfStudy ?? undefined,
+          displayOrder,
+        });
+        toSave.push(entity);
+      }
+    }
+
+    const saved = await this.qualificationRepository.save(toSave);
+
+    // Soft-delete any existing row whose type is not in the new list
+    const toDelete = existing.filter((e) => !inputTypes.has(e.qualificationType));
+    if (toDelete.length > 0) {
+      for (const row of toDelete) {
+        row.deleted = true;
+      }
+      await this.qualificationRepository.save(toDelete);
+    }
 
     await this.tutorService.updateCertificationStage(
       tutorId,
