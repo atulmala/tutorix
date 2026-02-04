@@ -4,6 +4,7 @@ import { QBaseEntity } from '../../../common/base-entities/base.entity';
 import { TutorCertificationStageEnum } from '../enums/tutor.enums';
 import { User } from '../../auth/entities/user.entity';
 import { AddressEntity } from '../../address/entities/address.entity';
+import { TutorQualificationEntity } from './tutor-qualification.entity';
 
 /**
  * Tutor Entity
@@ -68,5 +69,11 @@ export class Tutor extends QBaseEntity {
     cascade: ['insert', 'update', 'remove'],
   })
   addresses: AddressEntity[];
+
+  @Field(() => [TutorQualificationEntity], { nullable: true })
+  @OneToMany(() => TutorQualificationEntity, (qual) => qual.tutor, {
+    cascade: ['insert', 'update', 'remove'],
+  })
+  qualifications: TutorQualificationEntity[];
 }
 

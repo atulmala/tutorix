@@ -1,14 +1,20 @@
 import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { Tutor } from '../entities/tutor.entity';
+import { TutorQualificationEntity } from '../entities/tutor-qualification.entity';
 import { TutorService } from '../services/tutor.service';
+import { TutorQualificationService } from '../services/tutor-qualification.service';
+import { SaveTutorQualificationsInput } from '../dto/tutor-qualification.input';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { User } from '../../auth/entities/user.entity';
 
 @Resolver(() => Tutor)
 export class TutorResolver {
-  constructor(private readonly tutorService: TutorService) {}
+  constructor(
+    private readonly tutorService: TutorService,
+    private readonly tutorQualificationService: TutorQualificationService,
+  ) {}
 
   /**
    * Query: Get all tutors
@@ -41,6 +47,25 @@ export class TutorResolver {
     
     // Ensure tutor exists (create if doesn't exist)
     return this.tutorService.ensureTutorExists(user.id);
+  }
+
+  /**
+   * Mutation: Save tutor qualifications (replaces all for current tutor)
+   * At least one qualification must be Higher Secondary.
+   */
+  @Mutation(() => [TutorQualificationEntity], {
+    description: 'Save qualifications for the authenticated tutor (replaces existing)',
+  })
+  @UseGuards(JwtAuthGuard)
+  async saveTutorQualifications(
+    @CurrentUser() user: User,
+    @Args('input') input: SaveTutorQualificationsInput,
+  ): Promise<TutorQualificationEntity[]> {
+    const tutor = await this.tutorService.findByUserId(user.id);
+    if (!tutor) {
+      throw new Error('Tutor profile not found for this user');
+    }
+    return this.tutorQualificationService.saveForTutor(tutor.id, input.qualifications);
   }
 
   /**
