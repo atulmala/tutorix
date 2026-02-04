@@ -46,7 +46,7 @@ export class TutorService {
   async findByUserId(userId: number): Promise<Tutor | null> {
     return this.tutorRepository.findOne({
       where: { userId, deleted: false },
-      relations: ['addresses'],
+      relations: ['addresses', 'qualifications'],
     });
   }
 
@@ -59,7 +59,7 @@ export class TutorService {
     
     let tutor = await this.tutorRepository.findOne({
       where: { userId, deleted: false },
-      relations: ['user', 'addresses'],
+      relations: ['user', 'addresses', 'qualifications'],
     });
     
     this.logger.debug(`📊 Existing tutor lookup result: ${tutor ? `Found tutor ID: ${tutor.id}, addresses: ${tutor.addresses?.length || 0}` : 'No tutor found'}`);
@@ -80,7 +80,7 @@ export class TutorService {
         tutor = await this.tutorRepository.save(tutor);
         tutor = await this.tutorRepository.findOne({
           where: { id: tutor.id },
-          relations: ['user', 'addresses'],
+          relations: ['user', 'addresses', 'qualifications'],
         }) as Tutor;
         tutor.addresses = tutor.addresses ?? [];
         this.logger.log(`✅ Tutor successfully created with ID: ${tutor.id} for userId: ${userId}`);

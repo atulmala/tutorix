@@ -9,12 +9,13 @@ import { Otp } from '../modules/auth/entities/otp.entity';
 import { PasswordResetToken } from '../modules/auth/entities/password-reset-token.entity';
 import { Tutor } from '../modules/tutor/entities/tutor.entity';
 import { AddressEntity } from '../modules/address/entities/address.entity';
+import { TutorQualificationEntity } from '../modules/tutor/entities/tutor-qualification.entity';
 import { Example } from '../entities/example.entity';
 // Add other entities as they are created
 
 /**
  * Creates database options with credentials
- * Credentials are loaded from .env (dev/staging) or AWS Secrets Manager (production)
+ * Credentials are loaded from .env (dev/staging) or  AWS Secrets Manager (production)
  */
 export function createDatabaseOptions(
   credentials: DatabaseCredentials,
@@ -36,6 +37,7 @@ export function createDatabaseOptions(
       PasswordResetToken,
       Tutor,
       AddressEntity,
+      TutorQualificationEntity,
       Example, // Remove this when you no longer need the example entity
       // Add other entities here as they are created
       // Student,

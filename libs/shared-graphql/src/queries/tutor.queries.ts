@@ -29,6 +29,16 @@ export const GET_MY_TUTOR_PROFILE = gql`
         latitude
         longitude
       }
+      qualifications {
+        id
+        qualificationType
+        boardOrUniversity
+        gradeType
+        gradeValue
+        yearObtained
+        fieldOfStudy
+        displayOrder
+      }
     }
   }
 `;
