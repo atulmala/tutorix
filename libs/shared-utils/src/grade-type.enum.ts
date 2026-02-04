@@ -1,5 +1,3 @@
-import { registerEnumType } from '@nestjs/graphql';
-
 /**
  * Grade type for educational qualifications.
  * Shared by web and mobile for tutor onboarding.
@@ -9,11 +7,6 @@ export enum GradeType {
   PERCENTAGE = 'PERCENTAGE',
   DIVISION = 'DIVISION',
 }
-
-registerEnumType(GradeType, {
-  name: 'GradeType',
-  description: 'How the grade is expressed (CGPA, Percentage, or Division)',
-});
 
 /** All grade types in display order */
 export const GRADE_TYPE_LIST: GradeType[] = [
