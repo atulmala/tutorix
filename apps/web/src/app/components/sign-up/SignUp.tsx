@@ -11,6 +11,7 @@ import { getIsoCountryCode } from '@tutorix/shared-utils';
 type SignUpProps = {
   onBackHome: () => void;
   onLogin?: () => void;
+  onSignUpSuccess?: () => void;
   onTutorOnboarding?: () => void;
   resumeUserId?: number;
   resumeVerificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean };
@@ -27,6 +28,7 @@ const steps: Array<{ id: Step; label: string }> = [
 export const SignUp: React.FC<SignUpProps> = ({ 
   onBackHome, 
   onLogin,
+  onSignUpSuccess,
   onTutorOnboarding,
   resumeUserId, 
   resumeVerificationStatus 
@@ -36,7 +38,6 @@ export const SignUp: React.FC<SignUpProps> = ({
   const [userId, setUserId] = useState<number | null>(resumeUserId || null);
   const [mobileVerified, setMobileVerified] = useState(resumeVerificationStatus?.isMobileVerified || false);
   const [emailVerified, setEmailVerified] = useState(resumeVerificationStatus?.isEmailVerified || false);
-  const [isTutor, setIsTutor] = useState<boolean | null>(null);
 
   const {
     startSignup,
@@ -115,8 +116,7 @@ export const SignUp: React.FC<SignUpProps> = ({
   ) => {
     setBasicDetails(details);
     setUserId(registeredUserId);
-    setIsTutor(details.isTutor);
-    
+
     // Track signup start/resume
     startSignup(registeredUserId);
     
@@ -160,10 +160,9 @@ export const SignUp: React.FC<SignUpProps> = ({
     setEmailVerified(true);
     trackStepComplete('email', userId || undefined);
     trackSignupCompleted(userId || undefined);
-    
-    // If user is a tutor, redirect to onboarding
-    if (isTutor === true && onTutorOnboarding) {
-      onTutorOnboarding();
+    // Take user back to home and show success message (they can then login to start onboarding)
+    if (onSignUpSuccess) {
+      onSignUpSuccess();
     }
   };
 

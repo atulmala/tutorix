@@ -5,4 +5,6 @@
  */
 
 export * from './country-code';
+export * from './education-qualification.enum';
+export * from './grade-type.enum';
 export * from './onboarding-types';

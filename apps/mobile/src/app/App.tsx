@@ -6,7 +6,6 @@ import {
   useLazyQuery,
   useApolloClient,
 } from '@apollo/client';
-import { StyleSheet } from 'react-native';
 import { SplashScreen } from './components/SplashScreen';
 import { HomeScreen } from './components/HomeScreen';
 import { LoginScreen } from './components/LoginScreen';
@@ -159,8 +158,6 @@ function AppContent() {
     />
   );
 }
-
-const styles = StyleSheet.create({});
 
 export const App = () => {
   const client = getApolloClient();
