@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
 import { BackArrowIcon } from './BackArrowIcon';
 import { LogoutIcon } from './LogoutIcon';
 
@@ -24,55 +24,60 @@ export const NavHeader: React.FC<NavHeaderProps> = ({
   onLogout,
 }) => {
   return (
-    <View style={styles.container}>
-      <View style={styles.left}>
-        {onBack ? (
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={onBack}
-            activeOpacity={0.7}
-            accessibilityLabel="Go back"
-          >
-            <BackArrowIcon size={24} color="#0f172a" />
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.backPlaceholder} />
-        )}
-      </View>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.left}>
+          {onBack ? (
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={onBack}
+              activeOpacity={0.7}
+              accessibilityLabel="Go back"
+            >
+              <BackArrowIcon size={24} color="#0f172a" />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.backPlaceholder} />
+          )}
+        </View>
 
-      <View style={styles.center}>
-        <Text style={styles.title} numberOfLines={1}>
-          {title}
-        </Text>
-        {stepLabel ? (
-          <Text style={styles.stepLabel} numberOfLines={1}>
-            {stepLabel}
+        <View style={styles.center}>
+          <Text style={styles.title} numberOfLines={1}>
+            {title}
           </Text>
-        ) : null}
-      </View>
+          {stepLabel ? (
+            <Text style={styles.stepLabel} numberOfLines={1}>
+              {stepLabel}
+            </Text>
+          ) : null}
+        </View>
 
-      <View style={styles.right}>
-        {userInitials ? (
-          <View style={styles.initialsCircle}>
-            <Text style={styles.initialsText}>{userInitials}</Text>
-          </View>
-        ) : null}
-        {onLogout ? (
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={onLogout}
-            activeOpacity={0.7}
-            accessibilityLabel="Logout"
-          >
-            <LogoutIcon size={22} color="#0f172a" />
-          </TouchableOpacity>
-        ) : null}
+        <View style={styles.right}>
+          {userInitials ? (
+            <View style={styles.initialsCircle}>
+              <Text style={styles.initialsText}>{userInitials}</Text>
+            </View>
+          ) : null}
+          {onLogout ? (
+            <TouchableOpacity
+              style={styles.logoutButton}
+              onPress={onLogout}
+              activeOpacity={0.7}
+              accessibilityLabel="Logout"
+            >
+              <LogoutIcon size={22} color="#0f172a" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    backgroundColor: '#e2e8f0',
+  },
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -123,7 +128,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
     alignItems: 'center',
     justifyContent: 'center',
   },
