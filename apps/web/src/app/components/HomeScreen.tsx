@@ -15,9 +15,18 @@ type HomeScreenProps = {
   onSignUp: () => void;
   currentUser: User | null;
   onLogout: () => void;
+  signupSuccessMessage?: string | null;
+  onDismissSignupMessage?: () => void;
 };
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onLogin, onSignUp, currentUser, onLogout }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({
+  onLogin,
+  onSignUp,
+  currentUser,
+  onLogout,
+  signupSuccessMessage,
+  onDismissSignupMessage,
+}) => {
   const getUserDisplayName = () => {
     if (!currentUser) return null;
     
@@ -38,6 +47,27 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onLogin, onSignUp, curre
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-white via-[#eef3ff] to-[#e5e7eb] text-primary">
+      {signupSuccessMessage && (
+        <div className="mx-auto w-full max-w-6xl px-6 pt-4 md:px-12">
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 shadow-sm"
+          >
+            <p className="font-medium">{signupSuccessMessage}</p>
+            {onDismissSignupMessage && (
+              <button
+                type="button"
+                onClick={onDismissSignupMessage}
+                className="shrink-0 rounded-lg p-1.5 text-green-700 transition hover:bg-green-100"
+                aria-label="Dismiss message"
+              >
+                <span className="sr-only">Dismiss</span>
+                <span aria-hidden>×</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <header className="flex items-center justify-between px-6 py-4 md:px-12 md:py-6">
         <div className="text-2xl font-bold text-primary">{BRAND_NAME}</div>
         <div className="flex items-center gap-3">
