@@ -177,6 +177,17 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
     e.preventDefault();
     setSubmitError(null);
     if (!validate()) return;
+
+    const onlyHigherSecondary =
+      qualifications.length === 1 &&
+      qualifications[0].qualificationType === EducationalQualification.HIGHER_SECONDARY;
+    if (onlyHigherSecondary) {
+      const confirmed = window.confirm(
+        'Are you sure you want to go ahead without entering any additional qualifications?'
+      );
+      if (!confirmed) return;
+    }
+
     saveQualifications({
       variables: {
         input: {
@@ -201,9 +212,14 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      <p className="text-sm text-muted">
-        Add your educational qualifications. Higher Secondary is required. You can add more (e.g. Bachelors, Masters) below.
-      </p>
+      <div className="space-y-1">
+        <p className="text-sm text-muted">
+          Add your educational qualifications. Higher Secondary is required. You can add more (e.g. Bachelors, Masters) below.
+        </p>
+        <p className="text-sm text-muted italic font-bold">
+          Please be truthful. Later, you will be required to upload qualification documents for verification.
+        </p>
+      </div>
 
       {qualifications.map((row, index) => (
         <div
