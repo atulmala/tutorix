@@ -94,9 +94,11 @@ export class TutorQualificationService {
       await this.qualificationRepository.save(toDelete);
     }
 
+    // Keep tutor in the qualification/experience stage.
+    // Advancing to 'offerings' will be handled after experience entry is implemented.
     await this.tutorService.updateCertificationStage(
       tutorId,
-      TutorCertificationStageEnum.offerings,
+      TutorCertificationStageEnum.qualificationExperience,
     );
 
     return saved;
