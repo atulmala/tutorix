@@ -28,7 +28,8 @@ export function App() {
   const [resetPasswordToken, setResetPasswordToken] = useState<string | undefined>(undefined);
   const [tutorProfileForOnboarding, setTutorProfileForOnboarding] = useState<{ certificationStage?: string } | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  
+  const [signupSuccessMessage, setSignupSuccessMessage] = useState<string | null>(null);
+
   const apolloClient = useApolloClient();
   const [heartbeatMutation] = useMutation(HEARTBEAT);
 
@@ -114,19 +115,28 @@ export function App() {
   };
 
   const handleSignUp = (userId?: number, verificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean }) => {
+    setSignupSuccessMessage(null);
     if (userId && verificationStatus) {
-      // Resuming from login - set resume state
       setResumeUserId(userId);
       setResumeVerificationStatus(verificationStatus);
     } else {
-      // New signup - clear resume state
       setResumeUserId(undefined);
       setResumeVerificationStatus(undefined);
     }
     setCurrentView('signup');
   };
 
+  const handleSignUpSuccess = () => {
+    setSignupSuccessMessage(
+      'You have successfully signed up. Please login and start your onboarding process!'
+    );
+    setResumeUserId(undefined);
+    setResumeVerificationStatus(undefined);
+    setCurrentView('home');
+  };
+
   const handleLogin = () => {
+    setSignupSuccessMessage(null);
     setCurrentView('login');
   };
 
@@ -200,6 +210,7 @@ export function App() {
           <SignUp 
             onBackHome={handleBackHome} 
             onLogin={handleLogin}
+            onSignUpSuccess={handleSignUpSuccess}
             onTutorOnboarding={handleTutorOnboarding}
             resumeUserId={resumeUserId}
             resumeVerificationStatus={resumeVerificationStatus}
@@ -289,7 +300,16 @@ export function App() {
     );
   }
 
-  return <HomeScreen onLogin={handleLogin} onSignUp={handleSignUp} currentUser={currentUser} onLogout={handleLogout} />;
+  return (
+    <HomeScreen
+      onLogin={handleLogin}
+      onSignUp={handleSignUp}
+      currentUser={currentUser}
+      onLogout={handleLogout}
+      signupSuccessMessage={signupSuccessMessage}
+      onDismissSignupMessage={() => setSignupSuccessMessage(null)}
+    />
+  );
 }
 
 export default App;
