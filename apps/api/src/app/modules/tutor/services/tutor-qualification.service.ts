@@ -58,6 +58,11 @@ export class TutorQualificationService {
     for (let index = 0; index < inputs.length; index++) {
       const input = inputs[index];
       const displayOrder = input.displayOrder ?? index;
+      const degreeName =
+        (input.degreeName && input.degreeName.trim()) ||
+        (input.qualificationType === EducationalQualification.HIGHER_SECONDARY
+          ? 'Higher Secondary'
+          : undefined);
       const existingRow = existingByType.get(input.qualificationType);
 
       if (existingRow) {
@@ -65,6 +70,9 @@ export class TutorQualificationService {
         existingRow.gradeType = input.gradeType;
         existingRow.gradeValue = input.gradeValue;
         existingRow.yearObtained = input.yearObtained;
+        // If degreeName is provided (or defaulted for Higher Secondary), store it;
+        // otherwise keep whatever was already stored.
+        existingRow.degreeName = degreeName ?? existingRow.degreeName;
         existingRow.fieldOfStudy = input.fieldOfStudy ?? undefined;
         existingRow.displayOrder = displayOrder;
         toSave.push(existingRow);
@@ -76,6 +84,7 @@ export class TutorQualificationService {
           gradeType: input.gradeType,
           gradeValue: input.gradeValue,
           yearObtained: input.yearObtained,
+          degreeName: degreeName ?? undefined,
           fieldOfStudy: input.fieldOfStudy ?? undefined,
           displayOrder,
         });
