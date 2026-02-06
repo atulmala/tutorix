@@ -29,6 +29,7 @@ interface QualificationRow {
   gradeValue: string;
   yearObtained: string;
   fieldOfStudy: string;
+  degreeName: string;
 }
 
 const currentYear = new Date().getFullYear();
@@ -48,6 +49,7 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
       gradeValue: '',
       yearObtained: '',
       fieldOfStudy: '',
+      degreeName: 'Higher Secondary',
     },
   ]);
   const [errors, setErrors] = useState<
@@ -73,14 +75,23 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
           gradeValue: string;
           yearObtained: number;
           fieldOfStudy?: string | null;
-        }) => ({
-          qualificationType: q.qualificationType as EducationalQualification,
-          boardOrUniversity: q.boardOrUniversity ?? '',
-          gradeType: q.gradeType as GradeType,
-          gradeValue: String(q.gradeValue ?? ''),
-          yearObtained: q.yearObtained != null ? String(q.yearObtained) : '',
-          fieldOfStudy: q.fieldOfStudy ?? '',
-        })
+          degreeName?: string | null;
+        }) => {
+          const qualificationType = q.qualificationType as EducationalQualification;
+          return {
+            qualificationType,
+            boardOrUniversity: q.boardOrUniversity ?? '',
+            gradeType: q.gradeType as GradeType,
+            gradeValue: String(q.gradeValue ?? ''),
+            yearObtained: q.yearObtained != null ? String(q.yearObtained) : '',
+            fieldOfStudy: q.fieldOfStudy ?? '',
+            degreeName:
+              q.degreeName ??
+              (qualificationType === EducationalQualification.HIGHER_SECONDARY
+                ? 'Higher Secondary'
+                : ''),
+          };
+        }
       )
     );
     setSubStep('experience');
@@ -149,6 +160,7 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
         gradeValue: '',
         yearObtained: '',
         fieldOfStudy: '',
+        degreeName: '',
       },
     ]);
   }, []);
@@ -189,6 +201,9 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
       if (!row.yearObtained.trim()) e.yearObtained = 'Required';
       else if (Number.isNaN(year) || year < 1950 || year > currentYear)
         e.yearObtained = `Enter a year between 1950 and ${currentYear}`;
+      if (row.qualificationType !== EducationalQualification.HIGHER_SECONDARY) {
+        if (!row.degreeName.trim()) e.degreeName = 'Required';
+      }
       if (Object.keys(e).length) {
         next[index] = { ...next[index], ...e };
         valid = false;
@@ -230,6 +245,10 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
             gradeValue: row.gradeValue.trim(),
             yearObtained: parseInt(row.yearObtained, 10),
             fieldOfStudy: row.fieldOfStudy.trim() || undefined,
+            degreeName:
+              row.qualificationType === EducationalQualification.HIGHER_SECONDARY
+                ? 'Higher Secondary'
+                : row.degreeName.trim() || undefined,
             displayOrder: index,
           })),
         },
@@ -278,109 +297,164 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
         for verification.
       </Text>
 
-      {qualifications.map((row, index) => (
-        <View key={`${row.qualificationType}-${index}`} style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>
-              {EDUCATIONAL_QUALIFICATION_LABELS[row.qualificationType]}
-              {row.qualificationType === EducationalQualification.HIGHER_SECONDARY && (
-                <Text style={styles.requiredLabel}> (Required)</Text>
-              )}
-            </Text>
-            {row.qualificationType !== EducationalQualification.HIGHER_SECONDARY && (
-              <TouchableOpacity
-                onPress={() => removeQualification(index)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.removeText}>Remove</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+      {qualifications.map((row, index) => {
+        const degreeLabel =
+          row.qualificationType === EducationalQualification.DIPLOMA
+            ? 'Diploma Name'
+            : row.qualificationType === EducationalQualification.PG_DIPLOMA
+              ? 'PG Diploma Name'
+              : 'Degree name';
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-              Board / University <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              style={[styles.input, !!errors[index]?.boardOrUniversity && styles.inputError]}
-              value={row.boardOrUniversity}
-              onChangeText={(v) => updateRow(index, { boardOrUniversity: v })}
-              placeholder="e.g. CBSE, University of Delhi"
-              placeholderTextColor="#9ca3af"
-            />
-            {!!errors[index]?.boardOrUniversity && (
-              <Text style={styles.fieldError}>{errors[index].boardOrUniversity}</Text>
-            )}
-          </View>
+        const degreePlaceholder =
+          row.qualificationType === EducationalQualification.HIGHER_SECONDARY
+            ? 'Higher Secondary'
+            : row.qualificationType === EducationalQualification.DIPLOMA
+              ? 'e.g. A level Diploma in French'
+              : row.qualificationType === EducationalQualification.PG_DIPLOMA
+                ? 'e.g. PG Diploma in German'
+                : row.qualificationType === EducationalQualification.BACHELORS
+                  ? 'e.g. BA, BSc, BCom, BTech'
+                  : row.qualificationType === EducationalQualification.MASTERS
+                    ? 'e.g. MA, MSc, MCom'
+                    : row.qualificationType === EducationalQualification.MPHIL ||
+                        row.qualificationType === EducationalQualification.PHD
+                      ? 'e.g. MPhil, PhD'
+                      : 'e.g. BA, BSc, MSc';
 
-          <View style={styles.rowTwoCols}>
-            <View style={styles.inputGroupFlex}>
-              <Text style={styles.label}>
-                Grade type <Text style={styles.required}>*</Text>
+        const fieldOfStudyPlaceholder =
+          row.qualificationType === EducationalQualification.DIPLOMA ||
+          row.qualificationType === EducationalQualification.PG_DIPLOMA
+            ? 'e.g. French, German, Spanish'
+            : 'e.g. Science, Commerce, Computer';
+
+        const isHigherSecondary =
+          row.qualificationType === EducationalQualification.HIGHER_SECONDARY;
+
+        return (
+          <View key={`${row.qualificationType}-${index}`} style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>
+                {EDUCATIONAL_QUALIFICATION_LABELS[row.qualificationType]}
+                {row.qualificationType === EducationalQualification.HIGHER_SECONDARY && (
+                  <Text style={styles.requiredLabel}> (Required)</Text>
+                )}
               </Text>
-              <TouchableOpacity
-              style={styles.pickerTouch}
-              onPress={() => setGradeTypeModal({ rowIndex: index })}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.pickerText}>{GRADE_TYPE_LABELS[row.gradeType]}</Text>
-                <Text style={styles.pickerChevron}>▼</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.inputGroupFlex}>
-              <Text style={styles.label}>
-                Grade value <Text style={styles.required}>*</Text>
-              </Text>
-              <TextInput
-                style={[styles.input, !!errors[index]?.gradeValue && styles.inputError]}
-                value={row.gradeValue}
-                onChangeText={(v) => updateRow(index, { gradeValue: v })}
-                placeholder={
-                  row.gradeType === GradeType.CGPA
-                    ? 'e.g. 8.5'
-                    : row.gradeType === GradeType.PERCENTAGE
-                      ? 'e.g. 85'
-                      : 'e.g. First Division'
-                }
-                placeholderTextColor="#9ca3af"
-                keyboardType="decimal-pad"
-              />
-              {!!errors[index]?.gradeValue && (
-                <Text style={styles.fieldError}>{errors[index].gradeValue}</Text>
+              {row.qualificationType !== EducationalQualification.HIGHER_SECONDARY && (
+                <TouchableOpacity
+                  onPress={() => removeQualification(index)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.removeText}>Remove</Text>
+                </TouchableOpacity>
               )}
             </View>
-          </View>
 
-          <View style={styles.rowTwoCols}>
-            <View style={styles.inputGroupFlex}>
+            <View style={styles.inputGroup}>
               <Text style={styles.label}>
-                Year obtained <Text style={styles.required}>*</Text>
+                {degreeLabel}
+                {!isHigherSecondary && <Text style={styles.required}> *</Text>}
               </Text>
               <TextInput
-                style={[styles.input, !!errors[index]?.yearObtained && styles.inputError]}
-                value={row.yearObtained}
-                onChangeText={(v) => updateRow(index, { yearObtained: v })}
-                placeholder={String(currentYear)}
+                style={[
+                  styles.input,
+                  !isHigherSecondary && !!errors[index]?.degreeName && styles.inputError,
+                ]}
+                value={row.degreeName}
+                onChangeText={(v) => updateRow(index, { degreeName: v })}
+                placeholder={degreePlaceholder}
                 placeholderTextColor="#9ca3af"
-                keyboardType="number-pad"
+                editable={!isHigherSecondary}
               />
-              {!!errors[index]?.yearObtained && (
-                <Text style={styles.fieldError}>{errors[index].yearObtained}</Text>
+              {!isHigherSecondary && !!errors[index]?.degreeName && (
+                <Text style={styles.fieldError}>{errors[index].degreeName}</Text>
               )}
             </View>
-            <View style={styles.inputGroupFlex}>
-              <Text style={styles.label}>Field of study</Text>
+
+            <View style={styles.rowTwoCols}>
+              <View style={styles.inputGroupFlex}>
+                <Text style={styles.label}>Specialization</Text>
+                <TextInput
+                  style={styles.input}
+                  value={row.fieldOfStudy}
+                  onChangeText={(v) => updateRow(index, { fieldOfStudy: v })}
+                  placeholder={fieldOfStudyPlaceholder}
+                  placeholderTextColor="#9ca3af"
+                />
+              </View>
+              <View style={styles.inputGroupFlex}>
+                <Text style={styles.label}>
+                  Year obtained <Text style={styles.required}>*</Text>
+                </Text>
+                <TextInput
+                  style={[styles.input, !!errors[index]?.yearObtained && styles.inputError]}
+                  value={row.yearObtained}
+                  onChangeText={(v) => updateRow(index, { yearObtained: v })}
+                  placeholder={String(currentYear)}
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="number-pad"
+                />
+                {!!errors[index]?.yearObtained && (
+                  <Text style={styles.fieldError}>{errors[index].yearObtained}</Text>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Board / University <Text style={styles.required}>*</Text>
+              </Text>
               <TextInput
-                style={styles.input}
-                value={row.fieldOfStudy}
-                onChangeText={(v) => updateRow(index, { fieldOfStudy: v })}
-                placeholder="e.g. Science, Mathematics"
+                style={[styles.input, !!errors[index]?.boardOrUniversity && styles.inputError]}
+                value={row.boardOrUniversity}
+                onChangeText={(v) => updateRow(index, { boardOrUniversity: v })}
+                placeholder="e.g. CBSE, University of Delhi"
                 placeholderTextColor="#9ca3af"
               />
+              {!!errors[index]?.boardOrUniversity && (
+                <Text style={styles.fieldError}>{errors[index].boardOrUniversity}</Text>
+              )}
+            </View>
+
+            <View style={styles.rowTwoCols}>
+              <View style={styles.inputGroupFlex}>
+                <Text style={styles.label}>
+                  Grade type <Text style={styles.required}>*</Text>
+                </Text>
+                <TouchableOpacity
+                  style={styles.pickerTouch}
+                  onPress={() => setGradeTypeModal({ rowIndex: index })}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.pickerText}>{GRADE_TYPE_LABELS[row.gradeType]}</Text>
+                  <Text style={styles.pickerChevron}>▼</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.inputGroupFlex}>
+                <Text style={styles.label}>
+                  Grade value <Text style={styles.required}>*</Text>
+                </Text>
+                <TextInput
+                  style={[styles.input, !!errors[index]?.gradeValue && styles.inputError]}
+                  value={row.gradeValue}
+                  onChangeText={(v) => updateRow(index, { gradeValue: v })}
+                  placeholder={
+                    row.gradeType === GradeType.CGPA
+                      ? 'e.g. 8.5'
+                      : row.gradeType === GradeType.PERCENTAGE
+                        ? 'e.g. 85'
+                        : 'e.g. First Division'
+                  }
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="decimal-pad"
+                />
+                {!!errors[index]?.gradeValue && (
+                  <Text style={styles.fieldError}>{errors[index].gradeValue}</Text>
+                )}
+              </View>
             </View>
           </View>
-        </View>
-      ))}
+        );
+      })}
 
       {availableToAdd.length > 0 && (
         <View style={styles.addRow}>
