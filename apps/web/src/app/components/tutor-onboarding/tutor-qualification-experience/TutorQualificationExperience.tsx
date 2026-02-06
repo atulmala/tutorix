@@ -21,6 +21,7 @@ interface QualificationRow {
   gradeValue: string;
   yearObtained: string;
   fieldOfStudy: string;
+  degreeName: string;
 }
 
 const currentYear = new Date().getFullYear();
@@ -40,6 +41,7 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
       gradeValue: '',
       yearObtained: '',
       fieldOfStudy: '',
+      degreeName: 'Higher Secondary',
     },
   ]);
   const [errors, setErrors] = useState<Record<number, Partial<Record<keyof QualificationRow, string>>>>({});
@@ -54,14 +56,32 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
     const list = profileData?.myTutorProfile?.qualifications;
     if (!list?.length) return;
     setQualifications(
-      list.map((q: { qualificationType: string; boardOrUniversity: string; gradeType: string; gradeValue: string; yearObtained: number; fieldOfStudy?: string | null }) => ({
-        qualificationType: q.qualificationType as EducationalQualification,
-        boardOrUniversity: q.boardOrUniversity ?? '',
-        gradeType: q.gradeType as GradeType,
-        gradeValue: String(q.gradeValue ?? ''),
-        yearObtained: q.yearObtained != null ? String(q.yearObtained) : '',
-        fieldOfStudy: q.fieldOfStudy ?? '',
-      }))
+      list.map(
+        (q: {
+          qualificationType: string;
+          boardOrUniversity: string;
+          gradeType: string;
+          gradeValue: string;
+          yearObtained: number;
+          fieldOfStudy?: string | null;
+          degreeName?: string | null;
+        }) => {
+          const qualificationType = q.qualificationType as EducationalQualification;
+          return {
+            qualificationType,
+            boardOrUniversity: q.boardOrUniversity ?? '',
+            gradeType: q.gradeType as GradeType,
+            gradeValue: String(q.gradeValue ?? ''),
+            yearObtained: q.yearObtained != null ? String(q.yearObtained) : '',
+            fieldOfStudy: q.fieldOfStudy ?? '',
+            degreeName:
+              q.degreeName ??
+              (qualificationType === EducationalQualification.HIGHER_SECONDARY
+                ? 'Higher Secondary'
+                : ''),
+          };
+        }
+      )
     );
     // If they already have qualifications (e.g. re-login), show Experience screen first
     setSubStep('experience');
@@ -130,6 +150,7 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
         gradeValue: '',
         yearObtained: '',
         fieldOfStudy: '',
+        degreeName: '',
       },
     ]);
   }, []);
@@ -169,6 +190,9 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
       if (!row.yearObtained.trim()) e.yearObtained = 'Required';
       else if (Number.isNaN(year) || year < 1950 || year > currentYear)
         e.yearObtained = `Enter a year between 1950 and ${currentYear}`;
+      if (row.qualificationType !== EducationalQualification.HIGHER_SECONDARY) {
+        if (!row.degreeName.trim()) e.degreeName = 'Required';
+      }
       if (Object.keys(e).length) {
         next[index] = { ...next[index], ...e };
         valid = false;
@@ -203,6 +227,10 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
             gradeValue: row.gradeValue.trim(),
             yearObtained: parseInt(row.yearObtained, 10),
             fieldOfStudy: row.fieldOfStudy.trim() || undefined,
+            degreeName:
+              row.qualificationType === EducationalQualification.HIGHER_SECONDARY
+                ? 'Higher Secondary'
+                : row.degreeName.trim() || undefined,
             displayOrder: index,
           })),
         },
@@ -255,7 +283,45 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
         </p>
       </div>
 
-      {qualifications.map((row, index) => (
+      {qualifications.map((row, index) => {
+        const degreeLabel =
+          row.qualificationType === EducationalQualification.DIPLOMA
+            ? 'Diploma Name'
+            : row.qualificationType === EducationalQualification.PG_DIPLOMA
+              ? 'PG Diploma Name'
+              : row.qualificationType === EducationalQualification.BACHELORS ||
+                  row.qualificationType === EducationalQualification.MASTERS ||
+                  row.qualificationType === EducationalQualification.MPHIL ||
+                  row.qualificationType === EducationalQualification.PHD
+                ? 'Degree name'
+                : 'Degree name';
+
+        const degreePlaceholder =
+          row.qualificationType === EducationalQualification.HIGHER_SECONDARY
+            ? 'Higher Secondary'
+            : row.qualificationType === EducationalQualification.DIPLOMA
+              ? 'e.g. A level Diploma in French'
+              : row.qualificationType === EducationalQualification.PG_DIPLOMA
+                ? 'e.g. PG Diploma in German'
+                : row.qualificationType === EducationalQualification.BACHELORS
+                  ? 'e.g. BA, BSc, BCom, BTech'
+                  : row.qualificationType === EducationalQualification.MASTERS
+                    ? 'e.g. MA, MSc, MCom'
+                    : row.qualificationType === EducationalQualification.MPHIL ||
+                        row.qualificationType === EducationalQualification.PHD
+                      ? 'e.g. MPhil, PhD'
+                      : 'e.g. BA, BSc, MSc';
+
+        const fieldOfStudyPlaceholder =
+          row.qualificationType === EducationalQualification.DIPLOMA ||
+          row.qualificationType === EducationalQualification.PG_DIPLOMA
+            ? 'e.g. French, German, Spanish'
+            : 'e.g. Science, Commerce, Computer';
+
+        const isHigherSecondary =
+          row.qualificationType === EducationalQualification.HIGHER_SECONDARY;
+
+        return (
         <div
           key={`${row.qualificationType}-${index}`}
           className="rounded-xl border border-subtle bg-gray-50/50 p-5"
@@ -278,8 +344,55 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
             )}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1 sm:col-span-2">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-primary">
+                {degreeLabel}
+                {!isHigherSecondary && <span className="text-danger"> *</span>}
+              </label>
+              <input
+                type="text"
+                value={row.degreeName}
+                onChange={(e) => updateRow(index, { degreeName: e.target.value })}
+                className={inputCls(!isHigherSecondary && !!errors[index]?.degreeName)}
+                placeholder={degreePlaceholder}
+                disabled={isHigherSecondary}
+              />
+              {!isHigherSecondary && errors[index]?.degreeName && (
+                <p className="text-xs text-danger">{errors[index].degreeName}</p>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-primary">Field of Study/specialization</label>
+              <input
+                type="text"
+                value={row.fieldOfStudy}
+                onChange={(e) => updateRow(index, { fieldOfStudy: e.target.value })}
+                className={inputCls(false)}
+                placeholder={fieldOfStudyPlaceholder}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-primary">
+                Year obtained <span className="text-danger">*</span>
+              </label>
+              <input
+                type="number"
+                min={1950}
+                max={currentYear}
+                value={row.yearObtained}
+                onChange={(e) => updateRow(index, { yearObtained: e.target.value })}
+                className={inputCls(!!errors[index]?.yearObtained)}
+                placeholder={String(currentYear)}
+              />
+              {errors[index]?.yearObtained && (
+                <p className="text-xs text-danger">{errors[index].yearObtained}</p>
+              )}
+            </div>
+
+            <div className="space-y-1 sm:col-span-3">
               <label className="text-sm font-medium text-primary">
                 Board / University <span className="text-danger">*</span>
               </label>
@@ -327,38 +440,10 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
                 <p className="text-xs text-danger">{errors[index].gradeValue}</p>
               )}
             </div>
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-primary">
-                Year obtained <span className="text-danger">*</span>
-              </label>
-              <input
-                type="number"
-                min={1950}
-                max={currentYear}
-                value={row.yearObtained}
-                onChange={(e) => updateRow(index, { yearObtained: e.target.value })}
-                className={inputCls(!!errors[index]?.yearObtained)}
-                placeholder={String(currentYear)}
-              />
-              {errors[index]?.yearObtained && (
-                <p className="text-xs text-danger">{errors[index].yearObtained}</p>
-              )}
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-primary">Field of study</label>
-              <input
-                type="text"
-                value={row.fieldOfStudy}
-                onChange={(e) => updateRow(index, { fieldOfStudy: e.target.value })}
-                className={inputCls(false)}
-                placeholder="e.g. Science, Mathematics"
-              />
-            </div>
           </div>
         </div>
-      ))}
+      );
+      })}
 
       {availableToAdd.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
