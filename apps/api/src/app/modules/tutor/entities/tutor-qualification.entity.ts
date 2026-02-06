@@ -47,6 +47,13 @@ export class TutorQualificationEntity extends QBaseEntity {
   @Column({ name: 'gradeValue' })
   gradeValue: string;
 
+  @Field({
+    nullable: true,
+    description: 'Degree name (e.g. Higher Secondary, BA, BSc, MSc)',
+  })
+  @Column({ name: 'degreeName', nullable: true })
+  degreeName?: string;
+
   @Field(() => Int)
   @Column({ name: 'yearObtained', type: 'smallint' })
   yearObtained: number;

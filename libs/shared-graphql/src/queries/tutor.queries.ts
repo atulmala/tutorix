@@ -33,6 +33,7 @@ export const GET_MY_TUTOR_PROFILE = gql`
         id
         qualificationType
         boardOrUniversity
+        degreeName
         gradeType
         gradeValue
         yearObtained

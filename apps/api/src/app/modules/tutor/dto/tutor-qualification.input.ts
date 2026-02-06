@@ -35,6 +35,15 @@ export class TutorQualificationInput {
   @MaxLength(50)
   gradeValue: string;
 
+  @Field({
+    nullable: true,
+    description: 'Degree name (e.g. Higher Secondary, BA, BSc, MSc)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  degreeName?: string;
+
   @Field(() => Int, { description: 'Year of obtaining the qualification' })
   @IsInt()
   @Min(1950)

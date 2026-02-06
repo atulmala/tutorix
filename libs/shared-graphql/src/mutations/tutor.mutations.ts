@@ -10,6 +10,7 @@ export const SAVE_TUTOR_QUALIFICATIONS = gql`
       id
       qualificationType
       boardOrUniversity
+      degreeName
       gradeType
       gradeValue
       yearObtained
