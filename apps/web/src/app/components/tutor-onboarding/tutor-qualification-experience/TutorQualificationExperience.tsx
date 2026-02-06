@@ -364,7 +364,7 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-medium text-primary">Field of Study/specialization</label>
+              <label className="text-sm font-medium text-primary">Specialization</label>
               <input
                 type="text"
                 value={row.fieldOfStudy}
