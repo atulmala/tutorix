@@ -10,6 +10,7 @@ import { PasswordResetToken } from '../modules/auth/entities/password-reset-toke
 import { Tutor } from '../modules/tutor/entities/tutor.entity';
 import { AddressEntity } from '../modules/address/entities/address.entity';
 import { TutorQualificationEntity } from '../modules/tutor/entities/tutor-qualification.entity';
+import { DocumentEntity } from '../modules/document/entities/document.entity';
 import { Example } from '../entities/example.entity';
 // Add other entities as they are created
 
@@ -38,6 +39,7 @@ export function createDatabaseOptions(
       Tutor,
       AddressEntity,
       TutorQualificationEntity,
+      DocumentEntity,
       Example, // Remove this when you no longer need the example entity
       // Add other entities here as they are created
       // Student,
