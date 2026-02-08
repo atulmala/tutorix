@@ -8,6 +8,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TutorModule } from './modules/tutor/tutor.module';
 import { AddressModule } from './modules/address/address.module';
+import { DocumentModule } from './modules/document/document.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AddressModule } from './modules/address/address.module';
     GraphqlModule,
     TutorModule,
     AddressModule,
+    DocumentModule,
     // Add other modules here as they are created:
     // StudentModule,
     // ClassesModule,

@@ -124,3 +124,11 @@ apps/api/src/schema.gql
 .env.*.local
 # Keep .env.example in git (it's a template)
 !.env.example
+
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.*
+**/terraform.tfvars
+!**/terraform.tfvars.example
