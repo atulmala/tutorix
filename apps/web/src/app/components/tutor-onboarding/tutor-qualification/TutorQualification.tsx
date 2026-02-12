@@ -26,13 +26,10 @@ interface QualificationRow {
 
 const currentYear = new Date().getFullYear();
 
-type SubStep = 'education' | 'experience';
-
-export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
+export const TutorQualification: React.FC<StepComponentProps> = ({
   onComplete,
   onBack,
 }) => {
-  const [subStep, setSubStep] = useState<SubStep>('education');
   const [qualifications, setQualifications] = useState<QualificationRow[]>(() => [
     {
       qualificationType: EducationalQualification.HIGHER_SECONDARY,
@@ -83,8 +80,6 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
         }
       )
     );
-    // If they already have qualifications (e.g. re-login), show Experience screen first
-    setSubStep('experience');
   }, [profileData?.myTutorProfile?.qualifications]);
 
   const [saveQualifications, { loading: isSubmitting }] = useMutation(
@@ -104,7 +99,7 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
               data: {
                 myTutorProfile: {
                   ...existing.myTutorProfile,
-                  certificationStage: 'qualificationExperience',
+                  certificationStage: 'experience',
                 },
               },
             });
@@ -113,7 +108,7 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
           /* ignore */
         }
       },
-      onCompleted: () => setSubStep('experience'),
+      onCompleted: () => onComplete?.(),
       onError: (error) => {
         setSubmitError(
           error.graphQLErrors?.[0]?.message ||
@@ -243,35 +238,6 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
       hasError ? 'border-danger' : 'border-subtle'
     }`;
 
-  if (subStep === 'experience') {
-    return (
-      <div className="space-y-8">
-        <div className="rounded-xl border border-subtle bg-gray-50/50 p-6">
-          <h3 className="text-base font-semibold text-primary mb-2">Experience entry</h3>
-          <p className="text-sm text-muted">
-            Teaching and work experience entry will be available here. You can continue to the next step for now.
-          </p>
-        </div>
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => setSubStep('education')}
-            className="h-11 rounded-lg border border-subtle px-6 text-sm font-semibold text-primary shadow-sm transition hover:border-primary"
-          >
-            Back
-          </button>
-          <button
-            type="button"
-            onClick={() => onComplete()}
-            className="h-11 rounded-lg bg-[#5fa8ff] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5]"
-          >
-            Continue
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       <div className="space-y-1">
@@ -289,12 +255,7 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
             ? 'Diploma Name'
             : row.qualificationType === EducationalQualification.PG_DIPLOMA
               ? 'PG Diploma Name'
-              : row.qualificationType === EducationalQualification.BACHELORS ||
-                  row.qualificationType === EducationalQualification.MASTERS ||
-                  row.qualificationType === EducationalQualification.MPHIL ||
-                  row.qualificationType === EducationalQualification.PHD
-                ? 'Degree name'
-                : 'Degree name';
+              : 'Degree name';
 
         const degreePlaceholder =
           row.qualificationType === EducationalQualification.HIGHER_SECONDARY

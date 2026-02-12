@@ -34,13 +34,10 @@ interface QualificationRow {
 
 const currentYear = new Date().getFullYear();
 
-type SubStep = 'education' | 'experience';
-
-export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
+export const TutorQualification: React.FC<StepComponentProps> = ({
   onComplete,
   onBack,
 }) => {
-  const [subStep, setSubStep] = useState<SubStep>('education');
   const [qualifications, setQualifications] = useState<QualificationRow[]>(() => [
     {
       qualificationType: EducationalQualification.HIGHER_SECONDARY,
@@ -94,7 +91,6 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
         }
       )
     );
-    setSubStep('experience');
   }, [profileData?.myTutorProfile?.qualifications]);
 
   const [saveQualifications, { loading: isSubmitting }] = useMutation(
@@ -114,7 +110,7 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
               data: {
                 myTutorProfile: {
                   ...existing.myTutorProfile,
-                  certificationStage: 'qualificationExperience',
+                  certificationStage: 'experience',
                 },
               },
             });
@@ -123,7 +119,7 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
           /* ignore */
         }
       },
-      onCompleted: () => setSubStep('experience'),
+      onCompleted: () => onComplete?.(),
       onError: (error) => {
         setSubmitError(
           error.graphQLErrors?.[0]?.message ||
@@ -255,36 +251,6 @@ export const TutorQualificationExperience: React.FC<StepComponentProps> = ({
       },
     });
   };
-
-  if (subStep === 'experience') {
-    return (
-      <View style={styles.block}>
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Experience entry</Text>
-          <Text style={styles.muted}>
-            Teaching and work experience entry will be available here. You can continue to
-            the next step for now.
-          </Text>
-        </View>
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={() => setSubStep('education')}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.secondaryButtonText}>Back</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={() => onComplete?.()}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.primaryButtonText}>Continue</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.block}>
@@ -554,10 +520,6 @@ const styles = StyleSheet.create({
   introItalic: {
     fontStyle: 'italic',
     fontWeight: '700',
-  },
-  muted: {
-    fontSize: 14,
-    color: '#64748b',
   },
   card: {
     backgroundColor: '#f8fafc',

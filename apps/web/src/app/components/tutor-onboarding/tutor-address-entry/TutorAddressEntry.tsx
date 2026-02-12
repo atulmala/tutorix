@@ -84,7 +84,7 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = ({
               data: {
                 myTutorProfile: {
                   ...existing.myTutorProfile,
-                  certificationStage: 'qualificationExperience',
+                  certificationStage: 'qualification',
                 },
               },
             });
