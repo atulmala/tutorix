@@ -119,7 +119,11 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = ({
           /* ignore cache update errors */
         }
       },
-      onCompleted: () => onComplete?.(),
+      onCompleted: () => {
+        // Don't call onComplete - refetch updates profileData, useEffect in
+        // TutorOnboarding syncs currentStepIndex from certificationStage.
+        // Calling onComplete would double-advance and skip the next step.
+      },
       onError: (error) => {
         setSubmitError(
           error.graphQLErrors?.[0]?.message ||
