@@ -44,6 +44,11 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
   const [errors, setErrors] = useState<Record<number, Partial<Record<keyof QualificationRow, string>>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [savingSectionIndex, setSavingSectionIndex] = useState<number | null>(null);
+  const [hasSuccessfullySaved, setHasSuccessfullySaved] = useState(false);
+  const [savedQualificationTypes, setSavedQualificationTypes] = useState<Set<EducationalQualification>>(
+    () => new Set()
+  );
 
   const { data: profileData } = useQuery(GET_MY_TUTOR_PROFILE, {
     fetchPolicy: 'network-only',
@@ -51,6 +56,12 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
 
   useEffect(() => {
     const list = profileData?.myTutorProfile?.qualifications;
+    if (list?.length) {
+      setHasSuccessfullySaved(true);
+      setSavedQualificationTypes(
+        new Set(list.map((q: { qualificationType: string }) => q.qualificationType as EducationalQualification))
+      );
+    }
     if (!list?.length) return;
     setQualifications(
       list.map(
@@ -87,8 +98,32 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
     {
       refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }],
       awaitRefetchQueries: true,
-      update: (cache, { data }) => {
+      update: (cache, { data }, { variables }) => {
         if (!data?.saveTutorQualifications) return;
+        const advanceToNextStep = variables?.input?.advanceToNextStep !== false;
+        if (!advanceToNextStep) {
+          // Per-section Save: explicitly keep certificationStage at 'qualification'.
+          // Qualification step must not show as complete until Continue is pressed.
+          try {
+            const existing = cache.readQuery<{
+              myTutorProfile?: { id: number; certificationStage?: string };
+            }>({ query: GET_MY_TUTOR_PROFILE });
+            if (existing?.myTutorProfile) {
+              cache.writeQuery({
+                query: GET_MY_TUTOR_PROFILE,
+                data: {
+                  myTutorProfile: {
+                    ...existing.myTutorProfile,
+                    certificationStage: 'qualification',
+                  },
+                },
+              });
+            }
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
         try {
           const existing = cache.readQuery<{
             myTutorProfile?: { id: number; certificationStage?: string };
@@ -154,20 +189,82 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
     ]);
   }, []);
 
-  const removeQualification = useCallback((index: number) => {
-    const row = qualifications[index];
-    if (row?.qualificationType === EducationalQualification.HIGHER_SECONDARY) return;
-    setQualifications((prev) => prev.filter((_, i) => i !== index));
-    setErrors((prev) => {
-      const next = { ...prev };
-      delete next[index];
-      return next;
-    });
-  }, [qualifications]);
+  const handleDeleteSection = useCallback(
+    (index: number) => {
+      const row = qualifications[index];
+      if (!row || row.qualificationType === EducationalQualification.HIGHER_SECONDARY) return;
+      const label = EDUCATIONAL_QUALIFICATION_LABELS[row.qualificationType];
+      if (!window.confirm(`Are you sure you want to delete ${label}?`)) return;
+      const updated = qualifications.filter((_, i) => i !== index);
+      setQualifications(updated);
+      setSavedQualificationTypes((prev) => {
+        const next = new Set(prev);
+        next.delete(row.qualificationType);
+        return next;
+      });
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
+      // Persist deletion to backend
+      saveQualifications({
+        variables: {
+          input: {
+            qualifications: updated.map((r, i) => ({
+              qualificationType: r.qualificationType,
+              boardOrUniversity: r.boardOrUniversity.trim(),
+              gradeType: r.gradeType,
+              gradeValue: r.gradeValue.trim(),
+              yearObtained: parseInt(r.yearObtained, 10),
+              fieldOfStudy: r.fieldOfStudy.trim() || undefined,
+              degreeName:
+                r.qualificationType === EducationalQualification.HIGHER_SECONDARY
+                  ? 'Higher Secondary'
+                  : r.degreeName.trim() || undefined,
+              displayOrder: i,
+            })),
+            advanceToNextStep: false,
+          },
+        },
+      });
+    },
+    [qualifications, saveQualifications]
+  );
 
   const usedTypes = qualifications.map((q) => q.qualificationType);
   const availableToAdd = EDUCATIONAL_QUALIFICATION_LIST.filter(
     (t) => t !== EducationalQualification.HIGHER_SECONDARY && !usedTypes.includes(t)
+  );
+
+  const validateRow = useCallback(
+    (index: number): boolean => {
+      setFormError(null);
+      const row = qualifications[index];
+      if (!row) return false;
+      const e: Partial<Record<keyof QualificationRow, string>> = {};
+      if (!row.boardOrUniversity.trim()) e.boardOrUniversity = 'Required';
+      if (!row.gradeValue.trim()) e.gradeValue = 'Required';
+      if (!row.fieldOfStudy.trim()) e.fieldOfStudy = 'Required';
+      const year = parseInt(row.yearObtained, 10);
+      if (!row.yearObtained.trim()) e.yearObtained = 'Required';
+      else if (Number.isNaN(year) || year < 1950 || year > currentYear)
+        e.yearObtained = `Enter a year between 1950 and ${currentYear}`;
+      if (row.qualificationType !== EducationalQualification.HIGHER_SECONDARY) {
+        if (!row.degreeName.trim()) e.degreeName = 'Required';
+      }
+      if (Object.keys(e).length) {
+        setErrors((prev) => ({ ...prev, [index]: e }));
+        return false;
+      }
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
+      return true;
+    },
+    [qualifications]
   );
 
   const validate = useCallback((): boolean => {
@@ -185,6 +282,7 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
       const e: Partial<Record<keyof QualificationRow, string>> = {};
       if (!row.boardOrUniversity.trim()) e.boardOrUniversity = 'Required';
       if (!row.gradeValue.trim()) e.gradeValue = 'Required';
+      if (!row.fieldOfStudy.trim()) e.fieldOfStudy = 'Required';
       const year = parseInt(row.yearObtained, 10);
       if (!row.yearObtained.trim()) e.yearObtained = 'Required';
       else if (Number.isNaN(year) || year < 1950 || year > currentYear)
@@ -200,6 +298,43 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
     setErrors(next);
     return valid;
   }, [qualifications]);
+
+  const buildQualificationsInput = () =>
+    qualifications.map((row, index) => ({
+      qualificationType: row.qualificationType,
+      boardOrUniversity: row.boardOrUniversity.trim(),
+      gradeType: row.gradeType,
+      gradeValue: row.gradeValue.trim(),
+      yearObtained: parseInt(row.yearObtained, 10),
+      fieldOfStudy: row.fieldOfStudy.trim() || undefined,
+      degreeName:
+        row.qualificationType === EducationalQualification.HIGHER_SECONDARY
+          ? 'Higher Secondary'
+          : row.degreeName.trim() || undefined,
+      displayOrder: index,
+    }));
+
+  const handleSaveSection = (index: number) => {
+    setSubmitError(null);
+    if (!validateRow(index)) return;
+    setSavingSectionIndex(index);
+    saveQualifications({
+      variables: {
+        input: {
+          qualifications: buildQualificationsInput(),
+          advanceToNextStep: false,
+        },
+      },
+    })
+      .then(() => {
+        setHasSuccessfullySaved(true);
+        const row = qualifications[index];
+        if (row) {
+          setSavedQualificationTypes((prev) => new Set(prev).add(row.qualificationType));
+        }
+      })
+      .finally(() => setSavingSectionIndex(null));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -219,19 +354,8 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
     saveQualifications({
       variables: {
         input: {
-          qualifications: qualifications.map((row, index) => ({
-            qualificationType: row.qualificationType,
-            boardOrUniversity: row.boardOrUniversity.trim(),
-            gradeType: row.gradeType,
-            gradeValue: row.gradeValue.trim(),
-            yearObtained: parseInt(row.yearObtained, 10),
-            fieldOfStudy: row.fieldOfStudy.trim() || undefined,
-            degreeName:
-              row.qualificationType === EducationalQualification.HIGHER_SECONDARY
-                ? 'Higher Secondary'
-                : row.degreeName.trim() || undefined,
-            displayOrder: index,
-          })),
+          qualifications: buildQualificationsInput(),
+          advanceToNextStep: true,
         },
       },
     });
@@ -291,22 +415,13 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
           key={`${row.qualificationType}-${index}`}
           className="rounded-xl border border-subtle bg-gray-50/50 p-5"
         >
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4">
             <h3 className="text-base font-semibold text-primary">
               {EDUCATIONAL_QUALIFICATION_LABELS[row.qualificationType]}
               {row.qualificationType === EducationalQualification.HIGHER_SECONDARY && (
                 <span className="ml-2 text-xs font-normal text-muted">(Required)</span>
               )}
             </h3>
-            {row.qualificationType !== EducationalQualification.HIGHER_SECONDARY && (
-              <button
-                type="button"
-                onClick={() => removeQualification(index)}
-                className="text-sm font-medium text-danger hover:underline"
-              >
-                Remove
-              </button>
-            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
@@ -329,14 +444,19 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-medium text-primary">Specialization</label>
+              <label className="text-sm font-medium text-primary">
+                Specialization <span className="text-danger">*</span>
+              </label>
               <input
                 type="text"
                 value={row.fieldOfStudy}
                 onChange={(e) => updateRow(index, { fieldOfStudy: e.target.value })}
-                className={inputCls(false)}
+                className={inputCls(!!errors[index]?.fieldOfStudy)}
                 placeholder={fieldOfStudyPlaceholder}
               />
+              {errors[index]?.fieldOfStudy && (
+                <p className="text-xs text-danger">{errors[index].fieldOfStudy}</p>
+              )}
             </div>
 
             <div className="space-y-1">
@@ -406,6 +526,27 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
               )}
             </div>
           </div>
+
+          <div className="mt-4 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => handleSaveSection(index)}
+              disabled={isSubmitting}
+              className="h-10 rounded-lg border border-subtle bg-white px-4 text-sm font-semibold text-primary shadow-sm transition hover:border-primary hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {savingSectionIndex === index ? 'Saving...' : 'Save'}
+            </button>
+            {row.qualificationType !== EducationalQualification.HIGHER_SECONDARY && (
+              <button
+                type="button"
+                onClick={() => handleDeleteSection(index)}
+                disabled={!savedQualificationTypes.has(row.qualificationType) || isSubmitting}
+                className="h-10 rounded-lg border border-danger bg-white px-4 text-sm font-semibold text-danger shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 disabled:border-gray-200 disabled:text-gray-400"
+              >
+                Delete
+              </button>
+            )}
+          </div>
         </div>
       );
       })}
@@ -444,7 +585,7 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
         )}
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={!hasSuccessfullySaved || isSubmitting}
           className="h-11 rounded-lg bg-[#5fa8ff] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:bg-[#5fa8ff]/40"
         >
           {isSubmitting ? 'Saving...' : 'Continue'}

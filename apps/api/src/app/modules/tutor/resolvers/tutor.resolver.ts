@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent } from '@nestjs/graphql';
 import { BadRequestException, UseGuards } from '@nestjs/common';
 import { Tutor } from '../entities/tutor.entity';
 import { TutorQualificationEntity } from '../entities/tutor-qualification.entity';
@@ -38,6 +38,15 @@ export class TutorResolver {
    * Query: Get current authenticated tutor's profile
    * Creates tutor if it doesn't exist
    */
+  @ResolveField(() => [TutorQualificationEntity], {
+    description: 'Qualifications for this tutor (excludes soft-deleted)',
+  })
+  async qualifications(
+    @Parent() tutor: Tutor,
+  ): Promise<TutorQualificationEntity[]> {
+    return this.tutorQualificationService.findByTutorId(tutor.id);
+  }
+
   @Query(() => Tutor, { name: 'myTutorProfile', nullable: true, description: 'Get current tutor profile, creates if doesn\'t exist' })
   @UseGuards(JwtAuthGuard)
   async getMyTutorProfile(@CurrentUser() user: User): Promise<Tutor | null> {
@@ -66,7 +75,9 @@ export class TutorResolver {
     if (!tutor) {
       throw new Error('Tutor profile not found for this user');
     }
-    return this.tutorQualificationService.saveForTutor(tutor.id, input.qualifications);
+    return this.tutorQualificationService.saveForTutor(tutor.id, input.qualifications, {
+      advanceToNextStep: input.advanceToNextStep !== false,
+    });
   }
 
   /**

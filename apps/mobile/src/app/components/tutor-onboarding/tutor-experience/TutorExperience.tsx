@@ -11,10 +11,7 @@ import { COMPLETE_EXPERIENCE_STEP } from '@tutorix/shared-graphql/mutations';
 import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
 import type { StepComponentProps } from '@tutorix/shared-utils';
 
-export const TutorExperience: React.FC<StepComponentProps> = ({
-  onComplete,
-  onBack,
-}) => {
+export const TutorExperience: React.FC<StepComponentProps> = ({ onBack }) => {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [completeExperience, { loading: isSubmitting }] = useMutation(

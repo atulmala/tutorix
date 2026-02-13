@@ -34,10 +34,7 @@ interface QualificationRow {
 
 const currentYear = new Date().getFullYear();
 
-export const TutorQualification: React.FC<StepComponentProps> = ({
-  onComplete,
-  onBack,
-}) => {
+export const TutorQualification: React.FC<StepComponentProps> = ({ onBack }) => {
   const [qualifications, setQualifications] = useState<QualificationRow[]>(() => [
     {
       qualificationType: EducationalQualification.HIGHER_SECONDARY,
@@ -55,6 +52,11 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
   const [formError, setFormError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [gradeTypeModal, setGradeTypeModal] = useState<{ rowIndex: number } | null>(null);
+  const [savingSectionIndex, setSavingSectionIndex] = useState<number | null>(null);
+  const [hasSuccessfullySaved, setHasSuccessfullySaved] = useState(false);
+  const [savedQualificationTypes, setSavedQualificationTypes] = useState<Set<EducationalQualification>>(
+    () => new Set()
+  );
 
   const { data: profileData } = useQuery(GET_MY_TUTOR_PROFILE, {
     fetchPolicy: 'network-only',
@@ -62,6 +64,12 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
 
   useEffect(() => {
     const list = profileData?.myTutorProfile?.qualifications;
+    if (list?.length) {
+      setHasSuccessfullySaved(true);
+      setSavedQualificationTypes(
+        new Set(list.map((q: { qualificationType: string }) => q.qualificationType as EducationalQualification))
+      );
+    }
     if (!list?.length) return;
     setQualifications(
       list.map(
@@ -98,8 +106,32 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
     {
       refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }],
       awaitRefetchQueries: true,
-      update: (cache, { data }) => {
+      update: (cache, { data }, { variables }) => {
         if (!data?.saveTutorQualifications) return;
+        const advanceToNextStep = variables?.input?.advanceToNextStep !== false;
+        if (!advanceToNextStep) {
+          // Per-section Save: explicitly keep certificationStage at 'qualification'.
+          // Qualification step must not show as complete until Continue is pressed.
+          try {
+            const existing = cache.readQuery<{
+              myTutorProfile?: { id: number; certificationStage?: string };
+            }>({ query: GET_MY_TUTOR_PROFILE });
+            if (existing?.myTutorProfile) {
+              cache.writeQuery({
+                query: GET_MY_TUTOR_PROFILE,
+                data: {
+                  myTutorProfile: {
+                    ...existing.myTutorProfile,
+                    certificationStage: 'qualification',
+                  },
+                },
+              });
+            }
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
         try {
           const existing = cache.readQuery<{
             myTutorProfile?: { id: number; certificationStage?: string };
@@ -165,21 +197,97 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
     ]);
   }, []);
 
-  const removeQualification = useCallback((index: number) => {
-    const row = qualifications[index];
-    if (row?.qualificationType === EducationalQualification.HIGHER_SECONDARY) return;
-    setQualifications((prev) => prev.filter((_, i) => i !== index));
-    setErrors((prev) => {
-      const next = { ...prev };
-      delete next[index];
-      return next;
-    });
-  }, [qualifications]);
+  const doDeleteSection = useCallback(
+    (index: number) => {
+      const row = qualifications[index];
+      if (!row || row.qualificationType === EducationalQualification.HIGHER_SECONDARY) return;
+      const updated = qualifications.filter((_, i) => i !== index);
+      setQualifications(updated);
+      setSavedQualificationTypes((prev) => {
+        const next = new Set(prev);
+        next.delete(row.qualificationType);
+        return next;
+      });
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
+      saveQualifications({
+        variables: {
+          input: {
+            qualifications: updated.map((r, i) => ({
+              qualificationType: r.qualificationType,
+              boardOrUniversity: r.boardOrUniversity.trim(),
+              gradeType: r.gradeType,
+              gradeValue: r.gradeValue.trim(),
+              yearObtained: parseInt(r.yearObtained, 10),
+              fieldOfStudy: r.fieldOfStudy.trim() || undefined,
+              degreeName:
+                r.qualificationType === EducationalQualification.HIGHER_SECONDARY
+                  ? 'Higher Secondary'
+                  : r.degreeName.trim() || undefined,
+              displayOrder: i,
+            })),
+            advanceToNextStep: false,
+          },
+        },
+      });
+    },
+    [qualifications, saveQualifications]
+  );
+
+  const handleDeleteSection = useCallback(
+    (index: number) => {
+      const row = qualifications[index];
+      if (!row || row.qualificationType === EducationalQualification.HIGHER_SECONDARY) return;
+      const label = EDUCATIONAL_QUALIFICATION_LABELS[row.qualificationType];
+      Alert.alert(
+        'Delete qualification',
+        `Are you sure you want to delete ${label}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: () => doDeleteSection(index) },
+        ]
+      );
+    },
+    [qualifications, doDeleteSection]
+  );
 
   const usedTypes = qualifications.map((q) => q.qualificationType);
   const availableToAdd = EDUCATIONAL_QUALIFICATION_LIST.filter(
     (t) =>
       t !== EducationalQualification.HIGHER_SECONDARY && !usedTypes.includes(t)
+  );
+
+  const validateRow = useCallback(
+    (index: number): boolean => {
+      setFormError(null);
+      const row = qualifications[index];
+      if (!row) return false;
+      const e: Partial<Record<keyof QualificationRow, string>> = {};
+      if (!row.boardOrUniversity.trim()) e.boardOrUniversity = 'Required';
+      if (!row.gradeValue.trim()) e.gradeValue = 'Required';
+      if (!row.fieldOfStudy.trim()) e.fieldOfStudy = 'Required';
+      const year = parseInt(row.yearObtained, 10);
+      if (!row.yearObtained.trim()) e.yearObtained = 'Required';
+      else if (Number.isNaN(year) || year < 1950 || year > currentYear)
+        e.yearObtained = `Enter a year between 1950 and ${currentYear}`;
+      if (row.qualificationType !== EducationalQualification.HIGHER_SECONDARY) {
+        if (!row.degreeName.trim()) e.degreeName = 'Required';
+      }
+      if (Object.keys(e).length) {
+        setErrors((prev) => ({ ...prev, [index]: e }));
+        return false;
+      }
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
+      return true;
+    },
+    [qualifications]
   );
 
   const validate = useCallback((): boolean => {
@@ -197,6 +305,7 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
       const e: Partial<Record<keyof QualificationRow, string>> = {};
       if (!row.boardOrUniversity.trim()) e.boardOrUniversity = 'Required';
       if (!row.gradeValue.trim()) e.gradeValue = 'Required';
+      if (!row.fieldOfStudy.trim()) e.fieldOfStudy = 'Required';
       const year = parseInt(row.yearObtained, 10);
       if (!row.yearObtained.trim()) e.yearObtained = 'Required';
       else if (Number.isNaN(year) || year < 1950 || year > currentYear)
@@ -226,31 +335,57 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
         'Are you sure you want to go ahead without entering any additional qualifications?',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Continue', onPress: doSaveQualifications },
+          { text: 'Continue', onPress: () => doSaveQualifications(true) },
         ]
       );
       return;
     }
-    doSaveQualifications();
+    doSaveQualifications(true);
   };
 
-  const doSaveQualifications = () => {
+  const buildQualificationsInput = () =>
+    qualifications.map((row, index) => ({
+      qualificationType: row.qualificationType,
+      boardOrUniversity: row.boardOrUniversity.trim(),
+      gradeType: row.gradeType,
+      gradeValue: row.gradeValue.trim(),
+      yearObtained: parseInt(row.yearObtained, 10),
+      fieldOfStudy: row.fieldOfStudy.trim() || undefined,
+      degreeName:
+        row.qualificationType === EducationalQualification.HIGHER_SECONDARY
+          ? 'Higher Secondary'
+          : row.degreeName.trim() || undefined,
+      displayOrder: index,
+    }));
+
+  const handleSaveSection = (index: number) => {
+    setSubmitError(null);
+    if (!validateRow(index)) return;
+    setSavingSectionIndex(index);
     saveQualifications({
       variables: {
         input: {
-          qualifications: qualifications.map((row, index) => ({
-            qualificationType: row.qualificationType,
-            boardOrUniversity: row.boardOrUniversity.trim(),
-            gradeType: row.gradeType,
-            gradeValue: row.gradeValue.trim(),
-            yearObtained: parseInt(row.yearObtained, 10),
-            fieldOfStudy: row.fieldOfStudy.trim() || undefined,
-            degreeName:
-              row.qualificationType === EducationalQualification.HIGHER_SECONDARY
-                ? 'Higher Secondary'
-                : row.degreeName.trim() || undefined,
-            displayOrder: index,
-          })),
+          qualifications: buildQualificationsInput(),
+          advanceToNextStep: false,
+        },
+      },
+    })
+      .then(() => {
+        setHasSuccessfullySaved(true);
+        const row = qualifications[index];
+        if (row) {
+          setSavedQualificationTypes((prev) => new Set(prev).add(row.qualificationType));
+        }
+      })
+      .finally(() => setSavingSectionIndex(null));
+  };
+
+  const doSaveQualifications = (advanceToNextStep = true) => {
+    saveQualifications({
+      variables: {
+        input: {
+          qualifications: buildQualificationsInput(),
+          advanceToNextStep,
         },
       },
     });
@@ -309,14 +444,6 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
                   <Text style={styles.requiredLabel}> (Required)</Text>
                 )}
               </Text>
-              {row.qualificationType !== EducationalQualification.HIGHER_SECONDARY && (
-                <TouchableOpacity
-                  onPress={() => removeQualification(index)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.removeText}>Remove</Text>
-                </TouchableOpacity>
-              )}
             </View>
 
             <View style={styles.inputGroup}>
@@ -342,14 +469,19 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
 
             <View style={styles.rowTwoCols}>
               <View style={styles.inputGroupFlex}>
-                <Text style={styles.label}>Specialization</Text>
+                <Text style={styles.label}>
+                  Specialization <Text style={styles.required}>*</Text>
+                </Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, !!errors[index]?.fieldOfStudy && styles.inputError]}
                   value={row.fieldOfStudy}
                   onChangeText={(v) => updateRow(index, { fieldOfStudy: v })}
                   placeholder={fieldOfStudyPlaceholder}
                   placeholderTextColor="#9ca3af"
                 />
+                {!!errors[index]?.fieldOfStudy && (
+                  <Text style={styles.fieldError}>{errors[index].fieldOfStudy}</Text>
+                )}
               </View>
               <View style={styles.inputGroupFlex}>
                 <Text style={styles.label}>
@@ -422,6 +554,37 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
                 )}
               </View>
             </View>
+
+            <View style={[styles.sectionSaveRow, styles.sectionSaveRowGap]}>
+              <TouchableOpacity
+                style={[styles.sectionSaveButton, isSubmitting && styles.sectionSaveButtonDisabled]}
+                onPress={() => handleSaveSection(index)}
+                disabled={isSubmitting}
+                activeOpacity={0.7}
+              >
+                {savingSectionIndex === index ? (
+                  <ActivityIndicator size="small" color="#0f172a" />
+                ) : (
+                  <Text style={styles.sectionSaveButtonText}>Save</Text>
+                )}
+              </TouchableOpacity>
+              {row.qualificationType !== EducationalQualification.HIGHER_SECONDARY && (
+                <TouchableOpacity
+                  style={[
+                    styles.deleteButton,
+                    (!savedQualificationTypes.has(row.qualificationType) || isSubmitting) &&
+                      styles.deleteButtonDisabled,
+                  ]}
+                  onPress={() => handleDeleteSection(index)}
+                  disabled={
+                    !savedQualificationTypes.has(row.qualificationType) || isSubmitting
+                  }
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.deleteButtonText}>Delete</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         );
       })}
@@ -459,9 +622,12 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
+          style={[
+            styles.primaryButton,
+            (!hasSuccessfullySaved || isSubmitting) && styles.primaryButtonDisabled,
+          ]}
           onPress={handleSubmit}
-          disabled={isSubmitting}
+          disabled={!hasSuccessfullySaved || isSubmitting}
           activeOpacity={0.7}
         >
           {isSubmitting ? (
@@ -606,6 +772,47 @@ const styles = StyleSheet.create({
   pickerChevron: {
     fontSize: 10,
     color: '#64748b',
+  },
+  sectionSaveRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  sectionSaveRowGap: {
+    gap: 12,
+  },
+  deleteButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#dc2626',
+    backgroundColor: '#fff',
+  },
+  deleteButtonDisabled: {
+    opacity: 0.6,
+    borderColor: '#e2e8f0',
+  },
+  deleteButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#dc2626',
+  },
+  sectionSaveButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+  },
+  sectionSaveButtonDisabled: {
+    opacity: 0.6,
+  },
+  sectionSaveButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0f172a',
   },
   addRow: {
     gap: 8,

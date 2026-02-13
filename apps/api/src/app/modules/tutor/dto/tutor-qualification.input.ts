@@ -69,4 +69,12 @@ export class SaveTutorQualificationsInput {
     description: 'Full list of qualifications (replaces existing)',
   })
   qualifications: TutorQualificationInput[];
+
+  @Field(() => Boolean, {
+    nullable: true,
+    description:
+      'When true, advances certification stage to next step. Set false for per-section saves.',
+  })
+  @IsOptional()
+  advanceToNextStep?: boolean;
 }
