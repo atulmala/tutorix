@@ -24,6 +24,7 @@ export class TutorQualificationService {
   async saveForTutor(
     tutorId: number,
     inputs: TutorQualificationInput[],
+    options?: { advanceToNextStep?: boolean },
   ): Promise<TutorQualificationEntity[]> {
     await this.tutorService.findOne(tutorId);
 
@@ -103,12 +104,14 @@ export class TutorQualificationService {
       await this.qualificationRepository.save(toDelete);
     }
 
-    // Keep tutor in the qualification/experience stage.
-    // Advancing to 'offerings' will be handled after experience entry is implemented.
-    await this.tutorService.updateCertificationStage(
-      tutorId,
-      TutorCertificationStageEnum.qualificationExperience,
-    );
+    // Advance to experience step only when completing the full form (Continue)
+    const shouldAdvance = options?.advanceToNextStep !== false;
+    if (shouldAdvance) {
+      await this.tutorService.updateCertificationStage(
+        tutorId,
+        TutorCertificationStageEnum.experience,
+      );
+    }
 
     return saved;
   }

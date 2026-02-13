@@ -1,10 +1,11 @@
-import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
-import { UseGuards } from '@nestjs/common';
+import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent } from '@nestjs/graphql';
+import { BadRequestException, UseGuards } from '@nestjs/common';
 import { Tutor } from '../entities/tutor.entity';
 import { TutorQualificationEntity } from '../entities/tutor-qualification.entity';
 import { TutorService } from '../services/tutor.service';
 import { TutorQualificationService } from '../services/tutor-qualification.service';
 import { SaveTutorQualificationsInput } from '../dto/tutor-qualification.input';
+import { TutorCertificationStageEnum } from '../enums/tutor.enums';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { User } from '../../auth/entities/user.entity';
@@ -37,6 +38,15 @@ export class TutorResolver {
    * Query: Get current authenticated tutor's profile
    * Creates tutor if it doesn't exist
    */
+  @ResolveField(() => [TutorQualificationEntity], {
+    description: 'Qualifications for this tutor (excludes soft-deleted)',
+  })
+  async qualifications(
+    @Parent() tutor: Tutor,
+  ): Promise<TutorQualificationEntity[]> {
+    return this.tutorQualificationService.findByTutorId(tutor.id);
+  }
+
   @Query(() => Tutor, { name: 'myTutorProfile', nullable: true, description: 'Get current tutor profile, creates if doesn\'t exist' })
   @UseGuards(JwtAuthGuard)
   async getMyTutorProfile(@CurrentUser() user: User): Promise<Tutor | null> {
@@ -65,7 +75,33 @@ export class TutorResolver {
     if (!tutor) {
       throw new Error('Tutor profile not found for this user');
     }
-    return this.tutorQualificationService.saveForTutor(tutor.id, input.qualifications);
+    return this.tutorQualificationService.saveForTutor(tutor.id, input.qualifications, {
+      advanceToNextStep: input.advanceToNextStep !== false,
+    });
+  }
+
+  /**
+   * Mutation: Complete experience step (advance to offerings)
+   * Valid only when tutor is at experience stage.
+   */
+  @Mutation(() => Tutor, {
+    description: 'Complete the experience step and advance to offerings',
+  })
+  @UseGuards(JwtAuthGuard)
+  async completeExperienceStep(@CurrentUser() user: User): Promise<Tutor> {
+    const tutor = await this.tutorService.findByUserId(user.id);
+    if (!tutor) {
+      throw new Error('Tutor profile not found for this user');
+    }
+    if (tutor.certificationStage !== TutorCertificationStageEnum.experience) {
+      throw new BadRequestException(
+        'Can only complete experience step when at experience stage'
+      );
+    }
+    return this.tutorService.updateCertificationStage(
+      tutor.id,
+      TutorCertificationStageEnum.offerings,
+    );
   }
 
   /**

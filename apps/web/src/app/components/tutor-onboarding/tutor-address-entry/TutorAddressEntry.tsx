@@ -84,7 +84,7 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = ({
               data: {
                 myTutorProfile: {
                   ...existing.myTutorProfile,
-                  certificationStage: 'qualificationExperience',
+                  certificationStage: 'qualification',
                 },
               },
             });
@@ -94,7 +94,10 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = ({
         }
       },
       onCompleted: () => {
-        onComplete();
+        // Don't call onComplete - refetch updates profileData, useEffect in
+        // TutorOnboarding syncs currentStepIndex from certificationStage.
+        // Calling onComplete would double-advance (useEffect sets 1, then
+        // handleStepComplete increments again to 2, skipping Qualifications).
       },
       onError: (error) => {
         setSubmitError(

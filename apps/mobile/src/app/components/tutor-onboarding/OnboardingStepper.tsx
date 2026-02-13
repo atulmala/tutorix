@@ -5,7 +5,8 @@ import { ONBOARDING_STEPS, type OnboardingStepId } from '@tutorix/shared-utils';
 
 const STEP_SHORT_LABELS: Record<OnboardingStepId, string> = {
   address: 'Address',
-  qualificationExperience: 'Qualification',
+  qualification: 'Qualification',
+  experience: 'Experience',
   offerings: 'Offerings',
   pt: 'Proficiency',
   registrationPayment: 'Payment',

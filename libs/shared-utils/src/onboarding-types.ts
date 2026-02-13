@@ -8,7 +8,8 @@
 
 export type OnboardingStepId =
   | 'address'
-  | 'qualificationExperience'
+  | 'qualification'
+  | 'experience'
   | 'offerings'
   | 'pt'
   | 'registrationPayment'
@@ -29,9 +30,14 @@ export const ONBOARDING_STEPS: OnboardingStepConfig[] = [
     description: 'Enter your address details',
   },
   {
-    id: 'qualificationExperience',
-    title: 'Qualifications & Experience',
-    description: 'Tell us about your education and teaching experience',
+    id: 'qualification',
+    title: 'Qualifications',
+    description: 'Add your educational qualifications',
+  },
+  {
+    id: 'experience',
+    title: 'Experience',
+    description: 'Tell us about your teaching and work experience',
   },
   {
     id: 'offerings',
@@ -73,6 +79,7 @@ export interface StepComponentProps {
 /**
  * Normalize certificationStage from API (may be SCREAMING_SNAKE_CASE)
  * to step id format (camelCase).
+ * Maps legacy 'qualificationExperience' to 'qualification' for backward compatibility.
  */
 export function normalizeCertificationStage(
   stage: string | undefined
@@ -80,6 +87,8 @@ export function normalizeCertificationStage(
   if (!stage || typeof stage !== 'string') return undefined;
   const trimmed = stage.trim();
   if (!trimmed) return undefined;
+  // Legacy: map qualificationExperience -> qualification (used before split)
+  if (trimmed === 'qualificationExperience') return 'qualification';
   if (ONBOARDING_STEPS.some((s) => s.id === trimmed))
     return trimmed as OnboardingStepId;
   const camel = trimmed
@@ -89,6 +98,7 @@ export function normalizeCertificationStage(
       i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)
     )
     .join('');
+  if (camel === 'qualificationexperience') return 'qualification';
   return ONBOARDING_STEPS.some((s) => s.id === camel)
     ? (camel as OnboardingStepId)
     : undefined;

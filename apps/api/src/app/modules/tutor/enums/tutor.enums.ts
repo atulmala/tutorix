@@ -8,7 +8,8 @@ import { registerEnumType } from '@nestjs/graphql';
  */
 export enum TutorOnboardingStepEnum {
   ADDRESS = 'address',
-  QUALIFICATION_EXPERIENCE = 'qualificationExperience',
+  QUALIFICATION = 'qualification',
+  EXPERIENCE = 'experience',
   OFFERINGS = 'offerings',
   PT = 'pt',
   REGISTRATION_PAYMENT = 'registrationPayment',
@@ -25,7 +26,8 @@ export enum TutorOnboardingStepEnum {
  */
 export enum TutorCertificationStageEnum {
   address = 'address',
-  qualificationExperience = 'qualificationExperience',
+  qualification = 'qualification',
+  experience = 'experience',
   offerings = 'offerings',
   pt = 'pt',
   registrationPayment = 'registrationPayment',

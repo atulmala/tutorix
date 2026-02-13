@@ -19,3 +19,15 @@ export const SAVE_TUTOR_QUALIFICATIONS = gql`
     }
   }
 `;
+
+/**
+ * Complete the experience step and advance to offerings.
+ */
+export const COMPLETE_EXPERIENCE_STEP = gql`
+  mutation CompleteExperienceStep {
+    completeExperienceStep {
+      id
+      certificationStage
+    }
+  }
+`;

@@ -4,7 +4,8 @@ import { useQuery } from '@apollo/client';
 import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
 import { ONBOARDING_STEPS, normalizeCertificationStage } from '@tutorix/shared-utils';
 import { TutorAddressEntry } from './tutor-address-entry/TutorAddressEntry';
-import { TutorQualificationExperience } from './tutor-qualification-experience';
+import { TutorQualification } from './tutor-qualification';
+import { TutorExperience } from './tutor-experience';
 import { NavHeader } from '../NavHeader';
 
 function getInitials(name: string): string {
@@ -112,9 +113,17 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
         />
       );
     }
-    if (stepConfig.id === 'qualificationExperience') {
+    if (stepConfig.id === 'qualification') {
       return (
-        <TutorQualificationExperience
+        <TutorQualification
+          onComplete={handleStepComplete}
+          onBack={isFirstStep ? onBack : handleStepBack}
+        />
+      );
+    }
+    if (stepConfig.id === 'experience') {
+      return (
+        <TutorExperience
           onComplete={handleStepComplete}
           onBack={isFirstStep ? onBack : handleStepBack}
         />
@@ -133,9 +142,11 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
       ? "You're all set!"
       : stepConfig.id === 'address'
         ? 'Address Entry'
-        : stepConfig.id === 'qualificationExperience'
-          ? 'Qualifications & Experience'
-          : stepConfig.title;
+        : stepConfig.id === 'qualification'
+          ? 'Qualifications'
+          : stepConfig.id === 'experience'
+            ? 'Experience'
+            : stepConfig.title;
   const stepLabel =
     stepConfig.id === 'complete'
       ? undefined

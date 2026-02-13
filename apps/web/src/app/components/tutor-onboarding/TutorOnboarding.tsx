@@ -10,7 +10,8 @@ import {
 } from './types';
 import { OnboardingStepper } from './OnboardingStepper';
 import { TutorAddressEntry } from './tutor-address-entry';
-import { TutorQualificationExperience } from './tutor-qualification-experience';
+import { TutorQualification } from './tutor-qualification';
+import { TutorExperience } from './tutor-experience';
 import { TutorOfferings } from './tutor-offerings';
 import { TutorPT } from './tutor-pt';
 import { TutorRegistrationPayment } from './tutor-registration-payment';
@@ -27,7 +28,8 @@ type TutorOnboardingProps = {
 
 const STEP_COMPONENTS: Record<OnboardingStepId, React.FC<StepComponentProps>> = {
   address: TutorAddressEntry,
-  qualificationExperience: TutorQualificationExperience,
+  qualification: TutorQualification,
+  experience: TutorExperience,
   offerings: TutorOfferings,
   pt: TutorPT,
   registrationPayment: TutorRegistrationPayment,
