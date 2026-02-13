@@ -2,6 +2,7 @@ import { Entity, Column, OneToOne, JoinColumn, OneToMany } from 'typeorm';
 import { ObjectType, Field, Int } from '@nestjs/graphql';
 import { QBaseEntity } from '../../../common/base-entities/base.entity';
 import { TutorCertificationStageEnum } from '../enums/tutor.enums';
+import { YearsOfExperienceEnum } from '../enums/years-of-experience.enum';
 import { User } from '../../auth/entities/user.entity';
 import { AddressEntity } from '../../address/entities/address.entity';
 import { TutorQualificationEntity } from './tutor-qualification.entity';
@@ -36,6 +37,14 @@ export class Tutor extends QBaseEntity {
     default: TutorCertificationStageEnum.address,
   })
   certificationStage?: TutorCertificationStageEnum;
+
+  @Field(() => YearsOfExperienceEnum)
+  @Column({
+    type: 'smallint',
+    name: 'years_of_experience',
+    default: YearsOfExperienceEnum.ZERO_TO_TWO,
+  })
+  yearsOfExperience: YearsOfExperienceEnum;
 
   @Field()
   @Column({ default: false })
