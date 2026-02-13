@@ -9,6 +9,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { TutorModule } from './modules/tutor/tutor.module';
 import { AddressModule } from './modules/address/address.module';
 import { DocumentModule } from './modules/document/document.module';
+import { ExperienceModule } from './modules/experience/experience.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { DocumentModule } from './modules/document/document.module';
     TutorModule,
     AddressModule,
     DocumentModule,
+    ExperienceModule,
     // Add other modules here as they are created:
     // StudentModule,
     // ClassesModule,

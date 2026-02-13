@@ -5,6 +5,7 @@ import { DocumentTypeEnum } from '../enums/document-type.enum';
 import { DocumentForTypeEnum } from '../enums/document-for-type.enum';
 import { Tutor } from '../../tutor/entities/tutor.entity';
 import { User } from '../../auth/entities/user.entity';
+import { ExperienceEntity } from '../../experience/entities/experience.entity';
 
 /**
  * Single entity for a document and its file metadata.
@@ -58,6 +59,11 @@ export class DocumentEntity extends QBaseEntity {
   @ManyToOne(() => Tutor, (tutor) => tutor.documents, { nullable: true })
   @JoinColumn({ name: 'tutor_id' })
   tutor?: Tutor;
+
+  @Field(() => ExperienceEntity, { nullable: true })
+  @ManyToOne(() => ExperienceEntity, (exp) => exp.documents, { nullable: true })
+  @JoinColumn({ name: 'experience_id' })
+  experience?: ExperienceEntity;
 
   @Field(() => Int, { nullable: true })
   @Column({ name: 'user_id', type: 'integer', nullable: true })
