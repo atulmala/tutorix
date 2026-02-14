@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Tutor } from '../entities/tutor.entity';
 import { TutorCertificationStageEnum } from '../enums/tutor.enums';
+import { YearsOfExperienceEnum } from '../enums/years-of-experience.enum';
 
 @Injectable()
 export class TutorService {
@@ -101,6 +102,18 @@ export class TutorService {
   async updateOnboardingStatus(tutorId: number, onBoardingComplete: boolean): Promise<Tutor> {
     const tutor = await this.findOne(tutorId);
     tutor.onBoardingComplete = onBoardingComplete;
+    return this.tutorRepository.save(tutor);
+  }
+
+  /**
+   * Update years of experience for a tutor
+   */
+  async updateYearsOfExperience(
+    tutorId: number,
+    yearsOfExperience: YearsOfExperienceEnum,
+  ): Promise<Tutor> {
+    const tutor = await this.findOne(tutorId);
+    tutor.yearsOfExperience = yearsOfExperience;
     return this.tutorRepository.save(tutor);
   }
 

@@ -21,6 +21,25 @@ export const SAVE_TUTOR_QUALIFICATIONS = gql`
 `;
 
 /**
+ * Save tutor experiences (replaces all for the authenticated tutor).
+ * Also updates yearsOfExperience on tutor.
+ */
+export const SAVE_TUTOR_EXPERIENCES = gql`
+  mutation SaveTutorExperiences($input: SaveTutorExperiencesInput!) {
+    saveTutorExperiences(input: $input) {
+      id
+      jobTitle
+      employerName
+      employerAddress
+      employmentType
+      startDate
+      endDate
+      isCurrent
+    }
+  }
+`;
+
+/**
  * Complete the experience step and advance to offerings.
  */
 export const COMPLETE_EXPERIENCE_STEP = gql`
