@@ -585,7 +585,7 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
         )}
         <button
           type="submit"
-          disabled={!hasSuccessfullySaved || isSubmitting}
+          disabled={isSubmitting}
           className="h-11 rounded-lg bg-[#5fa8ff] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:bg-[#5fa8ff]/40"
         >
           {isSubmitting ? 'Saving...' : 'Continue'}
