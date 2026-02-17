@@ -45,7 +45,6 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
   const [formError, setFormError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [savingSectionIndex, setSavingSectionIndex] = useState<number | null>(null);
-  const [hasSuccessfullySaved, setHasSuccessfullySaved] = useState(false);
   const [savedQualificationTypes, setSavedQualificationTypes] = useState<Set<EducationalQualification>>(
     () => new Set()
   );
@@ -57,7 +56,6 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
   useEffect(() => {
     const list = profileData?.myTutorProfile?.qualifications;
     if (list?.length) {
-      setHasSuccessfullySaved(true);
       setSavedQualificationTypes(
         new Set(list.map((q: { qualificationType: string }) => q.qualificationType as EducationalQualification))
       );
@@ -327,7 +325,6 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
       },
     })
       .then(() => {
-        setHasSuccessfullySaved(true);
         const row = qualifications[index];
         if (row) {
           setSavedQualificationTypes((prev) => new Set(prev).add(row.qualificationType));
