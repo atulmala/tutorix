@@ -40,6 +40,17 @@ export const GET_MY_TUTOR_PROFILE = gql`
         fieldOfStudy
         displayOrder
       }
+      yearsOfExperience
+      experiences {
+        id
+        jobTitle
+        employerName
+        employerAddress
+        employmentType
+        startDate
+        endDate
+        isCurrent
+      }
     }
   }
 `;
