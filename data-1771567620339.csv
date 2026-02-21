@@ -1,0 +1,633 @@
+"id","name","display_name","level","display_order","medium_of_instruction","parent_offering_id","root_offering_id"
+1,"Language Learning","Language Learning",0,4,"1",NULL,NULL
+2,"English","English",1,1,"1",1,1
+14,"Ssc Cgl Tier Ii   English Comprehension","English Comprehension",3,220,"1",13,6
+4,"French","French",1,3,"1",1,1
+15,"Ssc Cgl Tier Ii   Quantitative Aptitude","Quantitative Aptitude",3,221,"1",13,6
+6,"Competitive Exam","Competitive Exam",0,2,"1",NULL,NULL
+16,"Ssc Cgl Tier Ii   Reasoning","Reasoning",3,222,"1",13,6
+17,"Ssc Cgl Tier Ii   General Awareness","General Awareness",3,223,"1",13,6
+234,"Ailet   English","English",3,248,"1",232,6
+58,"C2","C2",2,28,"1",52,1
+632,"Kindergarten Mathematics","Mathematics",3,2,"1",630,107
+18,"Accounts Professional","Accounts Professional",1,2,"1",6,6
+29,"Study Abroad","Study Abroad",0,3,"1",NULL,NULL
+31,"Ielts  Academic Reading","Ielts  Academic Reading",3,296,"1",30,29
+32,"Ietls  General Training Reading","Ietls  General Training Reading",3,297,"1",30,29
+33,"Ielts  Academic Writing","Ielts  Academic Writing",3,298,"1",30,29
+35,"Beginner","Beginner",2,1,"1",2,1
+36,"Intermediate","Intermediate",2,5,"1",2,1
+37,"Advanced","Advanced",2,8,"1",2,1
+38,"German","German",1,2,"1",1,1
+3,"A2  Elementary","A2  Elementary",2,18,"1",2,1
+8,"Ssc Tier I","SSC Tier I",2,1,"1",7,6
+13,"Ssc Tier Ii","SSC Tier II",2,2,"1",7,6
+19,"Ca Foundation","CA Foundation",2,3,"1",18,6
+24,"Acet","ACET",2,4,"1",18,6
+21,"Ca Foundation   General Economics","General Economics",3,225,"1",19,6
+22,"Ca Foundation   Mercantile Laws","Mercantile Laws",3,226,"1",19,6
+23,"Ca Foundation   Quantitative Aptitude","Quantitative Aptitude",3,227,"1",19,6
+25,"Acet   Data Interpretation","Data Interpretation",3,228,"1",24,6
+26,"Acet   English","English",3,229,"1",24,6
+27,"Acet   Logical Reasoning","Logical Reasoning",3,230,"1",24,6
+28,"Acet   Mathematics","Mathematics",3,231,"1",24,6
+30,"Ielts","IELTS",1,6,"1",29,29
+34,"Ielts  General Training Writing","General Training Writing",3,299,"1",30,29
+39,"A1  A1","A1",2,10,"1",38,1
+40,"A2  A2.1","A2.1",2,11,"1",38,1
+41,"A2  A2.2","A2.2",2,12,"1",38,1
+42,"B1  B1.1","B1.1",2,13,"1",38,1
+43,"B1  B1.2","B1.2",2,14,"1",38,1
+5,"Beginner","Beginner",2,1,"1",4,1
+9,"Ssc Cgl Tier I   English Comprehension","English Comprehension",3,216,"1",8,6
+12,"Ssc Cgl Tier I   Reasoning","Reasoning",3,219,"1",8,6
+11,"Ssc Cgl Tier I   Quantitative Aptitude","Quantitative Aptitude",3,218,"1",8,6
+10,"Ssc Cgl Tier I   General Awareness","General Awareness",3,217,"1",8,6
+235,"Ailet   General Knowledge","General Knowledge",3,249,"1",232,6
+57,"C1","C1",2,27,"1",52,1
+46,"A1  Beginner","A1  Beginner",2,17,"1",4,1
+47,"A2  Elementary","A2  Elementary",2,18,"1",4,1
+48,"B1  Intermediate","B1  Intermediate",2,19,"1",4,1
+49,"B2  Upper Intermediate","B2  Upper Intermediate",2,20,"1",4,1
+50,"C1  Advance","C1  Advance",2,21,"1",4,1
+51,"C2  Master Or Proficient","C2  Master Or Proficient",2,22,"1",4,1
+52,"Spanish","Spanish",1,4,"1",1,1
+53,"A1","A1",2,23,"1",52,1
+54,"A2","A2",2,24,"1",52,1
+56,"B2","B2",2,26,"1",52,1
+55,"B1","B1",2,25,"1",52,1
+59,"Russian","Russian",1,5,"1",1,1
+60,"A1  Elementary Level","A1  Elementary Level",2,29,"1",59,1
+61,"A2  Basic Level","A2  Basic Level",2,30,"1",59,1
+62,"B1  The First Certification Level","B1  The First Certification Level",2,31,"1",59,1
+63,"B2  The Second Level Certificate","B2  The Second Level Certificate",2,32,"1",59,1
+64,"C1  The Third Level Certificate","C1  The Third Level Certificate",2,33,"1",59,1
+65,"C2  The Fourth Level Certificate","C2  The Fourth Level Certificate",2,34,"1",59,1
+66,"Japanese","Japanese",1,6,"1",1,1
+67,"Lower Elementary","Lower Elementary",2,58,"1",66,1
+73,"Italian","Italian",1,7,"1",1,1
+74,"A1  Beginner Or Elementary","A1  Beginner Or Elementary",2,35,"1",73,1
+80,"Chinese","Chinese",1,8,"1",1,1
+45,"C1  C1","C1",2,16,"1",38,1
+81,"Hsk Level I","HSK Level I",2,46,"1",80,1
+83,"Hsk Level Iii","HSK Level III",2,48,"1",80,1
+82,"Hsk Level Ii","HSK Level II",2,47,"1",80,1
+84,"Hsk Level Iv","HSK Level IV",2,49,"1",80,1
+68,"Upper Elementary   Jlpt Level 4 Or N5","Upper Elementary JLPT Level 4 Or N5",2,59,"1",66,1
+69,"Lower Intermediate   Jlpt Level 3 Or N4","Lower Intermediate   JLPT Level 3 Or N4",2,60,"1",66,1
+70,"Upper Intermediate   Jlpt Level 2 Or N3   N2","Upper Intermediate JLPT Level 2 Or N3   N2",2,61,"1",66,1
+71,"Lower Advanced   Jlpt Level 1 Or N1","Lower Advanced JLPT Level 1 Or N1",2,62,"1",66,1
+72,"Upper Advanced     Jlpt Level 1 Or N1","Upper Advanced JLPT Level 1 Or N1",2,63,"1",66,1
+79,"C2  Master Or Proficient","C2  Master Or Proficient",2,22,"1",73,1
+78,"C1  Advance","C1  Advance",2,21,"1",73,1
+77,"B2  Upper Intermediate","B2  Upper Intermediate",2,20,"1",73,1
+76,"B1  Intermediate","B1  Intermediate",2,19,"1",73,1
+75,"A2  Elementary","A2  Elementary",2,18,"1",73,1
+87,"Arabic","Arabic",1,9,"1",1,1
+88,"Level 1 Elementary Arabic","Level 1 Elementary Arabic",2,38,"1",87,1
+136,"German","German",3,22,"1",111,107
+89,"Level 2 Intermediate Arabic","Level 2 Intermediate Arabic",2,40,"1",87,1
+90,"Level 3 High Intermediate Arabic","Level 3 High Intermediate Arabic",2,42,"1",87,1
+630,"Kindergarten","Kindergarten",2,13,"1",108,107
+92,"Hindi","Hindi",1,10,"1",1,1
+93,"Beginner","Beginner",2,1,"1",92,1
+94,"Intermediate","Intermediate",2,5,"1",92,1
+96,"Portuguese","Portuguese",1,11,"1",1,1
+103,"Sanskrit","Sanskrit",1,12,"1",1,1
+104,"Beginner","Beginner",2,1,"1",103,1
+105,"Intermediate","Intermediate",2,5,"1",103,1
+106,"Master Or Proficient","Master Or Proficient",2,37,"1",103,1
+107,"School Education","School Education",0,1,"1",NULL,NULL
+109,"Class 11","Class 11",2,11,"1",108,107
+110,"French","French",3,1,"1",109,107
+111,"Class 12","Class 12",2,12,"1",108,107
+112,"French","French",3,1,"1",111,107
+113,"Physical Education","Physical Education",3,2,"1",109,107
+114,"Physical Education","Physical Education",3,2,"1",111,107
+115,"Chinese","Chinese",3,3,"1",109,107
+116,"Chinese","Chinese",3,3,"1",111,107
+117,"Sanskrit","Sanskrit",3,4,"1",109,107
+118,"Sanskrit","Sanskrit",3,4,"1",111,107
+119,"Spanish","Spanish",3,5,"1",109,107
+120,"Spanish","Spanish",3,5,"1",111,107
+121,"Russian","Russian",3,6,"1",109,107
+122,"Russian","Russian",3,6,"1",111,107
+123,"Sociology","Sociology",3,7,"1",109,107
+124,"Sociology","Sociology",3,7,"1",111,107
+125,"Psychology","Psychology",3,8,"1",109,107
+126,"Psychology","Psychology",3,8,"1",111,107
+127,"Political Science","Political Science",3,9,"1",109,107
+128,"Political Science","Political Science",3,9,"1",111,107
+129,"Physics","Physics",3,19,"1",109,107
+99,"Level B1: Deple   Diploma Elementar De Portugues Lingua Estrangeira","Level B1: Deple   Diploma Elementar De Portugues Lingua Estrangeira",2,54,"1",96,1
+100,"Level B2: Diple   Diploma Intermedio De Portugues Lingua Estrangeira","Level B2: Diple   Diploma Intermedio De Portugues Lingua Estrangeira",2,55,"1",96,1
+101,"Level C1: Daple   Diploma Avancado De Portugues Lingua Estrangeira","Level C1: Daple   Diploma Avancado De Portugues Lingua Estrangeira",2,56,"1",96,1
+102,"Level C2: Duple   Diploma Universitario De Portugues Lingua Estrangeira","Level C2: Duple   Diploma Universitario De Portugues Lingua Estrangeira",2,57,"1",96,1
+97,"Level A1: Beginner","Level A1 Beginner",2,52,"1",96,1
+91,"Level 4 Advanced Arabic","Level 4 Advanced Arabic",2,44,"1",87,1
+95,"Advanced","Advanced",2,8,"1",92,1
+130,"Physics","Physics",3,19,"1",111,107
+131,"Mathematics","Mathematics",3,20,"1",109,107
+132,"Mathematics","Mathematics",3,20,"1",111,107
+133,"History","History",3,21,"1",109,107
+134,"History","History",3,21,"1",111,107
+135,"German","German",3,22,"1",109,107
+137,"Geography","Geography",3,23,"1",109,107
+138,"Geography","Geography",3,23,"1",111,107
+139,"English","English",3,24,"1",109,107
+140,"English","English",3,24,"1",111,107
+141,"Economics","Economics",3,25,"1",109,107
+142,"Economics","Economics",3,25,"1",111,107
+143,"Computer Science","Computer Science",3,26,"1",109,107
+144,"Computer Science","Computer Science",3,26,"1",111,107
+145,"Civics","Civics",3,27,"1",109,107
+146,"Civics","Civics",3,27,"1",111,107
+147,"Chemistry","Chemistry",3,28,"1",109,107
+148,"Chemistry","Chemistry",3,28,"1",111,107
+149,"Biology","Biology",3,31,"1",109,107
+150,"Biology","Biology",3,31,"1",111,107
+151,"Accountancy","Accountancy",3,32,"1",109,107
+152,"Accountancy","Accountancy",3,32,"1",111,107
+153,"Icse","ICSE",1,2,"1",107,107
+154,"Class 6","Class 6",2,18,"1",153,107
+155,"Chemistry","Chemistry",3,103,"1",154,107
+156,"Class 7","Class 7",2,19,"1",153,107
+157,"Chemistry","Chemistry",3,103,"1",156,107
+158,"Class 8","Class 8",2,20,"1",153,107
+159,"Chemistry","Chemistry",3,103,"1",158,107
+160,"Biology","Biology",3,106,"1",154,107
+161,"Biology","Biology",3,106,"1",156,107
+162,"Biology","Biology",3,106,"1",158,107
+163,"Class 1","Class 1",2,13,"1",153,107
+164,"General Science","General Science",3,107,"1",163,107
+165,"Class 2","Class 2",2,14,"1",153,107
+166,"General Science","General Science",3,107,"1",165,107
+167,"Class 3","Class 3",2,15,"1",153,107
+168,"General Science","General Science",3,107,"1",167,107
+169,"Class 4","Class 4",2,16,"1",153,107
+170,"General Science","General Science",3,107,"1",169,107
+171,"Class 5","Class 5",2,17,"1",153,107
+172,"General Science","General Science",3,107,"1",171,107
+173,"Social Studies","Social Studies",3,108,"1",163,107
+174,"Social Studies","Social Studies",3,108,"1",165,107
+175,"Social Studies","Social Studies",3,108,"1",167,107
+176,"Social Studies","Social Studies",3,108,"1",169,107
+177,"Social Studies","Social Studies",3,108,"1",171,107
+178,"Hindi","Hindi",3,109,"1",163,107
+179,"Hindi","Hindi",3,109,"1",165,107
+180,"Hindi","Hindi",3,109,"1",167,107
+181,"Hindi","Hindi",3,109,"1",169,107
+182,"Hindi","Hindi",3,109,"1",171,107
+183,"Mathematics","Mathematics",3,110,"1",163,107
+184,"Mathematics","Mathematics",3,110,"1",165,107
+185,"Mathematics","Mathematics",3,110,"1",167,107
+186,"Mathematics","Mathematics",3,110,"1",169,107
+187,"Mathematics","Mathematics",3,110,"1",171,107
+188,"English","English",3,111,"1",163,107
+189,"English","English",3,111,"1",165,107
+190,"English","English",3,111,"1",167,107
+191,"English","English",3,111,"1",169,107
+192,"English","English",3,111,"1",171,107
+193,"Class 6","Class 6",2,6,"1",108,107
+194,"History","History",3,112,"1",193,107
+195,"Class 7","Class 7",2,7,"1",108,107
+196,"History","History",3,112,"1",195,107
+197,"Class 8","Class 8",2,8,"1",108,107
+198,"History","History",3,112,"1",197,107
+199,"Punjabi","Punjabi",1,13,"1",1,1
+200,"Beginner","Beginner",2,1,"1",199,1
+227,"Clat   Elementary Mathematics","Elementary Mathematics",3,242,"1",226,6
+228,"Clat   English Comprehension","English Comprehension",3,243,"1",226,6
+203,"Intermediate","Intermediate",2,5,"1",199,1
+204,"Advanced","Advanced",2,8,"1",199,1
+229,"Clat   Legal Reasoning","Legal Reasoning",3,244,"1",226,6
+230,"Clat   Logical Reasoning","Logical Reasoning",3,245,"1",226,6
+231,"Clat Gk   Current Affairs","Current Affairs",3,246,"1",226,6
+233,"Ailet   Reasoning","Reasoning",3,247,"1",232,6
+631,"Kindergarten English","English",3,1,"1",630,107
+211,"Medical Entrance","Medical Entrance",1,3,"1",6,6
+220,"Engineering Entrance","Engineering Entrance",1,4,"1",6,6
+225,"Law Entrance","Law Entrance",1,5,"1",6,6
+210,"Acet   Statistics","Statistics",3,232,"1",24,6
+212,"Neet   Aipmt","NEET",2,5,"1",211,6
+216,"Aiims","AIIMS",2,6,"1",211,6
+213,"Neet (aipmt)   Biology","Biology",3,233,"1",212,6
+214,"Neet (aipmt)   Chemistry","Chemistry",3,234,"1",212,6
+215,"Neet (aipmt)   Physics","Physics",3,235,"1",212,6
+217,"Aiims   Biology","Biology",3,236,"1",216,6
+218,"Aiims   Chemistry","Chemistry",3,237,"1",216,6
+219,"Aiims   Physics","Physics",3,238,"1",216,6
+222,"Jee   Chemistry","Chemistry",3,239,"1",221,6
+223,"Jee   Mathematics","Mathematics",3,240,"1",221,6
+224,"Jee   Physics","Physics",3,241,"1",221,6
+221,"Jee Main & Advanced","JEE Main & Advanced",2,7,"1",220,6
+226,"Clat","CLAT",2,8,"1",225,6
+232,"Ailet","AILET",2,9,"1",225,6
+201,"Gre","GRE",1,4,"1",29,29
+206,"Gmat","GMAT",1,5,"1",29,29
+202,"Gre  Physics","Physics",3,500,"1",201,29
+207,"Gmat   Integrated Reasoning","Integrated Reasoning",3,200,"1",206,29
+208,"Gmat   Quantitative","Quantitative",3,201,"1",206,29
+205,"C2   C2","C2",2,65,"1",38,1
+238,"Upsc   Government Exams","Upsc   Government Exams",1,6,"1",6,6
+239,"Preliminary Examination","Preliminary Examination",2,15,"1",238,6
+240,"General Studies Paper   I","General Studies Paper   I",3,252,"1",239,6
+241,"General Studies Paper   Ii","General Studies Paper   Ii",3,253,"1",239,6
+242,"Ibps   Institute Of Banking Personnel Selection","Ibps   Institute Of Banking Personnel Selection",1,7,"1",6,6
+243,"Ibps Po Prelims","Ibps Po Prelims",2,16,"1",242,6
+244,"Ibps Po Prelims English Language","Ibps Po Prelims English Language",3,254,"1",243,6
+245,"Ibps Po Prelims Quantitative Aptitude","Ibps Po Prelims Quantitative Aptitude",3,255,"1",243,6
+246,"Ibps Po Prelims Reasoning","Ibps Po Prelims Reasoning",3,256,"1",243,6
+247,"Ibps Po Main Exam","Ibps Po Main Exam",2,17,"1",242,6
+248,"Ibps Po Main Reasoning & Comp Sci","Ibps Po Main Reasoning & Comp Sci",3,257,"1",247,6
+249,"Ibps Po Main English Language","Ibps Po Main English Language",3,258,"1",247,6
+250,"Ibps Po Main General Economy","Ibps Po Main General Economy",3,259,"1",247,6
+251,"Ibps Po Main Banking Awareness","Ibps Po Main Banking Awareness",3,260,"1",247,6
+252,"Ibps Clerk Exam   Preliminary","Ibps Clerk Exam   Preliminary",2,18,"1",242,6
+253,"Ibps Clerk Exam Preliminary   English Language","Ibps Clerk Exam Preliminary   English Language",3,261,"1",252,6
+254,"Ibps Clerk Exam Preliminary   Numerical Ability","Ibps Clerk Exam Preliminary   Numerical Ability",3,262,"1",252,6
+255,"Ibps Clerk Exam Preliminary   Reasoning Ability","Ibps Clerk Exam Preliminary   Reasoning Ability",3,263,"1",252,6
+256,"Ibps Clerk Exam   Main","Ibps Clerk Exam   Main",2,19,"1",242,6
+257,"Ibps Clerk Exam Main   Reasoning Ability & Comp Aptitude","Ibps Clerk Exam Main   Reasoning Ability & Comp Aptitude",3,264,"1",256,6
+258,"Ibps Clerk Exam Main   English Language","Ibps Clerk Exam Main   English Language",3,265,"1",256,6
+259,"Ibps Clerk Exam Main   Quantitative Aptitude","Ibps Clerk Exam Main   Quantitative Aptitude",3,266,"1",256,6
+260,"Ibps Clerk Exam Main   General / Financial Awareness","Ibps Clerk Exam Main   General / Financial Awareness",3,267,"1",256,6
+261,"Ibps So Prelims   All Posts","Ibps So Prelims   All Posts",2,20,"1",242,6
+262,"Ibps So Prelims English Language","Ibps So Prelims English Language",3,268,"1",261,6
+263,"Ibps So Prelims Reasoning","Ibps So Prelims Reasoning",3,269,"1",261,6
+264,"Ibps So Main   Other Posts","Ibps So Main   Other Posts",2,21,"1",242,6
+265,"Ibps So Main Other Post Knowledge   Objective","Ibps So Main Other Post Knowledge   Objective",3,270,"1",264,6
+266,"Ibps So Main   Rajbhasha Adhikari Post","Ibps So Main   Rajbhasha Adhikari Post",2,22,"1",242,6
+267,"Ibps So Main Rajbhasha Adhikari Professional Knowledge   Objective","Ibps So Main Rajbhasha Adhikari Professional Knowledge   Objective",3,271,"1",266,6
+268,"Ibps So Main Rajbhasha Adhikari Professional Knowledge   Descriptive","Ibps So Main Rajbhasha Adhikari Professional Knowledge   Descriptive",3,272,"1",266,6
+269,"Ibps So Prelims   Rajbhasha Adhikari & Law Officer","Ibps So Prelims   Rajbhasha Adhikari & Law Officer",2,23,"1",242,6
+369,"Evs","EVS",3,57,"1",356,107
+237,"Ailet   Mathematics","Mathematics",3,251,"1",232,6
+236,"Ailet   Legal Aptitude","Legal Aptitude",3,250,"1",232,6
+270,"Ibps So Prelims General Awareness","Ibps So Prelims General Awareness",3,273,"1",269,6
+271,"Ibps So Prelims   It/agriculture/hr/marketing Officer","Ibps So Prelims   It/agriculture/hr/marketing Officer",2,24,"1",242,6
+272,"Ibps So Prelims Quantitative Aptitude","Ibps So Prelims Quantitative Aptitude",3,274,"1",271,6
+297,"Business Studies","Business Studies",3,30,"1",109,107
+298,"Business Studies","Business Studies",3,30,"1",111,107
+299,"Class 9","Class 9",2,9,"1",108,107
+300,"Russian","Russian",3,33,"1",299,107
+301,"Class 10","Class 10",2,10,"1",108,107
+302,"Russian","Russian",3,33,"1",301,107
+303,"German","German",3,34,"1",299,107
+304,"German","German",3,34,"1",301,107
+305,"Sanskrit","Sanskrit",3,35,"1",299,107
+306,"Sanskrit","Sanskrit",3,35,"1",301,107
+307,"Economics","Economics",3,36,"1",299,107
+308,"Economics","Economics",3,36,"1",301,107
+309,"Spanish","Spanish",3,37,"1",299,107
+310,"Spanish","Spanish",3,37,"1",301,107
+311,"Physics","Physics",3,38,"1",299,107
+312,"Physics","Physics",3,38,"1",301,107
+313,"Mathematics","Mathematics",3,39,"1",299,107
+314,"Mathematics","Mathematics",3,39,"1",301,107
+315,"History","History",3,40,"1",299,107
+276,"Sat   I","SAT I",1,2,"1",29,29
+279,"Sat   Ii","SAT II",1,3,"1",29,29
+275,"Psat   Mathematics","Mathematics",3,276,"1",273,29
+277,"Sat 1   English","English",3,277,"1",276,29
+278,"Sat 1   Mathematics","Mathematics",3,278,"1",276,29
+280,"Sat 2   Biology","Biology",3,279,"1",279,29
+281,"Sat 2   Chemistry","Chemistry",3,280,"1",279,29
+282,"Sat 2   French","French",3,281,"1",279,29
+283,"Sat 2   Mathematics Level 1","Mathematics Level 1",3,282,"1",279,29
+284,"Sat 2   Mathematics Level 2","Mathematics Level 2",3,283,"1",279,29
+285,"Sat 2   Spanish","Spanish",3,284,"1",279,29
+286,"Sat 2   Us History","US History",3,285,"1",279,29
+287,"Sat 2   World History","World History",3,286,"1",279,29
+288,"Sat 2  Physics","Physics",3,287,"1",279,29
+289,"Gre   Biology","Biology",3,288,"1",201,29
+290,"Gre   English","English",3,289,"1",201,29
+291,"Gre   Psychology","Psychology",3,290,"1",201,29
+292,"Gre  Chemistry","Chemistry",3,291,"1",201,29
+293,"Gre   Biochemistry","Biochemistry",3,292,"1",201,29
+294,"Gre   Mathematics","Mathematics",3,293,"1",201,29
+295,"Gre   Quantitative Reasoning","Quantitative Reasoning",3,294,"1",201,29
+296,"Gmat   English Verbal","English Verbal",3,295,"1",206,29
+316,"History","History",3,40,"1",301,107
+317,"Hindi","Hindi",3,41,"1",299,107
+318,"Hindi","Hindi",3,41,"1",301,107
+319,"Geography","Geography",3,42,"1",299,107
+320,"Geography","Geography",3,42,"1",301,107
+321,"French","French",3,43,"1",299,107
+322,"French","French",3,43,"1",301,107
+323,"English","English",3,44,"1",299,107
+324,"English","English",3,44,"1",301,107
+325,"Civics","Civics",3,45,"1",299,107
+326,"Civics","Civics",3,45,"1",301,107
+327,"Chemistry","Chemistry",3,46,"1",299,107
+328,"Chemistry","Chemistry",3,46,"1",301,107
+329,"Biology","Biology",3,47,"1",299,107
+330,"Biology","Biology",3,47,"1",301,107
+331,"Sanskrit","Sanskrit",3,48,"1",193,107
+332,"Sanskrit","Sanskrit",3,48,"1",195,107
+333,"Sanskrit","Sanskrit",3,48,"1",197,107
+334,"Science","Science",3,49,"1",193,107
+335,"Science","Science",3,49,"1",195,107
+336,"Science","Science",3,49,"1",197,107
+337,"Mathematics","Mathematics",3,50,"1",193,107
+338,"Mathematics","Mathematics",3,50,"1",195,107
+339,"Mathematics","Mathematics",3,50,"1",197,107
+340,"Hindi","Hindi",3,51,"1",193,107
+341,"Hindi","Hindi",3,51,"1",195,107
+342,"Hindi","Hindi",3,51,"1",197,107
+343,"Geography","Geography",3,52,"1",193,107
+344,"Geography","Geography",3,52,"1",195,107
+345,"Geography","Geography",3,52,"1",197,107
+346,"English","English",3,53,"1",193,107
+347,"English","English",3,53,"1",195,107
+348,"English","English",3,53,"1",197,107
+349,"Civics","Civics",3,54,"1",193,107
+350,"Civics","Civics",3,54,"1",195,107
+351,"Civics","Civics",3,54,"1",197,107
+352,"Class 2","Class 2",2,2,"1",108,107
+353,"Mathematics","Mathematics",3,55,"1",352,107
+354,"Class 3","Class 3",2,3,"1",108,107
+355,"Mathematics","Mathematics",3,55,"1",354,107
+356,"Class 4","Class 4",2,4,"1",108,107
+357,"Mathematics","Mathematics",3,55,"1",356,107
+358,"Class 5","Class 5",2,5,"1",108,107
+359,"Mathematics","Mathematics",3,55,"1",358,107
+361,"Mathematics","Mathematics",3,55,"1",360,107
+362,"Hindi","Hindi",3,56,"1",352,107
+363,"Hindi","Hindi",3,56,"1",354,107
+364,"Hindi","Hindi",3,56,"1",356,107
+365,"Hindi","Hindi",3,56,"1",358,107
+366,"Hindi","Hindi",3,56,"1",360,107
+372,"English","English",3,58,"1",352,107
+371,"Evs","EVS",3,57,"1",360,107
+367,"Evs","EVS",3,57,"1",352,107
+373,"English","English",3,58,"1",354,107
+374,"English","English",3,58,"1",356,107
+375,"English","English",3,58,"1",358,107
+376,"English","English",3,58,"1",360,107
+377,"Class 11","Class 11",2,23,"1",153,107
+379,"Class 12","Class 12",2,24,"1",153,107
+381,"History & Civics","History & Civics",3,60,"1",377,107
+382,"History & Civics","History & Civics",3,60,"1",379,107
+383,"Computer Science","Computer Science",3,61,"1",377,107
+384,"Computer Science","Computer Science",3,61,"1",379,107
+385,"Sociology","Sociology",3,62,"1",377,107
+386,"Sociology","Sociology",3,62,"1",379,107
+387,"Psychology","Psychology",3,63,"1",377,107
+388,"Psychology","Psychology",3,63,"1",379,107
+389,"Political Science","Political Science",3,64,"1",377,107
+390,"Political Science","Political Science",3,64,"1",379,107
+391,"Physics","Physics",3,65,"1",377,107
+392,"Physics","Physics",3,65,"1",379,107
+393,"Mathematics","Mathematics",3,66,"1",377,107
+394,"Mathematics","Mathematics",3,66,"1",379,107
+378,"Arabic","Arabic",3,59,"1",377,107
+380,"Arabic","Arabic",3,59,"1",379,107
+397,"Geography","Geography",3,68,"1",377,107
+398,"Geography","Geography",3,68,"1",379,107
+399,"English","English",3,69,"1",377,107
+400,"English","English",3,69,"1",379,107
+401,"Economics","Economics",3,70,"1",377,107
+402,"Economics","Economics",3,70,"1",379,107
+403,"Chemistry","Chemistry",3,72,"1",377,107
+404,"Chemistry","Chemistry",3,72,"1",379,107
+405,"Business Studies","Business Studies",3,73,"1",377,107
+406,"Business Studies","Business Studies",3,73,"1",379,107
+407,"Biology","Biology",3,75,"1",377,107
+408,"Biology","Biology",3,75,"1",379,107
+409,"Accountancy","Accountancy",3,76,"1",377,107
+410,"Accountancy","Accountancy",3,76,"1",379,107
+411,"Class 9","Class 9",2,21,"1",153,107
+412,"History & Civics","History & Civics",3,77,"1",411,107
+413,"Class 10","Class 10",2,22,"1",153,107
+414,"History & Civics","History & Civics",3,77,"1",413,107
+415,"Hindi","Hindi",3,78,"1",411,107
+416,"Hindi","Hindi",3,78,"1",413,107
+417,"Sociology","Sociology",3,79,"1",411,107
+418,"Sociology","Sociology",3,79,"1",413,107
+419,"Psychology","Psychology",3,80,"1",411,107
+420,"Psychology","Psychology",3,80,"1",413,107
+421,"Political Science","Political Science",3,81,"1",411,107
+422,"Political Science","Political Science",3,81,"1",413,107
+423,"Physics","Physics",3,82,"1",411,107
+424,"Physics","Physics",3,82,"1",413,107
+425,"Mathematics","Mathematics",3,83,"1",411,107
+396,"History","History",3,67,"1",379,107
+426,"Mathematics","Mathematics",3,83,"1",413,107
+429,"Geography","Geography",3,85,"1",411,107
+430,"Geography","Geography",3,85,"1",413,107
+431,"English","English",3,87,"1",411,107
+432,"English","English",3,87,"1",413,107
+433,"Economics","Economics",3,88,"1",411,107
+434,"Economics","Economics",3,88,"1",413,107
+435,"Computer Science","Computer Science",3,89,"1",411,107
+436,"Computer Science","Computer Science",3,89,"1",413,107
+439,"Chemistry","Chemistry",3,91,"1",411,107
+440,"Chemistry","Chemistry",3,91,"1",413,107
+441,"Biology","Biology",3,92,"1",411,107
+442,"Biology","Biology",3,92,"1",413,107
+443,"Sanskrit","Sanskrit",3,95,"1",154,107
+444,"Sanskrit","Sanskrit",3,95,"1",156,107
+445,"Sanskrit","Sanskrit",3,95,"1",158,107
+446,"History & Civics","History & Civics",3,96,"1",154,107
+496,"Sanskrit","Sanskrit",3,543,"1",379,107
+447,"History & Civics","History & Civics",3,96,"1",156,107
+448,"History & Civics","History & Civics",3,96,"1",158,107
+449,"Physics","Physics",3,97,"1",154,107
+450,"Physics","Physics",3,97,"1",156,107
+451,"Physics","Physics",3,97,"1",158,107
+452,"Mathematics","Mathematics",3,98,"1",154,107
+453,"Mathematics","Mathematics",3,98,"1",156,107
+454,"Mathematics","Mathematics",3,98,"1",158,107
+455,"Hindi","Hindi",3,99,"1",154,107
+456,"Hindi","Hindi",3,99,"1",156,107
+457,"Hindi","Hindi",3,99,"1",158,107
+458,"Geography","Geography",3,100,"1",154,107
+459,"Geography","Geography",3,100,"1",156,107
+460,"Geography","Geography",3,100,"1",158,107
+461,"English","English",3,101,"1",154,107
+462,"English","English",3,101,"1",156,107
+463,"English","English",3,101,"1",158,107
+467,"Ib","IB",1,3,"1",107,107
+468,"Myp Ap","Myp Ap",2,25,"1",467,107
+469,"Economics_ap_micro Economics","Economics_ap_micro Economics",3,444,"1",468,107
+470,"Myp Ix","Myp Ix",2,88,"1",467,107
+471,"Economics_ap_micro Economics","Economics_ap_micro Economics",3,444,"1",470,107
+472,"Myp X","Myp X",2,89,"1",467,107
+473,"Economics_ap_micro Economics","Economics_ap_micro Economics",3,444,"1",472,107
+475,"Ap_micro Economics","Ap_micro Economics",3,501,"1",474,29
+476,"Ap_macro Economics","Ap_macro Economics",3,502,"1",474,29
+478,"Constitution Of India","Constitution Of India",3,550,"1",477,6
+427,"History","History",3,84,"1",411,107
+437,"Civics","Civics",3,90,"1",411,107
+428,"History","History",3,84,"1",413,107
+438,"Civics","Civics",3,90,"1",413,107
+477,"Judiciary Services","Judiciary Services",2,26,"1",225,6
+474,"Ap","AP",1,7,"1",29,29
+479,"Code Of Criminal Procedure","Code Of Criminal Procedure",3,551,"1",477,6
+480,"Code Of Civil Procedure","Code Of Civil Procedure",3,552,"1",477,6
+481,"Indian Penal Code","Indian Penal Code",3,553,"1",477,6
+482,"Indian Evidence Act","Indian Evidence Act",3,554,"1",477,6
+483,"Indian Contract Act","Indian Contract Act",3,555,"1",477,6
+484,"Transfer Of Property Act","Transfer Of Property Act",3,556,"1",477,6
+485,"Muslim Law","Muslim Law",3,557,"1",477,6
+486,"Hindu Laws","Hindu Laws",3,558,"1",477,6
+487,"Indian Partnership Act","Indian Partnership Act",3,559,"1",477,6
+488,"Specific Relief Act","Specific Relief Act",3,560,"1",477,6
+489,"Limitation Act","Limitation Act",3,561,"1",477,6
+490,"Indian Arbitration Act","Indian Arbitration Act",3,562,"1",477,6
+491,"Sale Of Goods Act","Sale Of Goods Act",3,563,"1",477,6
+492,"Law Of Torts","Law Of Torts",3,564,"1",477,6
+493,"English","English",3,566,"1",477,6
+494,"General Knowledge","General Knowledge",3,567,"1",477,6
+495,"Sanskrit","Sanskrit",3,543,"1",377,107
+520,"Ks 4_ Cambridge Ice","Ks 4_ Cambridge Ice",2,72,"1",515,107
+498,"Biology","Biology",3,601,"1",497,107
+522,"Year 6","Year 6",2,66,"1",515,107
+524,"Year 7","Year 7",2,68,"1",515,107
+526,"Year 8","Year 8",2,69,"1",515,107
+503,"Physics 1 Algebra","Physics 1 Algebra",3,602,"1",497,107
+504,"Physics 2 Algebra","Physics 2 Algebra",3,603,"1",497,107
+506,"Physics C Electricity And Magnetism Practice","Physics C Electricity And Magnetism Practice",3,605,"1",497,107
+507,"Calculus Ab","Calculus Ab",3,606,"1",497,107
+508,"Calculus Bc","Calculus Bc",3,607,"1",497,107
+509,"Chemistry","Chemistry",3,608,"1",497,107
+511,"Macro Economics","Macro Economics",3,610,"1",497,107
+512,"Micro Economics","Micro Economics",3,611,"1",497,107
+513,"Psychology","Psychology",3,612,"1",497,107
+514,"Statistics","Statistics",3,613,"1",497,107
+515,"Igcse","IGCSE",1,5,"1",107,107
+516,"Year 9","Year 9",2,70,"1",515,107
+517,"Economics","Economics",3,614,"1",516,107
+518,"Year 10","Year 10",2,71,"1",515,107
+519,"Economics","Economics",3,614,"1",518,107
+521,"Economics","Economics",3,614,"1",520,107
+523,"Mathematics","Mathematics",3,655,"1",522,107
+525,"Mathematics","Mathematics",3,655,"1",524,107
+527,"Mathematics","Mathematics",3,655,"1",526,107
+505,"Physics C Mechanics","Physics C Mechanics",3,604,"1",497,107
+510,"Computer Science A","Computer Science A",3,609,"1",497,107
+499,"Viteee","VITEEE",2,27,"1",220,6
+500,"Viteee   Chemistry","Chemistry",3,578,"1",499,6
+501,"Viteee   Mathematics","Mathematics",3,579,"1",499,6
+502,"Viteee   Physics","Physics",3,580,"1",499,6
+528,"Science","Science",3,656,"1",522,107
+529,"Science","Science",3,656,"1",524,107
+530,"Science","Science",3,656,"1",526,107
+531,"English Language","English Language",3,657,"1",516,107
+532,"English Language","English Language",3,657,"1",518,107
+533,"English Language","English Language",3,657,"1",520,107
+534,"English Literature","English Literature",3,678,"1",516,107
+535,"English Literature","English Literature",3,678,"1",518,107
+536,"English Literature","English Literature",3,678,"1",520,107
+537,"History","History",3,679,"1",516,107
+538,"History","History",3,679,"1",518,107
+539,"History","History",3,679,"1",520,107
+540,"Geography","Geography",3,680,"1",516,107
+541,"Geography","Geography",3,680,"1",518,107
+542,"Geography","Geography",3,680,"1",520,107
+543,"Accounts","Accounts",3,681,"1",516,107
+544,"Accounts","Accounts",3,681,"1",518,107
+545,"Accounts","Accounts",3,681,"1",520,107
+546,"Biology","Biology",3,682,"1",516,107
+547,"Biology","Biology",3,682,"1",518,107
+548,"Biology","Biology",3,682,"1",520,107
+549,"Business Studies","Business Studies",3,683,"1",516,107
+550,"Business Studies","Business Studies",3,683,"1",518,107
+551,"Business Studies","Business Studies",3,683,"1",520,107
+552,"Chemistry","Chemistry",3,684,"1",516,107
+553,"Chemistry","Chemistry",3,684,"1",518,107
+554,"Chemistry","Chemistry",3,684,"1",520,107
+555,"Physics","Physics",3,685,"1",516,107
+556,"Physics","Physics",3,685,"1",518,107
+557,"Physics","Physics",3,685,"1",520,107
+558,"Mathematics","Mathematics",3,686,"1",516,107
+559,"Mathematics","Mathematics",3,686,"1",518,107
+560,"Mathematics","Mathematics",3,686,"1",520,107
+561,"Year 11","Year 11",2,73,"1",515,107
+562,"Business Studies","Business Studies",3,687,"1",561,107
+563,"Year 12","Year 12",2,74,"1",515,107
+564,"Business Studies","Business Studies",3,687,"1",563,107
+566,"Business Studies","Business Studies",3,687,"1",565,107
+567,"Tamil","Tamil",1,14,"1",1,1
+568,"Beginner","Beginner",2,1,"1",567,1
+569,"Kannada","Kannada",1,15,"1",1,1
+570,"Beginner","Beginner",2,1,"1",569,1
+571,"Intermediate","Intermediate",2,5,"1",569,1
+572,"Advanced","Advanced",2,8,"1",569,1
+573,"Intermediate","Intermediate",2,5,"1",567,1
+574,"Accountancy","Accountancy",3,688,"1",561,107
+575,"Accountancy","Accountancy",3,688,"1",563,107
+576,"Accountancy","Accountancy",3,688,"1",565,107
+577,"Advanced","Advanced",2,8,"1",567,1
+578,"Biology","Biology",3,689,"1",561,107
+579,"Biology","Biology",3,689,"1",563,107
+580,"Biology","Biology",3,689,"1",565,107
+581,"Geography","Geography",3,690,"1",561,107
+582,"Geography","Geography",3,690,"1",563,107
+583,"Geography","Geography",3,690,"1",565,107
+584,"Economics","Economics",3,691,"1",561,107
+585,"Economics","Economics",3,691,"1",563,107
+586,"Economics","Economics",3,691,"1",565,107
+587,"Chemistry","Chemistry",3,692,"1",561,107
+588,"Chemistry","Chemistry",3,692,"1",563,107
+589,"Chemistry","Chemistry",3,692,"1",565,107
+590,"Mathematics","Mathematics",3,693,"1",561,107
+591,"Mathematics","Mathematics",3,693,"1",563,107
+592,"Mathematics","Mathematics",3,693,"1",565,107
+593,"Urdu","Urdu",1,17,"1",1,1
+594,"Elementary","Elementary",2,2,"1",593,1
+595,"Intermediate","Intermediate",2,5,"1",593,1
+596,"Pyp I","Pyp I",2,80,"1",467,107
+597,"Language English","Language English",3,694,"1",596,107
+598,"Pyp Ii","Pyp Ii",2,81,"1",467,107
+599,"Language English","Language English",3,694,"1",598,107
+600,"Pyp Iii","Pyp Iii",2,82,"1",467,107
+601,"Language English","Language English",3,694,"1",600,107
+602,"Pyp Iv","Pyp Iv",2,83,"1",467,107
+603,"Language English","Language English",3,694,"1",602,107
+605,"Language English","Language English",3,694,"1",604,107
+606,"Mathematics","Mathematics",3,695,"1",596,107
+607,"Mathematics","Mathematics",3,695,"1",598,107
+608,"Mathematics","Mathematics",3,695,"1",600,107
+609,"Mathematics","Mathematics",3,695,"1",602,107
+610,"Mathematics","Mathematics",3,695,"1",604,107
+611,"Advanced","Advanced",2,8,"1",593,1
+613,"Mathematics","Mathematics",3,696,"1",612,107
+615,"Mathematics","Mathematics",3,696,"1",614,107
+617,"Mathematics","Mathematics",3,696,"1",616,107
+618,"Algebra","Algebra",3,697,"1",468,107
+619,"Algebra","Algebra",3,697,"1",470,107
+620,"Algebra","Algebra",3,697,"1",472,107
+621,"Marathi","Marathi",1,18,"1",1,1
+622,"Beginner","Beginner",2,1,"1",621,1
+623,"Intermediate","Intermediate",2,5,"1",621,1
+624,"Advanced","Advanced",2,8,"1",621,1
+626,"Beginner","Beginner",2,1,"1",625,1
+604,"Pyp V","Pyp V",2,84,"1",467,107
+612,"Year Vi","Year 6",2,85,"1",467,107
+614,"Year Vii","Year 7",2,86,"1",467,107
+616,"Year Viii","Year 8",2,87,"1",467,107
+497,"The Advanced Placement Program","The Advanced Placement Program",2,98,"1",467,107
+360,"Class 1","Class 1",2,1,"1",108,107
+368,"Evs","EVS",3,57,"1",354,107
+108,"Cbse","CBSE",1,1,"1",107,107
+625,"Telagu","Telugu",1,19,"1",1,1
+370,"Evs","EVS",3,57,"1",358,107
+464,"Civics","Civics",3,102,"1",154,107
+465,"Civics","Civics",3,102,"1",156,107
+466,"Civics","Civics",3,102,"1",158,107
+395,"History","History",3,67,"1",377,107
+7,"Ssc   Government Exams","SSC Government Exams",1,1,"1",6,6
+209,"Ce Ssc   Government Exams Ssc Tier 1","Ce Ssc   Government Exams Ssc Tier 1",3,14,"1",8,6
+565,"Cambridge Aice Diploma","Cambridge Aice Diploma",2,75,"1",515,107
+20,"Ca Foundation   Fundamentals Of Accounting","Fundamentals Of Accounting",3,224,"1",19,6
+273,"Psat","PSAT",1,1,"1",29,29
+274,"Psat   English","English",3,275,"1",273,29
+44,"B2  B2","B2",2,15,"1",38,1
+85,"Hsk Level V","Hsk Level V",2,50,"1",80,1
+86,"Hsk Level Vi","Hsk Level Vi",2,51,"1",80,1
+98,"Level A2: Ciple   Certificado Inicial De Portugues Lingua Estrangeira","Level A2: Ciple   Certificado Inicial De Portugues Lingua Estrangeira",2,53,"1",96,1
+627,"Bengali","Bengali",1,122,"4",1,1
+628,"Intermediate ","Intermediate",2,2,"6",625,1
+629,"Intermediate","Intermediate Test",2,3,"6",625,1
