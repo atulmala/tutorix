@@ -12,6 +12,7 @@ import { AddressEntity } from '../modules/address/entities/address.entity';
 import { TutorQualificationEntity } from '../modules/tutor/entities/tutor-qualification.entity';
 import { DocumentEntity } from '../modules/document/entities/document.entity';
 import { ExperienceEntity } from '../modules/experience/entities/experience.entity';
+import { OfferingEntity } from '../modules/offerings/entities/offering.entity';
 import { Example } from '../entities/example.entity';
 // Add other entities as they are created
 
@@ -42,6 +43,7 @@ export function createDatabaseOptions(
       TutorQualificationEntity,
       DocumentEntity,
       ExperienceEntity,
+      OfferingEntity,
       Example, // Remove this when you no longer need the example entity
       // Add other entities here as they are created
       // Student,
