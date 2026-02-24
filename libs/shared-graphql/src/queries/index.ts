@@ -16,6 +16,7 @@
 export * from './auth.queries';
 export * from './address.queries';
 export * from './tutor.queries';
+export * from './offering.queries';
 
 // Export other query modules here as they are created:
 // export * from './student.queries';

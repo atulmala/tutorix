@@ -6,6 +6,7 @@ import { ONBOARDING_STEPS, normalizeCertificationStage } from '@tutorix/shared-u
 import { TutorAddressEntry } from './tutor-address-entry/TutorAddressEntry';
 import { TutorQualification } from './tutor-qualification';
 import { TutorExperience } from './tutor-experience';
+import { TutorOfferings } from './tutor-offerings';
 import { NavHeader } from '../NavHeader';
 
 function getInitials(name: string): string {
@@ -129,6 +130,14 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
         />
       );
     }
+    if (stepConfig.id === 'offerings') {
+      return (
+        <TutorOfferings
+          onComplete={handleStepComplete}
+          onBack={isFirstStep ? onBack : handleStepBack}
+        />
+      );
+    }
     return (
       <PlaceholderStep
         title={stepConfig.title}
@@ -146,7 +155,9 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
           ? 'Qualifications'
           : stepConfig.id === 'experience'
             ? 'Experience'
-            : stepConfig.title;
+            : stepConfig.id === 'offerings'
+              ? 'Offerings'
+              : stepConfig.title;
   const stepLabel =
     stepConfig.id === 'complete'
       ? undefined

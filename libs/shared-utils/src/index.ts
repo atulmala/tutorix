@@ -10,3 +10,4 @@ export * from './grade-type.enum';
 export * from './employment-type.enum';
 export * from './years-of-experience.enum';
 export * from './onboarding-types';
+export * from './study-areas.constants';
