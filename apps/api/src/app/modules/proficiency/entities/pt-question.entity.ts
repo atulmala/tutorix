@@ -11,7 +11,7 @@ import { QBaseEntity } from '../../../common/base-entities/base.entity';
 import { ProficiencyTestEntity } from './proficiency-test.entity';
 import { QuestionTypeEnum } from '../enums/question-type.enum';
 import { QuestionDifficultyEnum } from '../enums/question-difficulty.enum';
-import { PtAnswerEntity } from './pt-answer.entity.js';
+import { PtAnswerEntity } from './pt-answer.entity';
 
 @ObjectType()
 @Entity('pt_question')
@@ -52,5 +52,9 @@ export class PTQuestionEntity extends QBaseEntity {
   @Field()
   @Column('text')
   question: string;
+
+  @Field({ nullable: true })
+  @Column('text', { default: '' })
+  notes?: string | null;
 }
 

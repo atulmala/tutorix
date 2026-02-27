@@ -21,6 +21,6 @@ export class PtAnswerEntity extends QBaseEntity {
 
   @Field()
   @Column({ default: false })
-  isCorrect: boolean;
+  answer: boolean;
 }
 

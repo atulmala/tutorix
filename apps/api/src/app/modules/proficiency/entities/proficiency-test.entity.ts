@@ -8,7 +8,7 @@ import {
 import { Field, ObjectType } from '@nestjs/graphql';
 import { QBaseEntity } from '../../../common/base-entities/base.entity';
 import { OfferingEntity } from '../../offerings/entities/offering.entity';
-import { PTQuestionEntity } from './pt-question.entity.js';
+import { PTQuestionEntity } from './pt-question.entity';
 
 @ObjectType()
 @Entity('tutor_proficiency_test')
