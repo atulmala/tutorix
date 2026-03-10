@@ -53,7 +53,7 @@ export class PTQuestionEntity extends QBaseEntity {
   @Column('text')
   question: string;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   @Column('text', { default: '' })
   notes?: string | null;
 }
