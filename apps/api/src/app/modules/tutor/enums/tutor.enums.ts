@@ -46,6 +46,18 @@ registerEnumType(TutorCertificationStageEnum, {
   description: 'Current certification/onboarding stage of a tutor',
 });
 
+/**
+ * Tutor offering status for proficiency test attempts.
+ * Tracks whether the tutor has passed, failed, or is pending the PT for this offering.
+ */
+export enum TutorOfferingStatusEnum {
+  pending_pt = 'pending_pt',
+  pt_passed = 'pt_passed',
+  pt_failed = 'pt_failed',
+}
 
-
+registerEnumType(TutorOfferingStatusEnum, {
+  name: 'TutorOfferingStatusEnum',
+  description: 'Proficiency test status for a tutor offering',
+});
 

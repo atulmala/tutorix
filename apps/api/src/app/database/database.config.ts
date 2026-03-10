@@ -10,6 +10,7 @@ import { PasswordResetToken } from '../modules/auth/entities/password-reset-toke
 import { Tutor } from '../modules/tutor/entities/tutor.entity';
 import { AddressEntity } from '../modules/address/entities/address.entity';
 import { TutorQualificationEntity } from '../modules/tutor/entities/tutor-qualification.entity';
+import { TutorOfferingEntity } from '../modules/tutor/entities/tutor-offering.entity';
 import { DocumentEntity } from '../modules/document/entities/document.entity';
 import { ExperienceEntity } from '../modules/experience/entities/experience.entity';
 import { OfferingEntity } from '../modules/offerings/entities/offering.entity';
@@ -41,6 +42,7 @@ export function createDatabaseOptions(
       Tutor,
       AddressEntity,
       TutorQualificationEntity,
+      TutorOfferingEntity,
       DocumentEntity,
       ExperienceEntity,
       OfferingEntity,
