@@ -14,6 +14,9 @@ import { TutorOfferingEntity } from '../modules/tutor/entities/tutor-offering.en
 import { DocumentEntity } from '../modules/document/entities/document.entity';
 import { ExperienceEntity } from '../modules/experience/entities/experience.entity';
 import { OfferingEntity } from '../modules/offerings/entities/offering.entity';
+import { ProficiencyTestEntity } from '../modules/proficiency/entities/proficiency-test.entity';
+import { PTQuestionEntity } from '../modules/proficiency/entities/pt-question.entity';
+import { PtAnswerEntity } from '../modules/proficiency/entities/pt-answer.entity';
 import { Example } from '../entities/example.entity';
 // Add other entities as they are created
 
@@ -46,6 +49,9 @@ export function createDatabaseOptions(
       DocumentEntity,
       ExperienceEntity,
       OfferingEntity,
+      ProficiencyTestEntity,
+      PTQuestionEntity,
+      PtAnswerEntity,
       Example, // Remove this when you no longer need the example entity
       // Add other entities here as they are created
       // Student,

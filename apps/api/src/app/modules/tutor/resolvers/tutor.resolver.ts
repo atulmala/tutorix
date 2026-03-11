@@ -2,19 +2,25 @@ import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent } from '@nest
 import { BadRequestException, UseGuards } from '@nestjs/common';
 import { Tutor } from '../entities/tutor.entity';
 import { TutorQualificationEntity } from '../entities/tutor-qualification.entity';
+import { TutorOfferingEntity } from '../entities/tutor-offering.entity';
 import { TutorService } from '../services/tutor.service';
 import { TutorQualificationService } from '../services/tutor-qualification.service';
+import { TutorOfferingService } from '../services/tutor-offering.service';
 import { SaveTutorQualificationsInput } from '../dto/tutor-qualification.input';
+import { SaveTutorOfferingsInput } from '../dto/tutor-offering.input';
 import { TutorCertificationStageEnum } from '../enums/tutor.enums';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { User } from '../../auth/entities/user.entity';
+import { SubmitProficiencyTestInput } from '../../proficiency/dto/submit-proficiency-test.input';
+import { SubmitProficiencyTestResult } from '../../proficiency/dto/submit-proficiency-test.result';
 
 @Resolver(() => Tutor)
 export class TutorResolver {
   constructor(
     private readonly tutorService: TutorService,
     private readonly tutorQualificationService: TutorQualificationService,
+    private readonly tutorOfferingService: TutorOfferingService,
   ) {}
 
   /**
@@ -45,6 +51,15 @@ export class TutorResolver {
     @Parent() tutor: Tutor,
   ): Promise<TutorQualificationEntity[]> {
     return this.tutorQualificationService.findByTutorId(tutor.id);
+  }
+
+  @ResolveField(() => [TutorOfferingEntity], {
+    description: 'Offerings selected by this tutor with PT status',
+  })
+  async tutorOfferings(
+    @Parent() tutor: Tutor,
+  ): Promise<TutorOfferingEntity[]> {
+    return this.tutorOfferingService.findByTutorId(tutor.id);
   }
 
   @Query(() => Tutor, { name: 'myTutorProfile', nullable: true, description: 'Get current tutor profile, creates if doesn\'t exist' })
@@ -78,6 +93,58 @@ export class TutorResolver {
     return this.tutorQualificationService.saveForTutor(tutor.id, input.qualifications, {
       advanceToNextStep: input.advanceToNextStep !== false,
     });
+  }
+
+  /**
+   * Mutation: Save tutor offerings and advance to PT stage.
+   * Creates tutor_offering rows for each leaf offering. Each gets 2 PT attempts.
+   */
+  @Mutation(() => [TutorOfferingEntity], {
+    description: 'Save offerings for the authenticated tutor and advance to PT stage',
+  })
+  @UseGuards(JwtAuthGuard)
+  async saveTutorOfferings(
+    @CurrentUser() user: User,
+    @Args('input') input: SaveTutorOfferingsInput,
+  ): Promise<TutorOfferingEntity[]> {
+    const tutor = await this.tutorService.findByUserId(user.id);
+    if (!tutor) {
+      throw new BadRequestException('Tutor profile not found for this user');
+    }
+    const saved = await this.tutorOfferingService.saveForTutor(
+      tutor.id,
+      input.offeringIds,
+      {
+        advanceToNextStep: input.advanceToNextStep !== false,
+        isInitialOnboarding: true,
+      },
+    );
+    if (input.advanceToNextStep !== false) {
+      await this.tutorService.updateCertificationStage(
+        tutor.id,
+        TutorCertificationStageEnum.pt,
+      );
+    }
+    return saved;
+  }
+
+  /**
+   * Mutation: Submit proficiency test answers.
+   * Updates attempt count and status. Advances to registrationPayment on pass.
+   */
+  @Mutation(() => SubmitProficiencyTestResult, {
+    description: 'Submit proficiency test answers for a tutor offering',
+  })
+  @UseGuards(JwtAuthGuard)
+  async submitProficiencyTest(
+    @CurrentUser() user: User,
+    @Args('input') input: SubmitProficiencyTestInput,
+  ): Promise<SubmitProficiencyTestResult> {
+    const tutor = await this.tutorService.findByUserId(user.id);
+    if (!tutor) {
+      throw new BadRequestException('Tutor profile not found for this user');
+    }
+    return this.tutorOfferingService.submitProficiencyTest(tutor.id, input);
   }
 
   /**

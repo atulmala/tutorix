@@ -50,3 +50,35 @@ export const COMPLETE_EXPERIENCE_STEP = gql`
     }
   }
 `;
+
+/**
+ * Save tutor offerings (leaf offering IDs) and advance to PT stage.
+ */
+export const SAVE_TUTOR_OFFERINGS = gql`
+  mutation SaveTutorOfferings($input: SaveTutorOfferingsInput!) {
+    saveTutorOfferings(input: $input) {
+      id
+      offeringId
+      proficiencyTestId
+      status
+      attemptsUsed
+      isInitialOnboarding
+    }
+  }
+`;
+
+/**
+ * Submit proficiency test answers.
+ */
+export const SUBMIT_PROFICIENCY_TEST = gql`
+  mutation SubmitProficiencyTest($input: SubmitProficiencyTestInput!) {
+    submitProficiencyTest(input: $input) {
+      passed
+      score
+      maxScore
+      attemptsUsed
+      passPercentage
+      tutorOfferingId
+    }
+  }
+`;
