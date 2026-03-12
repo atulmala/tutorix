@@ -14,6 +14,7 @@ import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { User } from '../../auth/entities/user.entity';
 import { SubmitProficiencyTestInput } from '../../proficiency/dto/submit-proficiency-test.input';
 import { SubmitProficiencyTestResult } from '../../proficiency/dto/submit-proficiency-test.result';
+import { ProficiencyTestEntity } from '../../proficiency/entities/proficiency-test.entity';
 
 @Resolver(() => Tutor)
 export class TutorResolver {
@@ -60,6 +61,40 @@ export class TutorResolver {
     @Parent() tutor: Tutor,
   ): Promise<TutorOfferingEntity[]> {
     return this.tutorOfferingService.findByTutorId(tutor.id);
+  }
+
+  /**
+   * Query: Get proficiency test with 30 random questions for a tutor offering.
+   * Used when starting the PT. Verifies the offering belongs to the tutor.
+   */
+  @Query(() => ProficiencyTestEntity, {
+    name: 'proficiencyTestForTaker',
+    description:
+      'Get proficiency test with 30 random questions for a tutor offering (authenticated)',
+  })
+  @UseGuards(JwtAuthGuard)
+  async proficiencyTestForTaker(
+    @CurrentUser() user: User,
+    @Args('tutorOfferingId', { type: () => ID }) tutorOfferingId: number,
+  ): Promise<ProficiencyTestEntity> {
+    const tutor = await this.tutorService.findByUserId(user.id);
+    if (!tutor) {
+      throw new BadRequestException('Tutor profile not found for this user');
+    }
+    const tutorOffering = await this.tutorOfferingService.findByIdForTutor(
+      tutorOfferingId,
+      tutor.id,
+    );
+    const test =
+      await this.tutorOfferingService.getProficiencyTestWith30Questions(
+        tutorOffering.proficiencyTestId,
+      );
+    if (!test) {
+      throw new BadRequestException(
+        'Proficiency test not found or has no questions',
+      );
+    }
+    return test;
   }
 
   @Query(() => Tutor, { name: 'myTutorProfile', nullable: true, description: 'Get current tutor profile, creates if doesn\'t exist' })

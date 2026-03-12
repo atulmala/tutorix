@@ -85,6 +85,13 @@ export class TutorOfferingEntity extends QBaseEntity {
   @Column({ name: 'last_attempt_at', type: 'timestamp', nullable: true })
   lastAttemptAt?: Date;
 
+  @Field(() => Int, {
+    description: 'Time taken in seconds for the last attempt',
+    nullable: true,
+  })
+  @Column({ name: 'last_time_taken_seconds', type: 'integer', nullable: true })
+  lastTimeTakenSeconds?: number;
+
   @Field({
     description: 'True if added during initial onboarding; false for post-onboarding additions.',
   })

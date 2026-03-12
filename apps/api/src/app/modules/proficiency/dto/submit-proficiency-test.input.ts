@@ -1,5 +1,5 @@
 import { InputType, Field, Int } from '@nestjs/graphql';
-import { IsArray, IsInt, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsInt, IsOptional, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 @InputType()
@@ -31,4 +31,13 @@ export class SubmitProficiencyTestInput {
   @ValidateNested({ each: true })
   @Type(() => ProficiencyTestAnswerInput)
   answers: ProficiencyTestAnswerInput[];
+
+  @Field(() => Int, {
+    description: 'Time taken to complete the test in seconds',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  timeTakenSeconds?: number;
 }

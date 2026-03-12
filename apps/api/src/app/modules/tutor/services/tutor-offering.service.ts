@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ProficiencyTestEntity } from '../../proficiency/entities/proficiency-test.entity';
 import { TutorOfferingEntity } from '../entities/tutor-offering.entity';
 import { TutorOfferingStatusEnum, TutorCertificationStageEnum } from '../enums/tutor.enums';
 import { ProficiencyTestService } from '../../proficiency/services/proficiency-test.service';
@@ -99,6 +100,17 @@ export class TutorOfferingService {
   }
 
   /**
+   * Get proficiency test with 30 randomly selected questions.
+   */
+  async getProficiencyTestWith30Questions(
+    proficiencyTestId: number,
+  ): Promise<ProficiencyTestEntity | null> {
+    return this.proficiencyTestService.getTestWith30QuestionsForTaker(
+      proficiencyTestId,
+    );
+  }
+
+  /**
    * Get tutor offering by ID, ensuring it belongs to the tutor.
    */
   async findByIdForTutor(
@@ -164,7 +176,10 @@ export class TutorOfferingService {
       if (correctId === a.answerId) correct++;
     }
 
-    const maxScore = questions.length;
+    // Use test.score (max marks from proficiency_test) as maxScore; fallback to answered count
+    const answeredCount = answeredQuestionIds.size;
+    const maxScore =
+      test.score != null && test.score > 0 ? test.score : answeredCount;
     const score = correct;
     const percentage =
       maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
@@ -174,6 +189,9 @@ export class TutorOfferingService {
     tutorOffering.lastScore = score;
     tutorOffering.lastMaxScore = maxScore;
     tutorOffering.lastAttemptAt = new Date();
+    if (input.timeTakenSeconds != null) {
+      tutorOffering.lastTimeTakenSeconds = input.timeTakenSeconds;
+    }
 
     if (passed) {
       tutorOffering.status = TutorOfferingStatusEnum.pt_passed;

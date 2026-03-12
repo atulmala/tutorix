@@ -25,6 +25,31 @@ export const GET_PROFICIENCY_TEST = gql`
 `;
 
 /**
+ * Get proficiency test with 30 random questions for a tutor offering (authenticated).
+ */
+export const GET_PROFICIENCY_TEST_FOR_TAKER = gql`
+  query GetProficiencyTestForTaker($tutorOfferingId: ID!) {
+    proficiencyTestForTaker(tutorOfferingId: $tutorOfferingId) {
+      id
+      name
+      time
+      score
+      passPercentage
+      questions {
+        id
+        question
+        questionType
+        difficulty
+        answers {
+          id
+          text
+        }
+      }
+    }
+  }
+`;
+
+/**
  * Get proficiency test for a leaf offering.
  */
 export const GET_PROFICIENCY_TEST_FOR_OFFERING = gql`
