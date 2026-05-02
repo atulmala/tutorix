@@ -10,6 +10,8 @@ import { JwtService } from '../modules/auth/services/jwt.service';
 import { SessionService } from '../modules/auth/services/session.service';
 import { User } from '../modules/auth/entities/user.entity';
 import { AddressEntity } from '../modules/address/entities/address.entity';
+import { DocumentEntity } from '../modules/document/entities/document.entity';
+import { TutorDocumentUploadUrlResult } from '../modules/document/dto/tutor-document-upload-url.result';
 
 const graphqlLogger = new Logger('GraphQL');
 
@@ -49,7 +51,7 @@ interface RequestWithUser extends Omit<Request, 'user'> {
       ) => ({
         autoSchemaFile: join(__dirname, '../../schema.gql'),
         sortSchema: true,
-        orphanedTypes: [AddressEntity],
+        orphanedTypes: [AddressEntity, DocumentEntity, TutorDocumentUploadUrlResult],
         playground: process.env.NODE_ENV !== 'production',
         introspection: true,
         plugins: [graphqlLoggingPlugin],

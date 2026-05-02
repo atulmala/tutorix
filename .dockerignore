@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.gitignore
+.nx/cache
+coverage
+**/coverage
+**/.pytest_cache
+**/*.spec.ts.snap
+.env
+.env.*
+!.env.docker.example

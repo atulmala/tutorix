@@ -130,6 +130,10 @@ npm run serve:api
 
 > **Note**: Nx provides built-in watch functionality for all projects. The API uses Nx's continuous mode (requires daemon), while web apps use Vite's HMR and mobile uses Metro's hot reloading. The warning about the daemon not running is informational - the server will still work, but won't auto-restart on file changes.
 
+### Docker on EC2
+
+Production-oriented containers and Compose live at the repo root (`docker-compose.yml`, `docker/Dockerfile.api`, `docker/Dockerfile.web`). See **[docs/DEPLOYMENT_EC2.md](docs/DEPLOYMENT_EC2.md)** for environment variables, migrations, security groups, and RDS notes.
+
 ## Testing
 Run unit tests:
 ```bash

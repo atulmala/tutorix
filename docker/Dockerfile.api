@@ -1,0 +1,33 @@
+# Tutorix API — NestJS bundle built with Nx + webpack (dist/apps/api)
+FROM node:20-bookworm-slim AS builder
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+
+ENV NX_DAEMON=false
+RUN npx nx run api:build
+
+WORKDIR /app/dist/apps/api
+
+RUN npm install --omit=dev --legacy-peer-deps
+
+# ---------- Runtime ----------
+FROM node:20-bookworm-slim AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=3000
+
+COPY --from=builder /app/dist/apps/api ./
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD node -e "require('net').createConnection(3000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"
+
+CMD ["node", "main.js"]
