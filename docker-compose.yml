@@ -8,23 +8,23 @@
 # Copy `.env.docker.example` to `.env` or export secrets before `docker compose up`.
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-tutorix}
-    volumes:
-      - tutorix_pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test:
-        [
-          'CMD-SHELL',
-          'pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-tutorix}',
-        ]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+  # postgres:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: ${POSTGRES_USER:-postgres}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+  #     POSTGRES_DB: ${POSTGRES_DB:-tutorix}
+  #   volumes:
+  #     - tutorix_pgdata:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test:
+  #       [
+  #         'CMD-SHELL',
+  #         'pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-tutorix}',
+  #       ]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 10
 
   api:
     build:
@@ -33,7 +33,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: '3000'
-      DB_HOST: ${DB_HOST:-postgres}
+      DB_HOST: ${DOCKER_DB_HOST:-postgres}
       DB_PORT: ${DB_PORT:-5432}
       DB_USERNAME: ${DB_USERNAME:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
@@ -44,12 +44,13 @@ services:
       AWS_REGION: ${AWS_REGION:-}
       AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-}
       S3_DOCUMENTS_BUCKET: ${S3_DOCUMENTS_BUCKET:-}
-      AUTO_RUN_MIGRATIONS: ${AUTO_RUN_MIGRATIONS:-true}
+      AUTO_RUN_MIGRATIONS: ${AUTO_RUN_MIGRATIONS:-false}
+      DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}
     expose:
       - '3000'
-    depends_on:
-      postgres:
-        condition: service_healthy
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
 
   web:
     build:
@@ -60,7 +61,8 @@ services:
     ports:
       - '${GATEWAY_HTTP_PORT:-80}:80'
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   tutorix_pgdata:

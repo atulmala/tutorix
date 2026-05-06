@@ -4,7 +4,8 @@
  * Wrapper around Firebase Analytics for React web applications
  */
 
-import { FirebaseWebAnalytics, AnalyticsEvent, UserProperties } from '@tutorix/analytics';
+import { AnalyticsEvent, UserProperties } from '@tutorix/analytics';
+import { FirebaseWebAnalytics } from '@tutorix/analytics/firebase-web.provider';
 
 // Firebase config - will be loaded from environment variables
 export interface FirebaseConfig {

@@ -47,11 +47,13 @@ async function bootstrap() {
   // Ensure JSON body parser is set up for Apollo Server
   app.use(json({ limit: '10mb' }));
   
-  const port = process.env.PORT || 3000;
-  await app.listen(port);
+  const port = parseInt(process.env.PORT ?? '3000', 10);
+  /** Bind all interfaces so nginx/other containers can reach the API on Docker networks. */
+  const listenHost = process.env.LISTEN_HOST ?? '0.0.0.0';
+  await app.listen(port, listenHost);
   Logger.log('Environment: ' + process.env.NODE_ENV);
   Logger.log(
-    `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`,
+    `🚀 Application is listening on http://${listenHost}:${port}/${globalPrefix}`,
   );
   Logger.log(
     `📊 GraphQL is mounted at: http://localhost:${port}/${globalPrefix}/graphql`,

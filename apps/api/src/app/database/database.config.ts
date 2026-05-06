@@ -59,12 +59,15 @@ export function createDatabaseOptions(
     ],
 
     // Migrations configuration
+    // Note: .ts migration files are not available in the Docker webpack bundle.
+    // Use DB_SYNCHRONIZE=true in Docker to auto-create schema from entities.
     migrations: [join(__dirname, '..', '..', 'migrations', '*.ts')],
     migrationsTableName: 'migrations',
 
-    // IMPORTANT: Disable synchronize when using migrations
-    // Use migrations instead for production-safe schema changes
-    synchronize: false,
+    // synchronize: auto-create/update schema from entities.
+    // Enable via DB_SYNCHRONIZE=true env (Docker/fresh DB).
+    // Never enable against a production DB with existing data you want to keep.
+    synchronize: process.env.DB_SYNCHRONIZE === 'true',
 
     // Logging configuration: disable SQL query logs (too verbose)
     // Set to ['error', 'warn'] to keep important logs but exclude SQL queries

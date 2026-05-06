@@ -4,7 +4,8 @@ FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+# Lockfile resolves Nest 11 + @nestjs/apollo peers via --legacy-peer-deps (matches local/workspace installs)
+RUN npm ci --legacy-peer-deps
 
 COPY . .
 
@@ -13,7 +14,9 @@ RUN npx nx run api:build
 
 WORKDIR /app/dist/apps/api
 
-RUN npm install --omit=dev --legacy-peer-deps
+# firebase-admin and pg are loaded dynamically; Nx-generated package.json may omit them from prod dependencies
+RUN npm install --omit=dev --legacy-peer-deps \
+  && npm install firebase-admin@^13 pg@^8 --omit=dev --legacy-peer-deps --no-package-lock --no-save
 
 # ---------- Runtime ----------
 FROM node:20-bookworm-slim AS runner

@@ -2,6 +2,7 @@ import { Logger, Module } from '@nestjs/common';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ApolloServerPlugin, GraphQLRequestListener } from '@apollo/server';
+import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { join } from 'path';
 import { Request } from 'express';
 import { AuthModule } from '../modules/auth/auth.module';
@@ -49,12 +50,17 @@ interface RequestWithUser extends Omit<Request, 'user'> {
         authService: AuthService,
         sessionService: SessionService,
       ) => ({
-        autoSchemaFile: join(__dirname, '../../schema.gql'),
+        autoSchemaFile: process.env.NODE_ENV === 'production' ? true : join(__dirname, '../../schema.gql'),
         sortSchema: true,
+        path: '/api/graphql',
         orphanedTypes: [AddressEntity, DocumentEntity, TutorDocumentUploadUrlResult],
-        playground: process.env.NODE_ENV !== 'production',
+        playground: false,
         introspection: true,
-        plugins: [graphqlLoggingPlugin],
+        csrfPrevention: false,
+        plugins: [
+          ApolloServerPluginLandingPageLocalDefault({ embed: true }),
+          graphqlLoggingPlugin,
+        ],
         context: async ({ req }: { req: RequestWithUser }) => {
           const authHeader = req?.headers?.authorization;
           if (authHeader && authHeader.startsWith('Bearer ')) {
