@@ -9,22 +9,21 @@ Small steps to get from “bucket only” to full document upload.
 3. **DB** – `document` table exists.
 4. **Document module shell** – `DocumentModule` + `DocumentService` (repo only), registered in `AppModule`.
 
-## Next steps (in order)
+## Environment (backend)
 
-### Step C: S3 config + upload service
-- Add config for `AWS_REGION`, `S3_DOCUMENTS_BUCKET` (or reuse existing .env keys).
-- Install `@aws-sdk/client-s3`.
-- Add `DocumentService` with e.g. `uploadBuffer(key, buffer, contentType)` that puts to S3 and returns the key. Optional: `getSignedUrl(key)` for download.
-- No GraphQL yet.
+- **`AWS_REGION`** (or `AWS_DEFAULT_REGION`) – S3 bucket region.
+- **`S3_DOCUMENTS_BUCKET`** – bucket name (e.g. Terraform `tutorix-documents-dev`).
+- AWS credentials via default SDK chain (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`, or IAM role).
 
-### Step D: GraphQL + persist
-- DTOs for upload input (tutorId, documentType, file metadata).
-- Resolver mutation e.g. `uploadDocument(file, tutorId, documentType)` that:
-  - uploads file to S3 via `DocumentService`,
-  - creates a `DocumentEntity` with `storageKey`, `filename`, `mimeType`, `size`, etc.
-- Wire file upload (e.g. `graphql-upload` or multipart in Nest).
+## Implemented (GraphQL + presigned S3)
 
-### Step E (later)
-- Presigned URLs for client-side upload if needed.
-- Thumbnails, image dimensions, etc.
+- **`requestTutorDocumentUploadUrl`** – returns presigned PUT URL + `storageKey` (tutor must be on `docs` certification stage).
+- **`confirmTutorDocumentUpload`** – verifies object with `HeadObject`, upserts `DocumentEntity`.
+- **`myTutorProfile { documents { ... } }`** – lists tutor documents.
+
+Allowed types: Aadhaar, PAN, Class XII marksheet, highest degree. MIME: PDF, JPEG, PNG. Max size: 10 MB.
+
+## Later
+
+- Thumbnails, admin download URLs, virus scanning.
 - List/delete document mutations and queries.

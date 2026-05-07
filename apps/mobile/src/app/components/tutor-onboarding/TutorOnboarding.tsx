@@ -7,6 +7,7 @@ import { TutorAddressEntry } from './tutor-address-entry/TutorAddressEntry';
 import { TutorQualification } from './tutor-qualification';
 import { TutorExperience } from './tutor-experience';
 import { TutorOfferings } from './tutor-offerings';
+import { TutorPT } from './tutor-pt';
 import { NavHeader } from '../NavHeader';
 
 function getInitials(name: string): string {
@@ -67,6 +68,7 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
     fetchPolicy: 'cache-and-network',
   });
 
+  // Sync step with certificationStage. Only sync forward to avoid race when advancing.
   useEffect(() => {
     const rawStage =
       profileData?.myTutorProfile?.certificationStage ??
@@ -74,7 +76,8 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
     const stage = normalizeCertificationStage(rawStage);
     if (!stage) return;
     const idx = ONBOARDING_STEPS.findIndex((s) => s.id === stage);
-    if (idx >= 0) setCurrentStepIndex(idx);
+    if (idx < 0) return;
+    setCurrentStepIndex((current) => (idx >= current ? idx : current));
   }, [profileData?.myTutorProfile?.certificationStage, initialProfile?.certificationStage]);
 
   const tutorName = useMemo(() => {
@@ -138,6 +141,14 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
         />
       );
     }
+    if (stepConfig.id === 'pt') {
+      return (
+        <TutorPT
+          onComplete={handleStepComplete}
+          onBack={isFirstStep ? onBack : handleStepBack}
+        />
+      );
+    }
     return (
       <PlaceholderStep
         title={stepConfig.title}
@@ -157,7 +168,9 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
             ? 'Experience'
             : stepConfig.id === 'offerings'
               ? 'Offerings'
-              : stepConfig.title;
+              : stepConfig.id === 'pt'
+                ? 'Proficiency Test'
+                : stepConfig.title;
   const stepLabel =
     stepConfig.id === 'complete'
       ? undefined

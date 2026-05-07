@@ -10,7 +10,9 @@
 
 export * from './types';
 export * from './analytics.service';
-export * from './firebase-web.provider';
+
+// Web Firebase SDK is browser-only — do not export from this barrel or Node/API bundles will require `firebase/analytics`.
+// Web apps: import FirebaseWebAnalytics from '@tutorix/analytics/firebase-web.provider'
 
 // Mobile provider is exported conditionally to avoid bundling React Native in web builds
 // Mobile apps should import directly from './firebase-mobile.provider'

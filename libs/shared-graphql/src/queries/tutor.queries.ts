@@ -51,6 +51,34 @@ export const GET_MY_TUTOR_PROFILE = gql`
         endDate
         isCurrent
       }
+      tutorOfferings {
+        id
+        offeringId
+        proficiencyTestId
+        status
+        attemptsUsed
+        lastScore
+        lastMaxScore
+        passedAt
+        lastAttemptAt
+        isInitialOnboarding
+        offering {
+          id
+          name
+          displayName
+        }
+      }
+      documents {
+        id
+        name
+        documentType
+        documentForType
+        filename
+        mimeType
+        size
+        storageKey
+        verified
+      }
     }
   }
 `;

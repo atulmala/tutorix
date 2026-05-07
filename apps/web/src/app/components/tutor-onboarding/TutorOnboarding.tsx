@@ -57,7 +57,10 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
     fetchPolicy: 'cache-and-network',
   });
 
-  // Sync step with certificationStage when profile loads (e.g. tutor returns to onboarding)
+  // Sync step with certificationStage when profile loads (e.g. tutor returns to onboarding).
+  // Only sync forward or when matching - never sync backward. This avoids a race where
+  // we advance via handleStepComplete but profile refetch hasn't propagated yet, which
+  // would incorrectly revert the step (e.g. from pt back to offerings).
   useEffect(() => {
     const rawStage =
       profileData?.myTutorProfile?.certificationStage ??
@@ -65,7 +68,8 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
     const stage = normalizeCertificationStage(rawStage);
     if (!stage) return;
     const idx = ONBOARDING_STEPS.findIndex((s) => s.id === stage);
-    if (idx >= 0) setCurrentStepIndex(idx);
+    if (idx < 0) return;
+    setCurrentStepIndex((current) => (idx >= current ? idx : current));
   }, [profileData?.myTutorProfile?.certificationStage, initialProfile?.certificationStage]);
 
   const tutorName = useMemo(() => {

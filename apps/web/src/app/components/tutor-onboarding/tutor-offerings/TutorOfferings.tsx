@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@apollo/client';
-import { GET_OFFERINGS } from '@tutorix/shared-graphql';
+import { useQuery, useMutation } from '@apollo/client';
+import { GET_OFFERINGS, SAVE_TUTOR_OFFERINGS } from '@tutorix/shared-graphql';
+import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql';
 import {
   STUDY_AREAS,
   STUDY_AREAS_OPTIONS,
@@ -27,6 +28,17 @@ export const TutorOfferings: React.FC<StepComponentProps> = ({
 }) => {
   const [studyArea, setStudyArea] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const [saveOfferings, { loading: isSaving }] = useMutation(SAVE_TUTOR_OFFERINGS, {
+    refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }],
+    awaitRefetchQueries: true,
+    onError: (err) => {
+      setSubmitError(
+        err.graphQLErrors?.[0]?.message ?? err.message ?? 'Failed to save offerings',
+      );
+    },
+  });
 
   const { data, loading, error } = useQuery<{ offerings: OfferingNode[] }>(
     GET_OFFERINGS,
@@ -84,6 +96,25 @@ export const TutorOfferings: React.FC<StepComponentProps> = ({
       next[levelIndex] = offeringId;
       return next;
     });
+  };
+
+  const handleContinue = async () => {
+    setSubmitError(null);
+    const leafOfferingId = selectedIds[selectedIds.length - 1];
+    if (!leafOfferingId) return;
+    try {
+      await saveOfferings({
+        variables: {
+          input: {
+            offeringIds: [leafOfferingId],
+            advanceToNextStep: true,
+          },
+        },
+      });
+      onComplete();
+    } catch {
+      // onError handles message
+    }
   };
 
   const inputCls = (hasError: boolean) =>
@@ -185,6 +216,9 @@ export const TutorOfferings: React.FC<StepComponentProps> = ({
           );
         })}
 
+      {submitError && (
+        <p className="text-sm text-danger">{submitError}</p>
+      )}
       <div className="flex justify-end gap-3">
         {onBack && (
           <button
@@ -197,11 +231,11 @@ export const TutorOfferings: React.FC<StepComponentProps> = ({
         )}
         <button
           type="button"
-          onClick={onComplete}
+          onClick={handleContinue}
           className="h-11 rounded-lg bg-[#5fa8ff] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:bg-[#5fa8ff]/40"
-          disabled={!isComplete}
+          disabled={!isComplete || isSaving}
         >
-          Continue
+          {isSaving ? 'Saving...' : 'Continue'}
         </button>
       </div>
     </div>

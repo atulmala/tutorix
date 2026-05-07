@@ -1,0 +1,21 @@
+node_modules
+dist
+.git
+.gitignore
+.nx/cache
+coverage
+**/coverage
+**/.pytest_cache
+**/*.spec.ts.snap
+.env
+.env.*
+!.env.docker.example
+
+# Native mobile artifacts — avoids multi-hundred‑MB compose context and Docker extract I/O failures
+apps/mobile/android/app/build
+apps/mobile/android/build
+apps/mobile/android/.gradle
+apps/mobile/android/captures
+apps/mobile/ios/build
+apps/mobile/ios/Pods
+apps/mobile/ios/**/*.xcuserdata

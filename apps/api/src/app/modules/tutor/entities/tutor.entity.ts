@@ -6,6 +6,7 @@ import { YearsOfExperienceEnum } from '../enums/years-of-experience.enum';
 import { User } from '../../auth/entities/user.entity';
 import { AddressEntity } from '../../address/entities/address.entity';
 import { TutorQualificationEntity } from './tutor-qualification.entity';
+import { TutorOfferingEntity } from './tutor-offering.entity';
 import { DocumentEntity } from '../../document/entities/document.entity';
 
 /**
@@ -85,6 +86,12 @@ export class Tutor extends QBaseEntity {
     cascade: ['insert', 'update', 'remove'],
   })
   qualifications: TutorQualificationEntity[];
+
+  @Field(() => [TutorOfferingEntity], { nullable: true })
+  @OneToMany(() => TutorOfferingEntity, (to) => to.tutor, {
+    cascade: ['insert', 'update', 'remove'],
+  })
+  tutorOfferings: TutorOfferingEntity[];
 
   @Field(() => [DocumentEntity], { nullable: true })
   @OneToMany(() => DocumentEntity, (doc) => doc.tutor, {

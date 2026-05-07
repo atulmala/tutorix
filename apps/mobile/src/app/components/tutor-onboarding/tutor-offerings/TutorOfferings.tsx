@@ -7,8 +7,9 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
-import { useQuery } from '@apollo/client';
-import { GET_OFFERINGS } from '@tutorix/shared-graphql/queries';
+import { useQuery, useMutation } from '@apollo/client';
+import { GET_OFFERINGS, GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
+import { SAVE_TUTOR_OFFERINGS } from '@tutorix/shared-graphql/mutations';
 import {
   STUDY_AREAS,
   STUDY_AREAS_OPTIONS,
@@ -39,6 +40,17 @@ export const TutorOfferings: React.FC<StepComponentProps> = ({
   const [levelModal, setLevelModal] = useState<{
     levelIndex: number;
   } | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const [saveOfferings, { loading: isSaving }] = useMutation(SAVE_TUTOR_OFFERINGS, {
+    refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }],
+    awaitRefetchQueries: true,
+    onError: (err) => {
+      setSubmitError(
+        err.graphQLErrors?.[0]?.message ?? err.message ?? 'Failed to save offerings'
+      );
+    },
+  });
 
   const { data, loading, error } = useQuery<{ offerings: OfferingNode[] }>(
     GET_OFFERINGS,
@@ -114,6 +126,25 @@ export const TutorOfferings: React.FC<StepComponentProps> = ({
     const children = getChildren(parentId);
     const node = children.find((c) => c.id === selectedId);
     return node?.displayName ?? 'Select...';
+  };
+
+  const handleContinue = async () => {
+    setSubmitError(null);
+    const leafOfferingId = selectedIds[selectedIds.length - 1];
+    if (!leafOfferingId) return;
+    try {
+      await saveOfferings({
+        variables: {
+          input: {
+            offeringIds: [leafOfferingId],
+            advanceToNextStep: true,
+          },
+        },
+      });
+      onComplete();
+    } catch {
+      // onError handles message
+    }
   };
 
   if (loading) {
@@ -212,6 +243,10 @@ export const TutorOfferings: React.FC<StepComponentProps> = ({
           );
         })}
 
+      {submitError && (
+        <Text style={styles.errorText}>{submitError}</Text>
+      )}
+
       <View style={styles.buttonRow}>
         {onBack && (
           <TouchableOpacity
@@ -223,12 +258,14 @@ export const TutorOfferings: React.FC<StepComponentProps> = ({
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          style={[styles.primaryButton, !isComplete && styles.primaryButtonDisabled]}
-          onPress={onComplete}
-          disabled={!isComplete}
+          style={[styles.primaryButton, (!isComplete || isSaving) && styles.primaryButtonDisabled]}
+          onPress={handleContinue}
+          disabled={!isComplete || isSaving}
           activeOpacity={0.7}
         >
-          <Text style={styles.primaryButtonText}>Continue</Text>
+          <Text style={styles.primaryButtonText}>
+            {isSaving ? 'Saving...' : 'Continue'}
+          </Text>
         </TouchableOpacity>
       </View>
 

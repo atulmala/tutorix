@@ -11,6 +11,7 @@ import { AddressModule } from './modules/address/address.module';
 import { DocumentModule } from './modules/document/document.module';
 import { ExperienceModule } from './modules/experience/experience.module';
 import { OfferingsModule } from './modules/offerings/offerings.module';
+import { ProficiencyModule } from './modules/proficiency/proficiency.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { OfferingsModule } from './modules/offerings/offerings.module';
     DocumentModule,
     ExperienceModule,
     OfferingsModule,
+    ProficiencyModule,
     // Add other modules here as they are created:
     // StudentModule,
     // ClassesModule,

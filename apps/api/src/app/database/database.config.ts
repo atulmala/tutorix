@@ -10,9 +10,13 @@ import { PasswordResetToken } from '../modules/auth/entities/password-reset-toke
 import { Tutor } from '../modules/tutor/entities/tutor.entity';
 import { AddressEntity } from '../modules/address/entities/address.entity';
 import { TutorQualificationEntity } from '../modules/tutor/entities/tutor-qualification.entity';
+import { TutorOfferingEntity } from '../modules/tutor/entities/tutor-offering.entity';
 import { DocumentEntity } from '../modules/document/entities/document.entity';
 import { ExperienceEntity } from '../modules/experience/entities/experience.entity';
 import { OfferingEntity } from '../modules/offerings/entities/offering.entity';
+import { ProficiencyTestEntity } from '../modules/proficiency/entities/proficiency-test.entity';
+import { PTQuestionEntity } from '../modules/proficiency/entities/pt-question.entity';
+import { PtAnswerEntity } from '../modules/proficiency/entities/pt-answer.entity';
 import { Example } from '../entities/example.entity';
 // Add other entities as they are created
 
@@ -41,9 +45,13 @@ export function createDatabaseOptions(
       Tutor,
       AddressEntity,
       TutorQualificationEntity,
+      TutorOfferingEntity,
       DocumentEntity,
       ExperienceEntity,
       OfferingEntity,
+      ProficiencyTestEntity,
+      PTQuestionEntity,
+      PtAnswerEntity,
       Example, // Remove this when you no longer need the example entity
       // Add other entities here as they are created
       // Student,
@@ -51,12 +59,15 @@ export function createDatabaseOptions(
     ],
 
     // Migrations configuration
+    // Note: .ts migration files are not available in the Docker webpack bundle.
+    // Use DB_SYNCHRONIZE=true in Docker to auto-create schema from entities.
     migrations: [join(__dirname, '..', '..', 'migrations', '*.ts')],
     migrationsTableName: 'migrations',
 
-    // IMPORTANT: Disable synchronize when using migrations
-    // Use migrations instead for production-safe schema changes
-    synchronize: false,
+    // synchronize: auto-create/update schema from entities.
+    // Enable via DB_SYNCHRONIZE=true env (Docker/fresh DB).
+    // Never enable against a production DB with existing data you want to keep.
+    synchronize: process.env.DB_SYNCHRONIZE === 'true',
 
     // Logging configuration: disable SQL query logs (too verbose)
     // Set to ['error', 'warn'] to keep important logs but exclude SQL queries
