@@ -25,6 +25,7 @@ const graphqlLoggingPlugin: ApolloServerPlugin = {
     return {
       async didResolveOperation({ operationName, operation }) {
         if (operationName === 'IntrospectionQuery') return;
+        if (operationName?.toLowerCase() === 'heartbeat') return;
         const opType = operation?.operation ?? 'unknown';
         const name = operationName ?? 'anonymous';
         graphqlLogger.log(`${opType.toUpperCase()}: ${name}`);
