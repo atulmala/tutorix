@@ -26,7 +26,7 @@ export const TutorPT: React.FC<StepComponentProps> = ({
     passPercentage?: number;
   } | null>(null);
 
-  const { data: profileData, loading: profileLoading } = useQuery(
+  const { data: profileData, loading: profileLoading, refetch: refetchProfile } = useQuery(
     GET_MY_TUTOR_PROFILE,
     { fetchPolicy: 'cache-and-network' }
   );
@@ -47,10 +47,6 @@ export const TutorPT: React.FC<StepComponentProps> = ({
 
   const [submitTest, { loading: isSubmitting }] = useMutation(
     SUBMIT_PROFICIENCY_TEST,
-    {
-      refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }],
-      awaitRefetchQueries: true,
-    }
   );
 
   const offeringName = pendingOffering?.offering?.displayName ?? undefined;
@@ -170,7 +166,7 @@ export const TutorPT: React.FC<StepComponentProps> = ({
           {passed ? (
             <TouchableOpacity
               style={styles.primaryButton}
-              onPress={() => onComplete?.()}
+              onPress={() => { refetchProfile(); onComplete?.(); }}
               activeOpacity={0.7}
             >
               <Text style={styles.primaryButtonText}>Continue</Text>
