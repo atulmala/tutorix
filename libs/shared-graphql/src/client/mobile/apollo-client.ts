@@ -23,7 +23,7 @@ function getMobileGraphQLEndpoint(): string {
     endpoint = endpoint.replace('localhost', '10.0.2.2');
     console.log('[Apollo Client - Mobile] Android detected, using:', endpoint);
   }
-  
+
   return endpoint;
 }
 
