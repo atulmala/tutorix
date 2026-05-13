@@ -22,7 +22,7 @@ export function getGraphQLEndpoint(): string {
       process.env['NX_GRAPHQL_ENDPOINT'] || 
       process.env['GRAPHQL_ENDPOINT'];
   }
-  
+
   // If endpoint is provided, use it as-is
   if (endpoint) {
     console.log('[GraphQL Endpoint - Mobile] Using endpoint from env:', endpoint);
@@ -30,12 +30,11 @@ export function getGraphQLEndpoint(): string {
   }
   
   // Default endpoint configuration
-  // Backend uses global prefix 'api' set in main.ts, so endpoint is /api/graphql
+  // API is served via nginx on port 80 (Docker); path includes /api/ global prefix
   const host = 'localhost';
-  const port = '3000';
-  const path = '/graphql';
+  const path = '/api/graphql';
   
-  const finalEndpoint = `http://${host}:${port}${path}`;
+  const finalEndpoint = `http://${host}${path}`;
   
   console.log('[GraphQL Endpoint - Mobile] Using default endpoint:', finalEndpoint);
   
