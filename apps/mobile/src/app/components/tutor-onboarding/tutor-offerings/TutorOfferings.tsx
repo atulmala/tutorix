@@ -44,7 +44,6 @@ export const TutorOfferings: React.FC<StepComponentProps> = ({
 
   const [saveOfferings, { loading: isSaving }] = useMutation(SAVE_TUTOR_OFFERINGS, {
     refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }],
-    awaitRefetchQueries: true,
     onError: (err) => {
       setSubmitError(
         err.graphQLErrors?.[0]?.message ?? err.message ?? 'Failed to save offerings'
