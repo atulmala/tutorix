@@ -34,22 +34,35 @@ type TutorOnboardingProps = {
 function PlaceholderStep({
   title,
   onBack,
+  onComplete,
 }: {
   title: string;
   onBack?: () => void;
+  onComplete?: () => void;
 }) {
   return (
     <View style={styles.placeholder}>
       <Text style={styles.placeholderText}>{title} - Coming soon</Text>
-      {onBack && (
-        <TouchableOpacity
-          style={styles.placeholderBack}
-          onPress={onBack}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.placeholderBackText}>Back</Text>
-        </TouchableOpacity>
-      )}
+      <View style={styles.placeholderButtons}>
+        {onBack && (
+          <TouchableOpacity
+            style={styles.placeholderBack}
+            onPress={onBack}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.placeholderBackText}>Back</Text>
+          </TouchableOpacity>
+        )}
+        {onComplete && (
+          <TouchableOpacity
+            style={styles.placeholderContinue}
+            onPress={onComplete}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.placeholderContinueText}>Continue</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
@@ -153,6 +166,7 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
       <PlaceholderStep
         title={stepConfig.title}
         onBack={isFirstStep ? onBack : handleStepBack}
+        onComplete={isLastStep ? onComplete : handleStepComplete}
       />
     );
   };
@@ -207,16 +221,20 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     padding: 24,
-    alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
+    gap: 16,
   },
   placeholderText: {
     fontSize: 16,
     color: '#64748b',
-    marginBottom: 16,
+  },
+  placeholderButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
   },
   placeholderBack: {
     paddingHorizontal: 24,
@@ -229,5 +247,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#0f172a',
+  },
+  placeholderContinue: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#5fa8ff',
+  },
+  placeholderContinueText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
