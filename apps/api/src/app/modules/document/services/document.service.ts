@@ -2,12 +2,14 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   DeleteObjectCommand,
+  GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -27,6 +29,7 @@ import { DocumentTypeEnum } from '../enums/document-type.enum';
 import { ConfirmTutorDocumentUploadInput } from '../dto/confirm-tutor-document-upload.input';
 import { RequestTutorDocumentUploadUrlInput } from '../dto/request-tutor-document-upload-url.input';
 import { TutorDocumentUploadUrlResult } from '../dto/tutor-document-upload-url.result';
+import { buildTutorDocumentImageMediaPatch } from '../document-image-media';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const PRESIGN_EXPIRES_SEC = 900;
@@ -70,6 +73,7 @@ function mimeToExtension(mime: string): string {
 
 @Injectable()
 export class DocumentService {
+  private readonly logger = new Logger(DocumentService.name);
   private readonly s3: S3Client;
   private readonly bucket: string;
 
@@ -97,6 +101,48 @@ export class DocumentService {
     if (!this.bucket) {
       throw new BadRequestException(
         'Document storage is not configured (S3_DOCUMENTS_BUCKET)',
+      );
+    }
+  }
+
+  private getDocumentPublicBaseUrl(): string | undefined {
+    const v =
+      this.configService.get<string>('DOCUMENT_PUBLIC_BASE_URL')?.trim() ||
+      process.env.DOCUMENT_PUBLIC_BASE_URL?.trim();
+    return v || undefined;
+  }
+
+  /** JPEG/PNG/WebP/etc.: thumbnails + dimensions written to entity; PDF skipped. */
+  private async tryEnrichRasterImageMedia(entity: DocumentEntity): Promise<void> {
+    if (!entity.storageKey) return;
+    try {
+      const get = await this.s3.send(
+        new GetObjectCommand({
+          Bucket: this.bucket,
+          Key: entity.storageKey,
+        }),
+      );
+      if (!get.Body) return;
+      const body = Buffer.from(await get.Body.transformToByteArray());
+      const patch = await buildTutorDocumentImageMediaPatch({
+        s3: this.s3,
+        bucket: this.bucket,
+        storageKey: entity.storageKey,
+        mimeTypeHeader: entity.mimeType ?? '',
+        body,
+        publicBaseUrl: this.getDocumentPublicBaseUrl(),
+      });
+      if (!patch) return;
+      entity.thumbnailSmall = patch.thumbnailSmall;
+      entity.thumbnailMedium = patch.thumbnailMedium;
+      entity.thumbnailLarge = patch.thumbnailLarge;
+      entity.originalUrl = patch.originalUrl;
+      entity.averageColor = patch.averageColor;
+      entity.width = patch.width;
+      entity.height = patch.height;
+    } catch (err) {
+      this.logger.warn(
+        `Raster document media enrichment failed for ${entity.storageKey}: ${err}`,
       );
     }
   }
@@ -295,6 +341,8 @@ export class DocumentService {
     entity.verificationWorkflowStatus =
       DocumentVerificationWorkflowStatusEnum.PENDING;
     entity.verified = false;
+
+    await this.tryEnrichRasterImageMedia(entity);
 
     return this.documentRepo.save(entity);
   }

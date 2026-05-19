@@ -1,0 +1,19 @@
+{
+  "name": "tutor-document-metadata",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "S3 ObjectCreated: extracts width/height/averageColor and writes WebP thumbnails; aligns with DocumentEntity media fields",
+  "main": "handler.mjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "local": "node local-invoke.mjs",
+    "install:lambda-linux": "npm install --cpu=x64 --os=linux --libc=glibc sharp"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.750.0",
+    "sharp": "^0.33.5"
+  }
+}
