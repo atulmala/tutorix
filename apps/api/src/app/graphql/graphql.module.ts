@@ -12,7 +12,9 @@ import { SessionService } from '../modules/auth/services/session.service';
 import { User } from '../modules/auth/entities/user.entity';
 import { AddressEntity } from '../modules/address/entities/address.entity';
 import { DocumentEntity } from '../modules/document/entities/document.entity';
+import { DocumentScreeningEntity } from '../modules/document/entities/document-screening.entity';
 import { TutorDocumentUploadUrlResult } from '../modules/document/dto/tutor-document-upload-url.result';
+import { DocumentVerificationWorkflowStatusEnum } from '../modules/document/enums/document-verification-workflow-status.enum';
 
 const graphqlLogger = new Logger('GraphQL');
 
@@ -54,7 +56,13 @@ interface RequestWithUser extends Omit<Request, 'user'> {
         autoSchemaFile: process.env.NODE_ENV === 'production' ? true : join(__dirname, '../../schema.gql'),
         sortSchema: true,
         path: '/api/graphql',
-        orphanedTypes: [AddressEntity, DocumentEntity, TutorDocumentUploadUrlResult],
+        orphanedTypes: [
+          AddressEntity,
+          DocumentEntity,
+          DocumentScreeningEntity,
+          TutorDocumentUploadUrlResult,
+          DocumentVerificationWorkflowStatusEnum,
+        ],
         playground: false,
         introspection: true,
         csrfPrevention: false,

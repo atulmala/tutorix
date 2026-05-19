@@ -3,6 +3,7 @@ import { Field, Int, ObjectType } from '@nestjs/graphql';
 import { QBaseEntity } from '../../../common/base-entities/base.entity';
 import { DocumentTypeEnum } from '../enums/document-type.enum';
 import { DocumentForTypeEnum } from '../enums/document-for-type.enum';
+import { DocumentVerificationWorkflowStatusEnum } from '../enums/document-verification-workflow-status.enum';
 import { Tutor } from '../../tutor/entities/tutor.entity';
 import { User } from '../../auth/entities/user.entity';
 import { ExperienceEntity } from '../../experience/entities/experience.entity';
@@ -41,6 +42,16 @@ export class DocumentEntity extends QBaseEntity {
   @Field({ nullable: true })
   @Column({ name: 'verified', default: false })
   verified: boolean;
+
+  @Field(() => DocumentVerificationWorkflowStatusEnum)
+  @Column({
+    name: 'document_verification_workflow_status',
+    type: 'enum',
+    enum: DocumentVerificationWorkflowStatusEnum,
+    enumName: 'document_verification_workflow_status_enum',
+    default: DocumentVerificationWorkflowStatusEnum.COMPLETED,
+  })
+  verificationWorkflowStatus: DocumentVerificationWorkflowStatusEnum;
 
   @Field(() => User, { nullable: true })
   @ManyToOne(() => User, { nullable: true })

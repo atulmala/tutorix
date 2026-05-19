@@ -20,7 +20,9 @@ import { UserRole } from '../../auth/enums/user-role.enum';
 import { Tutor } from '../../tutor/entities/tutor.entity';
 import { TutorCertificationStageEnum } from '../../tutor/enums/tutor.enums';
 import { DocumentEntity } from '../entities/document.entity';
+import { DocumentScreeningEntity } from '../entities/document-screening.entity';
 import { DocumentForTypeEnum } from '../enums/document-for-type.enum';
+import { DocumentVerificationWorkflowStatusEnum } from '../enums/document-verification-workflow-status.enum';
 import { DocumentTypeEnum } from '../enums/document-type.enum';
 import { ConfirmTutorDocumentUploadInput } from '../dto/confirm-tutor-document-upload.input';
 import { RequestTutorDocumentUploadUrlInput } from '../dto/request-tutor-document-upload-url.input';
@@ -75,6 +77,8 @@ export class DocumentService {
     private readonly configService: ConfigService,
     @InjectRepository(DocumentEntity)
     private readonly documentRepo: Repository<DocumentEntity>,
+    @InjectRepository(DocumentScreeningEntity)
+    private readonly screeningRepo: Repository<DocumentScreeningEntity>,
     @InjectRepository(Tutor)
     private readonly tutorRepo: Repository<Tutor>,
   ) {
@@ -253,6 +257,15 @@ export class DocumentService {
       }
     }
 
+    if (existing?.id) {
+      await this.screeningRepo
+        .createQueryBuilder()
+        .delete()
+        .from(DocumentScreeningEntity)
+        .where('document_id = :id', { id: existing.id })
+        .execute();
+    }
+
     const filename =
       input.originalFilename?.trim() ||
       input.storageKey.split('/').pop() ||
@@ -267,6 +280,7 @@ export class DocumentService {
         documentType: input.documentType,
         name: displayName,
         verified: false,
+        verificationWorkflowStatus: DocumentVerificationWorkflowStatusEnum.PENDING,
       });
 
     entity.name = displayName;
@@ -278,8 +292,37 @@ export class DocumentService {
     entity.tutorId = tutor.id;
     entity.userId = user.id;
     entity.documentForType = DocumentForTypeEnum.TUTOR;
+    entity.verificationWorkflowStatus =
+      DocumentVerificationWorkflowStatusEnum.PENDING;
+    entity.verified = false;
 
     return this.documentRepo.save(entity);
+  }
+
+  async headOnboardingObject(
+    key: string,
+  ): Promise<{ contentLength: number; contentType?: string }> {
+    this.ensureBucketConfigured();
+    const head = await this.s3.send(
+      new HeadObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      }),
+    );
+    return {
+      contentLength: head.ContentLength ?? 0,
+      contentType: head.ContentType?.split(';')[0]?.trim(),
+    };
+  }
+
+  async deleteS3ObjectKey(key: string): Promise<void> {
+    this.ensureBucketConfigured();
+    await this.s3.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      }),
+    );
   }
 
   async findDocumentsByTutorId(tutorId: number): Promise<DocumentEntity[]> {
