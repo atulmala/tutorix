@@ -207,6 +207,32 @@ export class TutorResolver {
   }
 
   /**
+   * Mutation: Skip/finish registration fee step (payment not implemented yet) and advance to docs.
+   */
+  @Mutation(() => Tutor, {
+    description:
+      'Complete registration payment placeholder step; advances certificationStage to docs',
+  })
+  @UseGuards(JwtAuthGuard)
+  async completeRegistrationPaymentStep(@CurrentUser() user: User): Promise<Tutor> {
+    const tutor = await this.tutorService.findByUserId(user.id);
+    if (!tutor) {
+      throw new BadRequestException('Tutor profile not found for this user');
+    }
+    if (
+      tutor.certificationStage !== TutorCertificationStageEnum.registrationPayment
+    ) {
+      throw new BadRequestException(
+        'Can only complete registration payment step when at registrationPayment stage',
+      );
+    }
+    return this.tutorService.updateCertificationStage(
+      tutor.id,
+      TutorCertificationStageEnum.docs,
+    );
+  }
+
+  /**
    * Mutation: Delete a tutor (soft delete)
    */
   @Mutation(() => Boolean, { description: 'Delete a tutor (soft delete)' })
