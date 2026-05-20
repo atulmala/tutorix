@@ -94,7 +94,12 @@ export class DocumentService {
       this.configService.get<string>('S3_DOCUMENTS_BUCKET') ||
       process.env.S3_DOCUMENTS_BUCKET ||
       '';
-    this.s3 = new S3Client({ region });
+    this.s3 = new S3Client({
+      region,
+      // Browser PUT uploads cannot send SDK checksum headers; avoid signing them into presigned URLs.
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
+    });
   }
 
   private ensureBucketConfigured(): void {

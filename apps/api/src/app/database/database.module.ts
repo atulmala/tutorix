@@ -3,7 +3,6 @@ import { InjectDataSource, TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { createDatabaseOptions } from './database.config';
 import { loadDatabaseCredentials } from './database-credentials.loader';
-import { DocumentScreeningEntity } from '../modules/document/entities/document-screening.entity';
 
 @Module({
   imports: [
@@ -12,56 +11,6 @@ import { DocumentScreeningEntity } from '../modules/document/entities/document-s
         // Load credentials from .env (dev/staging) or AWS Secrets Manager (production)
         const credentials = await loadDatabaseCredentials();
         const options = createDatabaseOptions(credentials);
-        const bootstrapLogger = new Logger('DatabaseBootstrap');
-
-        // #region agent log
-        const rawEntities = options.entities;
-        const entityList: unknown[] = Array.isArray(rawEntities)
-          ? rawEntities
-          : rawEntities != null
-            ? [rawEntities]
-            : [];
-        const entityTargets = entityList.map((entity) => {
-          if (typeof entity === 'function') {
-            return entity.name;
-          }
-          if (typeof entity === 'string') {
-            return entity;
-          }
-          return String(entity);
-        });
-        const bootstrapData = {
-          dbSynchronizeEnv: process.env.DB_SYNCHRONIZE ?? null,
-          synchronizeEnabled: options.synchronize === true,
-          autoRunMigrations: process.env.AUTO_RUN_MIGRATIONS === 'true',
-          entityCount: entityTargets.length,
-          hasDocumentScreeningEntity: entityTargets.includes(
-            'DocumentScreeningEntity',
-          ),
-          entityNames: entityTargets,
-        };
-        bootstrapLogger.log(
-          `Schema bootstrap: ${JSON.stringify(bootstrapData)}`,
-        );
-        fetch(
-          'http://127.0.0.1:7676/ingest/864fd570-d922-464e-bce0-8023d73126b8',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Debug-Session-Id': '5447a3',
-            },
-            body: JSON.stringify({
-              sessionId: '5447a3',
-              location: 'database.module.ts:useFactory',
-              message: 'Schema bootstrap config',
-              data: bootstrapData,
-              timestamp: Date.now(),
-              hypothesisId: 'A-B-C',
-            }),
-          },
-        ).catch(() => undefined);
-        // #endregion
 
         return {
           ...options,
@@ -96,53 +45,9 @@ export class DatabaseModule implements OnModuleInit {
         this.logger.log(
           `✅ Database connected successfully: ${dbName}@${dbHost}:${dbPort}`,
         );
-
-        // #region agent log
-        const screeningTable = await this.dataSource.query<{ exists: boolean }[]>(
-          `SELECT EXISTS (
-            SELECT 1 FROM information_schema.tables
-            WHERE table_schema = 'public' AND table_name = 'document_screening'
-          ) AS exists`,
-        );
-        const workflowColumn = await this.dataSource.query<{ exists: boolean }[]>(
-          `SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = 'public'
-              AND table_name = 'document'
-              AND column_name = 'document_verification_workflow_status'
-          ) AS exists`,
-        );
-        const schemaData = {
-          documentScreeningTableExists: screeningTable[0]?.exists === true,
-          documentWorkflowColumnExists: workflowColumn[0]?.exists === true,
-          documentScreeningEntityMetadata: this.dataSource.hasMetadata(
-            DocumentScreeningEntity,
-          ),
-        };
-        this.logger.log(`Schema check: ${JSON.stringify(schemaData)}`);
-        fetch(
-          'http://127.0.0.1:7676/ingest/864fd570-d922-464e-bce0-8023d73126b8',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Debug-Session-Id': '5447a3',
-            },
-            body: JSON.stringify({
-              sessionId: '5447a3',
-              location: 'database.module.ts:onModuleInit',
-              message: 'Post-connect schema check',
-              data: schemaData,
-              timestamp: Date.now(),
-              hypothesisId: 'D-E',
-            }),
-          },
-        ).catch(() => undefined);
-        // #endregion
       }
     } catch (error) {
       this.logger.error('❌ Database connection failed', error);
     }
   }
 }
-

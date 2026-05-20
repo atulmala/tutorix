@@ -187,7 +187,6 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({
           method: 'PUT',
           headers: {
             'Content-Type': payload.contentType,
-            'Content-Length': String(file.size),
           },
           body: file,
         });
