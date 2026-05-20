@@ -29,6 +29,11 @@ export const CONFIRM_TUTOR_DOCUMENT_UPLOAD = gql`
       size
       storageKey
       verified
+      verificationWorkflowStatus
+      screening {
+        status
+        summaryNotes
+      }
     }
   }
 `;

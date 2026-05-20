@@ -78,6 +78,11 @@ export const GET_MY_TUTOR_PROFILE = gql`
         size
         storageKey
         verified
+        verificationWorkflowStatus
+        screening {
+          status
+          summaryNotes
+        }
       }
     }
   }

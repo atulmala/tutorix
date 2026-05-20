@@ -1,0 +1,18 @@
+{
+  "name": "tutor-document-verification",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "S3-triggered tutor onboarding document AI screening; posts HMAC-signed callback to Nest API",
+  "main": "handler.mjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "local": "node local-invoke.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@aws-sdk/client-s3": "^3.750.0"
+  }
+}

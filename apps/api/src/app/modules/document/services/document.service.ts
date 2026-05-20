@@ -2,12 +2,14 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   DeleteObjectCommand,
+  GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -20,11 +22,14 @@ import { UserRole } from '../../auth/enums/user-role.enum';
 import { Tutor } from '../../tutor/entities/tutor.entity';
 import { TutorCertificationStageEnum } from '../../tutor/enums/tutor.enums';
 import { DocumentEntity } from '../entities/document.entity';
+import { DocumentScreeningEntity } from '../entities/document-screening.entity';
 import { DocumentForTypeEnum } from '../enums/document-for-type.enum';
+import { DocumentVerificationWorkflowStatusEnum } from '../enums/document-verification-workflow-status.enum';
 import { DocumentTypeEnum } from '../enums/document-type.enum';
 import { ConfirmTutorDocumentUploadInput } from '../dto/confirm-tutor-document-upload.input';
 import { RequestTutorDocumentUploadUrlInput } from '../dto/request-tutor-document-upload-url.input';
 import { TutorDocumentUploadUrlResult } from '../dto/tutor-document-upload-url.result';
+import { buildTutorDocumentImageMediaPatch } from '../document-image-media';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const PRESIGN_EXPIRES_SEC = 900;
@@ -68,6 +73,7 @@ function mimeToExtension(mime: string): string {
 
 @Injectable()
 export class DocumentService {
+  private readonly logger = new Logger(DocumentService.name);
   private readonly s3: S3Client;
   private readonly bucket: string;
 
@@ -75,6 +81,8 @@ export class DocumentService {
     private readonly configService: ConfigService,
     @InjectRepository(DocumentEntity)
     private readonly documentRepo: Repository<DocumentEntity>,
+    @InjectRepository(DocumentScreeningEntity)
+    private readonly screeningRepo: Repository<DocumentScreeningEntity>,
     @InjectRepository(Tutor)
     private readonly tutorRepo: Repository<Tutor>,
   ) {
@@ -93,6 +101,48 @@ export class DocumentService {
     if (!this.bucket) {
       throw new BadRequestException(
         'Document storage is not configured (S3_DOCUMENTS_BUCKET)',
+      );
+    }
+  }
+
+  private getDocumentPublicBaseUrl(): string | undefined {
+    const v =
+      this.configService.get<string>('DOCUMENT_PUBLIC_BASE_URL')?.trim() ||
+      process.env.DOCUMENT_PUBLIC_BASE_URL?.trim();
+    return v || undefined;
+  }
+
+  /** JPEG/PNG/WebP/etc.: thumbnails + dimensions written to entity; PDF skipped. */
+  private async tryEnrichRasterImageMedia(entity: DocumentEntity): Promise<void> {
+    if (!entity.storageKey) return;
+    try {
+      const get = await this.s3.send(
+        new GetObjectCommand({
+          Bucket: this.bucket,
+          Key: entity.storageKey,
+        }),
+      );
+      if (!get.Body) return;
+      const body = Buffer.from(await get.Body.transformToByteArray());
+      const patch = await buildTutorDocumentImageMediaPatch({
+        s3: this.s3,
+        bucket: this.bucket,
+        storageKey: entity.storageKey,
+        mimeTypeHeader: entity.mimeType ?? '',
+        body,
+        publicBaseUrl: this.getDocumentPublicBaseUrl(),
+      });
+      if (!patch) return;
+      entity.thumbnailSmall = patch.thumbnailSmall;
+      entity.thumbnailMedium = patch.thumbnailMedium;
+      entity.thumbnailLarge = patch.thumbnailLarge;
+      entity.originalUrl = patch.originalUrl;
+      entity.averageColor = patch.averageColor;
+      entity.width = patch.width;
+      entity.height = patch.height;
+    } catch (err) {
+      this.logger.warn(
+        `Raster document media enrichment failed for ${entity.storageKey}: ${err}`,
       );
     }
   }
@@ -253,6 +303,15 @@ export class DocumentService {
       }
     }
 
+    if (existing?.id) {
+      await this.screeningRepo
+        .createQueryBuilder()
+        .delete()
+        .from(DocumentScreeningEntity)
+        .where('document_id = :id', { id: existing.id })
+        .execute();
+    }
+
     const filename =
       input.originalFilename?.trim() ||
       input.storageKey.split('/').pop() ||
@@ -267,6 +326,7 @@ export class DocumentService {
         documentType: input.documentType,
         name: displayName,
         verified: false,
+        verificationWorkflowStatus: DocumentVerificationWorkflowStatusEnum.PENDING,
       });
 
     entity.name = displayName;
@@ -278,8 +338,39 @@ export class DocumentService {
     entity.tutorId = tutor.id;
     entity.userId = user.id;
     entity.documentForType = DocumentForTypeEnum.TUTOR;
+    entity.verificationWorkflowStatus =
+      DocumentVerificationWorkflowStatusEnum.PENDING;
+    entity.verified = false;
+
+    await this.tryEnrichRasterImageMedia(entity);
 
     return this.documentRepo.save(entity);
+  }
+
+  async headOnboardingObject(
+    key: string,
+  ): Promise<{ contentLength: number; contentType?: string }> {
+    this.ensureBucketConfigured();
+    const head = await this.s3.send(
+      new HeadObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      }),
+    );
+    return {
+      contentLength: head.ContentLength ?? 0,
+      contentType: head.ContentType?.split(';')[0]?.trim(),
+    };
+  }
+
+  async deleteS3ObjectKey(key: string): Promise<void> {
+    this.ensureBucketConfigured();
+    await this.s3.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      }),
+    );
   }
 
   async findDocumentsByTutorId(tutorId: number): Promise<DocumentEntity[]> {

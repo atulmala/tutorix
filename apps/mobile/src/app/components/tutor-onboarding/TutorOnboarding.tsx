@@ -8,6 +8,7 @@ import { TutorQualification } from './tutor-qualification';
 import { TutorExperience } from './tutor-experience';
 import { TutorOfferings } from './tutor-offerings';
 import { TutorPT } from './tutor-pt';
+import { TutorRegistrationPayment } from './TutorRegistrationPayment';
 import { NavHeader } from '../NavHeader';
 
 function getInitials(name: string): string {
@@ -157,6 +158,14 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
     if (stepConfig.id === 'pt') {
       return (
         <TutorPT
+          onComplete={handleStepComplete}
+          onBack={isFirstStep ? onBack : handleStepBack}
+        />
+      );
+    }
+    if (stepConfig.id === 'registrationPayment') {
+      return (
+        <TutorRegistrationPayment
           onComplete={handleStepComplete}
           onBack={isFirstStep ? onBack : handleStepBack}
         />

@@ -82,3 +82,15 @@ export const SUBMIT_PROFICIENCY_TEST = gql`
     }
   }
 `;
+
+/**
+ * Finish registration fee placeholder (payment TBD) and advance to documents upload.
+ */
+export const COMPLETE_REGISTRATION_PAYMENT_STEP = gql`
+  mutation CompleteRegistrationPaymentStep {
+    completeRegistrationPaymentStep {
+      id
+      certificationStage
+    }
+  }
+`;

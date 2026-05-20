@@ -12,6 +12,7 @@ import { AddressEntity } from '../modules/address/entities/address.entity';
 import { TutorQualificationEntity } from '../modules/tutor/entities/tutor-qualification.entity';
 import { TutorOfferingEntity } from '../modules/tutor/entities/tutor-offering.entity';
 import { DocumentEntity } from '../modules/document/entities/document.entity';
+import { DocumentScreeningEntity } from '../modules/document/entities/document-screening.entity';
 import { ExperienceEntity } from '../modules/experience/entities/experience.entity';
 import { OfferingEntity } from '../modules/offerings/entities/offering.entity';
 import { ProficiencyTestEntity } from '../modules/proficiency/entities/proficiency-test.entity';
@@ -47,6 +48,7 @@ export function createDatabaseOptions(
       TutorQualificationEntity,
       TutorOfferingEntity,
       DocumentEntity,
+      DocumentScreeningEntity,
       ExperienceEntity,
       OfferingEntity,
       ProficiencyTestEntity,
