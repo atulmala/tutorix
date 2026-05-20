@@ -15,9 +15,21 @@ import { DocumentScreeningEntity } from '../modules/document/entities/document-s
         const bootstrapLogger = new Logger('DatabaseBootstrap');
 
         // #region agent log
-        const entityTargets = (options.entities ?? []).map((e) =>
-          typeof e === 'function' ? e.name : String(e),
-        );
+        const rawEntities = options.entities;
+        const entityList: unknown[] = Array.isArray(rawEntities)
+          ? rawEntities
+          : rawEntities != null
+            ? [rawEntities]
+            : [];
+        const entityTargets = entityList.map((entity) => {
+          if (typeof entity === 'function') {
+            return entity.name;
+          }
+          if (typeof entity === 'string') {
+            return entity;
+          }
+          return String(entity);
+        });
         const bootstrapData = {
           dbSynchronizeEnv: process.env.DB_SYNCHRONIZE ?? null,
           synchronizeEnabled: options.synchronize === true,
@@ -48,7 +60,7 @@ import { DocumentScreeningEntity } from '../modules/document/entities/document-s
               hypothesisId: 'A-B-C',
             }),
           },
-        ).catch(() => {});
+        ).catch(() => undefined);
         // #endregion
 
         return {
@@ -125,7 +137,7 @@ export class DatabaseModule implements OnModuleInit {
               hypothesisId: 'D-E',
             }),
           },
-        ).catch(() => {});
+        ).catch(() => undefined);
         // #endregion
       }
     } catch (error) {
