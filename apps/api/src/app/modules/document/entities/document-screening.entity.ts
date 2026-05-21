@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn,
   RelationId,
 } from 'typeorm';
+import { BatchJobRunEntity } from '../../../batch-jobs/entities/batch-job-run.entity';
 import { User } from '../../auth/entities/user.entity';
 import { DocumentEntity } from './document.entity';
 import { DocumentScreeningStatusEnum } from '../enums/document-screening-status.enum';
@@ -70,4 +71,13 @@ export class DocumentScreeningEntity {
   @Field({ nullable: true })
   @Column({ name: 'reviewer_note', type: 'text', nullable: true })
   reviewerNote?: string;
+
+  @Field(() => Int, { nullable: true })
+  @RelationId((s: DocumentScreeningEntity) => s.batchJobRun)
+  batchJobRunId?: number;
+
+  @Field(() => BatchJobRunEntity, { nullable: true })
+  @ManyToOne(() => BatchJobRunEntity, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'batch_job_run_id' })
+  batchJobRun?: BatchJobRunEntity;
 }

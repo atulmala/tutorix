@@ -13,6 +13,7 @@ import { TutorQualificationEntity } from '../modules/tutor/entities/tutor-qualif
 import { TutorOfferingEntity } from '../modules/tutor/entities/tutor-offering.entity';
 import { DocumentEntity } from '../modules/document/entities/document.entity';
 import { DocumentScreeningEntity } from '../modules/document/entities/document-screening.entity';
+import { BatchJobRunEntity } from '../batch-jobs/entities/batch-job-run.entity';
 import { ExperienceEntity } from '../modules/experience/entities/experience.entity';
 import { OfferingEntity } from '../modules/offerings/entities/offering.entity';
 import { ProficiencyTestEntity } from '../modules/proficiency/entities/proficiency-test.entity';
@@ -49,6 +50,7 @@ export function createDatabaseOptions(
       TutorOfferingEntity,
       DocumentEntity,
       DocumentScreeningEntity,
+      BatchJobRunEntity,
       ExperienceEntity,
       OfferingEntity,
       ProficiencyTestEntity,
