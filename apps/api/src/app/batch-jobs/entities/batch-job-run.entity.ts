@@ -1,4 +1,4 @@
-import { Field, Int, ObjectType } from '@nestjs/graphql';
+import { Field, HideField, Int, ObjectType } from '@nestjs/graphql';
 import {
   Column,
   Entity,
@@ -75,7 +75,7 @@ export class BatchJobRunEntity {
   })
   triggeredBy: BatchJobTriggerEnum;
 
-  @Field({ nullable: true })
+  @HideField()
   @Column({ type: 'jsonb', nullable: true })
   metadata?: Record<string, unknown>;
 }
