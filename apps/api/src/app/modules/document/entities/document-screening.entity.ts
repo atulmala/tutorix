@@ -6,7 +6,6 @@ import {
   ManyToOne,
   OneToOne,
   PrimaryGeneratedColumn,
-  RelationId,
 } from 'typeorm';
 import { BatchJobRunEntity } from '../../../batch-jobs/entities/batch-job-run.entity';
 import { User } from '../../auth/entities/user.entity';
@@ -21,7 +20,7 @@ export class DocumentScreeningEntity {
   id: number;
 
   @Field(() => Int)
-  @RelationId((s: DocumentScreeningEntity) => s.document)
+  @Column({ name: 'document_id' })
   documentId: number;
 
   @Field(() => DocumentEntity, { nullable: true })
@@ -73,7 +72,7 @@ export class DocumentScreeningEntity {
   reviewerNote?: string;
 
   @Field(() => Int, { nullable: true })
-  @RelationId((s: DocumentScreeningEntity) => s.batchJobRun)
+  @Column({ name: 'batch_job_run_id', nullable: true })
   batchJobRunId?: number;
 
   @Field(() => BatchJobRunEntity, { nullable: true })

@@ -98,18 +98,10 @@ export function mapAiResultToScreeningStatus(
   const modelId = 'unknown';
 
   if (!parsed) {
-    if (isOnboardingIdDocument(documentType)) {
-      return {
-        status: DocumentScreeningStatusEnum.REJECTED_HUMAN,
-        confidence: 0,
-        summaryNotes: 'Could not verify document automatically.',
-        modelId,
-      };
-    }
     return {
       status: DocumentScreeningStatusEnum.PENDING_HUMAN,
       confidence: 0,
-      summaryNotes: 'Automatic analysis inconclusive — queued for human review.',
+      summaryNotes: 'Could not verify document automatically — queued for human review.',
       modelId,
     };
   }
@@ -118,7 +110,7 @@ export function mapAiResultToScreeningStatus(
 
   if (!passed) {
     return {
-      status: DocumentScreeningStatusEnum.REJECTED_HUMAN,
+      status: DocumentScreeningStatusEnum.PENDING_HUMAN,
       confidence: parsed.confidence,
       summaryNotes: parsed.reason,
       modelId,

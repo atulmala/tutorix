@@ -45,7 +45,7 @@ describe('DocumentScreeningAiService helpers', () => {
       expect(result.status).toBe(DocumentScreeningStatusEnum.PASSED_AUTOMATED);
     });
 
-    it('rejects PAN when name does not match', () => {
+    it('queues PAN for human when name does not match', () => {
       const result = mapAiResultToScreeningStatus(
         DocumentTypeEnum.PAN_CARD,
         {
@@ -56,7 +56,7 @@ describe('DocumentScreeningAiService helpers', () => {
         },
         threshold,
       );
-      expect(result.status).toBe(DocumentScreeningStatusEnum.REJECTED_HUMAN);
+      expect(result.status).toBe(DocumentScreeningStatusEnum.PENDING_HUMAN);
     });
 
     it('passes education doc when confidence meets threshold', () => {
@@ -87,13 +87,13 @@ describe('DocumentScreeningAiService helpers', () => {
       expect(result.status).toBe(DocumentScreeningStatusEnum.PENDING_HUMAN);
     });
 
-    it('rejects ID doc on parse failure', () => {
+    it('queues ID doc for human on parse failure', () => {
       const result = mapAiResultToScreeningStatus(
         DocumentTypeEnum.PAN_CARD,
         null,
         threshold,
       );
-      expect(result.status).toBe(DocumentScreeningStatusEnum.REJECTED_HUMAN);
+      expect(result.status).toBe(DocumentScreeningStatusEnum.PENDING_HUMAN);
     });
 
     it('queues education doc for human on parse failure', () => {

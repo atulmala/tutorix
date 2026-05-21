@@ -129,7 +129,7 @@ describe('DocumentScreeningBatchService', () => {
   });
 
   describe('processDocument', () => {
-    it('rejects when tutor name cannot be resolved', async () => {
+    it('queues for human when tutor name cannot be resolved', async () => {
       userFindOne.mockResolvedValue(null);
       const qb = {
         innerJoin: jest.fn().mockReturnThis(),
@@ -153,7 +153,7 @@ describe('DocumentScreeningBatchService', () => {
       expect(screeningSave).toHaveBeenCalledWith(
         expect.objectContaining({
           batchJobRunId: 99,
-          status: DocumentScreeningStatusEnum.REJECTED_HUMAN,
+          status: DocumentScreeningStatusEnum.PENDING_HUMAN,
           summaryNotes: 'Could not resolve tutor name for verification.',
         }),
       );

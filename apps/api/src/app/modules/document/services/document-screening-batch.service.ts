@@ -171,7 +171,7 @@ export class DocumentScreeningBatchService {
       await this.persistScreening(
         document,
         batchJobRunId,
-        DocumentScreeningStatusEnum.REJECTED_HUMAN,
+        DocumentScreeningStatusEnum.PENDING_HUMAN,
         undefined,
         0,
         'Could not resolve tutor name for verification.',
@@ -189,7 +189,7 @@ export class DocumentScreeningBatchService {
       await this.persistScreening(
         document,
         batchJobRunId,
-        DocumentScreeningStatusEnum.REJECTED_HUMAN,
+        DocumentScreeningStatusEnum.PENDING_HUMAN,
         undefined,
         0,
         'Could not read uploaded file from storage.',
