@@ -77,6 +77,8 @@ export const GET_MY_TUTOR_PROFILE = gql`
         mimeType
         size
         storageKey
+        thumbnailSmall
+        previewUrl
         verified
         verificationWorkflowStatus
         screening {

@@ -130,4 +130,10 @@ export class DocumentEntity extends QBaseEntity {
   @Field(() => Int, { nullable: true })
   @Column({ name: 'height', type: 'int', default: 0 })
   height: number;
+
+  @Field({
+    nullable: true,
+    description: 'Time-limited HTTPS URL for UI thumbnail preview',
+  })
+  previewUrl?: string;
 }

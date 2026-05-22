@@ -1,4 +1,5 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { pdf } from 'pdf-to-img';
 import sharp from 'sharp';
 
 const THUMB_SIZES = [
@@ -73,28 +74,26 @@ export type TutorDocumentImageMediaPatch = {
   height: number;
 };
 
-/**
- * Raster images only (same rules as lambdas/tutor-document-metadata). Uploads WebP thumbs beside original key.
- */
-export async function buildTutorDocumentImageMediaPatch(params: {
+export async function buildPdfFirstPageBuffer(pdfBytes: Buffer): Promise<Buffer | null> {
+  try {
+    const document = await pdf(pdfBytes, { scale: 2 });
+    for await (const page of document) {
+      return Buffer.from(page);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function uploadThumbnailsFromRasterBuffer(params: {
   s3: S3Client;
   bucket: string;
   storageKey: string;
-  mimeTypeHeader: string;
   body: Buffer;
   publicBaseUrl?: string;
-}): Promise<TutorDocumentImageMediaPatch | null> {
-  const { s3, bucket, storageKey, mimeTypeHeader, body, publicBaseUrl } = params;
-
-  const headMime = mimeTypeHeader.split(';')[0].trim().toLowerCase();
-  const mimeType =
-    headMime && headMime !== 'application/octet-stream'
-      ? headMime
-      : sniffImageMime(body);
-
-  if (!mimeType || !RASTER_IMAGE_MIME.has(mimeType)) {
-    return null;
-  }
+}): Promise<TutorDocumentImageMediaPatch> {
+  const { s3, bucket, storageKey, body, publicBaseUrl } = params;
 
   const meta = await sharp(body).metadata();
   const width = meta.width ?? 0;
@@ -139,4 +138,45 @@ export async function buildTutorDocumentImageMediaPatch(params: {
     width,
     height,
   };
+}
+
+/**
+ * Raster images and PDFs (first page). Uploads WebP thumbs beside original key.
+ */
+export async function buildTutorDocumentImageMediaPatch(params: {
+  s3: S3Client;
+  bucket: string;
+  storageKey: string;
+  mimeTypeHeader: string;
+  body: Buffer;
+  publicBaseUrl?: string;
+}): Promise<TutorDocumentImageMediaPatch | null> {
+  const { s3, bucket, storageKey, mimeTypeHeader, body, publicBaseUrl } = params;
+
+  const headMime = mimeTypeHeader.split(';')[0].trim().toLowerCase();
+  let mimeType =
+    headMime && headMime !== 'application/octet-stream'
+      ? headMime
+      : sniffImageMime(body);
+
+  let rasterBody = body;
+
+  if (mimeType === 'application/pdf') {
+    const firstPage = await buildPdfFirstPageBuffer(body);
+    if (!firstPage) return null;
+    rasterBody = firstPage;
+    mimeType = sniffImageMime(firstPage) || 'image/png';
+  }
+
+  if (!mimeType || !RASTER_IMAGE_MIME.has(mimeType)) {
+    return null;
+  }
+
+  return uploadThumbnailsFromRasterBuffer({
+    s3,
+    bucket,
+    storageKey,
+    body: rasterBody,
+    publicBaseUrl,
+  });
 }

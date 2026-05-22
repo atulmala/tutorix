@@ -29,6 +29,11 @@ import { DocumentTypeEnum } from '../enums/document-type.enum';
 import { ConfirmTutorDocumentUploadInput } from '../dto/confirm-tutor-document-upload.input';
 import { RequestTutorDocumentUploadUrlInput } from '../dto/request-tutor-document-upload-url.input';
 import { TutorDocumentUploadUrlResult } from '../dto/tutor-document-upload-url.result';
+import {
+  PREVIEW_URL_EXPIRES_SEC,
+  resolveDocumentPreviewPublicUrl,
+  resolveDocumentPreviewS3Key,
+} from '../document-preview.helpers';
 import { buildTutorDocumentImageMediaPatch } from '../document-image-media';
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -117,8 +122,8 @@ export class DocumentService {
     return v || undefined;
   }
 
-  /** JPEG/PNG/WebP/etc.: thumbnails + dimensions written to entity; PDF skipped. */
-  private async tryEnrichRasterImageMedia(entity: DocumentEntity): Promise<void> {
+  /** JPEG/PNG/PDF: thumbnails + dimensions written to entity. */
+  private async tryEnrichDocumentMedia(entity: DocumentEntity): Promise<void> {
     if (!entity.storageKey) return;
     try {
       const get = await this.s3.send(
@@ -147,9 +152,49 @@ export class DocumentService {
       entity.height = patch.height;
     } catch (err) {
       this.logger.warn(
-        `Raster document media enrichment failed for ${entity.storageKey}: ${err}`,
+        `Document media enrichment failed for ${entity.storageKey}: ${err}`,
       );
     }
+  }
+
+  private async assertUserCanAccessDocument(
+    user: User | null | undefined,
+    doc: DocumentEntity,
+  ): Promise<void> {
+    if (!user) {
+      throw new ForbiddenException('Authentication required');
+    }
+    if (user.role !== UserRole.TUTOR) {
+      throw new ForbiddenException('Only tutors can access onboarding documents');
+    }
+    const tutor = await this.tutorRepo.findOne({ where: { userId: user.id } });
+    if (!tutor || doc.tutorId !== tutor.id) {
+      throw new ForbiddenException('You do not have access to this document');
+    }
+  }
+
+  async resolvePreviewUrl(
+    doc: DocumentEntity,
+    user: User | null | undefined,
+  ): Promise<string | null> {
+    if (!doc.storageKey) return null;
+    await this.assertUserCanAccessDocument(user, doc);
+
+    const publicUrl = resolveDocumentPreviewPublicUrl(doc);
+    if (publicUrl) return publicUrl;
+
+    this.ensureBucketConfigured();
+    const key = resolveDocumentPreviewS3Key(doc);
+    if (!key) return null;
+
+    return getSignedUrl(
+      this.s3,
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      }),
+      { expiresIn: PREVIEW_URL_EXPIRES_SEC },
+    );
   }
 
   assertOnboardingDocumentType(documentType: DocumentTypeEnum): void {
@@ -347,7 +392,7 @@ export class DocumentService {
       DocumentVerificationWorkflowStatusEnum.PENDING;
     entity.verified = false;
 
-    await this.tryEnrichRasterImageMedia(entity);
+    await this.tryEnrichDocumentMedia(entity);
 
     return this.documentRepo.save(entity);
   }

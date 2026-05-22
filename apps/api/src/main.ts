@@ -3,6 +3,11 @@
  * This is only a minimal backend to get started.
  */
 
+import { config } from 'dotenv';
+import { join } from 'path';
+
+config({ path: join(__dirname, '../../../.env') });
+
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { json } from 'express';

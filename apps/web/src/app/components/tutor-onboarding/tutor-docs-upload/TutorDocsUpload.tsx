@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import {
   CONFIRM_TUTOR_DOCUMENT_UPLOAD,
@@ -6,6 +6,7 @@ import {
   REQUEST_TUTOR_DOCUMENT_UPLOAD_URL,
 } from '@tutorix/shared-graphql';
 import type { StepComponentProps } from '../types';
+import { DocumentUploadCard } from './DocumentUploadCard';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
@@ -24,6 +25,8 @@ type OnboardingDocType =
 type SlotDoc = {
   filename?: string | null;
   storageKey?: string | null;
+  mimeType?: string | null;
+  previewUrl?: string | null;
   verificationWorkflowStatus?: string | null;
   screening?: { status?: string | null; summaryNotes?: string | null } | null;
 };
@@ -107,6 +110,20 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({
     {},
   );
   const [uploadingSlot, setUploadingSlot] = useState<OnboardingDocType | null>(null);
+  const [optimisticPreviewUrls, setOptimisticPreviewUrls] = useState<
+    Partial<Record<OnboardingDocType, string>>
+  >({});
+
+  const optimisticPreviewUrlsRef = useRef(optimisticPreviewUrls);
+  optimisticPreviewUrlsRef.current = optimisticPreviewUrls;
+
+  useEffect(() => {
+    return () => {
+      for (const url of Object.values(optimisticPreviewUrlsRef.current)) {
+        if (url) URL.revokeObjectURL(url);
+      }
+    };
+  }, []);
 
   const { data: profileData, loading: profileLoading } = useQuery(
     GET_MY_TUTOR_PROFILE,
@@ -147,6 +164,31 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({
     return { filled, allFilled, allPassed, anyRejected };
   }, [documents]);
 
+  const setOptimisticPreviewForSlot = useCallback(
+    (slot: OnboardingDocType, file: File | null) => {
+      setOptimisticPreviewUrls((prev) => {
+        const existing = prev[slot];
+        if (existing) URL.revokeObjectURL(existing);
+
+        if (!file) {
+          const next = { ...prev };
+          delete next[slot];
+          return next;
+        }
+
+        const mime = resolveMimeType(file);
+        if (mime !== 'image/jpeg' && mime !== 'image/png') {
+          const next = { ...prev };
+          delete next[slot];
+          return next;
+        }
+
+        return { ...prev, [slot]: URL.createObjectURL(file) };
+      });
+    },
+    [],
+  );
+
   const uploadFileForSlot = useCallback(
     async (slot: OnboardingDocType, file: File) => {
       setSlotError((prev) => ({ ...prev, [slot]: undefined }));
@@ -166,6 +208,7 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({
         return;
       }
 
+      setOptimisticPreviewForSlot(slot, file);
       setUploadingSlot(slot);
       try {
         const { data: urlData } = await requestUploadUrl({
@@ -207,6 +250,7 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({
             },
           },
         });
+        setOptimisticPreviewForSlot(slot, null);
       } catch (e: unknown) {
         const message =
           e instanceof Error
@@ -219,7 +263,7 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({
         if (el) el.value = '';
       }
     },
-    [confirmUpload, requestUploadUrl],
+    [confirmUpload, requestUploadUrl, setOptimisticPreviewForSlot],
   );
 
   const handlePickFile = useCallback(
@@ -259,7 +303,7 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({
         </div>
       )}
 
-      <ul className="space-y-4">
+      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {ONBOARDING_SLOTS.map((slot) => {
           const doc = findSlotDoc(documents, slot.documentType);
           const hasFile = Boolean(doc?.storageKey);
@@ -274,96 +318,23 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({
             !doc?.screening;
 
           return (
-            <li
+            <DocumentUploadCard
               key={slot.documentType}
-              className="rounded-xl border border-subtle bg-gray-50/60 px-4 py-4"
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h3 className="text-base font-semibold text-primary">
-                    {slot.title}
-                  </h3>
-                  <p className="mt-1 text-sm text-muted">{slot.description}</p>
-                  {hasFile && (
-                    <div className="mt-2 space-y-1 text-sm font-medium text-primary">
-                      <p>
-                        {passed ? (
-                          <span className="text-emerald-700">
-                            Accepted — you can proceed once all documents pass.
-                          </span>
-                        ) : rejected ? (
-                          <span className="text-red-700">
-                            Not accepted
-                            {doc?.filename ? (
-                              <span className="ml-2 font-normal text-muted">
-                                ({doc.filename})
-                              </span>
-                            ) : null}
-                          </span>
-                        ) : humanPending ? (
-                          <span className="text-amber-800">
-                            Under admin review — you’ll be notified when there’s an
-                            outcome.
-                          </span>
-                        ) : awaitingBatch ? (
-                          <span className="text-amber-800">
-                            Uploaded — verification is queued.
-                            {doc?.filename ? (
-                              <span className="ml-2 font-normal text-muted">
-                                ({doc.filename})
-                              </span>
-                            ) : null}
-                          </span>
-                        ) : (
-                          <span className="text-amber-800">
-                            Processing verification…
-                            {doc?.filename ? (
-                              <span className="ml-2 font-normal text-muted">
-                                ({doc.filename})
-                              </span>
-                            ) : null}
-                          </span>
-                        )}
-                      </p>
-                      {rejected &&
-                        doc?.screening?.summaryNotes?.trim() && (
-                          <p className="text-sm font-normal text-red-600" role="alert">
-                            {doc.screening.summaryNotes.trim()}
-                          </p>
-                        )}
-                    </div>
-                  )}
-                  {err && (
-                    <p className="mt-2 text-sm text-red-600" role="alert">
-                      {err}
-                    </p>
-                  )}
-                </div>
-                <div className="shrink-0">
-                  <input
-                    ref={(el) => {
-                      inputRefs.current[slot.documentType] = el;
-                    }}
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                    className="sr-only"
-                    id={`doc-upload-${slot.documentType}`}
-                    disabled={busy || profileLoading}
-                    onChange={(e) => handlePickFile(slot.documentType, e)}
-                  />
-                  <label
-                    htmlFor={`doc-upload-${slot.documentType}`}
-                    className={`inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border px-4 text-sm font-semibold shadow-sm transition ${
-                      busy || profileLoading
-                        ? 'cursor-not-allowed border-subtle bg-gray-100 text-muted'
-                        : 'border-primary/40 bg-white text-primary hover:border-primary hover:bg-primary/5'
-                    }`}
-                  >
-                    {busy ? 'Uploading…' : hasFile ? 'Replace file' : 'Choose file'}
-                  </label>
-                </div>
-              </div>
-            </li>
+              slot={slot}
+              doc={doc}
+              optimisticPreviewUrl={optimisticPreviewUrls[slot.documentType]}
+              err={err}
+              busy={busy}
+              profileLoading={profileLoading}
+              inputRef={(el) => {
+                inputRefs.current[slot.documentType] = el;
+              }}
+              onPickFile={(e) => handlePickFile(slot.documentType, e)}
+              passed={passed}
+              rejected={rejected}
+              humanPending={humanPending}
+              awaitingBatch={awaitingBatch}
+            />
           );
         })}
       </ul>
