@@ -164,6 +164,57 @@ describe('DocumentScreeningBatchService', () => {
       );
       expect(screenDocument).not.toHaveBeenCalled();
     });
+
+    it('persists AI token usage when screening succeeds', async () => {
+      userFindOne.mockResolvedValue({
+        id: 3,
+        firstName: 'Rahul',
+        lastName: 'Sharma',
+      });
+
+      const document = {
+        id: 1,
+        tutorId: 2,
+        userId: 3,
+        storageKey: 'tutors/2/onboarding/PAN_CARD/x.pdf',
+        mimeType: 'application/pdf',
+        documentType: DocumentTypeEnum.PAN_CARD,
+        verificationWorkflowStatus: DocumentVerificationWorkflowStatusEnum.PENDING,
+      } as DocumentEntity;
+
+      screenDocument.mockResolvedValue({
+        status: DocumentScreeningStatusEnum.PASSED_AUTOMATED,
+        confidence: 0.95,
+        summaryNotes: 'PAN layout and holder name match the registered tutor.',
+        modelId: 'claude-sonnet-4-6',
+        usage: {
+          inputTokens: 1200,
+          outputTokens: 40,
+          cacheCreationInputTokens: 1100,
+          cacheReadInputTokens: 0,
+        },
+      });
+
+      jest
+        .spyOn(
+          service as unknown as {
+            fetchDocumentBytes: (key: string) => Promise<Buffer>;
+          },
+          'fetchDocumentBytes',
+        )
+        .mockResolvedValue(Buffer.from('pdf'));
+
+      await service.processDocument(document, 99);
+
+      expect(screeningSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          aiInputTokens: 1200,
+          aiOutputTokens: 40,
+          aiCacheCreationInputTokens: 1100,
+          aiCacheReadInputTokens: 0,
+        }),
+      );
+    });
   });
 
   describe('runBatch', () => {
@@ -207,6 +258,12 @@ describe('DocumentScreeningBatchService', () => {
           itemsProcessed: 1,
           itemsSkipped: 0,
           itemsFailed: 0,
+        }),
+        expect.objectContaining({
+          aiTokenUsage: expect.objectContaining({
+            cacheReadInputTokens: 0,
+            cacheCreationInputTokens: 0,
+          }),
         }),
       );
       expect(result.batchJobRunId).toBe(99);

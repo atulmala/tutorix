@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import verifiedStamp from '../../../../assets/verified-stamp.png';
 
 type OnboardingDocType =
   | 'AADHAAR_CARD'
@@ -35,9 +36,11 @@ type DocumentUploadCardProps = {
 function DocumentThumbnail({
   previewUrl,
   title,
+  showVerifiedStamp = false,
 }: {
   previewUrl?: string;
   title: string;
+  showVerifiedStamp?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
 
@@ -70,13 +73,25 @@ function DocumentThumbnail({
   }
 
   return (
-    <div className="h-28 w-full overflow-hidden rounded-lg border border-subtle bg-white">
-      <img
-        src={previewUrl}
-        alt={`${title} preview`}
-        className="h-full w-full object-contain object-center"
-        onError={() => setFailed(true)}
-      />
+    <div className="relative h-28 w-full">
+      <div className="flex h-full w-full items-center justify-center rounded-lg border border-subtle bg-white">
+        <div className="relative inline-block max-h-28 max-w-full leading-none">
+          <img
+            src={previewUrl}
+            alt={`${title} preview`}
+            className="block h-auto max-h-28 w-auto max-w-full"
+            onError={() => setFailed(true)}
+          />
+          {showVerifiedStamp && (
+            <img
+              src={verifiedStamp}
+              alt=""
+              aria-hidden
+              className="pointer-events-none absolute right-0 top-1/2 z-10 w-[4.5rem] -translate-y-1/2 translate-x-[80%] -rotate-6 opacity-95"
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -97,10 +112,15 @@ export function DocumentUploadCard({
 }: DocumentUploadCardProps) {
   const hasFile = Boolean(doc?.storageKey);
   const previewUrl = optimisticPreviewUrl ?? doc?.previewUrl ?? undefined;
+  const replaceDisabled = passed || busy || profileLoading;
 
   return (
     <li className="flex h-full flex-col rounded-xl border border-subtle bg-gray-50/60 p-4">
-      <DocumentThumbnail previewUrl={hasFile ? previewUrl : undefined} title={slot.title} />
+      <DocumentThumbnail
+        previewUrl={hasFile ? previewUrl : undefined}
+        title={slot.title}
+        showVerifiedStamp={passed && hasFile}
+      />
 
       <div className="mt-3 flex flex-1 flex-col">
         <h3 className="text-base font-semibold text-primary">{slot.title}</h3>
@@ -162,18 +182,24 @@ export function DocumentUploadCard({
           accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
           className="sr-only"
           id={`doc-upload-${slot.documentType}`}
-          disabled={busy || profileLoading}
+          disabled={replaceDisabled}
           onChange={onPickFile}
         />
         <label
           htmlFor={`doc-upload-${slot.documentType}`}
-          className={`inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-lg border px-4 text-sm font-semibold shadow-sm transition ${
-            busy || profileLoading
+          aria-disabled={replaceDisabled}
+          title={
+            passed
+              ? 'This document has been accepted and cannot be replaced.'
+              : undefined
+          }
+          className={`inline-flex h-10 w-full items-center justify-center rounded-lg border px-4 text-sm font-semibold shadow-sm transition ${
+            replaceDisabled
               ? 'cursor-not-allowed border-subtle bg-gray-100 text-muted'
-              : 'border-primary/40 bg-white text-primary hover:border-primary hover:bg-primary/5'
+              : 'cursor-pointer border-primary/40 bg-white text-primary hover:border-primary hover:bg-primary/5'
           }`}
         >
-          {busy ? 'Uploading…' : hasFile ? 'Replace file' : 'Choose file'}
+          {busy ? 'Uploading…' : passed ? 'Accepted' : hasFile ? 'Replace file' : 'Choose file'}
         </label>
       </div>
     </li>
