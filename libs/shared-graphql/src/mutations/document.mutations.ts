@@ -28,6 +28,8 @@ export const CONFIRM_TUTOR_DOCUMENT_UPLOAD = gql`
       mimeType
       size
       storageKey
+      thumbnailSmall
+      previewUrl
       verified
       verificationWorkflowStatus
       screening {
