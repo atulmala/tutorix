@@ -208,6 +208,12 @@ describe('DocumentScreeningBatchService', () => {
           itemsSkipped: 0,
           itemsFailed: 0,
         }),
+        expect.objectContaining({
+          aiTokenUsage: expect.objectContaining({
+            cacheReadInputTokens: 0,
+            cacheCreationInputTokens: 0,
+          }),
+        }),
       );
       expect(result.batchJobRunId).toBe(99);
     });

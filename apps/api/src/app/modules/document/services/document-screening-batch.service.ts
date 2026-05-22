@@ -13,6 +13,7 @@ import { DocumentTypeEnum } from '../enums/document-type.enum';
 import { DocumentVerificationWorkflowStatusEnum } from '../enums/document-verification-workflow-status.enum';
 import { DocumentScreeningStatusEnum } from '../enums/document-screening-status.enum';
 import { DocumentScreeningAiService } from './document-screening-ai.service';
+import type { AiScreeningTokenUsage } from './document-screening-ai.service';
 
 const ONBOARDING_DOCUMENT_TYPES = [
   DocumentTypeEnum.AADHAAR_CARD,
@@ -22,6 +23,26 @@ const ONBOARDING_DOCUMENT_TYPES = [
 ];
 
 export type DocumentProcessOutcome = 'processed' | 'skipped';
+
+function emptyTokenUsage(): AiScreeningTokenUsage {
+  return {
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheCreationInputTokens: 0,
+    cacheReadInputTokens: 0,
+  };
+}
+
+function addTokenUsage(
+  total: AiScreeningTokenUsage,
+  next: AiScreeningTokenUsage | undefined,
+): void {
+  if (!next) return;
+  total.inputTokens += next.inputTokens;
+  total.outputTokens += next.outputTokens;
+  total.cacheCreationInputTokens += next.cacheCreationInputTokens;
+  total.cacheReadInputTokens += next.cacheReadInputTokens;
+}
 
 export function formatExpectedOwnerName(user: Pick<User, 'firstName' | 'lastName'>): string {
   return [user.firstName, user.lastName]
@@ -158,7 +179,7 @@ export class DocumentScreeningBatchService {
   async processDocument(
     document: DocumentEntity,
     batchJobRunId: number,
-  ): Promise<DocumentProcessOutcome> {
+  ): Promise<{ outcome: DocumentProcessOutcome; usage: AiScreeningTokenUsage }> {
     if (!this.bucket) {
       throw new Error('S3_DOCUMENTS_BUCKET is not configured');
     }
@@ -179,7 +200,7 @@ export class DocumentScreeningBatchService {
       this.logger.warn(
         `Document ${document.id}: rejected — tutor name not found`,
       );
-      return 'processed';
+      return { outcome: 'processed', usage: emptyTokenUsage() };
     }
 
     let bytes: Buffer;
@@ -197,7 +218,7 @@ export class DocumentScreeningBatchService {
       this.logger.warn(
         `Document ${document.id}: S3 read failed — ${err}`,
       );
-      return 'processed';
+      return { outcome: 'processed', usage: emptyTokenUsage() };
     }
 
     const mimeType = document.mimeType?.split(';')[0]?.trim() || 'application/octet-stream';
@@ -214,7 +235,7 @@ export class DocumentScreeningBatchService {
       this.logger.error(
         `Document ${document.id}: AI screening failed — leaving PENDING for retry — ${err}`,
       );
-      return 'skipped';
+      return { outcome: 'skipped', usage: emptyTokenUsage() };
     }
 
     await this.persistScreening(
@@ -229,7 +250,7 @@ export class DocumentScreeningBatchService {
     this.logger.log(
       `Document ${document.id} tutor=${document.tutorId} type=${document.documentType} outcome=${aiResult.status} batch=${batchJobRunId}`,
     );
-    return 'processed';
+    return { outcome: 'processed', usage: aiResult.usage ?? emptyTokenUsage() };
   }
 
   async runBatch(
@@ -259,10 +280,12 @@ export class DocumentScreeningBatchService {
 
     let processed = 0;
     let skipped = 0;
+    const tokenUsage = emptyTokenUsage();
 
     try {
       for (const document of documents) {
-        const outcome = await this.processDocument(document, run.id);
+        const { outcome, usage } = await this.processDocument(document, run.id);
+        addTokenUsage(tokenUsage, usage);
         if (outcome === 'skipped') {
           skipped += 1;
         } else {
@@ -275,10 +298,13 @@ export class DocumentScreeningBatchService {
         itemsProcessed: processed,
         itemsSkipped: skipped,
         itemsFailed: 0,
+      }, {
+        aiTokenUsage: tokenUsage,
       });
 
       this.logger.log(
-        `Screening batch ${run.id} finished — processed=${processed} skipped=${skipped}`,
+        `Screening batch ${run.id} finished — processed=${processed} skipped=${skipped} ` +
+          `cacheRead=${tokenUsage.cacheReadInputTokens} cacheCreate=${tokenUsage.cacheCreationInputTokens}`,
       );
       return { processed, skipped, batchJobRunId: run.id };
     } catch (err) {
