@@ -1,23 +1,9 @@
 import { StrictMode } from 'react';
 import * as ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
 import App from './app/app';
-import { initializeAnalytics } from './lib/analytics';
-import { getFirebaseConfig } from './lib/firebase-config';
 import { GraphQLProvider } from '@tutorix/shared-graphql';
-
-// Initialize Firebase Analytics
-try {
-  const firebaseConfig = getFirebaseConfig();
-  initializeAnalytics(firebaseConfig)
-    .then(() => {
-      console.log('✅ Firebase Analytics initialized (Admin)');
-    })
-    .catch((error) => {
-      console.error('❌ Failed to initialize Firebase Analytics:', error);
-    });
-} catch (error) {
-  console.warn('⚠️ Firebase Analytics configuration missing:', error);
-}
+import './styles.css';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement,
@@ -26,7 +12,9 @@ const root = ReactDOM.createRoot(
 root.render(
   <StrictMode>
     <GraphQLProvider>
-      <App />
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
     </GraphQLProvider>
   </StrictMode>,
 );

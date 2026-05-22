@@ -73,6 +73,7 @@ export class TutorService {
         onBoardingComplete: false,
         regFeePaid: false,
         certificationStage: TutorCertificationStageEnum.address,
+        certificationStageEnteredAt: new Date(),
       });
       
       this.logger.debug(`📝 Tutor entity created: ${JSON.stringify({ userId: tutor.userId, onBoardingComplete: tutor.onBoardingComplete, regFeePaid: tutor.regFeePaid })}`);
@@ -125,7 +126,10 @@ export class TutorService {
     stage: TutorCertificationStageEnum,
   ): Promise<Tutor> {
     const tutor = await this.findOne(tutorId);
-    tutor.certificationStage = stage;
+    if (tutor.certificationStage !== stage) {
+      tutor.certificationStage = stage;
+      tutor.certificationStageEnteredAt = new Date();
+    }
     return this.tutorRepository.save(tutor);
   }
 

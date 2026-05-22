@@ -13,6 +13,7 @@ import { ExperienceModule } from './modules/experience/experience.module';
 import { OfferingsModule } from './modules/offerings/offerings.module';
 import { ProficiencyModule } from './modules/proficiency/proficiency.module';
 import { BatchJobsModule } from './batch-jobs/batch-jobs.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { BatchJobsModule } from './batch-jobs/batch-jobs.module';
     OfferingsModule,
     ProficiencyModule,
     BatchJobsModule,
+    AdminModule,
     // Add other modules here as they are created:
     // StudentModule,
     // ClassesModule,
