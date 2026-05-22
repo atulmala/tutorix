@@ -10,6 +10,7 @@ node_modules
 
 # data-backups
 data-backups
+test-data
 
 # IDEs and editors
 /.idea
