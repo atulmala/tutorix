@@ -79,4 +79,20 @@ export class DocumentScreeningEntity {
   @ManyToOne(() => BatchJobRunEntity, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'batch_job_run_id' })
   batchJobRun?: BatchJobRunEntity;
+
+  @Field(() => Int, { nullable: true })
+  @Column({ name: 'ai_input_tokens', type: 'int', nullable: true })
+  aiInputTokens?: number;
+
+  @Field(() => Int, { nullable: true })
+  @Column({ name: 'ai_output_tokens', type: 'int', nullable: true })
+  aiOutputTokens?: number;
+
+  @Field(() => Int, { nullable: true })
+  @Column({ name: 'ai_cache_creation_input_tokens', type: 'int', nullable: true })
+  aiCacheCreationInputTokens?: number;
+
+  @Field(() => Int, { nullable: true })
+  @Column({ name: 'ai_cache_read_input_tokens', type: 'int', nullable: true })
+  aiCacheReadInputTokens?: number;
 }

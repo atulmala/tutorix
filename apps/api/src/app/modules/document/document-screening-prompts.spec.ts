@@ -28,4 +28,15 @@ describe('document-screening-prompts', () => {
     // Anthropic requires ~1024 tokens; ~4 chars/token is a conservative estimate.
     expect(DOCUMENT_SCREENING_STATIC_SYSTEM.length).toBeGreaterThanOrEqual(4096);
   });
+
+  it('allows partially masked Aadhaar numbers on front layout', () => {
+    expect(DOCUMENT_SCREENING_STATIC_SYSTEM).toContain('XXXX-XXXX-XXXX');
+    expect(DOCUMENT_SCREENING_STATIC_SYSTEM).toContain('first 4 digits OR the first 8 digits are masked');
+    expect(DOCUMENT_SCREENING_STATIC_SYSTEM).toContain(
+      'Do NOT reject solely because the Aadhaar number is partially masked',
+    );
+    expect(DOCUMENT_SCREENING_STATIC_SYSTEM).toContain(
+      'Never output Aadhaar numbers, PAN strings',
+    );
+  });
 });

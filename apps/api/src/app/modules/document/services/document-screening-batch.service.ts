@@ -159,6 +159,7 @@ export class DocumentScreeningBatchService {
     modelId: string | undefined,
     confidence: number,
     summaryNotes: string,
+    usage?: AiScreeningTokenUsage,
   ): Promise<void> {
     const screening = this.screeningRepo.create({
       documentId: document.id,
@@ -168,6 +169,10 @@ export class DocumentScreeningBatchService {
       modelId,
       confidence,
       summaryNotes,
+      aiInputTokens: usage?.inputTokens,
+      aiOutputTokens: usage?.outputTokens,
+      aiCacheCreationInputTokens: usage?.cacheCreationInputTokens,
+      aiCacheReadInputTokens: usage?.cacheReadInputTokens,
     });
     await this.screeningRepo.save(screening);
 
@@ -245,6 +250,7 @@ export class DocumentScreeningBatchService {
       aiResult.modelId,
       aiResult.confidence,
       aiResult.summaryNotes,
+      aiResult.usage,
     );
 
     this.logger.log(

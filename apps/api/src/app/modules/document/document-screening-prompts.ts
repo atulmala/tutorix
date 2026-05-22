@@ -29,7 +29,8 @@ Expect: Indian Aadhaar card FRONT (photo side with UID/lion emblem typical of fr
 
 Valid Aadhaar front signals:
 - UIDAI / Aadhaar branding and typical front layout
-- Visible 12-digit Aadhaar number field as a pattern (never transcribe or quote digits in "reason")
+- Aadhaar number area showing the standard 12-digit XXXX-XXXX-XXXX pattern (never transcribe or quote any digits in "reason")
+- Masked Aadhaar numbers are acceptable on front: if the number field shows the XXXX-XXXX-XXXX layout and the first 4 digits OR the first 8 digits are masked/hidden (e.g. asterisks, crosses, blur, black bars, redaction markers) while remaining groups are visible, treat as a valid front-side Aadhaar number field
 - Wording such as "Government of India" or standard Aadhaar headings
 - QR code and holder photograph on front layout
 - Official print/scan quality (may be photo of physical card)
@@ -38,6 +39,7 @@ Reject when:
 - Back of Aadhaar, unrelated ID, random image, meme, or blank page
 - Clearly wrong document type (PAN-only layout, marksheet, degree)
 - Heavily cropped or unreadable screenshot with no Aadhaar front cues
+- Aadhaar number area fully absent, fully illegible, or with no recognizable XXXX-XXXX-XXXX pattern
 
 === SLOT: PAN_CARD ===
 Expect: Indian PAN card issued by Income Tax Department.
@@ -122,7 +124,8 @@ Do not reject solely because the upload is a photograph of a physical card rathe
 Reject when the file is clearly not a document image (selfie, landscape, app screenshot with no document).
 
 === AADHAAR FRONT — ADDITIONAL REJECTION EXAMPLES ===
-Reject Aadhaar slot when upload shows: back side with address-only layout; masked Aadhaar printout with no front layout; voter ID, driving licence, or passport presented instead; cropped fragment with no UIDAI branding; generic "ID card" graphic from the internet.
+Reject Aadhaar slot when upload shows: back side with address-only layout; printout or image with no Aadhaar front layout (even if a number is partially visible); voter ID, driving licence, or passport presented instead; cropped fragment with no UIDAI branding; generic "ID card" graphic from the internet.
+Do NOT reject solely because the Aadhaar number is partially masked when front layout and other front cues are present.
 
 === PAN — ADDITIONAL REJECTION EXAMPLES ===
 Reject PAN slot when upload shows: Aadhaar layout; bank passbook; Form 16 only; student ID; visiting card; empty white page.
