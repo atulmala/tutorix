@@ -106,5 +106,59 @@ export class ProficiencyTestService {
     }
     return test;
   }
+
+  /**
+   * All non-deleted proficiency tests with linked offerings and question counts (admin list).
+   */
+  async findAllForAdmin(): Promise<ProficiencyTestEntity[]> {
+    return this.proficiencyTestRepository
+      .createQueryBuilder('pt')
+      .leftJoinAndSelect(
+        'pt.offerings',
+        'offering',
+        'offering.deleted = :offeringDeleted',
+        { offeringDeleted: false },
+      )
+      .loadRelationCountAndMap(
+        'pt.questionCount',
+        'pt.questions',
+        'question',
+        (qb) =>
+          qb.where('question.deleted = :questionDeleted', {
+            questionDeleted: false,
+          }),
+      )
+      .where('pt.deleted = :deleted', { deleted: false })
+      .orderBy('pt.id', 'ASC')
+      .getMany();
+  }
+
+  /**
+   * Full question pool with answers for admin review (includes correct flags).
+   */
+  async getTestWithAllQuestionsForAdmin(
+    id: number,
+  ): Promise<ProficiencyTestEntity> {
+    const test = await this.proficiencyTestRepository.findOne({
+      where: { id, deleted: false },
+      relations: ['questions', 'questions.answers'],
+    });
+
+    if (!test) {
+      throw new NotFoundException(`Proficiency test ${id} not found`);
+    }
+
+    test.questions = (test.questions ?? [])
+      .filter((question) => !question.deleted)
+      .sort((a, b) => a.id - b.id);
+
+    for (const question of test.questions) {
+      question.answers = (question.answers ?? [])
+        .filter((answer) => !answer.deleted)
+        .sort((a, b) => a.id - b.id);
+    }
+
+    return test;
+  }
 }
 

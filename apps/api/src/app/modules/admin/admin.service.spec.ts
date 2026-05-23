@@ -12,6 +12,8 @@ import { ExperienceService } from '../experience/services/experience.service';
 import { TutorOfferingService } from '../tutor/services/tutor-offering.service';
 import { TutorQualificationService } from '../tutor/services/tutor-qualification.service';
 import { TutorService } from '../tutor/services/tutor.service';
+import { ProficiencyTestService } from '../proficiency/services/proficiency-test.service';
+import { OfferingService } from '../offerings/services/offering.service';
 import { YearsOfExperienceEnum } from '../tutor/enums/years-of-experience.enum';
 import { TutorOfferingStatusEnum } from '../tutor/enums/tutor.enums';
 import { DocumentTypeEnum } from '../document/enums/document-type.enum';
@@ -64,6 +66,11 @@ describe('AdminService', () => {
     findByDocumentIds: jest.Mock;
     reviewByAdmin: jest.Mock;
   };
+  let proficiencyTestService: {
+    findAllForAdmin: jest.Mock;
+    getTestWithAllQuestionsForAdmin: jest.Mock;
+  };
+  let offeringService: { findAll: jest.Mock };
 
   beforeEach(async () => {
     userCount = jest.fn();
@@ -87,6 +94,11 @@ describe('AdminService', () => {
       findByDocumentIds: jest.fn().mockResolvedValue(new Map()),
       reviewByAdmin: jest.fn(),
     };
+    proficiencyTestService = {
+      findAllForAdmin: jest.fn().mockResolvedValue([]),
+      getTestWithAllQuestionsForAdmin: jest.fn(),
+    };
+    offeringService = { findAll: jest.fn().mockResolvedValue([]) };
 
     jest.restoreAllMocks();
 
@@ -111,6 +123,8 @@ describe('AdminService', () => {
         { provide: TutorOfferingService, useValue: tutorOfferingService },
         { provide: DocumentService, useValue: documentService },
         { provide: DocumentScreeningService, useValue: documentScreeningService },
+        { provide: ProficiencyTestService, useValue: proficiencyTestService },
+        { provide: OfferingService, useValue: offeringService },
       ],
     }).compile();
 
@@ -396,6 +410,77 @@ describe('AdminService', () => {
           },
         ],
       });
+    });
+  });
+
+  describe('listProficiencyTests', () => {
+    it('maps proficiency tests with offering metadata and question counts', async () => {
+      const root = {
+        id: 1,
+        displayName: 'School Education',
+        level: 0,
+        deleted: false,
+      };
+      const board = {
+        id: 10,
+        displayName: 'CBSE',
+        level: 1,
+        deleted: false,
+        parentOffering: root,
+      };
+      const grade = {
+        id: 100,
+        displayName: 'Class 4',
+        level: 2,
+        deleted: false,
+        parentOffering: board,
+      };
+      const subject = {
+        id: 1000,
+        displayName: 'Mathematics',
+        level: 3,
+        deleted: false,
+        parentOffering: grade,
+      };
+
+      proficiencyTestService.findAllForAdmin.mockResolvedValue([
+        {
+          id: 5,
+          offerings: [subject],
+          questionCount: 42,
+        },
+      ]);
+      offeringService.findAll.mockResolvedValue([root, board, grade, subject]);
+
+      const items = await service.listProficiencyTests();
+
+      expect(items).toEqual([
+        {
+          id: 5,
+          studyArea: 'School Education',
+          board: 'CBSE',
+          classLabel: 'Class 4',
+          subjects: 'Mathematics',
+          questionCount: 42,
+          offeringIds: [1000],
+        },
+      ]);
+    });
+  });
+
+  describe('getProficiencyTestDetail', () => {
+    it('returns full test with questions from proficiency service', async () => {
+      const testDetail = { id: 9, name: 'Math PT', questions: [{ id: 1 }] };
+      proficiencyTestService.getTestWithAllQuestionsForAdmin.mockResolvedValue(
+        testDetail,
+      );
+
+      await expect(service.getProficiencyTestDetail(9)).resolves.toEqual(
+        testDetail,
+      );
+      expect(
+        proficiencyTestService.getTestWithAllQuestionsForAdmin,
+      ).toHaveBeenCalledWith(9);
     });
   });
 });

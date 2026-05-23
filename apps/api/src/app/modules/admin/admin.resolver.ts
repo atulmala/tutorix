@@ -14,6 +14,8 @@ import { AdminTutorDocumentDetail } from './dto/admin-tutor-document-detail.dto'
 import { AdminTutorListInput } from './dto/admin-tutor-list.input';
 import { AdminTutorListResult } from './dto/admin-tutor-list-result.dto';
 import { AdminTutorStageCount } from './dto/admin-tutor-stage-count.dto';
+import { AdminProficiencyTestListItem } from './dto/admin-proficiency-test-list-item.dto';
+import { ProficiencyTestEntity } from '../proficiency/entities/proficiency-test.entity';
 
 @Resolver()
 export class AdminResolver {
@@ -76,5 +78,26 @@ export class AdminResolver {
       admin.id,
       input.note,
     );
+  }
+
+  @Query(() => [AdminProficiencyTestListItem], {
+    description: 'All proficiency tests for admin management (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminProficiencyTests(): Promise<AdminProficiencyTestListItem[]> {
+    return this.adminService.listProficiencyTests();
+  }
+
+  @Query(() => ProficiencyTestEntity, {
+    description:
+      'Proficiency test with full question pool and correct answers (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminProficiencyTestDetail(
+    @Args('testId', { type: () => Int }) testId: number,
+  ): Promise<ProficiencyTestEntity> {
+    return this.adminService.getProficiencyTestDetail(testId);
   }
 }
