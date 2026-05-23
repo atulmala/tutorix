@@ -29,4 +29,10 @@ export class AdminTutorListItem {
 
   @Field(() => Int, { description: 'Whole days since entering the current stage' })
   daysInStage: number;
+
+  @Field(() => Boolean, {
+    description:
+      'True when any onboarding document has PENDING_HUMAN screening (awaiting admin review)',
+  })
+  pendingAdminDocumentReview: boolean;
 }

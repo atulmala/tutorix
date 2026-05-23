@@ -5,6 +5,8 @@ import { User } from '../auth/entities/user.entity';
 import { Tutor } from '../tutor/entities/tutor.entity';
 import { UserRole } from '../auth/enums/user-role.enum';
 import { TutorCertificationStageEnum } from '../tutor/enums/tutor.enums';
+import { SessionService } from '../auth/services/session.service';
+import * as adminTutorUtils from './admin-tutor.utils';
 
 function createQueryBuilderMock() {
   const qb: Record<string, jest.Mock> = {
@@ -13,10 +15,11 @@ function createQueryBuilderMock() {
     where: jest.fn(),
     andWhere: jest.fn(),
     orderBy: jest.fn(),
+    addOrderBy: jest.fn(),
+    addSelect: jest.fn(),
     skip: jest.fn(),
     take: jest.fn(),
     select: jest.fn(),
-    addSelect: jest.fn(),
     groupBy: jest.fn(),
     getManyAndCount: jest.fn(),
     getRawMany: jest.fn(),
@@ -31,10 +34,19 @@ describe('AdminService', () => {
   let service: AdminService;
   let userCount: jest.Mock;
   let tutorRepo: { createQueryBuilder: jest.Mock };
+  let getActiveSessionStatsByRole: jest.Mock;
 
   beforeEach(async () => {
     userCount = jest.fn();
     tutorRepo = { createQueryBuilder: jest.fn() };
+    getActiveSessionStatsByRole = jest.fn().mockResolvedValue({
+      tutorOnlineUsers: 4,
+      studentOnlineUsers: 9,
+      tutorActiveSessions: 6,
+      studentActiveSessions: 11,
+    });
+
+    jest.restoreAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -46,6 +58,10 @@ describe('AdminService', () => {
         {
           provide: getRepositoryToken(Tutor),
           useValue: tutorRepo,
+        },
+        {
+          provide: SessionService,
+          useValue: { getActiveSessionStatsByRole },
         },
       ],
     }).compile();
@@ -65,7 +81,12 @@ describe('AdminService', () => {
     expect(stats).toEqual({
       tutorSignupCount: 12,
       studentSignupCount: 34,
+      tutorOnlineUsers: 4,
+      studentOnlineUsers: 9,
+      tutorActiveSessions: 6,
+      studentActiveSessions: 11,
     });
+    expect(getActiveSessionStatsByRole).toHaveBeenCalled();
   });
 
   describe('listTutors', () => {
@@ -121,6 +142,7 @@ describe('AdminService', () => {
             email: 'ada@example.com',
             mobile: '+91 9876543210',
             daysInStage: 5,
+            pendingAdminDocumentReview: false,
           },
         ],
       });
@@ -144,10 +166,69 @@ describe('AdminService', () => {
       );
       expect(qb.skip).toHaveBeenCalledWith(20);
     });
+
+    it('orders docs-stage tutors with pending review first and flags them', async () => {
+      const qb = createQueryBuilderMock();
+      qb.getManyAndCount.mockResolvedValue([
+        [
+          {
+            id: 20,
+            certificationStage: TutorCertificationStageEnum.docs,
+            certificationStageEnteredAt: new Date('2026-05-10T12:00:00.000Z'),
+            user: {
+              firstName: 'Review',
+              lastName: 'Needed',
+              email: 'review@example.com',
+            },
+          },
+          {
+            id: 21,
+            certificationStage: TutorCertificationStageEnum.docs,
+            certificationStageEnteredAt: new Date('2026-05-01T12:00:00.000Z'),
+            user: {
+              firstName: 'Clear',
+              lastName: 'Tutor',
+              email: 'clear@example.com',
+            },
+          },
+        ],
+        2,
+      ]);
+      tutorRepo.createQueryBuilder.mockReturnValue(qb);
+
+      jest
+        .spyOn(adminTutorUtils, 'findTutorIdsWithPendingDocumentReview')
+        .mockResolvedValue(new Set([20]));
+
+      const result = await service.listTutors({
+        certificationStage: TutorCertificationStageEnum.docs,
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(qb.addSelect).toHaveBeenCalledWith(
+        expect.stringContaining('EXISTS'),
+        'pending_review_rank',
+      );
+      expect(qb.orderBy).toHaveBeenCalledWith('pending_review_rank', 'DESC');
+      expect(qb.addOrderBy).toHaveBeenCalledWith(
+        'tutor.certificationStageEnteredAt',
+        'ASC',
+        'NULLS LAST',
+      );
+      expect(result.items[0]).toMatchObject({
+        id: 20,
+        pendingAdminDocumentReview: true,
+      });
+      expect(result.items[1]).toMatchObject({
+        id: 21,
+        pendingAdminDocumentReview: false,
+      });
+    });
   });
 
   describe('getTutorStageCounts', () => {
-    it('returns grouped stage counts', async () => {
+    it('returns grouped stage counts with docs pending review count', async () => {
       const qb = createQueryBuilderMock();
       qb.getRawMany.mockResolvedValue([
         { stage: 'address', count: '12' },
@@ -155,12 +236,20 @@ describe('AdminService', () => {
       ]);
       tutorRepo.createQueryBuilder.mockReturnValue(qb);
 
+      jest
+        .spyOn(adminTutorUtils, 'countDocsStageTutorsPendingDocumentReview')
+        .mockResolvedValue(2);
+
       const counts = await service.getTutorStageCounts();
 
       expect(qb.groupBy).toHaveBeenCalledWith('tutor.certificationStage');
       expect(counts).toEqual([
         { stage: TutorCertificationStageEnum.address, count: 12 },
-        { stage: TutorCertificationStageEnum.docs, count: 3 },
+        {
+          stage: TutorCertificationStageEnum.docs,
+          count: 3,
+          pendingDocumentReviewCount: 2,
+        },
       ]);
     });
   });

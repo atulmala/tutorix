@@ -8,4 +8,11 @@ export class AdminTutorStageCount {
 
   @Field(() => Int)
   count: number;
+
+  @Field(() => Int, {
+    nullable: true,
+    description:
+      'Tutors at docs stage with onboarding documents awaiting admin review (docs stage only)',
+  })
+  pendingDocumentReviewCount?: number;
 }

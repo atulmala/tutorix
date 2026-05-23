@@ -94,7 +94,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           input: {
             loginId: email.trim(),
             password,
-            platform: 'web',
+            platform: 'admin',
           },
         },
       });

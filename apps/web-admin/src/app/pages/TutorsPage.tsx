@@ -9,6 +9,36 @@ import {
   type OnboardingStepId,
 } from '@tutorix/shared-utils';
 
+type AdminTutorStageCountRow = {
+  stage: string;
+  count: number;
+  pendingDocumentReviewCount?: number | null;
+};
+
+type AdminTutorListItemRow = {
+  id: number;
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+  mobile?: string | null;
+  mobileCountryCode?: string | null;
+  mobileNumber?: string | null;
+  daysInStage: number;
+  pendingAdminDocumentReview?: boolean;
+};
+
+type AdminTutorStageCountsData = {
+  adminTutorStageCounts: AdminTutorStageCountRow[];
+};
+
+type AdminTutorsData = {
+  adminTutors: {
+    items: AdminTutorListItemRow[];
+    totalPages: number;
+    totalCount: number;
+  };
+};
+
 const PAGE_SIZE = 20;
 
 const TUTOR_STAGE_TABS = ONBOARDING_STEPS.filter((step) => step.id !== 'complete');
@@ -143,12 +173,12 @@ export function TutorsPage() {
 
   const searchArg = debouncedSearch.trim() || undefined;
 
-  const { data: countsData } = useQuery(GET_ADMIN_TUTOR_STAGE_COUNTS, {
+  const { data: countsData } = useQuery<AdminTutorStageCountsData>(GET_ADMIN_TUTOR_STAGE_COUNTS, {
     variables: { search: searchArg },
     fetchPolicy: 'cache-and-network',
   });
 
-  const { data, loading, error } = useQuery(GET_ADMIN_TUTORS, {
+  const { data, loading, error } = useQuery<AdminTutorsData>(GET_ADMIN_TUTORS, {
     variables: {
       input: {
         certificationStage: activeStage,
@@ -166,6 +196,11 @@ export function TutorsPage() {
       map.set(row.stage, row.count);
     }
     return map;
+  }, [countsData]);
+
+  const docsPendingReviewCount = useMemo(() => {
+    const docsRow = countsData?.adminTutorStageCounts?.find((row) => row.stage === 'docs');
+    return docsRow?.pendingDocumentReviewCount ?? 0;
   }, [countsData]);
 
   const result = data?.adminTutors;
@@ -237,6 +272,11 @@ export function TutorsPage() {
                     {count}
                   </span>
                 )}
+                {step.id === 'docs' && docsPendingReviewCount > 0 && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">
+                    {docsPendingReviewCount} review
+                  </span>
+                )}
               </button>
             );
           })}
@@ -277,20 +317,33 @@ export function TutorsPage() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((tutor, index) => (
+                {items.map((tutor, index) => {
+                  const needsReview =
+                    activeStage === 'docs' && tutor.pendingAdminDocumentReview;
+
+                  return (
                   <tr
                     key={tutor.id}
                     className={
-                      index % 2 === 0
-                        ? 'bg-white hover:bg-sky-50/40'
-                        : 'bg-slate-50/60 hover:bg-sky-50/50'
+                      needsReview
+                        ? 'border-l-4 border-l-amber-500 bg-amber-50/70 hover:bg-amber-50'
+                        : index % 2 === 0
+                          ? 'bg-white hover:bg-sky-50/40'
+                          : 'bg-slate-50/60 hover:bg-sky-50/50'
                     }
                   >
                     <td className="px-4 py-3">
                       <span className="font-semibold text-primary">#{tutor.id}</span>
                     </td>
                     <td className="px-4 py-3 font-medium text-primary">
-                      {formatTutorName(tutor.firstName, tutor.lastName)}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {formatTutorName(tutor.firstName, tutor.lastName)}
+                        {needsReview && (
+                          <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">
+                            Needs review
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-muted">{tutor.email ?? '—'}</td>
                     <td className="px-4 py-3 text-muted">
@@ -308,7 +361,8 @@ export function TutorsPage() {
                       </span>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

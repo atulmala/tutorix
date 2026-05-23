@@ -5,6 +5,10 @@ export const GET_ADMIN_DASHBOARD_STATS = gql`
     adminDashboardStats {
       tutorSignupCount
       studentSignupCount
+      tutorOnlineUsers
+      studentOnlineUsers
+      tutorActiveSessions
+      studentActiveSessions
     }
   }
 `;
@@ -26,6 +30,7 @@ export const GET_ADMIN_TUTORS = gql`
         mobileNumber
         certificationStage
         daysInStage
+        pendingAdminDocumentReview
       }
     }
   }
@@ -36,6 +41,7 @@ export const GET_ADMIN_TUTOR_STAGE_COUNTS = gql`
     adminTutorStageCounts(search: $search) {
       stage
       count
+      pendingDocumentReviewCount
     }
   }
 `;

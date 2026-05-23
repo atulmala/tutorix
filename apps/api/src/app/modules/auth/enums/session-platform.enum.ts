@@ -5,4 +5,5 @@ export enum SessionPlatform {
   web = 'web',
   ios = 'ios',
   android = 'android',
+  admin = 'admin',
 }
