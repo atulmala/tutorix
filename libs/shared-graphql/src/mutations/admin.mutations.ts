@@ -1,0 +1,23 @@
+import { gql } from '@apollo/client';
+
+export const ADMIN_REVIEW_DOCUMENT = gql`
+  mutation AdminReviewDocument($input: AdminReviewEducationDocumentInput!) {
+    adminReviewDocument(input: $input) {
+      id
+      name
+      documentType
+      filename
+      mimeType
+      previewUrl
+      viewUrl
+      screening {
+        status
+        summaryNotes
+        confidence
+        automatedAt
+        reviewerNote
+        reviewedAt
+      }
+    }
+  }
+`;

@@ -5,6 +5,7 @@ import { AdminLayout } from './layouts/AdminLayout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { TutorsPage } from './pages/TutorsPage';
+import { TutorDetailPage } from './pages/TutorDetailPage';
 import { StudentsPage } from './pages/StudentsPage';
 
 export function App() {
@@ -22,6 +23,7 @@ export function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="tutors" element={<TutorsPage />} />
+          <Route path="tutors/:tutorId" element={<TutorDetailPage />} />
           <Route path="students" element={<StudentsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

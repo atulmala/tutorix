@@ -113,3 +113,71 @@ describe('DocumentService.resolvePreviewUrl', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
+
+describe('DocumentService admin preview URLs', () => {
+  let service: DocumentService;
+
+  const doc = {
+    id: 1,
+    tutorId: 5,
+    storageKey: 'tutors/5/onboarding/PAN_CARD/file.pdf',
+    thumbnailSmall: 'https://cdn.example.com/thumb.webp',
+    mimeType: 'application/pdf',
+  } as DocumentEntity;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        DocumentService,
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string) => {
+              if (key === 'S3_DOCUMENTS_BUCKET') return 'test-bucket';
+              if (key === 'AWS_REGION') return 'us-east-1';
+              return undefined;
+            }),
+          },
+        },
+        {
+          provide: getRepositoryToken(DocumentEntity),
+          useValue: { findOne: jest.fn(), save: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(DocumentScreeningEntity),
+          useValue: { findOne: jest.fn(), save: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(Tutor),
+          useValue: { findOne: jest.fn() },
+        },
+      ],
+    }).compile();
+
+    service = module.get(DocumentService);
+    (getSignedUrl as jest.Mock).mockReset();
+  });
+
+  it('resolvePreviewUrlForAdmin returns CDN thumbnail without tutor auth', async () => {
+    const url = await service.resolvePreviewUrlForAdmin(doc);
+    expect(url).toBe('https://cdn.example.com/thumb.webp');
+    expect(getSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it('resolveViewUrlForAdmin presigns the full storage key', async () => {
+    (getSignedUrl as jest.Mock).mockResolvedValue('https://s3.example.com/full');
+
+    const url = await service.resolveViewUrlForAdmin(doc);
+    expect(url).toBe('https://s3.example.com/full');
+    expect(getSignedUrl).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        input: expect.objectContaining({
+          Bucket: 'test-bucket',
+          Key: doc.storageKey,
+        }),
+      }),
+      expect.objectContaining({ expiresIn: 900 }),
+    );
+  });
+});

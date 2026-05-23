@@ -18,5 +18,6 @@ export * from './otp.mutations';
 export * from './address.mutations';
 export * from './tutor.mutations';
 export * from './document.mutations';
+export * from './admin.mutations';
 // export * from './student.mutations';
 // export * from './class.mutations';

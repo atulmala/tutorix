@@ -40,6 +40,19 @@ export class TutorService {
     return tutor;
   }
 
+  async findOneWithProfile(id: number): Promise<Tutor> {
+    const tutor = await this.tutorRepository.findOne({
+      where: { id, deleted: false },
+      relations: ['user', 'addresses'],
+    });
+
+    if (!tutor) {
+      throw new NotFoundException(`Tutor with ID ${id} not found`);
+    }
+
+    return tutor;
+  }
+
   /**
    * Find a tutor by user ID
    * @returns Tutor or null if not found
