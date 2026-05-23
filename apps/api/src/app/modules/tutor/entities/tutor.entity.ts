@@ -39,6 +39,10 @@ export class Tutor extends QBaseEntity {
   })
   certificationStage?: TutorCertificationStageEnum;
 
+  @Field(() => Date, { nullable: true })
+  @Column('timestamp', { name: 'certification_stage_entered_at', nullable: true })
+  certificationStageEnteredAt?: Date;
+
   @Field(() => YearsOfExperienceEnum)
   @Column({
     type: 'smallint',

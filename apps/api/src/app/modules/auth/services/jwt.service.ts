@@ -89,10 +89,13 @@ export class JwtService {
     expiresAt.setDate(expiresAt.getDate() + this.REFRESH_TOKEN_EXPIRY_DAYS);
 
     const now = new Date();
-    const effectivePlatform: SessionPlatform =
-      platform === SessionPlatform.ios || platform === SessionPlatform.android
-        ? platform
-        : SessionPlatform.web;
+    const effectivePlatform = this.resolveSessionPlatform(platform, user);
+
+    // One active session per user per platform; prevents stale tokens inflating online counts.
+    await this.refreshTokenRepository.update(
+      { userId: user.id, platform: effectivePlatform, isRevoked: false },
+      { isRevoked: true, revokedAt: now },
+    );
 
     const refreshTokenEntity = this.refreshTokenRepository.create({
       token: hashedToken,
@@ -162,6 +165,19 @@ export class JwtService {
     } catch {
       throw new UnauthorizedException('Invalid or expired token');
     }
+  }
+
+  private resolveSessionPlatform(
+    platform: SessionPlatform | string,
+    user: User,
+  ): SessionPlatform {
+    if (platform === SessionPlatform.ios || platform === SessionPlatform.android) {
+      return platform;
+    }
+    if (platform === SessionPlatform.admin || user.role === UserRole.ADMIN) {
+      return SessionPlatform.admin;
+    }
+    return SessionPlatform.web;
   }
 }
 

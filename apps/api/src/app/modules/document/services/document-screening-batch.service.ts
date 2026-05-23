@@ -9,18 +9,11 @@ import { BatchJobRunService } from '../../../batch-jobs/services/batch-job-run.s
 import { User } from '../../auth/entities/user.entity';
 import { DocumentEntity } from '../entities/document.entity';
 import { DocumentScreeningEntity } from '../entities/document-screening.entity';
-import { DocumentTypeEnum } from '../enums/document-type.enum';
 import { DocumentVerificationWorkflowStatusEnum } from '../enums/document-verification-workflow-status.enum';
 import { DocumentScreeningStatusEnum } from '../enums/document-screening-status.enum';
+import { ONBOARDING_DOCUMENT_TYPES } from '../onboarding-document-types';
 import { DocumentScreeningAiService } from './document-screening-ai.service';
 import type { AiScreeningTokenUsage } from './document-screening-ai.service';
-
-const ONBOARDING_DOCUMENT_TYPES = [
-  DocumentTypeEnum.AADHAAR_CARD,
-  DocumentTypeEnum.PAN_CARD,
-  DocumentTypeEnum.CLASS_XII_MARKSHEET,
-  DocumentTypeEnum.HIGHEST_DEGREE_CERTIFICATE,
-];
 
 export type DocumentProcessOutcome = 'processed' | 'skipped';
 

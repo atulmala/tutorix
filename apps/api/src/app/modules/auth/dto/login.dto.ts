@@ -18,7 +18,7 @@ export class LoginInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  @IsIn(['web', 'ios', 'android'])
+  @IsIn(['web', 'ios', 'android', 'admin'])
   platform?: string;
 }
 
