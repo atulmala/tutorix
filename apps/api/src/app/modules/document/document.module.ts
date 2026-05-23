@@ -14,6 +14,7 @@ import { DocumentEntityResolver } from './resolvers/document-entity.resolver';
 import { DocumentService } from './services/document.service';
 import { DocumentScreeningAiService } from './services/document-screening-ai.service';
 import { DocumentScreeningBatchService } from './services/document-screening-batch.service';
+import { DocumentScreeningService } from './services/document-screening.service';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { DocumentScreeningBatchService } from './services/document-screening-bat
     DocumentService,
     DocumentScreeningAiService,
     DocumentScreeningBatchService,
+    DocumentScreeningService,
     DocumentUploadResolver,
     TutorDocumentsFieldResolver,
     DocumentEntityResolver,
@@ -38,6 +40,7 @@ import { DocumentScreeningBatchService } from './services/document-screening-bat
     DocumentService,
     DocumentScreeningAiService,
     DocumentScreeningBatchService,
+    DocumentScreeningService,
     TypeOrmModule,
   ],
 })

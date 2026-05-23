@@ -16,7 +16,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, In, Repository } from 'typeorm';
 import { User } from '../../auth/entities/user.entity';
 import { UserRole } from '../../auth/enums/user-role.enum';
 import { Tutor } from '../../tutor/entities/tutor.entity';
@@ -41,12 +41,7 @@ const PRESIGN_EXPIRES_SEC = 900;
 
 const ALLOWED_MIME = new Set(['application/pdf', 'image/jpeg', 'image/png']);
 
-const ONBOARDING_DOCUMENT_TYPES = new Set<DocumentTypeEnum>([
-  DocumentTypeEnum.AADHAAR_CARD,
-  DocumentTypeEnum.PAN_CARD,
-  DocumentTypeEnum.CLASS_XII_MARKSHEET,
-  DocumentTypeEnum.HIGHEST_DEGREE_CERTIFICATE,
-]);
+import { ONBOARDING_DOCUMENT_TYPES } from '../onboarding-document-types';
 
 const DOCUMENT_DISPLAY_NAMES: Partial<Record<DocumentTypeEnum, string>> = {
   [DocumentTypeEnum.AADHAAR_CARD]: 'Aadhaar Card',
@@ -179,7 +174,34 @@ export class DocumentService {
   ): Promise<string | null> {
     if (!doc.storageKey) return null;
     await this.assertUserCanAccessDocument(user, doc);
+    return this.buildPreviewUrl(doc);
+  }
 
+  async resolvePreviewUrlForAdmin(doc: DocumentEntity): Promise<string | null> {
+    if (!doc.storageKey) return null;
+    return this.buildPreviewUrl(doc);
+  }
+
+  async resolveViewUrlForAdmin(doc: DocumentEntity): Promise<string | null> {
+    if (!doc.storageKey) return null;
+
+    const publicUrl = doc.originalUrl?.trim();
+    if (publicUrl?.startsWith('http://') || publicUrl?.startsWith('https://')) {
+      return publicUrl;
+    }
+
+    this.ensureBucketConfigured();
+    return getSignedUrl(
+      this.s3,
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: doc.storageKey,
+      }),
+      { expiresIn: PREVIEW_URL_EXPIRES_SEC },
+    );
+  }
+
+  private async buildPreviewUrl(doc: DocumentEntity): Promise<string | null> {
     const publicUrl = resolveDocumentPreviewPublicUrl(doc);
     if (publicUrl) return publicUrl;
 
@@ -198,7 +220,7 @@ export class DocumentService {
   }
 
   assertOnboardingDocumentType(documentType: DocumentTypeEnum): void {
-    if (!ONBOARDING_DOCUMENT_TYPES.has(documentType)) {
+    if (!ONBOARDING_DOCUMENT_TYPES.includes(documentType)) {
       throw new BadRequestException(
         'Document type is not allowed for tutor onboarding upload',
       );
@@ -428,5 +450,23 @@ export class DocumentService {
       where: { tutorId },
       order: { id: 'ASC' },
     });
+  }
+
+  async findOnboardingDocumentsByTutorId(tutorId: number): Promise<DocumentEntity[]> {
+    return this.documentRepo.find({
+      where: {
+        tutorId,
+        documentType: In([...ONBOARDING_DOCUMENT_TYPES]),
+      },
+      order: { id: 'ASC' },
+    });
+  }
+
+  async findDocumentById(id: number): Promise<DocumentEntity> {
+    const doc = await this.documentRepo.findOne({ where: { id } });
+    if (!doc) {
+      throw new NotFoundException(`Document with ID ${id} not found`);
+    }
+    return doc;
   }
 }

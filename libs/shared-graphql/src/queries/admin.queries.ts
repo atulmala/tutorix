@@ -45,3 +45,88 @@ export const GET_ADMIN_TUTOR_STAGE_COUNTS = gql`
     }
   }
 `;
+
+export const GET_ADMIN_TUTOR_DETAIL = gql`
+  query GetAdminTutorDetail($tutorId: Int!) {
+    adminTutorDetail(tutorId: $tutorId) {
+      id
+      certificationStage
+      yearsOfExperience
+      regFeePaid
+      regFeeAmount
+      regFeeAmountToBePaid
+      regFeeDate
+      user {
+        firstName
+        lastName
+        email
+        mobile
+        mobileCountryCode
+        mobileNumber
+        createdDate
+      }
+      addresses {
+        id
+        type
+        street
+        subArea
+        city
+        state
+        country
+        postalCode
+        fullAddress
+      }
+      qualifications {
+        id
+        qualificationType
+        boardOrUniversity
+        degreeName
+        gradeType
+        gradeValue
+        yearObtained
+        fieldOfStudy
+        displayOrder
+      }
+      experiences {
+        id
+        jobTitle
+        employerName
+        employerAddress
+        employmentType
+        startDate
+        endDate
+        isCurrent
+      }
+      offerings {
+        id
+        offeringName
+        offeringDisplayName
+        status
+        attemptsUsed
+        attemptsRemaining
+        lastScore
+        lastMaxScore
+        lastAttemptAt
+        passedAt
+        lastTimeTakenSeconds
+      }
+      documents {
+        id
+        name
+        documentType
+        filename
+        mimeType
+        previewUrl
+        viewUrl
+        screening {
+          status
+          summaryNotes
+          confidence
+          automatedAt
+          reviewerNote
+          reviewedAt
+        }
+      }
+    }
+  }
+`;

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import {
   GET_ADMIN_TUTORS,
@@ -337,7 +338,12 @@ export function TutorsPage() {
                     </td>
                     <td className="px-4 py-3 font-medium text-primary">
                       <div className="flex flex-wrap items-center gap-2">
-                        {formatTutorName(tutor.firstName, tutor.lastName)}
+                        <Link
+                          to={`/tutors/${tutor.id}`}
+                          className="font-medium text-sky-800 underline-offset-2 hover:underline"
+                        >
+                          {formatTutorName(tutor.firstName, tutor.lastName)}
+                        </Link>
                         {needsReview && (
                           <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">
                             Needs review

@@ -1,0 +1,596 @@
+import React, { useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { useQuery } from '@apollo/client';
+import { GET_ADMIN_TUTOR_DETAIL } from '@tutorix/shared-graphql';
+import {
+  AdminDocumentViewerModal,
+  type AdminDocumentDetail,
+} from '../components/AdminDocumentViewerModal';
+import {
+  documentStatusBadgeClass,
+  documentStatusLabel,
+  experienceDurationMonths,
+  formatDate,
+  formatDateTime,
+  formatExperienceDuration,
+  formatQualificationTitle,
+  monthsToExperienceDuration,
+  ptStatusBadgeClass,
+  ptStatusLabel,
+  sumExperienceDurations,
+} from '../utils/tutor-detail-formatters';
+
+type AdminTutorDetailData = {
+  adminTutorDetail: {
+    id: number;
+    certificationStage?: string | null;
+    yearsOfExperience: string;
+    regFeePaid: boolean;
+    regFeeAmount?: number | null;
+    regFeeAmountToBePaid?: number | null;
+    regFeeDate?: string | null;
+    user?: {
+      firstName?: string | null;
+      lastName?: string | null;
+      email?: string | null;
+      mobile?: string | null;
+      mobileCountryCode?: string | null;
+      mobileNumber?: string | null;
+      createdDate?: string | null;
+    } | null;
+    addresses: Array<{
+      id: number;
+      street?: string | null;
+      subArea?: string | null;
+      city?: string | null;
+      state?: string | null;
+      country?: string | null;
+      postalCode?: number | null;
+      fullAddress?: string | null;
+    }>;
+    qualifications: Array<{
+      id: number;
+      qualificationType: string;
+      boardOrUniversity: string;
+      degreeName?: string | null;
+      gradeType: string;
+      gradeValue: string;
+      yearObtained: number;
+      fieldOfStudy?: string | null;
+    }>;
+    experiences: Array<{
+      id: number;
+      jobTitle: string;
+      employerName?: string | null;
+      employerAddress?: string | null;
+      employmentType: number;
+      startDate: string;
+      endDate?: string | null;
+      isCurrent: boolean;
+    }>;
+    offerings: Array<{
+      id: number;
+      offeringName?: string | null;
+      offeringDisplayName?: string | null;
+      status: string;
+      attemptsUsed: number;
+      attemptsRemaining: number;
+      lastScore?: number | null;
+      lastMaxScore?: number | null;
+      lastAttemptAt?: string | null;
+      passedAt?: string | null;
+      lastTimeTakenSeconds?: number | null;
+    }>;
+    documents: AdminDocumentDetail[];
+  };
+};
+
+type SectionStyle = {
+  border: string;
+  shadow: string;
+  header: string;
+  headerText: string;
+  bar: string;
+  body: string;
+  item: string;
+  tableHeader: string;
+  tableRowEven: string;
+  tableRowOdd: string;
+};
+
+const SECTION_STYLES: Record<string, SectionStyle> = {
+  profile: {
+    border: 'border-sky-200/90',
+    shadow: 'shadow-sky-100/40',
+    header: 'bg-gradient-to-r from-sky-100 via-sky-50 to-white',
+    headerText: 'text-sky-900',
+    bar: 'bg-sky-500',
+    body: 'bg-gradient-to-b from-sky-50/30 to-white',
+    item: 'border-sky-100 bg-sky-50/50',
+    tableHeader: '',
+    tableRowEven: '',
+    tableRowOdd: '',
+  },
+  fee: {
+    border: 'border-amber-200/90',
+    shadow: 'shadow-amber-100/40',
+    header: 'bg-gradient-to-r from-amber-100 via-amber-50 to-white',
+    headerText: 'text-amber-900',
+    bar: 'bg-amber-500',
+    body: 'bg-gradient-to-b from-amber-50/40 to-white',
+    item: 'border-amber-100 bg-amber-50/50',
+    tableHeader: '',
+    tableRowEven: '',
+    tableRowOdd: '',
+  },
+  address: {
+    border: 'border-cyan-200/90',
+    shadow: 'shadow-cyan-100/40',
+    header: 'bg-gradient-to-r from-cyan-100 via-cyan-50 to-white',
+    headerText: 'text-cyan-900',
+    bar: 'bg-cyan-500',
+    body: 'bg-gradient-to-b from-cyan-50/30 to-white',
+    item: 'border-cyan-100 bg-gradient-to-r from-cyan-50/80 to-white',
+    tableHeader: '',
+    tableRowEven: '',
+    tableRowOdd: '',
+  },
+  education: {
+    border: 'border-indigo-200/90',
+    shadow: 'shadow-indigo-100/40',
+    header: 'bg-gradient-to-r from-indigo-100 via-indigo-50 to-white',
+    headerText: 'text-indigo-900',
+    bar: 'bg-indigo-500',
+    body: 'bg-gradient-to-b from-indigo-50/30 to-white',
+    item: 'border-indigo-100 bg-gradient-to-r from-indigo-50/80 to-white',
+    tableHeader: '',
+    tableRowEven: '',
+    tableRowOdd: '',
+  },
+  experience: {
+    border: 'border-violet-200/90',
+    shadow: 'shadow-violet-100/40',
+    header: 'bg-gradient-to-r from-violet-100 via-violet-50 to-white',
+    headerText: 'text-violet-900',
+    bar: 'bg-violet-500',
+    body: 'bg-gradient-to-b from-violet-50/30 to-white',
+    item: 'border-violet-100 bg-gradient-to-r from-violet-50/80 to-white',
+    tableHeader: '',
+    tableRowEven: '',
+    tableRowOdd: '',
+  },
+  offerings: {
+    border: 'border-purple-200/90',
+    shadow: 'shadow-purple-100/40',
+    header: 'bg-gradient-to-r from-purple-100 via-purple-50 to-white',
+    headerText: 'text-purple-900',
+    bar: 'bg-purple-500',
+    body: 'bg-gradient-to-b from-purple-50/30 to-white',
+    item: '',
+    tableHeader: 'border-purple-200 bg-gradient-to-r from-purple-100/80 to-purple-50/50 text-purple-900',
+    tableRowEven: 'bg-white hover:bg-purple-50/40',
+    tableRowOdd: 'bg-purple-50/30 hover:bg-purple-50/50',
+  },
+  documents: {
+    border: 'border-emerald-200/90',
+    shadow: 'shadow-emerald-100/40',
+    header: 'bg-gradient-to-r from-emerald-100 via-emerald-50 to-white',
+    headerText: 'text-emerald-900',
+    bar: 'bg-emerald-500',
+    body: 'bg-gradient-to-b from-emerald-50/30 to-white',
+    item: 'border-emerald-200 bg-gradient-to-br from-white to-emerald-50/60 hover:border-emerald-400 hover:shadow-md hover:shadow-emerald-100/50',
+    tableHeader: '',
+    tableRowEven: '',
+    tableRowOdd: '',
+  },
+};
+
+function SectionCard({
+  title,
+  styleKey,
+  children,
+}: {
+  title: string;
+  styleKey: keyof typeof SECTION_STYLES;
+  children: React.ReactNode;
+}) {
+  const styles = SECTION_STYLES[styleKey];
+
+  return (
+    <section
+      className={`overflow-hidden rounded-2xl border shadow-md ${styles.border} ${styles.shadow}`}
+    >
+      <div className={`flex items-center gap-3 border-b px-5 py-3.5 ${styles.header}`}>
+        <span className={`h-8 w-1 rounded-full ${styles.bar}`} aria-hidden />
+        <h2 className={`text-sm font-bold uppercase tracking-wide ${styles.headerText}`}>
+          {title}
+        </h2>
+      </div>
+      <div className={`p-5 ${styles.body}`}>{children}</div>
+    </section>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  accentClass = 'bg-white/60',
+}: {
+  label: string;
+  value: React.ReactNode;
+  accentClass?: string;
+}) {
+  return (
+    <div
+      className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/80 px-3 py-2.5 text-sm ${accentClass}`}
+    >
+      <dt className="font-medium text-muted">{label}</dt>
+      <dd className="font-semibold text-primary">{value}</dd>
+    </div>
+  );
+}
+
+function formatTutorName(firstName?: string | null, lastName?: string | null): string {
+  const name = [firstName, lastName].filter(Boolean).join(' ').trim();
+  return name || '—';
+}
+
+function formatMobile(user?: AdminTutorDetailData['adminTutorDetail']['user']): string {
+  if (!user) return '—';
+  if (user.mobile?.trim()) return user.mobile.trim();
+  if (user.mobileNumber?.trim()) {
+    const code = user.mobileCountryCode?.trim() || '+91';
+    return `${code} ${user.mobileNumber.trim()}`;
+  }
+  return '—';
+}
+
+function formatAddress(address: AdminTutorDetailData['adminTutorDetail']['addresses'][0]): string {
+  if (address.fullAddress?.trim()) return address.fullAddress.trim();
+  return [
+    address.street,
+    address.subArea,
+    address.city,
+    address.state,
+    address.postalCode,
+    address.country,
+  ]
+    .filter(Boolean)
+    .join(', ');
+}
+
+export function TutorDetailPage() {
+  const { tutorId } = useParams<{ tutorId: string }>();
+  const parsedId = Number(tutorId);
+  const [selectedDocument, setSelectedDocument] = useState<AdminDocumentDetail | null>(null);
+
+  const { data, loading, error, refetch } = useQuery<AdminTutorDetailData>(
+    GET_ADMIN_TUTOR_DETAIL,
+    {
+      variables: { tutorId: parsedId },
+      skip: !Number.isFinite(parsedId),
+      fetchPolicy: 'cache-and-network',
+    },
+  );
+
+  const tutor = data?.adminTutorDetail;
+
+  if (!Number.isFinite(parsedId)) {
+    return <p className="text-sm text-red-600">Invalid tutor ID.</p>;
+  }
+
+  if (loading && !tutor) {
+    return (
+      <div className="rounded-2xl border border-sky-200/80 bg-gradient-to-r from-sky-50 via-white to-violet-50 p-8 text-center">
+        <p className="text-sm font-medium text-sky-800">Loading tutor details…</p>
+      </div>
+    );
+  }
+
+  if (error || !tutor) {
+    return (
+      <div>
+        <Link to="/tutors" className="text-sm font-medium text-sky-700 hover:underline">
+          ← Back to tutors
+        </Link>
+        <p className="mt-4 text-sm text-red-600" role="alert">
+          Could not load tutor details.
+        </p>
+      </div>
+    );
+  }
+
+  const feeAmount = tutor.regFeePaid
+    ? tutor.regFeeAmount
+    : tutor.regFeeAmountToBePaid;
+
+  const totalExperience = sumExperienceDurations(tutor.experiences);
+
+  return (
+    <div className="space-y-6">
+      <div className="overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-r from-sky-100/80 via-white to-violet-100/80 px-6 py-5 shadow-md shadow-sky-100/30">
+        <Link
+          to="/tutors"
+          className="inline-flex items-center gap-1 rounded-lg bg-white/70 px-3 py-1 text-sm font-semibold text-sky-800 ring-1 ring-sky-200 transition hover:bg-sky-50"
+        >
+          ← Back to tutors
+        </Link>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-bold text-primary">
+            {formatTutorName(tutor.user?.firstName, tutor.user?.lastName)}
+          </h1>
+          <span className="rounded-full bg-sky-500 px-3 py-0.5 text-sm font-bold text-white shadow-sm">
+            #{tutor.id}
+          </span>
+          {tutor.certificationStage && (
+            <span className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-3 py-0.5 text-xs font-bold text-white shadow-sm">
+              {tutor.certificationStage}
+            </span>
+          )}
+        </div>
+        <p className="mt-2 text-sm text-muted">
+          {formatMobile(tutor.user)}
+          {tutor.user?.email ? ` · ${tutor.user.email}` : ''}
+        </p>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <SectionCard title="Profile" styleKey="profile">
+          <dl className="grid gap-2.5 text-sm">
+            <DetailRow label="Tutor ID" value={`#${tutor.id}`} accentClass="bg-sky-50/80" />
+            <DetailRow
+              label="Name"
+              value={formatTutorName(tutor.user?.firstName, tutor.user?.lastName)}
+              accentClass="bg-sky-50/80"
+            />
+            <DetailRow label="Email" value={tutor.user?.email ?? '—'} accentClass="bg-sky-50/80" />
+            <DetailRow label="Mobile" value={formatMobile(tutor.user)} accentClass="bg-sky-50/80" />
+            <DetailRow
+              label="Date of registration"
+              value={formatDate(tutor.user?.createdDate)}
+              accentClass="bg-sky-50/80"
+            />
+          </dl>
+        </SectionCard>
+
+        <SectionCard title="Registration fee" styleKey="fee">
+          <dl className="grid gap-2.5 text-sm">
+            <DetailRow
+              label="Status"
+              accentClass="bg-amber-50/80"
+              value={
+                <span
+                  className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                    tutor.regFeePaid
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  {tutor.regFeePaid ? 'Paid' : 'Not received'}
+                </span>
+              }
+            />
+            <DetailRow
+              label="Amount"
+              value={feeAmount != null ? `₹${feeAmount}` : '—'}
+              accentClass="bg-amber-50/80"
+            />
+            <DetailRow
+              label="Date received"
+              value={tutor.regFeePaid ? formatDate(tutor.regFeeDate) : 'Not received'}
+              accentClass="bg-amber-50/80"
+            />
+          </dl>
+        </SectionCard>
+      </div>
+
+      <SectionCard title="Address" styleKey="address">
+        {tutor.addresses.length === 0 ? (
+          <p className="text-sm text-cyan-800/70">No address on file.</p>
+        ) : (
+          <ul className="space-y-3">
+            {tutor.addresses.map((address) => (
+              <li
+                key={address.id}
+                className={`rounded-xl border px-4 py-3 text-sm font-medium text-primary ${SECTION_STYLES.address.item}`}
+              >
+                {formatAddress(address)}
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Education" styleKey="education">
+        {tutor.qualifications.length === 0 ? (
+          <p className="text-sm text-indigo-800/70">No qualifications on file.</p>
+        ) : (
+          <ul className="space-y-3">
+            {tutor.qualifications.map((qual, index) => (
+              <li
+                key={qual.id}
+                className={`rounded-xl border px-4 py-3 text-sm ${SECTION_STYLES.education.item}`}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-500 text-xs font-bold text-white">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <p className="font-semibold text-indigo-950">
+                      {formatQualificationTitle(qual.qualificationType, qual.degreeName)}
+                    </p>
+                    <p className="mt-1 text-indigo-900/70">
+                      {qual.boardOrUniversity} · {qual.gradeType}: {qual.gradeValue} ·{' '}
+                      {qual.yearObtained}
+                    </p>
+                    {qual.fieldOfStudy && (
+                      <p className="mt-0.5 text-indigo-800/60">{qual.fieldOfStudy}</p>
+                    )}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Experience" styleKey="experience">
+        {tutor.experiences.length > 0 && (
+          <div className="mb-4 inline-flex rounded-full bg-violet-500 px-3 py-1 text-xs font-bold text-white">
+            {formatExperienceDuration(totalExperience)} total
+          </div>
+        )}
+        {tutor.experiences.length === 0 ? (
+          <p className="text-sm text-violet-800/70">No experience entries on file.</p>
+        ) : (
+          <ul className="space-y-3">
+            {tutor.experiences.map((exp) => {
+              const durationMonths = experienceDurationMonths(exp);
+              const durationLabel =
+                durationMonths != null
+                  ? formatExperienceDuration(monthsToExperienceDuration(durationMonths))
+                  : null;
+
+              return (
+              <li
+                key={exp.id}
+                className={`rounded-xl border px-4 py-3 text-sm ${SECTION_STYLES.experience.item}`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="font-semibold text-violet-950">{exp.jobTitle}</p>
+                  {durationLabel && (
+                    <span className="rounded-full bg-violet-200/80 px-2.5 py-0.5 text-xs font-bold text-violet-900">
+                      {durationLabel}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-violet-900/70">
+                  {exp.employerName ?? 'Self-employed'}
+                  {exp.employerAddress ? ` · ${exp.employerAddress}` : ''}
+                </p>
+                <p className="mt-1 text-violet-800/60">
+                  {formatDate(exp.startDate)} –{' '}
+                  {exp.isCurrent ? 'Present' : formatDate(exp.endDate)}
+                </p>
+              </li>
+              );
+            })}
+          </ul>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Offerings & proficiency tests" styleKey="offerings">
+        {tutor.offerings.length === 0 ? (
+          <p className="text-sm text-purple-800/70">No offerings on file.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-purple-100">
+            <table className="min-w-full text-left text-sm">
+              <thead>
+                <tr
+                  className={`text-xs font-bold uppercase tracking-wide ${SECTION_STYLES.offerings.tableHeader}`}
+                >
+                  <th className="px-4 py-3">Offering</th>
+                  <th className="px-4 py-3">PT status</th>
+                  <th className="px-4 py-3">Date taken</th>
+                  <th className="px-4 py-3">Score</th>
+                  <th className="px-4 py-3">Attempts</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tutor.offerings.map((offering, index) => (
+                  <tr
+                    key={offering.id}
+                    className={
+                      index % 2 === 0
+                        ? SECTION_STYLES.offerings.tableRowEven
+                        : SECTION_STYLES.offerings.tableRowOdd
+                    }
+                  >
+                    <td className="px-4 py-3 font-semibold text-purple-950">
+                      {offering.offeringDisplayName ?? offering.offeringName ?? '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${ptStatusBadgeClass(offering.status)}`}
+                      >
+                        {ptStatusLabel(offering.status)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-purple-900/70">
+                      {formatDateTime(offering.lastAttemptAt ?? offering.passedAt)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {offering.lastScore != null && offering.lastMaxScore != null ? (
+                        <span className="rounded-md bg-purple-100 px-2 py-0.5 font-bold text-purple-900">
+                          {offering.lastScore}/{offering.lastMaxScore}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-purple-900/70">
+                      <span className="font-medium text-purple-950">{offering.attemptsUsed}</span>{' '}
+                      used ·{' '}
+                      <span className="font-medium text-purple-950">
+                        {offering.attemptsRemaining}
+                      </span>{' '}
+                      left
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Documents" styleKey="documents">
+        {tutor.documents.length === 0 ? (
+          <p className="text-sm text-emerald-800/70">No onboarding documents uploaded.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {tutor.documents.map((doc) => (
+              <button
+                key={doc.id}
+                type="button"
+                onClick={() => setSelectedDocument(doc)}
+                className={`rounded-xl border p-4 text-left transition ${SECTION_STYLES.documents.item}`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-semibold text-emerald-950">{doc.name ?? 'Document'}</p>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${documentStatusBadgeClass(doc.screening?.status)}`}
+                  >
+                    {documentStatusLabel(doc.screening?.status)}
+                  </span>
+                </div>
+                <div className="mt-3 flex h-32 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-emerald-200/80 bg-gradient-to-br from-emerald-50/50 to-white">
+                  {doc.previewUrl ? (
+                    <img
+                      src={doc.previewUrl}
+                      alt=""
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-xs font-medium text-emerald-700/70">Click to view</span>
+                  )}
+                </div>
+                {doc.filename && (
+                  <p className="mt-2 truncate text-xs text-emerald-900/60">{doc.filename}</p>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </SectionCard>
+
+      {selectedDocument && (
+        <AdminDocumentViewerModal
+          document={selectedDocument}
+          onClose={() => setSelectedDocument(null)}
+          onReviewComplete={() => void refetch()}
+        />
+      )}
+    </div>
+  );
+}
