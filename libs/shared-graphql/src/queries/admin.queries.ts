@@ -130,3 +130,40 @@ export const GET_ADMIN_TUTOR_DETAIL = gql`
     }
   }
 `;
+
+export const GET_ADMIN_PROFICIENCY_TESTS = gql`
+  query GetAdminProficiencyTests {
+    adminProficiencyTests {
+      id
+      studyArea
+      board
+      classLabel
+      subjects
+      questionCount
+      offeringIds
+    }
+  }
+`;
+
+export const GET_ADMIN_PROFICIENCY_TEST_DETAIL = gql`
+  query GetAdminProficiencyTestDetail($testId: Int!) {
+    adminProficiencyTestDetail(testId: $testId) {
+      id
+      name
+      time
+      score
+      passPercentage
+      questions {
+        id
+        question
+        questionType
+        difficulty
+        answers {
+          id
+          text
+          answer
+        }
+      }
+    }
+  }
+`;

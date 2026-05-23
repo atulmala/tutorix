@@ -7,6 +7,8 @@ import { DashboardPage } from './pages/DashboardPage';
 import { TutorsPage } from './pages/TutorsPage';
 import { TutorDetailPage } from './pages/TutorDetailPage';
 import { StudentsPage } from './pages/StudentsPage';
+import { ProficiencyTestsPage } from './pages/ProficiencyTestsPage';
+import { ProficiencyTestDetailPage } from './pages/ProficiencyTestDetailPage';
 
 export function App() {
   return (
@@ -25,6 +27,8 @@ export function App() {
           <Route path="tutors" element={<TutorsPage />} />
           <Route path="tutors/:tutorId" element={<TutorDetailPage />} />
           <Route path="students" element={<StudentsPage />} />
+          <Route path="proficiency-tests" element={<ProficiencyTestsPage />} />
+          <Route path="proficiency-tests/:testId" element={<ProficiencyTestDetailPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

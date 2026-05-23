@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/tutors', label: 'Tutors' },
   { to: '/students', label: 'Students' },
+  { to: '/proficiency-tests', label: 'Proficiency test' },
 ] as const;
 
 export function AdminNavDrawer() {

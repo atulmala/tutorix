@@ -11,6 +11,9 @@ import { DocumentEntity } from '../document/entities/document.entity';
 import { DocumentScreeningService } from '../document/services/document-screening.service';
 import { DocumentService } from '../document/services/document.service';
 import { ExperienceService } from '../experience/services/experience.service';
+import { OfferingService } from '../offerings/services/offering.service';
+import { ProficiencyTestService } from '../proficiency/services/proficiency-test.service';
+import { ProficiencyTestEntity } from '../proficiency/entities/proficiency-test.entity';
 import { Tutor } from '../tutor/entities/tutor.entity';
 import { TutorOfferingEntity } from '../tutor/entities/tutor-offering.entity';
 import { TutorCertificationStageEnum } from '../tutor/enums/tutor.enums';
@@ -24,6 +27,7 @@ import {
   findTutorIdsWithPendingDocumentReview,
   tutorHasPendingDocumentReviewExistsClause,
 } from './admin-tutor.utils';
+import { mapProficiencyTestToListItem } from './admin-proficiency-test.utils';
 import { AdminDashboardStats } from './dto/admin-dashboard-stats.dto';
 import { AdminTutorDetail } from './dto/admin-tutor-detail.dto';
 import { AdminTutorDocumentDetail } from './dto/admin-tutor-document-detail.dto';
@@ -33,6 +37,7 @@ import { AdminTutorListItem } from './dto/admin-tutor-list-item.dto';
 import { AdminTutorListResult } from './dto/admin-tutor-list-result.dto';
 import { AdminTutorOfferingDetail } from './dto/admin-tutor-offering-detail.dto';
 import { AdminTutorStageCount } from './dto/admin-tutor-stage-count.dto';
+import { AdminProficiencyTestListItem } from './dto/admin-proficiency-test-list-item.dto';
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 20;
@@ -52,6 +57,8 @@ export class AdminService {
     private readonly tutorOfferingService: TutorOfferingService,
     private readonly documentService: DocumentService,
     private readonly documentScreeningService: DocumentScreeningService,
+    private readonly proficiencyTestService: ProficiencyTestService,
+    private readonly offeringService: OfferingService,
   ) {}
 
   async getDashboardStats(): Promise<AdminDashboardStats> {
@@ -215,6 +222,27 @@ export class AdminService {
         ? { pendingDocumentReviewCount }
         : {}),
     }));
+  }
+
+  async listProficiencyTests(): Promise<AdminProficiencyTestListItem[]> {
+    const [tests, offerings] = await Promise.all([
+      this.proficiencyTestService.findAllForAdmin(),
+      this.offeringService.findAll(),
+    ]);
+
+    const offeringsById = new Map(offerings.map((offering) => [offering.id, offering]));
+
+    return tests.map((test) =>
+      mapProficiencyTestToListItem(
+        test,
+        offeringsById,
+        (test as ProficiencyTestEntity & { questionCount?: number }).questionCount ?? 0,
+      ),
+    );
+  }
+
+  async getProficiencyTestDetail(testId: number): Promise<ProficiencyTestEntity> {
+    return this.proficiencyTestService.getTestWithAllQuestionsForAdmin(testId);
   }
 
   private mapOfferingDetail(offering: TutorOfferingEntity): AdminTutorOfferingDetail {

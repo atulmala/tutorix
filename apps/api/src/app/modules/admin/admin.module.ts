@@ -5,6 +5,8 @@ import { Tutor } from '../tutor/entities/tutor.entity';
 import { AuthModule } from '../auth/auth.module';
 import { DocumentModule } from '../document/document.module';
 import { ExperienceModule } from '../experience/experience.module';
+import { OfferingsModule } from '../offerings/offerings.module';
+import { ProficiencyModule } from '../proficiency/proficiency.module';
 import { TutorModule } from '../tutor/tutor.module';
 import { AdminService } from './admin.service';
 import { AdminResolver } from './admin.resolver';
@@ -17,6 +19,8 @@ import { RolesGuard } from '../auth/guards/roles.guard';
     TutorModule,
     ExperienceModule,
     DocumentModule,
+    ProficiencyModule,
+    OfferingsModule,
   ],
   providers: [AdminService, AdminResolver, RolesGuard],
   exports: [AdminService],
