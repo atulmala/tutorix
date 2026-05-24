@@ -1,0 +1,48 @@
+# Add to your EXISTING host nginx site for dev.tutorix.tech (Certbot-managed).
+# Docker Compose: tutor web → 127.0.0.1:8080, admin → 127.0.0.1:81
+#
+# Steps on EC2:
+#   1. docker compose up -d --build api web admin
+#   2. curl -sI http://127.0.0.1:81/   # admin container
+#   3. Paste the HTTPS server block below into the same file as dev.tutorix.tech
+#   4. Extend TLS cert to cover dev-admin (pick one):
+#        sudo certbot --nginx -d dev.tutorix.tech -d dev-admin.tutorix.tech
+#      or expand an existing cert if certbot prompts for the new hostname
+#   5. Update the port-80 redirect server block to include dev-admin.tutorix.tech
+#   6. sudo nginx -t && sudo systemctl reload nginx
+
+# --- Paste: HTTPS admin (dev-admin.tutorix.tech) ---
+server {
+    server_name dev-admin.tutorix.tech;
+
+    location / {
+        proxy_pass http://127.0.0.1:81;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+    }
+
+    listen 443 ssl;
+    ssl_certificate /etc/letsencrypt/live/dev.tutorix.tech/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/dev.tutorix.tech/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+}
+
+# --- Update your existing port-80 block: add dev-admin to server_name / redirect ---
+# Example (replace your current listen 80 block):
+#
+# server {
+#     listen 80;
+#     server_name dev.tutorix.tech dev-admin.tutorix.tech;
+     if ($host = dev.tutorix.tech) {
+         return 301 https://$host$request_uri;
+     }
+     if ($host = dev-admin.tutorix.tech) {
+         return 301 https://$host$request_uri;
+     }
+#     return 404;
+# }

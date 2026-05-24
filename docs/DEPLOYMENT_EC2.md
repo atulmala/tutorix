@@ -1,18 +1,82 @@
 # Deploy Tutorix on EC2 with Docker
 
-This repository ships **`docker-compose.yml`** plus **`docker/Dockerfile.api`** and **`docker/Dockerfile.web`** to run **PostgreSQL**, **NestJS GraphQL API**, and **nginx + static web UI** on a single host (EC2 or equivalent).
+This repository ships **`docker-compose.yml`** plus **`docker/Dockerfile.api`**, **`docker/Dockerfile.web`**, and **`docker/Dockerfile.admin`** to run **NestJS GraphQL API**, **tutor web UI**, and **admin web UI** on a single EC2 host.
 
 ## What runs
 
 | Service   | Role |
 |-----------|------|
-| `postgres` | PostgreSQL 16 with persistent volume `tutorix_pgdata` |
 | `api`      | NestJS bundle listening on port **3000** inside the Compose network only |
-| `web`      | nginx serves SPA from `apps/web` build and proxies **`/api/`** → `http://api:3000/api/` |
+| `web`      | nginx serves tutor SPA (`apps/web`) on **127.0.0.1:8080**, proxies **`/api/`** → `api` |
+| `admin`    | nginx serves admin SPA (`apps/web-admin`) on **127.0.0.1:81**, proxies **`/api/`** → `api` |
 
-Public HTTP entrypoint is **`web`** on host port **`GATEWAY_HTTP_PORT`** (default **80**).
+Public HTTPS is handled by **host nginx** on the EC2 instance (see [Two subdomains — host reverse proxy](#two-subdomains--host-reverse-proxy-approach-b)).
 
-GraphQL endpoint from the browser: **`http(s)://<your-host>/api/graphql`** (same-origin when using the default **`VITE_GRAPHQL_ENDPOINT=/api/graphql`** build arg).
+GraphQL from the browser: **`https://<your-host>/api/graphql`** (same-origin when using **`VITE_GRAPHQL_ENDPOINT=/api/graphql`**).
+
+## Two subdomains — host reverse proxy (Approach B)
+
+Use this when **`dev.tutorix.tech`** and **`dev-admin.tutorix.tech`** both point to the same EC2 IP.
+
+| Hostname | DNS | Host nginx → | Compose service |
+|----------|-----|--------------|-----------------|
+| `dev.tutorix.tech` | EC2 IP | `127.0.0.1:8080` | `web` |
+| `dev-admin.tutorix.tech` | EC2 IP | `127.0.0.1:81` | `admin` |
+
+Both SPAs proxy **`/api/`** to the same **`api`** container, so GraphQL stays same-origin on each subdomain.
+
+**Already have nginx for `dev.tutorix.tech`?** Add only the admin blocks from **[`docker/nginx/host-ec2-admin-snippet.conf.example`](../docker/nginx/host-ec2-admin-snippet.conf.example)** to your existing Certbot site file — do not replace your tutor config.
+
+### 1. Start / update Compose on EC2
+
+From the repository root (after setting **`.env`** — include `GATEWAY_HTTP_PORT=8080` if tutor nginx already proxies to **8080**):
+
+```bash
+docker compose up -d --build
+```
+
+Verify locally on the instance:
+
+```bash
+curl -sI http://127.0.0.1:8080/ | head -1    # tutor SPA
+curl -sI http://127.0.0.1:81/ | head -1      # admin SPA
+```
+
+### 2. Host nginx + TLS
+
+**New install:** use **[`docker/nginx/host-ec2-reverse-proxy.conf.example`](../docker/nginx/host-ec2-reverse-proxy.conf.example)** (matches Certbot layout, tutor on **8080**).
+
+**Existing `dev.tutorix.tech` site (your current setup):**
+
+1. Add the **`dev-admin.tutorix.tech`** server block from **[`docker/nginx/host-ec2-admin-snippet.conf.example`](../docker/nginx/host-ec2-admin-snippet.conf.example)**.
+2. Extend the port-**80** redirect block to include `dev-admin.tutorix.tech`.
+3. Expand TLS to cover the admin hostname:
+
+```bash
+sudo certbot --nginx -d dev.tutorix.tech -d dev-admin.tutorix.tech
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+**Security group:** inbound **443** (and **80** for redirect). Compose ports **8080** and **81** bind to **127.0.0.1** only.
+
+### 3. Environment for dev subdomains
+
+```env
+FRONTEND_URL=https://dev.tutorix.tech
+CORS_ORIGINS=https://dev-admin.tutorix.tech
+JWT_SECRET=...
+# DB_* , AWS_* as already configured
+```
+
+Recreate containers after changing env:
+
+```bash
+docker compose up -d --build api web admin
+```
+
+### 4. Admin login
+
+Ensure a dev user exists with role **`ADMIN`**. The admin app rejects non-admin roles after login.
 
 ## Prerequisites on EC2
 
@@ -162,7 +226,8 @@ Avoid embedding long-lived keys on disk when the instance profile is sufficient.
 2. Set at minimum:
 
    - **`JWT_SECRET`**: strong secret used by the API for JWT signing.
-   - **`FRONTEND_URL`**: exact browser origin users use (e.g. `http://ec2-xx-xx-xx-xx.compute.amazonaws.com` or `https://app.example.com`). This feeds **CORS** via [`apps/api/src/main.ts`](../apps/api/src/main.ts); optional **`CORS_ORIGINS`** adds comma-separated extra origins.
+   - **`FRONTEND_URL`**: tutor app origin (e.g. `https://dev.tutorix.tech`).
+   - **`CORS_ORIGINS`**: comma-separated extra origins (e.g. `https://dev-admin.tutorix.tech` for admin).
 
 3. For AWS document uploads, set **`S3_DOCUMENTS_BUCKET`**, **`AWS_REGION`**, and either an **IAM instance role** (recommended) or **`AWS_ACCESS_KEY_ID`** / **`AWS_SECRET_ACCESS_KEY`** in `.env`. See [IAM instance role for S3](#iam-instance-role-for-s3-recommended) above.
 
@@ -174,15 +239,17 @@ From the repository root:
 docker compose up -d --build
 ```
 
-Verify:
+Verify (via host nginx / public URLs):
 
-- UI: `http://<ec2-host>/`
-- GraphQL: `http://<ec2-host>/api/graphql` (POST from Apollo Client or GET playground when enabled)
+- Tutor UI: `https://dev.tutorix.tech/`
+- Admin UI: `https://dev-admin.tutorix.tech/`
+- GraphQL: `https://dev.tutorix.tech/api/graphql` or same path on admin host
 
-Optional: bind gateway to another host port:
+Optional: change Compose bind ports (defaults tutor **8080**, admin **81** on localhost):
 
-```bash
-GATEWAY_HTTP_PORT=8080 docker compose up -d
+```env
+GATEWAY_HTTP_PORT=8080
+ADMIN_HTTP_PORT=81
 ```
 
 The **`api`** service is **not** published on the host by default (only **`expose`**). To debug the API directly, temporarily add under **`api`** in **`docker-compose.yml`**:
@@ -223,14 +290,15 @@ Using **Amazon RDS** instead of Compose **`postgres`**: set **`DB_*`** in **`.en
 Compose ships HTTP only. Typical patterns:
 
 - **Application Load Balancer** with ACM certificate → target group → EC2:80.
-- Or install certbot / Caddy on the instance (outside this doc).
+- Or install certbot on the instance (outside this doc).
 
 ## Troubleshooting
 
 | Issue | Check |
 |-------|--------|
-| Web loads but API calls fail CORS | **`FRONTEND_URL`** / **`CORS_ORIGINS`** match browser origin; mobile apps need their origins listed |
-| 502 from nginx on `/api/` | **`api`** container healthy; **`docker compose logs api`** |
+| Web loads but API calls fail CORS | **`FRONTEND_URL`** / **`CORS_ORIGINS`** include `https://dev.tutorix.tech` and `https://dev-admin.tutorix.tech` |
+| Admin host shows tutor app | Host nginx **`server_name`** / proxy target — admin must go to **127.0.0.1:81** |
+| 502 from host nginx | Compose running; **`curl http://127.0.0.1:8080`** and **`:81`** on EC2 |
 | Migrations not applied | **`AUTO_RUN_MIGRATIONS`**, DB connectivity, logs at startup |
 | S3 upload failures | Bucket policy, IAM role / keys, **`S3_DOCUMENTS_BUCKET`**, region; Docker needs **IMDS hop limit 2** for instance role |
 | **`CredentialsProviderError`** in API | Role attached to EC2? Hop limit 2? Remove empty **`AWS_ACCESS_KEY_ID`** from `.env` or pass valid keys via Compose |

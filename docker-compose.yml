@@ -1,9 +1,13 @@
-# Tutorix — Docker Compose for EC2 (Postgres + API + nginx gateway web UI)
+# Tutorix — Docker Compose for EC2 (API + tutor web + admin web)
 #
 # From repo root:
 #   docker compose up -d --build
 #
-# GraphQL from browser: http://<host>/api/graphql (same-origin; web built with VITE_GRAPHQL_ENDPOINT=/api/graphql)
+# Tutor UI (Compose):     http://127.0.0.1:8080  → dev.tutorix.tech (host nginx)
+# Admin UI (Compose):     http://127.0.0.1:81    → dev-admin.tutorix.tech (host nginx)
+# GraphQL (same-origin):  /api/graphql on each SPA host (proxied to api container)
+#
+# Host TLS reverse proxy: see docker/nginx/host-ec2-reverse-proxy.conf.example
 #
 # Copy `.env.docker.example` to `.env` or export secrets before `docker compose up`.
 
@@ -72,7 +76,19 @@ services:
         VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID:-}
         VITE_FIREBASE_MEASUREMENT_ID: ${VITE_FIREBASE_MEASUREMENT_ID:-}
     ports:
-      - '${GATEWAY_HTTP_PORT:-80}:80'
+      - '127.0.0.1:${GATEWAY_HTTP_PORT:-8080}:80'
+    depends_on:
+      api:
+        condition: service_healthy
+
+  admin:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.admin
+      args:
+        VITE_GRAPHQL_ENDPOINT: ${VITE_GRAPHQL_ENDPOINT:-/api/graphql}
+    ports:
+      - '127.0.0.1:${ADMIN_HTTP_PORT:-81}:80'
     depends_on:
       api:
         condition: service_healthy
