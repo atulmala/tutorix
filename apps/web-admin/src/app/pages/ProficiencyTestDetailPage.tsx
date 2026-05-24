@@ -68,6 +68,10 @@ function normalizeDifficulty(
   return null;
 }
 
+function optionLetter(index: number): string {
+  return String.fromCharCode(65 + index);
+}
+
 function difficultyLabel(difficulty: QuestionDifficulty): string {
   switch (normalizeDifficulty(difficulty)) {
     case 'LOW':
@@ -189,7 +193,7 @@ export function ProficiencyTestDetailPage() {
                 />
 
                 <div className="space-y-2">
-                  {question.answers.map((option) => (
+                  {question.answers.map((option, optionIndex) => (
                     <div
                       key={option.id}
                       className={`flex items-start gap-3 rounded-lg border px-4 py-3 ${
@@ -205,7 +209,7 @@ export function ProficiencyTestDetailPage() {
                             : 'bg-gray-100 text-muted'
                         }`}
                       >
-                        {option.answer ? 'Correct' : 'Option'}
+                        {`Option ${optionLetter(optionIndex)}`}
                       </span>
                       <span
                         className="text-sm text-primary [&_p]:m-0 [&_p]:inline"
