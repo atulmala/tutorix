@@ -35,4 +35,7 @@ export class AdminTutorOfferingDetail {
 
   @Field(() => Int, { nullable: true })
   lastTimeTakenSeconds?: number;
+
+  @Field({ nullable: true })
+  createdDate?: Date;
 }

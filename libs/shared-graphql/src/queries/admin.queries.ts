@@ -75,6 +75,8 @@ export const GET_ADMIN_TUTOR_DETAIL = gql`
         country
         postalCode
         fullAddress
+        createdDate
+        updatedDate
       }
       qualifications {
         id
@@ -86,6 +88,8 @@ export const GET_ADMIN_TUTOR_DETAIL = gql`
         yearObtained
         fieldOfStudy
         displayOrder
+        createdDate
+        updatedDate
       }
       experiences {
         id
@@ -96,6 +100,8 @@ export const GET_ADMIN_TUTOR_DETAIL = gql`
         startDate
         endDate
         isCurrent
+        createdDate
+        updatedDate
       }
       offerings {
         id
@@ -109,6 +115,7 @@ export const GET_ADMIN_TUTOR_DETAIL = gql`
         lastAttemptAt
         passedAt
         lastTimeTakenSeconds
+        createdDate
       }
       documents {
         id
@@ -118,6 +125,7 @@ export const GET_ADMIN_TUTOR_DETAIL = gql`
         mimeType
         previewUrl
         viewUrl
+        createdDate
         screening {
           status
           summaryNotes
