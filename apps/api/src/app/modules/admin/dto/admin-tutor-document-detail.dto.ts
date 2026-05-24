@@ -27,4 +27,7 @@ export class AdminTutorDocumentDetail {
 
   @Field(() => AdminTutorDocumentScreeningDetail, { nullable: true })
   screening?: AdminTutorDocumentScreeningDetail;
+
+  @Field({ nullable: true })
+  createdDate?: Date;
 }

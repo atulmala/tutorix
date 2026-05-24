@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import { GET_ADMIN_TUTOR_DETAIL } from '@tutorix/shared-graphql';
@@ -6,6 +6,8 @@ import {
   AdminDocumentViewerModal,
   type AdminDocumentDetail,
 } from '../components/AdminDocumentViewerModal';
+import { OnboardingTimeline } from '../components/OnboardingTimeline';
+import { buildOnboardingTimeline } from '../utils/onboarding-timeline';
 import {
   documentStatusBadgeClass,
   documentStatusLabel,
@@ -47,6 +49,8 @@ type AdminTutorDetailData = {
       country?: string | null;
       postalCode?: number | null;
       fullAddress?: string | null;
+      createdDate?: string | null;
+      updatedDate?: string | null;
     }>;
     qualifications: Array<{
       id: number;
@@ -57,6 +61,8 @@ type AdminTutorDetailData = {
       gradeValue: string;
       yearObtained: number;
       fieldOfStudy?: string | null;
+      createdDate?: string | null;
+      updatedDate?: string | null;
     }>;
     experiences: Array<{
       id: number;
@@ -67,6 +73,8 @@ type AdminTutorDetailData = {
       startDate: string;
       endDate?: string | null;
       isCurrent: boolean;
+      createdDate?: string | null;
+      updatedDate?: string | null;
     }>;
     offerings: Array<{
       id: number;
@@ -80,6 +88,7 @@ type AdminTutorDetailData = {
       lastAttemptAt?: string | null;
       passedAt?: string | null;
       lastTimeTakenSeconds?: number | null;
+      createdDate?: string | null;
     }>;
     documents: AdminDocumentDetail[];
   };
@@ -99,18 +108,6 @@ type SectionStyle = {
 };
 
 const SECTION_STYLES: Record<string, SectionStyle> = {
-  profile: {
-    border: 'border-sky-200/90',
-    shadow: 'shadow-sky-100/40',
-    header: 'bg-gradient-to-r from-sky-100 via-sky-50 to-white',
-    headerText: 'text-sky-900',
-    bar: 'bg-sky-500',
-    body: 'bg-gradient-to-b from-sky-50/30 to-white',
-    item: 'border-sky-100 bg-sky-50/50',
-    tableHeader: '',
-    tableRowEven: '',
-    tableRowOdd: '',
-  },
   fee: {
     border: 'border-amber-200/90',
     shadow: 'shadow-amber-100/40',
@@ -275,6 +272,23 @@ export function TutorDetailPage() {
 
   const tutor = data?.adminTutorDetail;
 
+  const timelineEntries = useMemo(
+    () =>
+      tutor
+        ? buildOnboardingTimeline({
+            certificationStage: tutor.certificationStage,
+            regFeePaid: tutor.regFeePaid,
+            regFeeDate: tutor.regFeeDate,
+            addresses: tutor.addresses,
+            qualifications: tutor.qualifications,
+            experiences: tutor.experiences,
+            offerings: tutor.offerings,
+            documents: tutor.documents,
+          })
+        : [],
+    [tutor],
+  );
+
   if (!Number.isFinite(parsedId)) {
     return <p className="text-sm text-red-600">Invalid tutor ID.</p>;
   }
@@ -331,27 +345,14 @@ export function TutorDetailPage() {
         <p className="mt-2 text-sm text-muted">
           {formatMobile(tutor.user)}
           {tutor.user?.email ? ` · ${tutor.user.email}` : ''}
+          {tutor.user?.createdDate
+            ? ` · Registered ${formatDate(tutor.user.createdDate)}`
+            : ''}
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <SectionCard title="Profile" styleKey="profile">
-          <dl className="grid gap-2.5 text-sm">
-            <DetailRow label="Tutor ID" value={`#${tutor.id}`} accentClass="bg-sky-50/80" />
-            <DetailRow
-              label="Name"
-              value={formatTutorName(tutor.user?.firstName, tutor.user?.lastName)}
-              accentClass="bg-sky-50/80"
-            />
-            <DetailRow label="Email" value={tutor.user?.email ?? '—'} accentClass="bg-sky-50/80" />
-            <DetailRow label="Mobile" value={formatMobile(tutor.user)} accentClass="bg-sky-50/80" />
-            <DetailRow
-              label="Date of registration"
-              value={formatDate(tutor.user?.createdDate)}
-              accentClass="bg-sky-50/80"
-            />
-          </dl>
-        </SectionCard>
+        <OnboardingTimeline entries={timelineEntries} />
 
         <SectionCard title="Registration fee" styleKey="fee">
           <dl className="grid gap-2.5 text-sm">

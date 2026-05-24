@@ -258,6 +258,7 @@ export class AdminService {
       lastAttemptAt: offering.lastAttemptAt,
       passedAt: offering.passedAt,
       lastTimeTakenSeconds: offering.lastTimeTakenSeconds,
+      createdDate: offering.createdDate,
     };
   }
 
@@ -279,6 +280,7 @@ export class AdminService {
       previewUrl: previewUrl ?? undefined,
       viewUrl: viewUrl ?? undefined,
       screening: screening ? this.mapScreeningDetail(screening) : undefined,
+      createdDate: doc.createdDate,
     };
   }
 

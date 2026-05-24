@@ -15,6 +15,7 @@ export type AdminDocumentDetail = {
   mimeType?: string | null;
   previewUrl?: string | null;
   viewUrl?: string | null;
+  createdDate?: string | null;
   screening?: {
     status?: string | null;
     summaryNotes?: string | null;
