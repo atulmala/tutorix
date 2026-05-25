@@ -1,26 +1,14 @@
 import React from 'react';
 import type { StepComponentProps } from '../types';
 
-export const TutorInterview: React.FC<StepComponentProps> = ({
-  onComplete,
-  onBack,
-}) => {
+export const TutorInterview: React.FC<StepComponentProps> = ({ onComplete }) => {
   return (
     <div className="space-y-6">
       <p className="text-muted">
         Schedule and attend your interview. This step will be implemented soon.
       </p>
 
-      <div className="flex justify-end gap-3">
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="h-11 rounded-lg border border-subtle px-6 text-sm font-semibold text-primary shadow-sm transition hover:border-primary"
-          >
-            Back
-          </button>
-        )}
+      <div className="flex justify-end">
         <button
           type="button"
           onClick={onComplete}

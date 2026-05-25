@@ -3,7 +3,6 @@ import type { StepComponentProps } from '../types';
 
 export const TutorOnboardingComplete: React.FC<StepComponentProps> = ({
   onComplete,
-  onBack,
 }) => {
   return (
     <div className="space-y-6">
@@ -11,16 +10,7 @@ export const TutorOnboardingComplete: React.FC<StepComponentProps> = ({
         Welcome! You have completed onboarding. Click below to finish.
       </p>
 
-      <div className="flex justify-end gap-3">
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="h-11 rounded-lg border border-subtle px-6 text-sm font-semibold text-primary shadow-sm transition hover:border-primary"
-          >
-            Back
-          </button>
-        )}
+      <div className="flex justify-end">
         <button
           type="button"
           onClick={onComplete}

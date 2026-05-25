@@ -54,9 +54,7 @@ const emptyExperience = (): ExperienceRow => ({
   isCurrent: false,
 });
 
-export const TutorExperience: React.FC<StepComponentProps> = ({
-  onBack,
-}) => {
+export const TutorExperience: React.FC<StepComponentProps> = () => {
   const [yearsOfExperience, setYearsOfExperience] = useState<YearsOfExperienceEnum>(
     YearsOfExperienceEnum.ZERO_TO_TWO
   );
@@ -537,16 +535,7 @@ export const TutorExperience: React.FC<StepComponentProps> = ({
         </div>
       )}
 
-      <div className="flex justify-end gap-3">
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="h-11 rounded-lg border border-subtle px-6 text-sm font-semibold text-primary shadow-sm transition hover:border-primary"
-          >
-            Back
-          </button>
-        )}
+      <div className="flex justify-end">
         <button
           type="submit"
           disabled={!hasSuccessfullySaved || isSubmitting}

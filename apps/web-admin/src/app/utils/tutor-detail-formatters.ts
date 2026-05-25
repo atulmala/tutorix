@@ -1,5 +1,6 @@
 import {
   EDUCATIONAL_QUALIFICATION_LABELS,
+  EDUCATIONAL_QUALIFICATION_LIST,
   EducationalQualification,
 } from '@tutorix/shared-utils';
 
@@ -166,6 +167,32 @@ export function formatQualificationTitle(
   }
 
   return label;
+}
+
+const QUALIFICATION_LEVEL_RANK = Object.fromEntries(
+  EDUCATIONAL_QUALIFICATION_LIST.map((type, index) => [type, index]),
+) as Record<string, number>;
+
+function qualificationLevelRank(qualificationType: string): number {
+  return QUALIFICATION_LEVEL_RANK[qualificationType] ?? -1;
+}
+
+export type QualificationSummary = {
+  qualificationType: string;
+  yearObtained?: number;
+};
+
+/** Sort qualifications with highest level first (PhD → Higher Secondary). */
+export function sortQualificationsHighestFirst<T extends QualificationSummary>(
+  qualifications: T[],
+): T[] {
+  return [...qualifications].sort((a, b) => {
+    const levelDiff =
+      qualificationLevelRank(b.qualificationType) -
+      qualificationLevelRank(a.qualificationType);
+    if (levelDiff !== 0) return levelDiff;
+    return (b.yearObtained ?? 0) - (a.yearObtained ?? 0);
+  });
 }
 
 export function experienceDurationMonths(

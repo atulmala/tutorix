@@ -14,7 +14,7 @@ type Screen = 'intro' | 'test' | 'result';
 
 export const TutorPT: React.FC<StepComponentProps> = ({
   onComplete,
-  onBack,
+  onReturnToOfferings,
 }) => {
   const [screen, setScreen] = useState<Screen>('intro');
   const [tutorOfferingId, setTutorOfferingId] = useState<number | null>(null);
@@ -45,7 +45,7 @@ export const TutorPT: React.FC<StepComponentProps> = ({
     }
   );
 
-  const [submitTest, { loading: isSubmitting }] = useMutation(
+  const [submitTest] = useMutation(
     SUBMIT_PROFICIENCY_TEST,
   );
 
@@ -110,17 +110,17 @@ export const TutorPT: React.FC<StepComponentProps> = ({
         <Text style={styles.mutedText}>
           No pending proficiency test. Please select an offering first.
         </Text>
-        <View style={styles.buttonRow}>
-          {onBack && (
+        {onReturnToOfferings && (
+          <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={onBack}
+              style={styles.primaryButton}
+              onPress={onReturnToOfferings}
               activeOpacity={0.7}
             >
-              <Text style={styles.secondaryButtonText}>Back</Text>
+              <Text style={styles.primaryButtonText}>Continue</Text>
             </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        )}
       </View>
     );
   }
@@ -160,7 +160,7 @@ export const TutorPT: React.FC<StepComponentProps> = ({
             ? 'Congratulations! You have passed the proficiency test.'
             : hasMoreAttempts
               ? 'You have one more attempt. Tap Retry to try again.'
-              : 'Please go back and select another offering to continue.'}
+              : 'Please select another offering to continue.'}
         </Text>
         <View style={styles.buttonRow}>
           {passed ? (
@@ -183,13 +183,13 @@ export const TutorPT: React.FC<StepComponentProps> = ({
               <Text style={styles.primaryButtonText}>Retry</Text>
             </TouchableOpacity>
           ) : (
-            onBack && (
+            onReturnToOfferings && (
               <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={onBack}
+                style={styles.primaryButton}
+                onPress={onReturnToOfferings}
                 activeOpacity={0.7}
               >
-                <Text style={styles.secondaryButtonText}>Back to Offerings</Text>
+                <Text style={styles.primaryButtonText}>Continue</Text>
               </TouchableOpacity>
             )
           )}
@@ -214,11 +214,11 @@ export const TutorPT: React.FC<StepComponentProps> = ({
             No questions available for this test.
           </Text>
           <TouchableOpacity
-            style={styles.secondaryButton}
+            style={styles.primaryButton}
             onPress={() => setScreen('intro')}
             activeOpacity={0.7}
           >
-            <Text style={styles.secondaryButtonText}>Back</Text>
+            <Text style={styles.primaryButtonText}>Continue</Text>
           </TouchableOpacity>
         </View>
       );
@@ -243,7 +243,6 @@ export const TutorPT: React.FC<StepComponentProps> = ({
       passPercentage={passPercentage}
       attemptsLeft={attemptsLeft}
       onStart={handleStart}
-      onBack={onBack}
     />
   );
 };
@@ -277,18 +276,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 12,
-  },
-  secondaryButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-  },
-  secondaryButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0f172a',
   },
   primaryButton: {
     paddingHorizontal: 24,

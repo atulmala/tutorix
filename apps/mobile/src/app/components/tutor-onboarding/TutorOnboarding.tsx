@@ -28,33 +28,21 @@ function stepIndexFromStage(stage: string | undefined): number {
 type TutorOnboardingProps = {
   initialProfile?: { certificationStage?: string } | null;
   onComplete?: () => void;
-  onBack?: () => void;
   onLogout?: () => void;
 };
 
 function PlaceholderStep({
   title,
-  onBack,
   onComplete,
 }: {
   title: string;
-  onBack?: () => void;
   onComplete?: () => void;
 }) {
   return (
     <View style={styles.placeholder}>
       <Text style={styles.placeholderText}>{title} - Coming soon</Text>
-      <View style={styles.placeholderButtons}>
-        {onBack && (
-          <TouchableOpacity
-            style={styles.placeholderBack}
-            onPress={onBack}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.placeholderBackText}>Back</Text>
-          </TouchableOpacity>
-        )}
-        {onComplete && (
+      {onComplete && (
+        <View style={styles.placeholderButtons}>
           <TouchableOpacity
             style={styles.placeholderContinue}
             onPress={onComplete}
@@ -62,8 +50,8 @@ function PlaceholderStep({
           >
             <Text style={styles.placeholderContinueText}>Continue</Text>
           </TouchableOpacity>
-        )}
-      </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -71,7 +59,6 @@ function PlaceholderStep({
 export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
   initialProfile,
   onComplete,
-  onBack,
   onLogout,
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(() =>
@@ -82,7 +69,6 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
     fetchPolicy: 'cache-and-network',
   });
 
-  // Sync step with certificationStage. Only sync forward to avoid race when advancing.
   useEffect(() => {
     const rawStage =
       profileData?.myTutorProfile?.certificationStage ??
@@ -103,8 +89,8 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
   }, [profileData]);
 
   const stepConfig = ONBOARDING_STEPS[currentStepIndex];
-  const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === ONBOARDING_STEPS.length - 1;
+  const offeringsStepIndex = ONBOARDING_STEPS.findIndex((s) => s.id === 'offerings');
 
   const handleStepComplete = () => {
     if (isLastStep) {
@@ -114,67 +100,38 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
     }
   };
 
-  const handleStepBack = () => {
-    if (isFirstStep) {
-      onBack?.();
-    } else {
-      setCurrentStepIndex((i) => i - 1);
-    }
-  };
+  const returnToOfferings =
+    stepConfig.id === 'pt' && offeringsStepIndex >= 0
+      ? () => setCurrentStepIndex(offeringsStepIndex)
+      : undefined;
 
   const renderStep = () => {
     if (stepConfig.id === 'address') {
-      return (
-        <TutorAddressEntry
-          onComplete={handleStepComplete}
-          onBack={isFirstStep ? onBack : handleStepBack}
-        />
-      );
+      return <TutorAddressEntry onComplete={handleStepComplete} />;
     }
     if (stepConfig.id === 'qualification') {
-      return (
-        <TutorQualification
-          onComplete={handleStepComplete}
-          onBack={isFirstStep ? onBack : handleStepBack}
-        />
-      );
+      return <TutorQualification onComplete={handleStepComplete} />;
     }
     if (stepConfig.id === 'experience') {
-      return (
-        <TutorExperience
-          onComplete={handleStepComplete}
-          onBack={isFirstStep ? onBack : handleStepBack}
-        />
-      );
+      return <TutorExperience onComplete={handleStepComplete} />;
     }
     if (stepConfig.id === 'offerings') {
-      return (
-        <TutorOfferings
-          onComplete={handleStepComplete}
-          onBack={isFirstStep ? onBack : handleStepBack}
-        />
-      );
+      return <TutorOfferings onComplete={handleStepComplete} />;
     }
     if (stepConfig.id === 'pt') {
       return (
         <TutorPT
           onComplete={handleStepComplete}
-          onBack={isFirstStep ? onBack : handleStepBack}
+          onReturnToOfferings={returnToOfferings}
         />
       );
     }
     if (stepConfig.id === 'registrationPayment') {
-      return (
-        <TutorRegistrationPayment
-          onComplete={handleStepComplete}
-          onBack={isFirstStep ? onBack : handleStepBack}
-        />
-      );
+      return <TutorRegistrationPayment onComplete={handleStepComplete} />;
     }
     return (
       <PlaceholderStep
         title={stepConfig.title}
-        onBack={isFirstStep ? onBack : handleStepBack}
         onComplete={isLastStep ? onComplete : handleStepComplete}
       />
     );
@@ -198,15 +155,12 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
     stepConfig.id === 'complete'
       ? undefined
       : `Step ${currentStepIndex + 1} of ${ONBOARDING_STEPS.length}`;
-  const showBack = isFirstStep ? !!onBack : true;
-  const handleBack = isFirstStep ? onBack : handleStepBack;
 
   return (
     <View style={styles.container}>
       <NavHeader
         title={screenTitle}
         stepLabel={stepLabel}
-        onBack={showBack ? handleBack : undefined}
         userInitials={tutorName ? getInitials(tutorName) : null}
         onLogout={onLogout}
       />
@@ -243,19 +197,6 @@ const styles = StyleSheet.create({
   placeholderButtons: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 12,
-  },
-  placeholderBack: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-  },
-  placeholderBackText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0f172a',
   },
   placeholderContinue: {
     paddingHorizontal: 24,

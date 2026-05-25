@@ -1,7 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { ONBOARDING_STEPS, type OnboardingStepId } from '@tutorix/shared-utils';
+import {
+  ONBOARDING_STEPS,
+  REGISTRATION_FEE_WAIVED,
+  type OnboardingStepId,
+} from '@tutorix/shared-utils';
 
 const STEP_SHORT_LABELS: Record<OnboardingStepId, string> = {
   address: 'Address',
@@ -9,11 +13,22 @@ const STEP_SHORT_LABELS: Record<OnboardingStepId, string> = {
   experience: 'Experience',
   offerings: 'Offerings',
   pt: 'Proficiency',
-  registrationPayment: 'Payment',
+  registrationPayment: REGISTRATION_FEE_WAIVED ? 'Payment - Free' : 'Payment',
   docs: 'Documents',
   interview: 'Interview',
   complete: 'Onboarding Complete!',
 };
+
+function PaymentStepIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <Path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+      {REGISTRATION_FEE_WAIVED ? (
+        <Path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4l16 16" />
+      ) : null}
+    </Svg>
+  );
+}
 
 function StepIcon({
   stepId,
@@ -38,6 +53,9 @@ function StepIcon({
         <Path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
       </Svg>
     );
+  }
+  if (stepId === 'registrationPayment') {
+    return <PaymentStepIcon size={size} />;
   }
   if (stepId === 'complete') {
     return (
@@ -89,6 +107,7 @@ export const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
               <Text
                 style={[
                   styles.label,
+                  step.id === 'registrationPayment' && styles.labelPayment,
                   isCurrent && styles.labelCurrent,
                   isCompleted && styles.labelCompleted,
                   isPending && styles.labelPending,
@@ -149,6 +168,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textAlign: 'center',
     maxWidth: 54,
+  },
+  labelPayment: {
+    maxWidth: 66,
   },
   labelCurrent: {
     color: '#5fa8ff',

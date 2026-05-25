@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
-  ActivityIndicator,
 } from 'react-native';
 import { useQuery, useMutation } from '@apollo/client';
 import { GET_OFFERINGS, GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
@@ -32,7 +31,6 @@ function capitalize(s: string): string {
 
 export const TutorOfferings: React.FC<StepComponentProps> = ({
   onComplete,
-  onBack,
 }) => {
   const [studyArea, setStudyArea] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -160,17 +158,6 @@ export const TutorOfferings: React.FC<StepComponentProps> = ({
         <Text style={styles.errorText}>
           Failed to load offerings. Please try again.
         </Text>
-        <View style={styles.buttonRow}>
-          {onBack && (
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={onBack}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.secondaryButtonText}>Back</Text>
-            </TouchableOpacity>
-          )}
-        </View>
       </View>
     );
   }
@@ -247,15 +234,6 @@ export const TutorOfferings: React.FC<StepComponentProps> = ({
       )}
 
       <View style={styles.buttonRow}>
-        {onBack && (
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={onBack}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.secondaryButtonText}>Back</Text>
-          </TouchableOpacity>
-        )}
         <TouchableOpacity
           style={[styles.primaryButton, (!isComplete || isSaving) && styles.primaryButtonDisabled]}
           onPress={handleContinue}

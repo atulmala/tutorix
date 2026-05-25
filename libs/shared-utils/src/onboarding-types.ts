@@ -6,6 +6,12 @@
  * apps/api/.../tutor/enums/tutor.enums.ts
  */
 
+export const REGISTRATION_FEE_AMOUNT = 999;
+export const REGISTRATION_FEE_WAIVED = true;
+
+export const REGISTRATION_FEE_WAIVED_MESSAGE =
+  'The one-time registration fee of ₹999 is not being charged for a limited time. Tap Continue to proceed.';
+
 export type OnboardingStepId =
   | 'address'
   | 'qualification'
@@ -51,8 +57,10 @@ export const ONBOARDING_STEPS: OnboardingStepConfig[] = [
   },
   {
     id: 'registrationPayment',
-    title: 'Registration Fee',
-    description: 'Pay your registration fee',
+    title: REGISTRATION_FEE_WAIVED ? 'Registration Fee (Free)' : 'Registration Fee',
+    description: REGISTRATION_FEE_WAIVED
+      ? REGISTRATION_FEE_WAIVED_MESSAGE
+      : 'Pay your registration fee',
   },
   {
     id: 'docs',
@@ -73,7 +81,8 @@ export const ONBOARDING_STEPS: OnboardingStepConfig[] = [
 
 export interface StepComponentProps {
   onComplete: () => void;
-  onBack?: () => void;
+  /** PT step only: return to offerings when all attempts are used or no pending test */
+  onReturnToOfferings?: () => void;
 }
 
 /**

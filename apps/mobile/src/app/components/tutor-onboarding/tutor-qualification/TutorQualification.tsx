@@ -34,7 +34,7 @@ interface QualificationRow {
 
 const currentYear = new Date().getFullYear();
 
-export const TutorQualification: React.FC<StepComponentProps> = ({ onBack }) => {
+export const TutorQualification: React.FC<StepComponentProps> = () => {
   const [qualifications, setQualifications] = useState<QualificationRow[]>(() => [
     {
       qualificationType: EducationalQualification.HIGHER_SECONDARY,
@@ -616,11 +616,6 @@ export const TutorQualification: React.FC<StepComponentProps> = ({ onBack }) => 
       )}
 
       <View style={styles.buttonRow}>
-        {onBack && (
-          <TouchableOpacity style={styles.secondaryButton} onPress={onBack} activeOpacity={0.7}>
-            <Text style={styles.secondaryButtonText}>Back</Text>
-          </TouchableOpacity>
-        )}
         <TouchableOpacity
           style={[
             styles.primaryButton,

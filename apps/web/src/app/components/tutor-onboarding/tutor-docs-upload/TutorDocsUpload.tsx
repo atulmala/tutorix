@@ -97,7 +97,6 @@ function screeningHumanPending(screening: SlotDoc['screening']): boolean {
 
 export const TutorDocsUpload: React.FC<StepComponentProps> = ({
   onComplete,
-  onBack,
 }) => {
   const inputRefs = useRef<Record<OnboardingDocType, HTMLInputElement | null>>({
     AADHAAR_CARD: null,
@@ -349,16 +348,7 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({
                 ? 'Continue unlocks when all four documents have passed verification.'
                 : 'All documents passed—you can continue.'}
         </p>
-        <div className="flex justify-end gap-3">
-          {onBack && (
-            <button
-              type="button"
-              onClick={onBack}
-              className="h-11 rounded-lg border border-subtle px-6 text-sm font-semibold text-primary shadow-sm transition hover:border-primary"
-            >
-              Back
-            </button>
-          )}
+        <div className="flex justify-end">
           <button
             type="button"
             onClick={onComplete}

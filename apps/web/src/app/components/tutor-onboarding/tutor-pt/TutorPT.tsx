@@ -13,7 +13,7 @@ type Screen = 'intro' | 'test' | 'result';
 
 export const TutorPT: React.FC<StepComponentProps> = ({
   onComplete,
-  onBack,
+  onReturnToOfferings,
 }) => {
   const [screen, setScreen] = useState<Screen>('intro');
   const [tutorOfferingId, setTutorOfferingId] = useState<number | null>(null);
@@ -108,17 +108,17 @@ export const TutorPT: React.FC<StepComponentProps> = ({
         <p className="text-sm text-muted">
           No pending proficiency test. Please select an offering first.
         </p>
-        <div className="flex justify-end">
-          {onBack && (
+        {onReturnToOfferings && (
+          <div className="flex justify-end">
             <button
               type="button"
-              onClick={onBack}
-              className="h-11 rounded-lg border border-subtle px-6 text-sm font-semibold text-primary shadow-sm transition hover:border-primary"
+              onClick={onReturnToOfferings}
+              className="h-11 rounded-lg bg-[#5fa8ff] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5]"
             >
-              Back
+              Continue
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -154,7 +154,7 @@ export const TutorPT: React.FC<StepComponentProps> = ({
             ? 'Congratulations! You have passed the proficiency test.'
             : hasMoreAttempts
               ? 'You have one more attempt. Click Retry to try again.'
-              : 'Please go back and select another offering to continue.'}
+              : 'Please select another offering to continue.'}
         </p>
         <div className="flex justify-end gap-3">
           {passed ? (
@@ -177,13 +177,13 @@ export const TutorPT: React.FC<StepComponentProps> = ({
               Retry
             </button>
           ) : (
-            onBack && (
+            onReturnToOfferings && (
               <button
                 type="button"
-                onClick={onBack}
-                className="h-11 rounded-lg border border-subtle px-6 text-sm font-semibold text-primary shadow-sm transition hover:border-primary"
+                onClick={onReturnToOfferings}
+                className="h-11 rounded-lg bg-[#5fa8ff] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5]"
               >
-                Back to Offerings
+                Continue
               </button>
             )
           )}
@@ -206,13 +206,15 @@ export const TutorPT: React.FC<StepComponentProps> = ({
           <p className="text-sm text-muted">
             No questions available for this test.
           </p>
-          <button
-            type="button"
-            onClick={() => setScreen('intro')}
-            className="h-11 rounded-lg border border-subtle px-6 text-sm font-semibold text-primary"
-          >
-            Back
-          </button>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setScreen('intro')}
+              className="h-11 rounded-lg bg-[#5fa8ff] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5]"
+            >
+              Continue
+            </button>
+          </div>
         </div>
       );
     }
@@ -236,7 +238,6 @@ export const TutorPT: React.FC<StepComponentProps> = ({
       passPercentage={passPercentage}
       attemptsLeft={attemptsLeft}
       onStart={handleStart}
-      onBack={onBack}
     />
   );
 };

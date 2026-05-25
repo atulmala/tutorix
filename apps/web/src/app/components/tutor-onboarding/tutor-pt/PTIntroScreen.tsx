@@ -5,18 +5,12 @@ const DEFAULT_MAX_MARKS = 30;
 const DEFAULT_PASS_PERCENTAGE = 65;
 
 type PTIntroScreenProps = {
-  /** Test name (from proficiency_test.name) */
   testName?: string;
-  /** Test duration in minutes (from proficiency_test.time) */
   timeMinutes?: number;
-  /** Max marks (from proficiency_test.score) */
   maxMarks?: number;
-  /** Pass percentage (from proficiency_test.passPercentage) */
   passPercentage?: number;
-  /** Number of attempts remaining */
   attemptsLeft?: number;
   onStart: () => void;
-  onBack?: () => void;
 };
 
 export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
@@ -26,7 +20,6 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
   passPercentage = DEFAULT_PASS_PERCENTAGE,
   attemptsLeft = 2,
   onStart,
-  onBack,
 }) => {
   const passingMarks = Math.ceil((passPercentage / 100) * maxMarks);
 
@@ -86,16 +79,7 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
         </div>
       </div>
 
-      <div className="flex justify-end gap-3">
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="h-11 rounded-lg border border-subtle px-6 text-sm font-semibold text-primary shadow-sm transition hover:border-primary"
-          >
-            Back
-          </button>
-        )}
+      <div className="flex justify-end">
         <button
           type="button"
           onClick={onStart}
