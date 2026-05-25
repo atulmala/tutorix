@@ -12,10 +12,10 @@ const STEP_SHORT_LABELS: Record<OnboardingStepId, string> = {
   qualification: 'Qualification',
   experience: 'Experience',
   offerings: 'Offerings',
-  pt: 'Proficiency',
+  pt: 'Proficiency Test',
   registrationPayment: REGISTRATION_FEE_WAIVED ? 'Payment - Free' : 'Payment',
-  docs: 'Documents',
-  interview: 'Interview',
+  docs: 'Document upload',
+  interview: 'Application Review',
   complete: 'Onboarding Complete!',
 };
 
@@ -26,6 +26,19 @@ function PaymentStepIcon({ size = 16 }: { size?: number }) {
       {REGISTRATION_FEE_WAIVED ? (
         <Path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4l16 16" />
       ) : null}
+    </Svg>
+  );
+}
+
+function ApplicationReviewStepIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <Path strokeLinecap="round" strokeLinejoin="round" d="M5 4h6l2 2v9H5a1 1 0 01-1-1V5a1 1 0 011-1z" />
+      <Path strokeLinecap="round" strokeLinejoin="round" d="M11 4v2h2" />
+      <Path strokeLinecap="round" d="M5 10h6" />
+      <Path strokeLinecap="round" d="M5 13h5" />
+      <Circle cx="16.5" cy="16.5" r="3.25" />
+      <Path strokeLinecap="round" strokeLinejoin="round" d="M18.8 18.8L21 21" />
     </Svg>
   );
 }
@@ -56,6 +69,9 @@ function StepIcon({
   }
   if (stepId === 'registrationPayment') {
     return <PaymentStepIcon size={size} />;
+  }
+  if (stepId === 'interview') {
+    return <ApplicationReviewStepIcon size={size} />;
   }
   if (stepId === 'complete') {
     return (
@@ -108,15 +124,32 @@ export const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
                 style={[
                   styles.label,
                   step.id === 'registrationPayment' && styles.labelPayment,
+                  step.id === 'interview' && styles.labelInterview,
+                  step.id === 'complete' && styles.labelComplete,
+                  step.id === 'pt' && styles.labelWide,
+                  step.id === 'docs' && styles.labelWide,
                   isCurrent && styles.labelCurrent,
                   isCompleted && styles.labelCompleted,
                   isPending && styles.labelPending,
                 ]}
-                numberOfLines={step.id === 'complete' ? 2 : 1}
+                numberOfLines={
+                  step.id === 'complete' ||
+                  step.id === 'interview' ||
+                  step.id === 'pt' ||
+                  step.id === 'docs'
+                    ? 2
+                    : 1
+                }
               >
                 {step.id === 'complete'
                   ? 'Onboarding\nComplete!'
-                  : STEP_SHORT_LABELS[step.id]}
+                  : step.id === 'interview'
+                    ? 'Application\nReview'
+                    : step.id === 'pt'
+                      ? 'Proficiency\nTest'
+                      : step.id === 'docs'
+                        ? 'Document\nupload'
+                        : STEP_SHORT_LABELS[step.id]}
               </Text>
             </View>
             {index < steps.length - 1 && (
@@ -166,10 +199,21 @@ const styles = StyleSheet.create({
   label: {
     marginTop: 6,
     fontSize: 10,
+    lineHeight: 13,
     textAlign: 'center',
     maxWidth: 54,
+    minHeight: 26,
   },
   labelPayment: {
+    maxWidth: 66,
+  },
+  labelInterview: {
+    maxWidth: 66,
+  },
+  labelComplete: {
+    maxWidth: 66,
+  },
+  labelWide: {
     maxWidth: 66,
   },
   labelCurrent: {

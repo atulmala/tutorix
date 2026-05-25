@@ -7,10 +7,10 @@ const STEP_SHORT_LABELS: Record<OnboardingStepId, string> = {
   qualification: 'Qualification',
   experience: 'Experience',
   offerings: 'Offerings',
-  pt: 'Proficiency',
+  pt: 'Proficiency Test',
   registrationPayment: REGISTRATION_FEE_WAIVED ? 'Payment - Free' : 'Payment',
-  docs: 'Documents',
-  interview: 'Interview',
+  docs: 'Document upload',
+  interview: 'Application Review',
   complete: 'Onboarding Complete!',
 };
 
@@ -25,6 +25,17 @@ const PaymentStepIcon = () => (
       </svg>
     ) : null}
   </span>
+);
+
+const ApplicationReviewStepIcon = () => (
+  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M5 4h6l2 2v9H5a1 1 0 01-1-1V5a1 1 0 011-1z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M11 4v2h2" />
+    <path strokeLinecap="round" d="M5 10h6" />
+    <path strokeLinecap="round" d="M5 13h5" />
+    <circle cx="16.5" cy="16.5" r="3.25" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M18.8 18.8L21 21" />
+  </svg>
 );
 
 const STEP_ICONS: Record<OnboardingStepId, React.ReactNode> = {
@@ -61,11 +72,7 @@ const STEP_ICONS: Record<OnboardingStepId, React.ReactNode> = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
   ),
-  interview: (
-    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-    </svg>
-  ),
+  interview: <ApplicationReviewStepIcon />,
   complete: (
     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
       {/* Green COMPLETED stamp-style seal */}
@@ -86,7 +93,7 @@ export const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
   const steps = ONBOARDING_STEPS;
 
   return (
-    <div className="flex items-center justify-between gap-1">
+    <div className="flex items-start justify-between gap-1">
       {steps.map((step, index) => {
         const isCompleted = index < currentStepIndex;
         const isCurrent = index === currentStepIndex;
@@ -114,9 +121,13 @@ export const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
               </div>
               <span
                 className={`
-                  mt-1.5 text-center text-[10px] font-medium leading-tight
-                  ${step.id === 'complete' || step.id === 'registrationPayment' ? '' : 'max-w-[4.5rem] truncate'}
+                  mt-1.5 block min-h-7 w-full text-center text-[10px] font-medium leading-tight
+                  ${step.id === 'complete' || step.id === 'registrationPayment' || step.id === 'interview' || step.id === 'pt' || step.id === 'docs' ? '' : 'max-w-[4.5rem] truncate'}
                   ${step.id === 'registrationPayment' ? 'max-w-[5.5rem]' : ''}
+                  ${step.id === 'interview' ? 'max-w-[5.5rem]' : ''}
+                  ${step.id === 'complete' ? 'max-w-[5.5rem]' : ''}
+                  ${step.id === 'pt' ? 'max-w-[5.5rem]' : ''}
+                  ${step.id === 'docs' ? 'max-w-[5.5rem]' : ''}
                   ${isCurrent ? 'text-[#5fa8ff]' : ''}
                   ${isCompleted ? 'text-emerald-600' : ''}
                   ${isPending ? 'text-gray-400' : ''}
@@ -128,6 +139,24 @@ export const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
                     <br />
                     Complete!
                   </>
+                ) : step.id === 'interview' ? (
+                  <>
+                    Application
+                    <br />
+                    Review
+                  </>
+                ) : step.id === 'pt' ? (
+                  <>
+                    Proficiency
+                    <br />
+                    Test
+                  </>
+                ) : step.id === 'docs' ? (
+                  <>
+                    Document
+                    <br />
+                    upload
+                  </>
                 ) : (
                   STEP_SHORT_LABELS[step.id]
                 )}
@@ -136,7 +165,7 @@ export const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
             {index < steps.length - 1 && (
               <div
                 className={`
-                  h-0.5 flex-1 min-w-[12px] rounded
+                  mt-[17px] h-0.5 flex-1 min-w-[12px] shrink rounded
                   ${index < currentStepIndex ? 'bg-emerald-400' : 'bg-gray-200'}
                 `}
                 aria-hidden
