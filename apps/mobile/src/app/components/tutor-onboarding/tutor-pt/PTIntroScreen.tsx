@@ -12,7 +12,6 @@ type PTIntroScreenProps = {
   passPercentage?: number;
   attemptsLeft?: number;
   onStart: () => void;
-  onBack?: () => void;
 };
 
 export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
@@ -22,7 +21,6 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
   passPercentage = DEFAULT_PASS_PERCENTAGE,
   attemptsLeft = 2,
   onStart,
-  onBack,
 }) => {
   const passingMarks = Math.ceil((passPercentage / 100) * maxMarks);
 
@@ -77,15 +75,6 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
       </View>
 
       <View style={styles.buttonRow}>
-        {onBack && (
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={onBack}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.secondaryButtonText}>Back</Text>
-          </TouchableOpacity>
-        )}
         <TouchableOpacity
           style={styles.primaryButton}
           onPress={onStart}
@@ -161,19 +150,6 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 12,
-  },
-  secondaryButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-  },
-  secondaryButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0f172a',
   },
   primaryButton: {
     paddingHorizontal: 24,

@@ -116,11 +116,6 @@ function AppContent() {
     setCurrentView('home');
   };
 
-  const handleOnboardingBack = () => {
-    setTutorProfileForOnboarding(null);
-    setCurrentView('home');
-  };
-
   if (currentView === 'splash') {
     return <SplashScreen onFinish={handleSplashFinish} />;
   }
@@ -141,7 +136,6 @@ function AppContent() {
       <TutorOnboarding
         initialProfile={tutorProfileForOnboarding}
         onComplete={handleOnboardingComplete}
-        onBack={handleOnboardingBack}
         onLogout={handleLogout}
       />
     );

@@ -23,7 +23,6 @@ type TutorOnboardingProps = {
   /** Initial profile (e.g. from App after login) - used to show correct step immediately */
   initialProfile?: { certificationStage?: string } | null;
   onComplete?: () => void;
-  onBack?: () => void;
 };
 
 const STEP_COMPONENTS: Record<OnboardingStepId, React.FC<StepComponentProps>> = {
@@ -48,7 +47,6 @@ function stepIndexFromStage(stage: string | undefined): number {
 export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
   initialProfile,
   onComplete,
-  onBack,
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(() =>
     stepIndexFromStage(initialProfile?.certificationStage)
@@ -57,10 +55,6 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
     fetchPolicy: 'cache-and-network',
   });
 
-  // Sync step with certificationStage when profile loads (e.g. tutor returns to onboarding).
-  // Only sync forward or when matching - never sync backward. This avoids a race where
-  // we advance via handleStepComplete but profile refetch hasn't propagated yet, which
-  // would incorrectly revert the step (e.g. from pt back to offerings).
   useEffect(() => {
     const rawStage =
       profileData?.myTutorProfile?.certificationStage ??
@@ -88,8 +82,8 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
     () => STEP_COMPONENTS[stepConfig.id],
     [stepConfig.id]
   );
-  const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === ONBOARDING_STEPS.length - 1;
+  const offeringsStepIndex = ONBOARDING_STEPS.findIndex((s) => s.id === 'offerings');
 
   const handleStepComplete = () => {
     if (isLastStep) {
@@ -99,19 +93,10 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
     }
   };
 
-  const handleStepBack = () => {
-    if (isFirstStep) {
-      onBack?.();
-    } else {
-      setCurrentStepIndex((i) => i - 1);
-    }
-  };
-
   const showStepper = stepConfig.id !== 'complete';
 
   return (
     <div className="w-full max-w-5xl rounded-2xl border border-subtle bg-white p-8 shadow-lg">
-      {/* Header with tutor name */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-primary">
@@ -130,7 +115,6 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
         )}
       </div>
 
-      {/* Step progress indicator - circles with icons and connection lines */}
       {showStepper && (
         <div className="mb-8 rounded-lg border border-subtle bg-gray-50/80 px-6 py-5">
           <OnboardingStepper currentStepIndex={currentStepIndex} />
@@ -139,7 +123,11 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
 
       <StepComponent
         onComplete={handleStepComplete}
-        onBack={isFirstStep ? onBack : handleStepBack}
+        onReturnToOfferings={
+          stepConfig.id === 'pt' && offeringsStepIndex >= 0
+            ? () => setCurrentStepIndex(offeringsStepIndex)
+            : undefined
+        }
       />
     </div>
   );

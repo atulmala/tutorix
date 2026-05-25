@@ -73,7 +73,8 @@ export const ONBOARDING_STEPS: OnboardingStepConfig[] = [
 
 export interface StepComponentProps {
   onComplete: () => void;
-  onBack?: () => void;
+  /** PT step only: return to offerings when all attempts are used or no pending test */
+  onReturnToOfferings?: () => void;
 }
 
 /**

@@ -14,13 +14,9 @@ import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
 
 type Props = {
   onComplete: () => void;
-  onBack?: () => void;
 };
 
-export const TutorRegistrationPayment: React.FC<Props> = ({
-  onComplete,
-  onBack,
-}) => {
+export const TutorRegistrationPayment: React.FC<Props> = ({ onComplete }) => {
   const [errorText, setErrorText] = useState<string | null>(null);
   const [completeStep, { loading }] = useMutation(
     COMPLETE_REGISTRATION_PAYMENT_STEP,
@@ -48,16 +44,6 @@ export const TutorRegistrationPayment: React.FC<Props> = ({
         <Text style={styles.errorText}>{errorText}</Text>
       ) : null}
       <View style={styles.placeholderButtons}>
-        {onBack && (
-          <TouchableOpacity
-            style={styles.placeholderBack}
-            onPress={onBack}
-            activeOpacity={0.7}
-            disabled={loading}
-          >
-            <Text style={styles.placeholderBackText}>Back</Text>
-          </TouchableOpacity>
-        )}
         <TouchableOpacity
           style={styles.placeholderContinue}
           onPress={handleContinue}
@@ -95,19 +81,6 @@ const styles = StyleSheet.create({
   placeholderButtons: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 12,
-  },
-  placeholderBack: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-  },
-  placeholderBackText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0f172a',
   },
   placeholderContinue: {
     minWidth: 120,

@@ -61,7 +61,7 @@ const emptyExperience = (): ExperienceRow => ({
   isCurrent: false,
 });
 
-export const TutorExperience: React.FC<StepComponentProps> = ({ onBack }) => {
+export const TutorExperience: React.FC<StepComponentProps> = () => {
   const [yearsOfExperience, setYearsOfExperience] = useState<YearsOfExperienceEnum>(
     YearsOfExperienceEnum.ZERO_TO_TWO
   );
@@ -545,15 +545,6 @@ export const TutorExperience: React.FC<StepComponentProps> = ({ onBack }) => {
       )}
 
       <View style={styles.buttonRow}>
-        {onBack && (
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={onBack}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.secondaryButtonText}>Back</Text>
-          </TouchableOpacity>
-        )}
         <TouchableOpacity
           style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
           onPress={handleSubmit}

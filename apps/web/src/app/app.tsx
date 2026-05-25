@@ -231,10 +231,6 @@ export function App() {
               setTutorProfileForOnboarding(null);
               handleOnboardingComplete();
             }}
-            onBack={() => {
-              setTutorProfileForOnboarding(null);
-              handleBackHome();
-            }}
           />
         </main>
       </div>

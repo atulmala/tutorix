@@ -24,7 +24,6 @@ function capitalize(s: string): string {
 
 export const TutorOfferings: React.FC<StepComponentProps> = ({
   onComplete,
-  onBack,
 }) => {
   const [studyArea, setStudyArea] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -135,17 +134,6 @@ export const TutorOfferings: React.FC<StepComponentProps> = ({
         <p className="text-sm text-danger">
           Failed to load offerings. Please try again.
         </p>
-        <div className="flex justify-end gap-3">
-          {onBack && (
-            <button
-              type="button"
-              onClick={onBack}
-              className="h-11 rounded-lg border border-subtle px-6 text-sm font-semibold text-primary"
-            >
-              Back
-            </button>
-          )}
-        </div>
       </div>
     );
   }
@@ -218,16 +206,7 @@ export const TutorOfferings: React.FC<StepComponentProps> = ({
       {submitError && (
         <p className="text-sm text-danger">{submitError}</p>
       )}
-      <div className="flex justify-end gap-3">
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="h-11 rounded-lg border border-subtle px-6 text-sm font-semibold text-primary shadow-sm transition hover:border-primary"
-          >
-            Back
-          </button>
-        )}
+      <div className="flex justify-end">
         <button
           type="button"
           onClick={handleContinue}

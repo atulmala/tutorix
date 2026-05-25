@@ -70,10 +70,7 @@ const InputGroup = React.memo(
   )
 );
 
-export const TutorAddressEntry: React.FC<StepComponentProps> = ({
-  onComplete,
-  onBack,
-}) => {
+export const TutorAddressEntry: React.FC<StepComponentProps> = () => {
   const [form, setForm] = useState<AddressForm>({
     locality: '',
     houseNo: '',
@@ -456,15 +453,6 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = ({
         )}
 
         <View style={styles.actions}>
-          {onBack && (
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={onBack}
-              disabled={isSubmitting}
-            >
-              <Text style={styles.backButtonText}>Back</Text>
-            </TouchableOpacity>
-          )}
           <TouchableOpacity
             style={[
               styles.continueButton,

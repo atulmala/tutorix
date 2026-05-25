@@ -28,7 +28,6 @@ const currentYear = new Date().getFullYear();
 
 export const TutorQualification: React.FC<StepComponentProps> = ({
   onComplete,
-  onBack,
 }) => {
   const [qualifications, setQualifications] = useState<QualificationRow[]>(() => [
     {
@@ -570,16 +569,7 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
         </div>
       )}
 
-      <div className="flex justify-end gap-3">
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="h-11 rounded-lg border border-subtle px-6 text-sm font-semibold text-primary shadow-sm transition hover:border-primary"
-          >
-            Back
-          </button>
-        )}
+      <div className="flex justify-end">
         <button
           type="submit"
           disabled={isSubmitting}

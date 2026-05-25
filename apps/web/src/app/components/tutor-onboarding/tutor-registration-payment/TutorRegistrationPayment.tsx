@@ -8,7 +8,6 @@ import type { StepComponentProps } from '../types';
 
 export const TutorRegistrationPayment: React.FC<StepComponentProps> = ({
   onComplete,
-  onBack,
 }) => {
   const [errorText, setErrorText] = useState<string | null>(null);
   const [completeStep, { loading }] = useMutation(
@@ -41,17 +40,7 @@ export const TutorRegistrationPayment: React.FC<StepComponentProps> = ({
         </p>
       ) : null}
 
-      <div className="flex justify-end gap-3">
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            disabled={loading}
-            className="h-11 rounded-lg border border-subtle px-6 text-sm font-semibold text-primary shadow-sm transition hover:border-primary disabled:opacity-50"
-          >
-            Back
-          </button>
-        )}
+      <div className="flex justify-end">
         <button
           type="button"
           onClick={handleContinue}
