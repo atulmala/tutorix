@@ -1,6 +1,6 @@
 import React from 'react';
 import type { OnboardingStepId } from './types';
-import { ONBOARDING_STEPS } from './types';
+import { ONBOARDING_STEPS, REGISTRATION_FEE_WAIVED } from './types';
 
 const STEP_SHORT_LABELS: Record<OnboardingStepId, string> = {
   address: 'Address',
@@ -8,11 +8,24 @@ const STEP_SHORT_LABELS: Record<OnboardingStepId, string> = {
   experience: 'Experience',
   offerings: 'Offerings',
   pt: 'Proficiency',
-  registrationPayment: 'Payment',
+  registrationPayment: REGISTRATION_FEE_WAIVED ? 'Payment - Free' : 'Payment',
   docs: 'Documents',
   interview: 'Interview',
   complete: 'Onboarding Complete!',
 };
+
+const PaymentStepIcon = () => (
+  <span className="relative inline-flex h-4 w-4">
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+    </svg>
+    {REGISTRATION_FEE_WAIVED ? (
+      <svg className="absolute inset-0 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4l16 16" />
+      </svg>
+    ) : null}
+  </span>
+);
 
 const STEP_ICONS: Record<OnboardingStepId, React.ReactNode> = {
   address: (
@@ -42,11 +55,7 @@ const STEP_ICONS: Record<OnboardingStepId, React.ReactNode> = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
     </svg>
   ),
-  registrationPayment: (
-    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-    </svg>
-  ),
+  registrationPayment: <PaymentStepIcon />,
   docs: (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -106,7 +115,8 @@ export const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
               <span
                 className={`
                   mt-1.5 text-center text-[10px] font-medium leading-tight
-                  ${step.id === 'complete' ? '' : 'max-w-[4.5rem] truncate'}
+                  ${step.id === 'complete' || step.id === 'registrationPayment' ? '' : 'max-w-[4.5rem] truncate'}
+                  ${step.id === 'registrationPayment' ? 'max-w-[5.5rem]' : ''}
                   ${isCurrent ? 'text-[#5fa8ff]' : ''}
                   ${isCompleted ? 'text-emerald-600' : ''}
                   ${isPending ? 'text-gray-400' : ''}

@@ -4,6 +4,7 @@ import {
   COMPLETE_REGISTRATION_PAYMENT_STEP,
   GET_MY_TUTOR_PROFILE,
 } from '@tutorix/shared-graphql';
+import { REGISTRATION_FEE_WAIVED_MESSAGE } from '@tutorix/shared-utils';
 import type { StepComponentProps } from '../types';
 
 export const TutorRegistrationPayment: React.FC<StepComponentProps> = ({
@@ -31,9 +32,13 @@ export const TutorRegistrationPayment: React.FC<StepComponentProps> = ({
 
   return (
     <div className="space-y-6">
-      <p className="text-muted">
-        Pay your registration fee. This step will be implemented soon.
-      </p>
+      <div
+        className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+        role="status"
+      >
+        <p>{REGISTRATION_FEE_WAIVED_MESSAGE}</p>
+        <p className="mt-2 text-amber-900">No payment is required right now.</p>
+      </div>
       {errorText ? (
         <p className="text-sm text-red-700" role="alert">
           {errorText}

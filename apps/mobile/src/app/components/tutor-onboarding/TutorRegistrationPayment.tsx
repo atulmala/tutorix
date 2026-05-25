@@ -11,6 +11,7 @@ import {
   COMPLETE_REGISTRATION_PAYMENT_STEP,
 } from '@tutorix/shared-graphql/mutations';
 import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
+import { REGISTRATION_FEE_WAIVED_MESSAGE } from '@tutorix/shared-utils';
 
 type Props = {
   onComplete: () => void;
@@ -37,9 +38,10 @@ export const TutorRegistrationPayment: React.FC<Props> = ({ onComplete }) => {
 
   return (
     <View style={styles.placeholder}>
-      <Text style={styles.placeholderText}>
-        Pay your registration fee. This step will be implemented soon.
-      </Text>
+      <View style={styles.infoBanner}>
+        <Text style={styles.infoBannerText}>{REGISTRATION_FEE_WAIVED_MESSAGE}</Text>
+        <Text style={styles.infoBannerSubtext}>No payment is required right now.</Text>
+      </View>
       {errorText ? (
         <Text style={styles.errorText}>{errorText}</Text>
       ) : null}
@@ -70,9 +72,24 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     gap: 16,
   },
-  placeholderText: {
-    fontSize: 16,
-    color: '#64748b',
+  infoBanner: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    backgroundColor: '#fffbeb',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  infoBannerText: {
+    fontSize: 14,
+    color: '#451a03',
+    lineHeight: 20,
+  },
+  infoBannerSubtext: {
+    fontSize: 14,
+    color: '#78350f',
+    lineHeight: 20,
   },
   errorText: {
     fontSize: 14,
