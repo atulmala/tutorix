@@ -19,6 +19,7 @@ import {
   monthsToExperienceDuration,
   ptStatusBadgeClass,
   ptStatusLabel,
+  sortQualificationsHighestFirst,
   sumExperienceDurations,
 } from '../utils/tutor-detail-formatters';
 
@@ -289,6 +290,11 @@ export function TutorDetailPage() {
     [tutor],
   );
 
+  const sortedQualifications = useMemo(
+    () => sortQualificationsHighestFirst(tutor?.qualifications ?? []),
+    [tutor?.qualifications],
+  );
+
   if (!Number.isFinite(parsedId)) {
     return <p className="text-sm text-red-600">Invalid tutor ID.</p>;
   }
@@ -403,11 +409,11 @@ export function TutorDetailPage() {
       </SectionCard>
 
       <SectionCard title="Education" styleKey="education">
-        {tutor.qualifications.length === 0 ? (
+        {sortedQualifications.length === 0 ? (
           <p className="text-sm text-indigo-800/70">No qualifications on file.</p>
         ) : (
           <ul className="space-y-3">
-            {tutor.qualifications.map((qual, index) => (
+            {sortedQualifications.map((qual, index) => (
               <li
                 key={qual.id}
                 className={`rounded-xl border px-4 py-3 text-sm ${SECTION_STYLES.education.item}`}
