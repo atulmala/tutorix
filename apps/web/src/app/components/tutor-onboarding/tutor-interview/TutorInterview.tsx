@@ -1,22 +1,14 @@
 import React from 'react';
+import { APPLICATION_REVIEW_MESSAGE } from '@tutorix/shared-utils';
 import type { StepComponentProps } from '../types';
 
-export const TutorInterview: React.FC<StepComponentProps> = ({ onComplete }) => {
+export const TutorInterview: React.FC<StepComponentProps> = () => {
   return (
-    <div className="space-y-6">
-      <p className="text-muted">
-        Schedule and attend your interview. This step will be implemented soon.
-      </p>
-
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={onComplete}
-          className="h-11 rounded-lg bg-[#5fa8ff] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5]"
-        >
-          Continue
-        </button>
-      </div>
+    <div
+      className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+      role="status"
+    >
+      <p>{APPLICATION_REVIEW_MESSAGE}</p>
     </div>
   );
 };

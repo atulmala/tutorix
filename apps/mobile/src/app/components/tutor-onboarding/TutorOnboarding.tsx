@@ -9,6 +9,7 @@ import { TutorExperience } from './tutor-experience';
 import { TutorOfferings } from './tutor-offerings';
 import { TutorPT } from './tutor-pt';
 import { TutorRegistrationPayment } from './TutorRegistrationPayment';
+import { TutorApplicationReview } from './TutorApplicationReview';
 import { NavHeader } from '../NavHeader';
 
 function getInitials(name: string): string {
@@ -129,6 +130,9 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
     if (stepConfig.id === 'registrationPayment') {
       return <TutorRegistrationPayment onComplete={handleStepComplete} />;
     }
+    if (stepConfig.id === 'interview') {
+      return <TutorApplicationReview />;
+    }
     return (
       <PlaceholderStep
         title={stepConfig.title}
@@ -150,7 +154,9 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
               ? 'Offerings'
               : stepConfig.id === 'pt'
                 ? 'Proficiency Test'
-                : stepConfig.title;
+                : stepConfig.id === 'interview'
+                  ? 'Application Review'
+                  : stepConfig.title;
   const stepLabel =
     stepConfig.id === 'complete'
       ? undefined

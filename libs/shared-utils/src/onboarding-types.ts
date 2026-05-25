@@ -12,6 +12,9 @@ export const REGISTRATION_FEE_WAIVED = true;
 export const REGISTRATION_FEE_WAIVED_MESSAGE =
   'The one-time registration fee of ₹999 is not being charged for a limited time. Tap Continue to proceed.';
 
+export const APPLICATION_REVIEW_MESSAGE =
+  'Your application is undergoing review. You will be soon notified when the process is completed. Thanks for your patience.';
+
 export type OnboardingStepId =
   | 'address'
   | 'qualification'
@@ -69,8 +72,8 @@ export const ONBOARDING_STEPS: OnboardingStepConfig[] = [
   },
   {
     id: 'interview',
-    title: 'Interview',
-    description: 'Schedule and attend your interview',
+    title: 'Application Review',
+    description: APPLICATION_REVIEW_MESSAGE,
   },
   {
     id: 'complete',
