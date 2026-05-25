@@ -43,6 +43,7 @@ export const GET_PROFICIENCY_TEST_FOR_TAKER = gql`
         answers {
           id
           text
+          answer
         }
       }
     }

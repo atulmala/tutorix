@@ -224,11 +224,18 @@ export const TutorPT: React.FC<StepComponentProps> = ({
       );
     }
     return (
-      <PTTestScreen
-        questions={questions}
-        timeMinutes={timeMinutes}
-        onFinish={handleFinish}
-      />
+      <View style={styles.block}>
+        {profileData?.myTutorProfile?.testTutor && (
+          <Text style={styles.testModeBanner}>
+            Test mode: correct answers are highlighted.
+          </Text>
+        )}
+        <PTTestScreen
+          questions={questions}
+          timeMinutes={timeMinutes}
+          onFinish={handleFinish}
+        />
+      </View>
     );
   }
 
@@ -258,6 +265,16 @@ const styles = StyleSheet.create({
   mutedText: {
     fontSize: 14,
     color: '#64748b',
+  },
+  testModeBanner: {
+    fontSize: 14,
+    color: '#92400e',
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   resultCard: {
     backgroundColor: '#f8fafc',

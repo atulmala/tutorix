@@ -25,6 +25,7 @@ import { DocumentEntity } from '../entities/document.entity';
 import { DocumentScreeningEntity } from '../entities/document-screening.entity';
 import { DocumentForTypeEnum } from '../enums/document-for-type.enum';
 import { DocumentVerificationWorkflowStatusEnum } from '../enums/document-verification-workflow-status.enum';
+import { DocumentScreeningStatusEnum } from '../enums/document-screening-status.enum';
 import { DocumentTypeEnum } from '../enums/document-type.enum';
 import { ConfirmTutorDocumentUploadInput } from '../dto/confirm-tutor-document-upload.input';
 import { RequestTutorDocumentUploadUrlInput } from '../dto/request-tutor-document-upload-url.input';
@@ -416,7 +417,33 @@ export class DocumentService {
 
     await this.tryEnrichDocumentMedia(entity);
 
-    return this.documentRepo.save(entity);
+    const saved = await this.documentRepo.save(entity);
+
+    if (tutor.testTutor) {
+      return this.autoApproveTestTutorDocument(saved);
+    }
+
+    return saved;
+  }
+
+  private async autoApproveTestTutorDocument(
+    document: DocumentEntity,
+  ): Promise<DocumentEntity> {
+    document.verified = true;
+    document.verifiedDate = new Date();
+    document.verificationWorkflowStatus =
+      DocumentVerificationWorkflowStatusEnum.COMPLETED;
+    await this.documentRepo.save(document);
+
+    const screening = this.screeningRepo.create({
+      documentId: document.id,
+      status: DocumentScreeningStatusEnum.APPROVED_HUMAN,
+      automatedAt: new Date(),
+      summaryNotes: 'Auto-approved for test tutor',
+    });
+    await this.screeningRepo.save(screening);
+
+    return this.findDocumentById(document.id);
   }
 
   async headOnboardingObject(

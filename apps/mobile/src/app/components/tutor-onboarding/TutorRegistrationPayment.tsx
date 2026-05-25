@@ -17,12 +17,13 @@ type Props = {
   onComplete: () => void;
 };
 
-export const TutorRegistrationPayment: React.FC<Props> = ({ onComplete }) => {
+export const TutorRegistrationPayment: React.FC<Props> = () => {
   const [errorText, setErrorText] = useState<string | null>(null);
   const [completeStep, { loading }] = useMutation(
     COMPLETE_REGISTRATION_PAYMENT_STEP,
     {
       refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }],
+      awaitRefetchQueries: true,
     },
   );
 
@@ -30,7 +31,7 @@ export const TutorRegistrationPayment: React.FC<Props> = ({ onComplete }) => {
     setErrorText(null);
     try {
       await completeStep();
-      onComplete();
+      // Don't call onComplete — refetch updates profileData; useEffect syncs step index.
     } catch {
       setErrorText('Could not advance to documents. Try again or contact support.');
     }

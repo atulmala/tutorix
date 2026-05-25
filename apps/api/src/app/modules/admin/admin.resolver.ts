@@ -80,6 +80,18 @@ export class AdminResolver {
     );
   }
 
+  @Mutation(() => AdminTutorDetail, {
+    description: 'Mark or unmark a tutor as a test tutor (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminSetTestTutor(
+    @Args('tutorId', { type: () => Int }) tutorId: number,
+    @Args('testTutor') testTutor: boolean,
+  ): Promise<AdminTutorDetail> {
+    return this.adminService.setTestTutor(tutorId, testTutor);
+  }
+
   @Query(() => [AdminProficiencyTestListItem], {
     description: 'All proficiency tests for admin management (admin only)',
   })

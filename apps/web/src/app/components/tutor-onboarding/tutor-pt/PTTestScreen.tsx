@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-type Answer = { id: number; text: string };
+type Answer = { id: number; text: string; answer?: boolean };
 type Question = {
   id: number;
   question: string;
@@ -128,9 +128,11 @@ export const PTTestScreen: React.FC<PTTestScreenProps> = ({
             <label
               key={a.id}
               className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 transition ${
-                selectedId === a.id
-                  ? 'border-[#5fa8ff] bg-[#5fa8ff]/5'
-                  : 'border-subtle hover:border-primary/50'
+                a.answer
+                  ? 'border-emerald-400 bg-emerald-50 ring-1 ring-emerald-200'
+                  : selectedId === a.id
+                    ? 'border-[#5fa8ff] bg-[#5fa8ff]/5'
+                    : 'border-subtle hover:border-primary/50'
               }`}
             >
               <input

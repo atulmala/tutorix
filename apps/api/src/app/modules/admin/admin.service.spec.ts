@@ -53,6 +53,7 @@ describe('AdminService', () => {
   let getActiveSessionStatsByRole: jest.Mock;
   let tutorService: {
     findOneWithProfile: jest.Mock;
+    updateTestTutor: jest.Mock;
   };
   let tutorQualificationService: { findByTutorId: jest.Mock };
   let experienceService: { findByTutorId: jest.Mock };
@@ -81,7 +82,7 @@ describe('AdminService', () => {
       tutorActiveSessions: 6,
       studentActiveSessions: 11,
     });
-    tutorService = { findOneWithProfile: jest.fn() };
+    tutorService = { findOneWithProfile: jest.fn(), updateTestTutor: jest.fn() };
     tutorQualificationService = { findByTutorId: jest.fn().mockResolvedValue([]) };
     experienceService = { findByTutorId: jest.fn().mockResolvedValue([]) };
     tutorOfferingService = { findByTutorId: jest.fn().mockResolvedValue([]) };
@@ -410,6 +411,29 @@ describe('AdminService', () => {
           },
         ],
       });
+    });
+  });
+
+  describe('setTestTutor', () => {
+    it('updates test tutor flag and returns refreshed detail', async () => {
+      tutorService.updateTestTutor.mockResolvedValue({ id: 7, testTutor: true });
+      tutorService.findOneWithProfile.mockResolvedValue({
+        id: 7,
+        testTutor: true,
+        yearsOfExperience: YearsOfExperienceEnum.ZERO_TO_TWO,
+        regFeePaid: false,
+        user: { firstName: 'Jane', lastName: 'Tutor' },
+        addresses: [],
+      });
+      tutorQualificationService.findByTutorId.mockResolvedValue([]);
+      experienceService.findByTutorId.mockResolvedValue([]);
+      tutorOfferingService.findByTutorId.mockResolvedValue([]);
+      documentService.findOnboardingDocumentsByTutorId.mockResolvedValue([]);
+
+      const detail = await service.setTestTutor(7, true);
+
+      expect(tutorService.updateTestTutor).toHaveBeenCalledWith(7, true);
+      expect(detail.testTutor).toBe(true);
     });
   });
 

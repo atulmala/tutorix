@@ -219,11 +219,18 @@ export const TutorPT: React.FC<StepComponentProps> = ({
       );
     }
     return (
-      <PTTestScreen
-        questions={questions}
-        timeMinutes={timeMinutes}
-        onFinish={handleFinish}
-      />
+      <div className="space-y-6">
+        {profileData?.myTutorProfile?.testTutor && (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+            Test mode: correct answers are highlighted.
+          </p>
+        )}
+        <PTTestScreen
+          questions={questions}
+          timeMinutes={timeMinutes}
+          onFinish={handleFinish}
+        />
+      </div>
     );
   }
 

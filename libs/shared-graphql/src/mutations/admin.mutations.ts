@@ -21,3 +21,12 @@ export const ADMIN_REVIEW_DOCUMENT = gql`
     }
   }
 `;
+
+export const ADMIN_SET_TEST_TUTOR = gql`
+  mutation AdminSetTestTutor($tutorId: Int!, $testTutor: Boolean!) {
+    adminSetTestTutor(tutorId: $tutorId, testTutor: $testTutor) {
+      id
+      testTutor
+    }
+  }
+`;

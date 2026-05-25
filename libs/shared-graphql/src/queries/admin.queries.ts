@@ -53,6 +53,7 @@ export const GET_ADMIN_TUTOR_DETAIL = gql`
       certificationStage
       yearsOfExperience
       regFeePaid
+      testTutor
       regFeeAmount
       regFeeAmountToBePaid
       regFeeDate

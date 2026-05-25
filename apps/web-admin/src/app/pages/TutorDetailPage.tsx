@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useQuery } from '@apollo/client';
-import { GET_ADMIN_TUTOR_DETAIL } from '@tutorix/shared-graphql';
+import { useMutation, useQuery } from '@apollo/client';
+import { ADMIN_SET_TEST_TUTOR, GET_ADMIN_TUTOR_DETAIL } from '@tutorix/shared-graphql';
 import {
   AdminDocumentViewerModal,
   type AdminDocumentDetail,
@@ -29,6 +29,7 @@ type AdminTutorDetailData = {
     certificationStage?: string | null;
     yearsOfExperience: string;
     regFeePaid: boolean;
+    testTutor: boolean;
     regFeeAmount?: number | null;
     regFeeAmountToBePaid?: number | null;
     regFeeDate?: string | null;
@@ -271,6 +272,10 @@ export function TutorDetailPage() {
     },
   );
 
+  const [setTestTutor, { loading: savingTestTutor }] = useMutation(ADMIN_SET_TEST_TUTOR, {
+    onCompleted: () => refetch(),
+  });
+
   const tutor = data?.adminTutorDetail;
 
   const timelineEntries = useMemo(
@@ -347,6 +352,25 @@ export function TutorDetailPage() {
               {tutor.certificationStage}
             </span>
           )}
+          {tutor.testTutor && (
+            <span className="rounded-full bg-amber-500 px-3 py-0.5 text-xs font-bold text-white shadow-sm">
+              Test Tutor
+            </span>
+          )}
+          <label className="ml-auto flex cursor-pointer items-center gap-2 rounded-lg border border-amber-200 bg-white/80 px-3 py-1.5 text-sm font-medium text-amber-900 shadow-sm">
+            <input
+              type="checkbox"
+              checked={tutor.testTutor}
+              disabled={savingTestTutor}
+              onChange={(e) => {
+                void setTestTutor({
+                  variables: { tutorId: tutor.id, testTutor: e.target.checked },
+                });
+              }}
+              className="h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+            />
+            Test tutor
+          </label>
         </div>
         <p className="mt-2 text-sm text-muted">
           {formatMobile(tutor.user)}
