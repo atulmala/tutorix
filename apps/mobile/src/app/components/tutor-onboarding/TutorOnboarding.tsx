@@ -9,6 +9,7 @@ import { TutorExperience } from './tutor-experience';
 import { TutorOfferings } from './tutor-offerings';
 import { TutorPT } from './tutor-pt';
 import { TutorRegistrationPayment } from './TutorRegistrationPayment';
+import { TutorDocsUpload } from './tutor-docs-upload';
 import { TutorApplicationReview } from './TutorApplicationReview';
 import { NavHeader } from '../NavHeader';
 
@@ -130,6 +131,9 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
     if (stepConfig.id === 'registrationPayment') {
       return <TutorRegistrationPayment onComplete={handleStepComplete} />;
     }
+    if (stepConfig.id === 'docs') {
+      return <TutorDocsUpload onComplete={handleStepComplete} />;
+    }
     if (stepConfig.id === 'interview') {
       return <TutorApplicationReview />;
     }
@@ -154,9 +158,11 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
               ? 'Offerings'
               : stepConfig.id === 'pt'
                 ? 'Proficiency Test'
-                : stepConfig.id === 'interview'
-                  ? 'Application Review'
-                  : stepConfig.title;
+                : stepConfig.id === 'docs'
+                  ? 'Documents Upload'
+                  : stepConfig.id === 'interview'
+                    ? 'Application Review'
+                    : stepConfig.title;
   const stepLabel =
     stepConfig.id === 'complete'
       ? undefined
