@@ -109,6 +109,7 @@ export class AdminService {
       certificationStage: tutor.certificationStage,
       yearsOfExperience: tutor.yearsOfExperience,
       regFeePaid: tutor.regFeePaid,
+      testTutor: tutor.testTutor,
       regFeeAmount: tutor.regFeeAmount,
       regFeeAmountToBePaid: tutor.regFeeAmountToBePaid,
       regFeeDate: tutor.regFeeDate,
@@ -145,6 +146,11 @@ export class AdminService {
         note,
       );
     return this.mapDocumentDetail(document, screening);
+  }
+
+  async setTestTutor(tutorId: number, testTutor: boolean): Promise<AdminTutorDetail> {
+    await this.tutorService.updateTestTutor(tutorId, testTutor);
+    return this.getTutorDetail(tutorId);
   }
 
   async listTutors(input: AdminTutorListInput): Promise<AdminTutorListResult> {
@@ -313,6 +319,7 @@ export class AdminService {
       certificationStage: tutor.certificationStage,
       daysInStage: computeDaysInStage(tutor.certificationStageEnteredAt),
       pendingAdminDocumentReview: pendingReviewIds.has(tutor.id),
+      testTutor: tutor.testTutor ?? false,
     };
   }
 }

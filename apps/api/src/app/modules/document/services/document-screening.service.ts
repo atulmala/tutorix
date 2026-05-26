@@ -9,6 +9,7 @@ import { User } from '../../auth/entities/user.entity';
 import { DocumentEntity } from '../entities/document.entity';
 import { DocumentScreeningEntity } from '../entities/document-screening.entity';
 import { DocumentScreeningStatusEnum } from '../enums/document-screening-status.enum';
+import { DocumentVerificationWorkflowStatusEnum } from '../enums/document-verification-workflow-status.enum';
 import { ONBOARDING_DOCUMENT_TYPES } from '../onboarding-document-types';
 import { DocumentService } from './document.service';
 
@@ -78,6 +79,29 @@ export class DocumentScreeningService {
       verifiedBy: approve ? ({ id: adminUserId } as User) : undefined,
     });
 
+    const savedScreening = await this.screeningRepo.save(screening);
+    const savedDocument = await this.documentService.findDocumentById(documentId);
+
+    return { document: savedDocument, screening: savedScreening };
+  }
+
+  async autoApproveForTestTutor(
+    documentId: number,
+  ): Promise<{ document: DocumentEntity; screening: DocumentScreeningEntity }> {
+    const document = await this.documentService.findDocumentById(documentId);
+
+    document.verified = true;
+    document.verifiedDate = new Date();
+    document.verificationWorkflowStatus =
+      DocumentVerificationWorkflowStatusEnum.COMPLETED;
+    await this.documentRepo.save(document);
+
+    const screening = this.screeningRepo.create({
+      documentId: document.id,
+      status: DocumentScreeningStatusEnum.APPROVED_HUMAN,
+      automatedAt: new Date(),
+      summaryNotes: 'Auto-approved for test tutor',
+    });
     const savedScreening = await this.screeningRepo.save(screening);
     const savedDocument = await this.documentService.findDocumentById(documentId);
 

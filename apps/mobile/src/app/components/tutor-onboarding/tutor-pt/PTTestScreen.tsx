@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { stripHtml } from './stripHtml';
 
-type Answer = { id: number; text: string };
+type Answer = { id: number; text: string; answer?: boolean };
 type Question = {
   id: number;
   question: string;
@@ -139,6 +139,7 @@ export const PTTestScreen: React.FC<PTTestScreenProps> = ({
               key={a.id}
               style={[
                 styles.answerOption,
+                a.answer && styles.answerOptionCorrect,
                 selectedId === a.id && styles.answerOptionSelected,
               ]}
               onPress={() => handleSelectAnswer(a.id)}
@@ -250,6 +251,10 @@ const styles = StyleSheet.create({
   answerOptionSelected: {
     borderColor: '#5fa8ff',
     backgroundColor: 'rgba(95, 168, 255, 0.05)',
+  },
+  answerOptionCorrect: {
+    borderColor: '#34d399',
+    backgroundColor: 'rgba(52, 211, 153, 0.08)',
   },
   radioOuter: {
     width: 20,

@@ -26,6 +26,7 @@ type AdminTutorListItemRow = {
   mobileNumber?: string | null;
   daysInStage: number;
   pendingAdminDocumentReview?: boolean;
+  testTutor?: boolean;
 };
 
 type AdminTutorStageCountsData = {
@@ -344,6 +345,11 @@ export function TutorsPage() {
                         >
                           {formatTutorName(tutor.firstName, tutor.lastName)}
                         </Link>
+                        {tutor.testTutor && (
+                          <span className="inline-flex rounded-full bg-amber-500 px-2 py-0.5 text-xs font-semibold text-white shadow-sm">
+                            Test tutor
+                          </span>
+                        )}
                         {needsReview && (
                           <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">
                             Needs review

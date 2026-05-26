@@ -7,6 +7,7 @@ import { DocumentEntity } from '../entities/document.entity';
 import { DocumentScreeningEntity } from '../entities/document-screening.entity';
 import { DocumentTypeEnum } from '../enums/document-type.enum';
 import { DocumentScreeningStatusEnum } from '../enums/document-screening-status.enum';
+import { DocumentVerificationWorkflowStatusEnum } from '../enums/document-verification-workflow-status.enum';
 
 jest.mock('../document-image-media', () => ({
   buildTutorDocumentImageMediaPatch: jest.fn(),
@@ -16,12 +17,14 @@ describe('DocumentScreeningService', () => {
   let service: DocumentScreeningService;
   let screeningFindOne: jest.Mock;
   let screeningSave: jest.Mock;
+  let screeningCreate: jest.Mock;
   let documentSave: jest.Mock;
   let findDocumentById: jest.Mock;
 
   beforeEach(async () => {
     screeningFindOne = jest.fn();
     screeningSave = jest.fn().mockImplementation((row) => Promise.resolve(row));
+    screeningCreate = jest.fn().mockImplementation((row) => row);
     documentSave = jest.fn().mockImplementation((row) => Promise.resolve(row));
     findDocumentById = jest.fn();
 
@@ -33,6 +36,7 @@ describe('DocumentScreeningService', () => {
           useValue: {
             findOne: screeningFindOne,
             save: screeningSave,
+            create: screeningCreate,
             createQueryBuilder: jest.fn(),
           },
         },
@@ -106,5 +110,39 @@ describe('DocumentScreeningService', () => {
     await expect(service.reviewByAdmin(5, true, 99)).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  it('auto-approves documents for test tutors', async () => {
+    const document = {
+      id: 8,
+      documentType: DocumentTypeEnum.AADHAAR_CARD,
+      verified: false,
+      verificationWorkflowStatus: DocumentVerificationWorkflowStatusEnum.PENDING,
+    } as DocumentEntity;
+
+    findDocumentById
+      .mockResolvedValueOnce(document)
+      .mockResolvedValueOnce({
+        ...document,
+        verified: true,
+        verificationWorkflowStatus: DocumentVerificationWorkflowStatusEnum.COMPLETED,
+      });
+
+    const result = await service.autoApproveForTestTutor(8);
+
+    expect(documentSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        verified: true,
+        verificationWorkflowStatus: DocumentVerificationWorkflowStatusEnum.COMPLETED,
+      }),
+    );
+    expect(screeningCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        documentId: 8,
+        status: DocumentScreeningStatusEnum.APPROVED_HUMAN,
+        summaryNotes: 'Auto-approved for test tutor',
+      }),
+    );
+    expect(result.screening.status).toBe(DocumentScreeningStatusEnum.APPROVED_HUMAN);
   });
 });

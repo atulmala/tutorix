@@ -31,6 +31,7 @@ export const GET_ADMIN_TUTORS = gql`
         certificationStage
         daysInStage
         pendingAdminDocumentReview
+        testTutor
       }
     }
   }
@@ -53,6 +54,7 @@ export const GET_ADMIN_TUTOR_DETAIL = gql`
       certificationStage
       yearsOfExperience
       regFeePaid
+      testTutor
       regFeeAmount
       regFeeAmountToBePaid
       regFeeDate

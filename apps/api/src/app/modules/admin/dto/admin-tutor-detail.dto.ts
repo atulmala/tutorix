@@ -22,6 +22,9 @@ export class AdminTutorDetail {
   @Field()
   regFeePaid: boolean;
 
+  @Field()
+  testTutor: boolean;
+
   @Field({ nullable: true })
   regFeeAmount?: number;
 

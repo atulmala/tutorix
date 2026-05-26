@@ -147,6 +147,15 @@ export class TutorService {
   }
 
   /**
+   * Mark or unmark a tutor as a test tutor (fast-track onboarding).
+   */
+  async updateTestTutor(tutorId: number, testTutor: boolean): Promise<Tutor> {
+    const tutor = await this.findOne(tutorId);
+    tutor.testTutor = testTutor;
+    return this.tutorRepository.save(tutor);
+  }
+
+  /**
    * Soft delete a tutor (sets deleted = true)
    */
   async remove(id: number): Promise<boolean> {

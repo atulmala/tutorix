@@ -7,14 +7,13 @@ import {
 import { REGISTRATION_FEE_WAIVED_MESSAGE } from '@tutorix/shared-utils';
 import type { StepComponentProps } from '../types';
 
-export const TutorRegistrationPayment: React.FC<StepComponentProps> = ({
-  onComplete,
-}) => {
+export const TutorRegistrationPayment: React.FC<StepComponentProps> = () => {
   const [errorText, setErrorText] = useState<string | null>(null);
   const [completeStep, { loading }] = useMutation(
     COMPLETE_REGISTRATION_PAYMENT_STEP,
     {
       refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }],
+      awaitRefetchQueries: true,
     },
   );
 
@@ -22,7 +21,9 @@ export const TutorRegistrationPayment: React.FC<StepComponentProps> = ({
     setErrorText(null);
     try {
       await completeStep();
-      onComplete();
+      // Don't call onComplete — refetch updates profileData; useEffect in TutorOnboarding
+      // syncs currentStepIndex from certificationStage. Calling onComplete would
+      // double-advance and skip the documents upload step.
     } catch {
       setErrorText(
         'Could not advance to documents. Try again or contact support.',
