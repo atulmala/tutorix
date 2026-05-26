@@ -1,0 +1,1 @@
+export { TutorDocsUpload } from './TutorDocsUpload';
