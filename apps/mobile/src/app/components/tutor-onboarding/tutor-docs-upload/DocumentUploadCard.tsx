@@ -163,7 +163,7 @@ export function DocumentUploadCard({
               replaceDisabled && styles.pickButtonTextDisabled,
             ]}
           >
-            {passed ? 'Accepted' : hasFile ? 'Replace file' : 'Choose file'}
+            {passed ? 'Accepted' : hasFile ? 'Replace' : 'Upload'}
           </Text>
         )}
       </TouchableOpacity>

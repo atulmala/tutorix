@@ -28,21 +28,21 @@ export const ONBOARDING_SLOTS: {
   {
     documentType: 'AADHAAR_CARD',
     title: 'Aadhaar card',
-    description: 'Front side (PDF, JPG, or PNG, max 10 MB).',
+    description: 'Take a photo or upload PDF, JPG, or PNG (max 10 MB).',
   },
   {
     documentType: 'PAN_CARD',
     title: 'PAN card',
-    description: 'Income Tax PAN (PDF, JPG, or PNG, max 10 MB).',
+    description: 'Take a photo or upload PDF, JPG, or PNG (max 10 MB).',
   },
   {
     documentType: 'CLASS_XII_MARKSHEET',
     title: 'Higher secondary (Class XII)',
-    description: 'Marksheet or certificate (PDF, JPG, or PNG, max 10 MB).',
+    description: 'Take a photo or upload PDF, JPG, or PNG (max 10 MB).',
   },
   {
     documentType: 'HIGHEST_DEGREE_CERTIFICATE',
     title: 'Highest degree',
-    description: 'Degree certificate or transcript (PDF, JPG, or PNG, max 10 MB).',
+    description: 'Take a photo or upload PDF, JPG, or PNG (max 10 MB).',
   },
 ];

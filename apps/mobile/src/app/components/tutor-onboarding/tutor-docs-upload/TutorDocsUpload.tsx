@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useMutation, useQuery } from '@apollo/client';
 import {
@@ -35,6 +36,10 @@ import {
   screeningRejected,
 } from './document-upload.utils';
 import { uploadTutorDocument } from './uploadTutorDocument';
+import {
+  CameraCaptureCanceled,
+  captureDocumentImage,
+} from './captureDocumentImage';
 
 export const TutorDocsUpload: React.FC<StepComponentProps> = ({ onComplete }) => {
   const [slotError, setSlotError] = useState<
@@ -125,7 +130,7 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({ onComplete }) =>
     [confirmUpload, requestUploadUrl],
   );
 
-  const handlePickFile = useCallback(
+  const pickDocumentFile = useCallback(
     async (slot: OnboardingDocType) => {
       try {
         const [picked] = await pick({
@@ -174,6 +179,34 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({ onComplete }) =>
       }
     },
     [uploadFileForSlot],
+  );
+
+  const handleTakePhoto = useCallback(
+    async (slot: OnboardingDocType) => {
+      try {
+        const file = await captureDocumentImage();
+        await uploadFileForSlot(slot, file);
+      } catch (e: unknown) {
+        if (e instanceof CameraCaptureCanceled) return;
+        const message =
+          e instanceof Error
+            ? e.message
+            : 'Could not capture photo. Please try again.';
+        setSlotError((prev) => ({ ...prev, [slot]: message }));
+      }
+    },
+    [uploadFileForSlot],
+  );
+
+  const handleAddDocument = useCallback(
+    (slot: OnboardingDocType) => {
+      Alert.alert('Add document', 'How would you like to add this document?', [
+        { text: 'Take photo', onPress: () => void handleTakePhoto(slot) },
+        { text: 'Choose file', onPress: () => void pickDocumentFile(slot) },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    },
+    [handleTakePhoto, pickDocumentFile],
   );
 
   const continueDisabled = !progress.allPassed || profileLoading;
@@ -231,7 +264,7 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({ onComplete }) =>
             err={err}
             busy={busy}
             profileLoading={profileLoading}
-            onPickFile={() => void handlePickFile(slot.documentType)}
+            onPickFile={() => handleAddDocument(slot.documentType)}
             passed={passed}
             rejected={rejected}
             humanPending={humanPending}
