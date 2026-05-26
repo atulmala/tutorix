@@ -35,4 +35,9 @@ export class AdminTutorListItem {
       'True when any onboarding document has PENDING_HUMAN screening (awaiting admin review)',
   })
   pendingAdminDocumentReview: boolean;
+
+  @Field(() => Boolean, {
+    description: 'True when this tutor is marked as a test account for fast-track onboarding',
+  })
+  testTutor: boolean;
 }

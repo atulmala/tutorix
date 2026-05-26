@@ -31,6 +31,7 @@ export const GET_ADMIN_TUTORS = gql`
         certificationStage
         daysInStage
         pendingAdminDocumentReview
+        testTutor
       }
     }
   }

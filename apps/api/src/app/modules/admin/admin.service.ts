@@ -319,6 +319,7 @@ export class AdminService {
       certificationStage: tutor.certificationStage,
       daysInStage: computeDaysInStage(tutor.certificationStageEnteredAt),
       pendingAdminDocumentReview: pendingReviewIds.has(tutor.id),
+      testTutor: tutor.testTutor ?? false,
     };
   }
 }
