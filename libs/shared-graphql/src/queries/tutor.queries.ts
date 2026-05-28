@@ -10,6 +10,7 @@ export const GET_MY_TUTOR_PROFILE = gql`
       id
       userId
       onBoardingComplete
+      onboardingCelebrationSeen
       certificationStage
       testTutor
       user {

@@ -16,6 +16,7 @@ import {
   isErrorWithCode,
 } from '@react-native-documents/picker';
 import {
+  COMPLETE_DOCS_STEP,
   CONFIRM_TUTOR_DOCUMENT_UPLOAD,
   REQUEST_TUTOR_DOCUMENT_UPLOAD_URL,
 } from '@tutorix/shared-graphql/mutations';
@@ -41,7 +42,7 @@ import {
   captureDocumentImage,
 } from './captureDocumentImage';
 
-export const TutorDocsUpload: React.FC<StepComponentProps> = ({ onComplete }) => {
+export const TutorDocsUpload: React.FC<StepComponentProps> = () => {
   const [slotError, setSlotError] = useState<
     Partial<Record<OnboardingDocType, string>>
   >({});
@@ -62,6 +63,14 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({ onComplete }) =>
     refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }],
     awaitRefetchQueries: true,
   });
+  const [completeDocsStep, { loading: completingDocs }] = useMutation(
+    COMPLETE_DOCS_STEP,
+    {
+      refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }],
+      awaitRefetchQueries: true,
+    },
+  );
+  const [continueError, setContinueError] = useState<string | null>(null);
 
   const progress = useMemo(() => {
     let filled = 0;
@@ -209,7 +218,21 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({ onComplete }) =>
     [handleTakePhoto, pickDocumentFile],
   );
 
-  const continueDisabled = !progress.allPassed || profileLoading;
+  const continueDisabled =
+    !progress.allPassed || profileLoading || completingDocs;
+
+  const handleContinue = async () => {
+    setContinueError(null);
+    try {
+      await completeDocsStep();
+    } catch (e: unknown) {
+      const message =
+        e instanceof Error
+          ? e.message
+          : 'Could not advance to application review. Try again.';
+      setContinueError(message);
+    }
+  };
 
   const showReviewBanner =
     progress.allFilled && !progress.allPassed && !progress.anyRejected;
@@ -275,12 +298,15 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({ onComplete }) =>
 
       <View style={styles.footer}>
         <Text style={styles.footerHint}>{continueHint}</Text>
+        {continueError ? (
+          <Text style={styles.continueError}>{continueError}</Text>
+        ) : null}
         <TouchableOpacity
           style={[
             styles.continueButton,
             continueDisabled && styles.continueButtonDisabled,
           ]}
-          onPress={onComplete}
+          onPress={() => void handleContinue()}
           disabled={continueDisabled}
           activeOpacity={0.7}
         >
@@ -341,6 +367,11 @@ const styles = StyleSheet.create({
   footerHint: {
     fontSize: 14,
     color: '#64748b',
+    lineHeight: 20,
+  },
+  continueError: {
+    fontSize: 14,
+    color: '#b91c1c',
     lineHeight: 20,
   },
   continueButton: {

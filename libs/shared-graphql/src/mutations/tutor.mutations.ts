@@ -94,3 +94,30 @@ export const COMPLETE_REGISTRATION_PAYMENT_STEP = gql`
     }
   }
 `;
+
+/**
+ * Complete documents step when all four onboarding documents pass verification.
+ */
+export const COMPLETE_DOCS_STEP = gql`
+  mutation CompleteDocsStep {
+    completeDocsStep {
+      id
+      certificationStage
+      onBoardingComplete
+    }
+  }
+`;
+
+/**
+ * Mark onboarding celebration as seen after tutor visits dashboard.
+ */
+export const ACKNOWLEDGE_ONBOARDING_CELEBRATION = gql`
+  mutation AcknowledgeOnboardingCelebration {
+    acknowledgeOnboardingCelebration {
+      id
+      onBoardingComplete
+      onboardingCelebrationSeen
+      certificationStage
+    }
+  }
+`;

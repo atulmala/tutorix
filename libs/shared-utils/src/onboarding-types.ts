@@ -15,6 +15,9 @@ export const REGISTRATION_FEE_WAIVED_MESSAGE =
 export const APPLICATION_REVIEW_MESSAGE =
   'Your application is undergoing review. You will be soon notified when the process is completed. Thanks for your patience.';
 
+export const ONBOARDING_APPROVED_MESSAGE =
+  'Congratulations! You are now accepted as a Tutorix certified tutor! Go to your dashboard to build your tutor profile.';
+
 export type OnboardingStepId =
   | 'address'
   | 'qualification'

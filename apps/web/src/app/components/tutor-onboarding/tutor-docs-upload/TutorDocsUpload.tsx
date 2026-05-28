@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import {
+  COMPLETE_DOCS_STEP,
   CONFIRM_TUTOR_DOCUMENT_UPLOAD,
   GET_MY_TUTOR_PROFILE,
   REQUEST_TUTOR_DOCUMENT_UPLOAD_URL,
@@ -95,9 +96,7 @@ function screeningHumanPending(screening: SlotDoc['screening']): boolean {
   return screening?.status === 'PENDING_HUMAN';
 }
 
-export const TutorDocsUpload: React.FC<StepComponentProps> = ({
-  onComplete,
-}) => {
+export const TutorDocsUpload: React.FC<StepComponentProps> = () => {
   const inputRefs = useRef<Record<OnboardingDocType, HTMLInputElement | null>>({
     AADHAAR_CARD: null,
     PAN_CARD: null,
@@ -136,6 +135,14 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({
     refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }],
     awaitRefetchQueries: true,
   });
+  const [completeDocsStep, { loading: completingDocs }] = useMutation(
+    COMPLETE_DOCS_STEP,
+    {
+      refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }],
+      awaitRefetchQueries: true,
+    },
+  );
+  const [continueError, setContinueError] = useState<string | null>(null);
 
   const progress = useMemo(() => {
     let filled = 0;
@@ -274,7 +281,21 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({
     [uploadFileForSlot],
   );
 
-  const continueDisabled = !progress.allPassed || profileLoading;
+  const continueDisabled =
+    !progress.allPassed || profileLoading || completingDocs;
+
+  const handleContinue = async () => {
+    setContinueError(null);
+    try {
+      await completeDocsStep();
+    } catch (e: unknown) {
+      const message =
+        e instanceof Error
+          ? e.message
+          : 'Could not advance to application review. Try again.';
+      setContinueError(message);
+    }
+  };
 
   const showReviewBanner =
     progress.allFilled && !progress.allPassed && !progress.anyRejected;
@@ -339,19 +360,26 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = ({
       </ul>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-subtle pt-6">
-        <p className="text-sm text-muted">
-          {!progress.allFilled
-            ? 'Upload all four documents. Continue stays disabled until each document passes verification.'
-            : progress.anyRejected
-              ? 'One or more documents were not accepted. Replace those files and wait for verification again.'
-              : continueDisabled
-                ? 'Continue unlocks when all four documents have passed verification.'
-                : 'All documents passed—you can continue.'}
-        </p>
+        <div className="text-sm text-muted">
+          <p>
+            {!progress.allFilled
+              ? 'Upload all four documents. Continue stays disabled until each document passes verification.'
+              : progress.anyRejected
+                ? 'One or more documents were not accepted. Replace those files and wait for verification again.'
+                : continueDisabled
+                  ? 'Continue unlocks when all four documents have passed verification.'
+                  : 'All documents passed—you can continue.'}
+          </p>
+          {continueError ? (
+            <p className="mt-2 text-red-600" role="alert">
+              {continueError}
+            </p>
+          ) : null}
+        </div>
         <div className="flex justify-end">
           <button
             type="button"
-            onClick={onComplete}
+            onClick={() => void handleContinue()}
             disabled={continueDisabled}
             className={`h-11 rounded-lg px-6 text-sm font-semibold text-white shadow-sm transition ${
               continueDisabled

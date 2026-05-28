@@ -119,6 +119,15 @@ export class TutorService {
     return this.tutorRepository.save(tutor);
   }
 
+  async updateOnboardingCelebrationSeen(
+    tutorId: number,
+    seen: boolean,
+  ): Promise<Tutor> {
+    const tutor = await this.findOne(tutorId);
+    tutor.onboardingCelebrationSeen = seen;
+    return this.tutorRepository.save(tutor);
+  }
+
   /**
    * Update years of experience for a tutor
    */
