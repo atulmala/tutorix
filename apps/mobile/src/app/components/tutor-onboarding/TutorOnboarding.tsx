@@ -11,6 +11,7 @@ import { TutorPT } from './tutor-pt';
 import { TutorRegistrationPayment } from './TutorRegistrationPayment';
 import { TutorDocsUpload } from './tutor-docs-upload';
 import { TutorApplicationReview } from './TutorApplicationReview';
+import { TutorOnboardingComplete } from './TutorOnboardingComplete';
 import { NavHeader } from '../NavHeader';
 
 function getInitials(name: string): string {
@@ -70,17 +71,24 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
   const { data: profileData } = useQuery(GET_MY_TUTOR_PROFILE, {
     fetchPolicy: 'cache-and-network',
   });
+  const myTutorProfile = profileData?.myTutorProfile;
 
   useEffect(() => {
+    if (myTutorProfile?.onBoardingComplete && !myTutorProfile.onboardingCelebrationSeen) {
+      const completeIdx = ONBOARDING_STEPS.findIndex((s) => s.id === 'complete');
+      if (completeIdx >= 0) {
+        setCurrentStepIndex(completeIdx);
+      }
+      return;
+    }
     const rawStage =
-      profileData?.myTutorProfile?.certificationStage ??
-      initialProfile?.certificationStage;
+      myTutorProfile?.certificationStage ?? initialProfile?.certificationStage;
     const stage = normalizeCertificationStage(rawStage);
     if (!stage) return;
     const idx = ONBOARDING_STEPS.findIndex((s) => s.id === stage);
     if (idx < 0) return;
     setCurrentStepIndex((current) => (idx >= current ? idx : current));
-  }, [profileData?.myTutorProfile?.certificationStage, initialProfile?.certificationStage]);
+  }, [myTutorProfile, initialProfile?.certificationStage]);
 
   const tutorName = useMemo(() => {
     const user = profileData?.myTutorProfile?.user;
@@ -136,6 +144,9 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
     }
     if (stepConfig.id === 'interview') {
       return <TutorApplicationReview />;
+    }
+    if (stepConfig.id === 'complete') {
+      return <TutorOnboardingComplete onGoToDashboard={onComplete} />;
     }
     return (
       <PlaceholderStep

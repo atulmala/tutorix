@@ -9,9 +9,18 @@ import { ForgotPassword } from './components/ForgotPassword';
 import { ResetPassword } from './components/ResetPassword';
 import { PasswordResetAcknowledgement } from './components/PasswordResetAcknowledgement';
 import { TutorOnboarding } from './components/tutor-onboarding';
+import { TutorProfilePage } from './components/tutor-profile/TutorProfilePage';
 import { AppHeader } from './components/AppHeader';
 
-type View = 'home' | 'signup' | 'login' | 'forgot-password' | 'reset-password' | 'password-reset-ack' | 'tutor-onboarding';
+type View =
+  | 'home'
+  | 'signup'
+  | 'login'
+  | 'forgot-password'
+  | 'reset-password'
+  | 'password-reset-ack'
+  | 'tutor-onboarding'
+  | 'tutor-profile';
 
 type User = {
   id: number;
@@ -68,19 +77,27 @@ export function App() {
       }
       
       const onboardingComplete = tutor.onBoardingComplete;
-      const hasAddress = tutor.addresses && tutor.addresses.length > 0;
-      console.log('[App] onBoardingComplete:', onboardingComplete, 'Has address:', hasAddress, 'certificationStage:', tutor.certificationStage);
-      
-      // Only go home if onboarding is fully complete
-      if (onboardingComplete) {
-        console.log('[App] Onboarding complete, going home');
-        setTutorProfileForOnboarding(null);
-        setCurrentView('home');
-      } else {
-        // Pass profile (including certificationStage) so onboarding can show correct step immediately
-        setTutorProfileForOnboarding({ certificationStage: tutor.certificationStage });
-        console.log('[App] Onboarding incomplete, showing tutor-onboarding at stage:', tutor.certificationStage);
+      const celebrationSeen = tutor.onboardingCelebrationSeen;
+      console.log(
+        '[App] onBoardingComplete:',
+        onboardingComplete,
+        'celebrationSeen:',
+        celebrationSeen,
+        'certificationStage:',
+        tutor.certificationStage,
+      );
+
+      if (!onboardingComplete) {
+        setTutorProfileForOnboarding({
+          certificationStage: tutor.certificationStage,
+        });
         setCurrentView('tutor-onboarding');
+      } else if (!celebrationSeen) {
+        setTutorProfileForOnboarding({ certificationStage: 'complete' });
+        setCurrentView('tutor-onboarding');
+      } else {
+        setTutorProfileForOnboarding(null);
+        setCurrentView('tutor-profile');
       }
     },
     onError: (error) => {
@@ -198,8 +215,8 @@ export function App() {
   };
 
   const handleOnboardingComplete = () => {
-    // TODO: Navigate to tutor dashboard or home
-    setCurrentView('home');
+    setTutorProfileForOnboarding(null);
+    setCurrentView('tutor-profile');
   };
 
   if (currentView === 'signup') {
@@ -227,11 +244,19 @@ export function App() {
         <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
           <TutorOnboarding 
             initialProfile={tutorProfileForOnboarding}
-            onComplete={() => {
-              setTutorProfileForOnboarding(null);
-              handleOnboardingComplete();
-            }}
+            onComplete={handleOnboardingComplete}
           />
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'tutor-profile') {
+    return (
+      <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
+          <TutorProfilePage />
         </main>
       </div>
     );

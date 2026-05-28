@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { View } from 'react-native';
 import {
   ApolloProvider,
   ApolloClient,
@@ -12,6 +13,8 @@ import { LoginScreen } from './components/LoginScreen';
 import { ForgotPasswordScreen } from './components/ForgotPasswordScreen';
 import { SignUpScreen } from './components/sign-up/SignUpScreen';
 import { TutorOnboarding } from './components/tutor-onboarding';
+import { TutorProfileScreen } from './components/tutor-profile/TutorProfileScreen';
+import { NavHeader } from './components/NavHeader';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { createApolloClient } from '@tutorix/shared-graphql/client/mobile';
 import { removeAuthToken } from '@tutorix/shared-graphql/client/mobile/token-storage';
@@ -39,6 +42,7 @@ type AppView =
   | 'forgotPassword'
   | 'signup'
   | 'tutorOnboarding'
+  | 'tutorProfile'
   | 'home';
 
 function AppContent() {
@@ -68,14 +72,17 @@ function AppContent() {
         setCurrentView('home');
         return;
       }
-      if (tutor.onBoardingComplete) {
-        setTutorProfileForOnboarding(null);
-        setCurrentView('home');
-      } else {
+      if (!tutor.onBoardingComplete) {
         setTutorProfileForOnboarding({
           certificationStage: tutor.certificationStage,
         });
         setCurrentView('tutorOnboarding');
+      } else if (!tutor.onboardingCelebrationSeen) {
+        setTutorProfileForOnboarding({ certificationStage: 'complete' });
+        setCurrentView('tutorOnboarding');
+      } else {
+        setTutorProfileForOnboarding(null);
+        setCurrentView('tutorProfile');
       }
     },
     onError: () => {
@@ -113,7 +120,7 @@ function AppContent() {
 
   const handleOnboardingComplete = () => {
     setTutorProfileForOnboarding(null);
-    setCurrentView('home');
+    setCurrentView('tutorProfile');
   };
 
   if (currentView === 'splash') {
@@ -138,6 +145,14 @@ function AppContent() {
         onComplete={handleOnboardingComplete}
         onLogout={handleLogout}
       />
+    );
+  }
+  if (currentView === 'tutorProfile') {
+    return (
+      <View style={{ flex: 1 }}>
+        <NavHeader title="My profile" onLogout={handleLogout} />
+        <TutorProfileScreen />
+      </View>
     );
   }
   if (currentView === 'home') {

@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BatchJobAuditModule } from '../../batch-jobs/batch-job-audit.module';
+import { DocumentModule } from '../document/document.module';
 import { Tutor } from './entities/tutor.entity';
 import { TutorQualificationEntity } from './entities/tutor-qualification.entity';
 import { TutorOfferingEntity } from './entities/tutor-offering.entity';
@@ -7,11 +10,16 @@ import { TutorResolver } from './resolvers/tutor.resolver';
 import { TutorService } from './services/tutor.service';
 import { TutorQualificationService } from './services/tutor-qualification.service';
 import { TutorOfferingService } from './services/tutor-offering.service';
+import { TutorOnboardingService } from './services/tutor-onboarding.service';
+import { TutorOnboardingApprovalBatchService } from './services/tutor-onboarding-approval-batch.service';
 import { ProficiencyModule } from '../proficiency/proficiency.module';
 
 @Module({
   imports: [
+    ConfigModule,
+    BatchJobAuditModule,
     TypeOrmModule.forFeature([Tutor, TutorQualificationEntity, TutorOfferingEntity]),
+    DocumentModule,
     ProficiencyModule,
   ],
   providers: [
@@ -19,8 +27,15 @@ import { ProficiencyModule } from '../proficiency/proficiency.module';
     TutorService,
     TutorQualificationService,
     TutorOfferingService,
+    TutorOnboardingService,
+    TutorOnboardingApprovalBatchService,
   ],
-  exports: [TutorService, TutorQualificationService, TutorOfferingService],
+  exports: [
+    TutorService,
+    TutorQualificationService,
+    TutorOfferingService,
+    TutorOnboardingService,
+    TutorOnboardingApprovalBatchService,
+  ],
 })
 export class TutorModule {}
-

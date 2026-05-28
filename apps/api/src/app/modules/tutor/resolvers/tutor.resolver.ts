@@ -6,6 +6,7 @@ import { TutorOfferingEntity } from '../entities/tutor-offering.entity';
 import { TutorService } from '../services/tutor.service';
 import { TutorQualificationService } from '../services/tutor-qualification.service';
 import { TutorOfferingService } from '../services/tutor-offering.service';
+import { TutorOnboardingService } from '../services/tutor-onboarding.service';
 import { SaveTutorQualificationsInput } from '../dto/tutor-qualification.input';
 import { SaveTutorOfferingsInput } from '../dto/tutor-offering.input';
 import { TutorCertificationStageEnum } from '../enums/tutor.enums';
@@ -22,6 +23,7 @@ export class TutorResolver {
     private readonly tutorService: TutorService,
     private readonly tutorQualificationService: TutorQualificationService,
     private readonly tutorOfferingService: TutorOfferingService,
+    private readonly tutorOnboardingService: TutorOnboardingService,
   ) {}
 
   /**
@@ -230,6 +232,40 @@ export class TutorResolver {
       tutor.id,
       TutorCertificationStageEnum.docs,
     );
+  }
+
+  /**
+   * Mutation: Complete documents step when all four onboarding documents pass verification.
+   */
+  @Mutation(() => Tutor, {
+    description:
+      'Complete documents step and advance to application review (interview)',
+  })
+  @UseGuards(JwtAuthGuard)
+  async completeDocsStep(@CurrentUser() user: User): Promise<Tutor> {
+    const tutor = await this.tutorService.findByUserId(user.id);
+    if (!tutor) {
+      throw new BadRequestException('Tutor profile not found for this user');
+    }
+    return this.tutorOnboardingService.completeDocsStep(tutor);
+  }
+
+  /**
+   * Mutation: Mark onboarding celebration as seen (after user goes to dashboard).
+   */
+  @Mutation(() => Tutor, {
+    description:
+      'Acknowledge onboarding approval celebration; routes tutor to profile on next login',
+  })
+  @UseGuards(JwtAuthGuard)
+  async acknowledgeOnboardingCelebration(
+    @CurrentUser() user: User,
+  ): Promise<Tutor> {
+    const tutor = await this.tutorService.findByUserId(user.id);
+    if (!tutor) {
+      throw new BadRequestException('Tutor profile not found for this user');
+    }
+    return this.tutorOnboardingService.acknowledgeOnboardingCelebration(tutor);
   }
 
   /**

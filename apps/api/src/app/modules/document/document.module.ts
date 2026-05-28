@@ -15,6 +15,7 @@ import { DocumentService } from './services/document.service';
 import { DocumentScreeningAiService } from './services/document-screening-ai.service';
 import { DocumentScreeningBatchService } from './services/document-screening-batch.service';
 import { DocumentScreeningService } from './services/document-screening.service';
+import { TutorOnboardingDocumentEligibilityService } from './services/tutor-onboarding-document-eligibility.service';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { DocumentScreeningService } from './services/document-screening.service'
     DocumentScreeningAiService,
     DocumentScreeningBatchService,
     DocumentScreeningService,
+    TutorOnboardingDocumentEligibilityService,
     DocumentUploadResolver,
     TutorDocumentsFieldResolver,
     DocumentEntityResolver,
@@ -41,6 +43,7 @@ import { DocumentScreeningService } from './services/document-screening.service'
     DocumentScreeningAiService,
     DocumentScreeningBatchService,
     DocumentScreeningService,
+    TutorOnboardingDocumentEligibilityService,
     TypeOrmModule,
   ],
 })

@@ -60,6 +60,10 @@ export class Tutor extends QBaseEntity {
   onBoardingComplete: boolean;
 
   @Field()
+  @Column({ name: 'onboarding_celebration_seen', default: false })
+  onboardingCelebrationSeen: boolean;
+
+  @Field()
   @Column({ name: 'test_tutor', default: false })
   testTutor: boolean;
 
