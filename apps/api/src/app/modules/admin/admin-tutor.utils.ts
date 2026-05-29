@@ -27,7 +27,7 @@ export function applyAdminTutorSearchFilter(
   }
   const term = `%${trimmed}%`;
   qb.andWhere(
-    `(user.email ILIKE :term OR user.mobile ILIKE :term OR user.mobile_number ILIKE :term OR user.first_name ILIKE :term OR user.last_name ILIKE :term OR CONCAT(COALESCE(user.first_name, ''), ' ', COALESCE(user.last_name, '')) ILIKE :term)`,
+    `(user.email ILIKE :term OR user.mobile ILIKE :term OR user.mobile_number ILIKE :term OR user.firstName ILIKE :term OR user.lastName ILIKE :term OR CONCAT(COALESCE(user.firstName, ''), ' ', COALESCE(user.lastName, '')) ILIKE :term)`,
     { term },
   );
 }

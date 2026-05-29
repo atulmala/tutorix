@@ -1,4 +1,5 @@
 import {
+  applyAdminTutorSearchFilter,
   computeDaysInStage,
   tutorHasPendingDocumentReviewExistsClause,
 } from './admin-tutor.utils';
@@ -31,5 +32,20 @@ describe('tutorHasPendingDocumentReviewExistsClause', () => {
     expect(clause).toContain('document_screening s');
     expect(clause).toContain(`d.tutor_id = tutor.id`);
     expect(clause).toContain(`s.status = '${DocumentScreeningStatusEnum.PENDING_HUMAN}'`);
+  });
+});
+
+describe('applyAdminTutorSearchFilter', () => {
+  it('uses TypeORM user property names for first and last name', () => {
+    const andWhere = jest.fn();
+    applyAdminTutorSearchFilter({ andWhere }, 'anna@gmail.com');
+
+    expect(andWhere).toHaveBeenCalledTimes(1);
+    const [clause, params] = andWhere.mock.calls[0] as [string, { term: string }];
+    expect(clause).toContain('user.firstName ILIKE :term');
+    expect(clause).toContain('user.lastName ILIKE :term');
+    expect(clause).not.toContain('user.first_name');
+    expect(clause).not.toContain('user.last_name');
+    expect(params).toEqual({ term: '%anna@gmail.com%' });
   });
 });

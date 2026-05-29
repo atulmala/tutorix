@@ -159,15 +159,19 @@ export class AdminService {
       MAX_PAGE_SIZE,
       Math.max(1, input.pageSize ?? DEFAULT_PAGE_SIZE),
     );
+    const hasStageFilter = input.certificationStage != null;
     const isDocsStage = input.certificationStage === TutorCertificationStageEnum.docs;
 
     const qb = this.tutorRepo
       .createQueryBuilder('tutor')
       .innerJoinAndSelect('tutor.user', 'user')
-      .where('tutor.deleted = :deleted', { deleted: false })
-      .andWhere('tutor.certificationStage = :stage', {
+      .where('tutor.deleted = :deleted', { deleted: false });
+
+    if (hasStageFilter) {
+      qb.andWhere('tutor.certificationStage = :stage', {
         stage: input.certificationStage,
       });
+    }
 
     applyAdminTutorSearchFilter(qb, input.search);
 
@@ -185,12 +189,13 @@ export class AdminService {
     const skip = (page - 1) * pageSize;
     const [tutors, totalCount] = await qb.skip(skip).take(pageSize).getManyAndCount();
 
-    const pendingReviewIds = isDocsStage
-      ? await findTutorIdsWithPendingDocumentReview(
-          this.tutorRepo,
-          tutors.map((tutor) => tutor.id),
-        )
-      : new Set<number>();
+    const pendingReviewIds =
+      (isDocsStage || !hasStageFilter) && tutors.length > 0
+        ? await findTutorIdsWithPendingDocumentReview(
+            this.tutorRepo,
+            tutors.map((tutor) => tutor.id),
+          )
+        : new Set<number>();
 
     const items: AdminTutorListItem[] = tutors.map((tutor) =>
       this.toAdminTutorListItem(tutor, pendingReviewIds),

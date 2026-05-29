@@ -24,6 +24,7 @@ type AdminTutorListItemRow = {
   mobile?: string | null;
   mobileCountryCode?: string | null;
   mobileNumber?: string | null;
+  certificationStage?: string | null;
   daysInStage: number;
   pendingAdminDocumentReview?: boolean;
   testTutor?: boolean;
@@ -43,75 +44,19 @@ type AdminTutorsData = {
 
 const PAGE_SIZE = 20;
 
-const TUTOR_STAGE_TABS = ONBOARDING_STEPS.filter((step) => step.id !== 'complete');
+const SELECT_CLASS_NAME =
+  'h-11 w-full rounded-xl border border-sky-200/80 bg-white px-3 text-sm text-primary shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200';
 
-const STAGE_TAB_STYLES: Record<
-  OnboardingStepId,
-  { active: string; header: string; badge: string; badgeInactive: string; indicator: string }
-> = {
-  address: {
-    active: 'border-sky-300 bg-gradient-to-b from-sky-50 to-white text-sky-900 shadow-sm',
-    header: 'border-sky-200 bg-gradient-to-r from-sky-100/80 to-sky-50/50 text-sky-900',
-    badge: 'bg-sky-500 text-white',
-    badgeInactive: 'bg-sky-100 text-sky-700',
-    indicator: 'bg-sky-500',
-  },
-  qualification: {
-    active: 'border-indigo-300 bg-gradient-to-b from-indigo-50 to-white text-indigo-900 shadow-sm',
-    header: 'border-indigo-200 bg-gradient-to-r from-indigo-100/80 to-indigo-50/50 text-indigo-900',
-    badge: 'bg-indigo-500 text-white',
-    badgeInactive: 'bg-indigo-100 text-indigo-700',
-    indicator: 'bg-indigo-500',
-  },
-  experience: {
-    active: 'border-violet-300 bg-gradient-to-b from-violet-50 to-white text-violet-900 shadow-sm',
-    header: 'border-violet-200 bg-gradient-to-r from-violet-100/80 to-violet-50/50 text-violet-900',
-    badge: 'bg-violet-500 text-white',
-    badgeInactive: 'bg-violet-100 text-violet-700',
-    indicator: 'bg-violet-500',
-  },
-  offerings: {
-    active: 'border-purple-300 bg-gradient-to-b from-purple-50 to-white text-purple-900 shadow-sm',
-    header: 'border-purple-200 bg-gradient-to-r from-purple-100/80 to-purple-50/50 text-purple-900',
-    badge: 'bg-purple-500 text-white',
-    badgeInactive: 'bg-purple-100 text-purple-700',
-    indicator: 'bg-purple-500',
-  },
-  pt: {
-    active: 'border-fuchsia-300 bg-gradient-to-b from-fuchsia-50 to-white text-fuchsia-900 shadow-sm',
-    header: 'border-fuchsia-200 bg-gradient-to-r from-fuchsia-100/80 to-fuchsia-50/50 text-fuchsia-900',
-    badge: 'bg-fuchsia-500 text-white',
-    badgeInactive: 'bg-fuchsia-100 text-fuchsia-700',
-    indicator: 'bg-fuchsia-500',
-  },
-  registrationPayment: {
-    active: 'border-amber-300 bg-gradient-to-b from-amber-50 to-white text-amber-900 shadow-sm',
-    header: 'border-amber-200 bg-gradient-to-r from-amber-100/80 to-amber-50/50 text-amber-900',
-    badge: 'bg-amber-500 text-white',
-    badgeInactive: 'bg-amber-100 text-amber-800',
-    indicator: 'bg-amber-500',
-  },
-  docs: {
-    active: 'border-emerald-300 bg-gradient-to-b from-emerald-50 to-white text-emerald-900 shadow-sm',
-    header: 'border-emerald-200 bg-gradient-to-r from-emerald-100/80 to-emerald-50/50 text-emerald-900',
-    badge: 'bg-emerald-500 text-white',
-    badgeInactive: 'bg-emerald-100 text-emerald-700',
-    indicator: 'bg-emerald-500',
-  },
-  interview: {
-    active: 'border-rose-300 bg-gradient-to-b from-rose-50 to-white text-rose-900 shadow-sm',
-    header: 'border-rose-200 bg-gradient-to-r from-rose-100/80 to-rose-50/50 text-rose-900',
-    badge: 'bg-rose-500 text-white',
-    badgeInactive: 'bg-rose-100 text-rose-700',
-    indicator: 'bg-rose-500',
-  },
-  complete: {
-    active: '',
-    header: '',
-    badge: '',
-    badgeInactive: '',
-    indicator: '',
-  },
+const STAGE_HEADER_STYLES: Record<OnboardingStepId, string> = {
+  address: 'border-sky-200 bg-gradient-to-r from-sky-100/80 to-sky-50/50 text-sky-900',
+  qualification: 'border-indigo-200 bg-gradient-to-r from-indigo-100/80 to-indigo-50/50 text-indigo-900',
+  experience: 'border-violet-200 bg-gradient-to-r from-violet-100/80 to-violet-50/50 text-violet-900',
+  offerings: 'border-purple-200 bg-gradient-to-r from-purple-100/80 to-purple-50/50 text-purple-900',
+  pt: 'border-fuchsia-200 bg-gradient-to-r from-fuchsia-100/80 to-fuchsia-50/50 text-fuchsia-900',
+  registrationPayment: 'border-amber-200 bg-gradient-to-r from-amber-100/80 to-amber-50/50 text-amber-900',
+  docs: 'border-emerald-200 bg-gradient-to-r from-emerald-100/80 to-emerald-50/50 text-emerald-900',
+  interview: 'border-rose-200 bg-gradient-to-r from-rose-100/80 to-rose-50/50 text-rose-900',
+  complete: 'border-teal-200 bg-gradient-to-r from-teal-100/80 to-teal-50/50 text-teal-900',
 };
 
 const ACTIVE_PANEL_STYLES: Record<OnboardingStepId, string> = {
@@ -123,7 +68,7 @@ const ACTIVE_PANEL_STYLES: Record<OnboardingStepId, string> = {
   registrationPayment: 'border-amber-200/80 shadow-amber-100/50',
   docs: 'border-emerald-200/80 shadow-emerald-100/50',
   interview: 'border-rose-200/80 shadow-rose-100/50',
-  complete: 'border-subtle',
+  complete: 'border-teal-200/80 shadow-teal-100/50',
 };
 
 function daysInStageBadgeClass(days: number): string {
@@ -135,6 +80,31 @@ function daysInStageBadgeClass(days: number): string {
 function formatTutorName(firstName?: string | null, lastName?: string | null): string {
   const name = [firstName, lastName].filter(Boolean).join(' ').trim();
   return name || '—';
+}
+
+const UNIVERSAL_SEARCH_HEADER_STYLE =
+  'border-slate-200 bg-gradient-to-r from-slate-100/80 to-slate-50/50 text-slate-900';
+const UNIVERSAL_SEARCH_PANEL_STYLE = 'border-slate-200/80 shadow-slate-100/50';
+
+function getStageTitle(stageId: string | null | undefined): string {
+  const step = ONBOARDING_STEPS.find((s) => s.id === stageId);
+  return step?.title ?? stageId ?? '—';
+}
+
+function formatStageOptionLabel(
+  title: string,
+  stageId: OnboardingStepId,
+  count: number | undefined,
+  docsPendingReviewCount: number,
+): string {
+  const countLabel = count ?? 0;
+  let label = `${title} (${countLabel})`;
+
+  if (stageId === 'docs' && docsPendingReviewCount > 0) {
+    label += ` — ${docsPendingReviewCount} review`;
+  }
+
+  return label;
 }
 
 function formatMobile(
@@ -152,41 +122,47 @@ function formatMobile(
   return '—';
 }
 
-function useDebouncedValue<T>(value: T, delayMs: number): T {
-  const [debounced, setDebounced] = useState(value);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(timer);
-  }, [value, delayMs]);
-
-  return debounced;
-}
-
 export function TutorsPage() {
   const [activeStage, setActiveStage] = useState<OnboardingStepId>('address');
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
-  const debouncedSearch = useDebouncedValue(searchInput, 300);
+  const [appliedSearch, setAppliedSearch] = useState('');
 
   useEffect(() => {
     setPage(1);
-  }, [activeStage, debouncedSearch]);
+  }, [activeStage, appliedSearch]);
 
-  const searchArg = debouncedSearch.trim() || undefined;
+  const searchArg = appliedSearch || undefined;
+  const isUniversalSearch = Boolean(searchArg);
+
+  function handleSearch() {
+    setAppliedSearch(searchInput.trim());
+  }
+
+  function handleStageChange(stage: OnboardingStepId) {
+    setActiveStage(stage);
+    setAppliedSearch('');
+    setSearchInput('');
+  }
+
+  function handleSearchInputChange(value: string) {
+    setSearchInput(value);
+    if (!value.trim()) {
+      setAppliedSearch('');
+    }
+  }
 
   const { data: countsData } = useQuery<AdminTutorStageCountsData>(GET_ADMIN_TUTOR_STAGE_COUNTS, {
-    variables: { search: searchArg },
     fetchPolicy: 'cache-and-network',
   });
 
   const { data, loading, error } = useQuery<AdminTutorsData>(GET_ADMIN_TUTORS, {
     variables: {
       input: {
-        certificationStage: activeStage,
+        certificationStage: isUniversalSearch ? null : activeStage,
         page,
         pageSize: PAGE_SIZE,
-        search: searchArg,
+        search: isUniversalSearch ? searchArg : undefined,
       },
     },
     fetchPolicy: 'cache-and-network',
@@ -209,8 +185,12 @@ export function TutorsPage() {
   const items = result?.items ?? [];
   const totalPages = result?.totalPages ?? 0;
   const totalCount = result?.totalCount ?? 0;
-  const activeTabStyles = STAGE_TAB_STYLES[activeStage];
-  const activePanelStyle = ACTIVE_PANEL_STYLES[activeStage];
+  const activeHeaderStyle = isUniversalSearch
+    ? UNIVERSAL_SEARCH_HEADER_STYLE
+    : STAGE_HEADER_STYLES[activeStage];
+  const activePanelStyle = isUniversalSearch
+    ? UNIVERSAL_SEARCH_PANEL_STYLE
+    : ACTIVE_PANEL_STYLES[activeStage];
 
   return (
     <div>
@@ -221,72 +201,69 @@ export function TutorsPage() {
         </p>
       </div>
 
-      <div className="mt-6">
-        <label htmlFor="tutor-search" className="sr-only">
-          Search tutors
-        </label>
-        <div className="relative max-w-md">
-          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sky-500">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden>
-              <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z" clipRule="evenodd" />
-            </svg>
-          </span>
-          <input
-            id="tutor-search"
-            type="search"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search by name, email, or mobile"
-            className="w-full rounded-xl border border-sky-200/80 bg-gradient-to-r from-white to-sky-50/50 py-2.5 pl-10 pr-4 text-sm text-primary shadow-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
-          />
+      <div className="mt-6 flex w-full flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="w-full max-w-md">
+          <label htmlFor="tutor-search" className="mb-1 block text-sm font-medium text-primary">
+            Search Tutor
+          </label>
+          <div className="flex gap-2">
+            <div className="relative min-w-0 flex-1">
+              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sky-500">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden>
+                  <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z" clipRule="evenodd" />
+                </svg>
+              </span>
+              <input
+                id="tutor-search"
+                type="search"
+                value={searchInput}
+                onChange={(e) => handleSearchInputChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSearch();
+                  }
+                }}
+                placeholder="Search by name, email, or mobile"
+                className="h-11 w-full rounded-xl border border-sky-200/80 bg-gradient-to-r from-white to-sky-50/50 pl-10 pr-4 text-sm text-primary shadow-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleSearch}
+              className="h-11 shrink-0 rounded-xl border border-sky-200 bg-white px-4 text-sm font-semibold text-sky-800 shadow-sm transition hover:border-sky-400 hover:bg-sky-50"
+            >
+              Search
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="mt-6 overflow-x-auto rounded-t-xl bg-gradient-to-r from-slate-50 via-white to-slate-50 px-1 pt-1">
-        <div className="flex min-w-max gap-1.5 pb-0">
-          {TUTOR_STAGE_TABS.map((step) => {
-            const isActive = activeStage === step.id;
-            const count = stageCounts.get(step.id);
-            const styles = STAGE_TAB_STYLES[step.id];
-            return (
-              <button
-                key={step.id}
-                type="button"
-                onClick={() => setActiveStage(step.id)}
-                className={`relative flex items-center gap-2 rounded-t-xl border px-4 py-2.5 text-sm font-medium transition ${
-                  isActive
-                    ? `-mb-px border-b-0 ${styles.active}`
-                    : 'border-transparent text-muted hover:border-gray-200 hover:bg-white/70 hover:text-primary'
-                }`}
-              >
-                {isActive && (
-                  <span
-                    className={`absolute bottom-0 left-3 right-3 h-0.5 rounded-full ${styles.indicator}`}
-                  />
+        <div className="w-full sm:w-72">
+          <label htmlFor="tutor-stage" className="mb-1 block text-sm font-medium text-primary">
+            Onboarding stage
+          </label>
+          <select
+            id="tutor-stage"
+            value={activeStage}
+            onChange={(e) => handleStageChange(e.target.value as OnboardingStepId)}
+            className={SELECT_CLASS_NAME}
+          >
+            {ONBOARDING_STEPS.map((step) => (
+              <option key={step.id} value={step.id}>
+                {formatStageOptionLabel(
+                  step.title,
+                  step.id,
+                  stageCounts.get(step.id),
+                  docsPendingReviewCount,
                 )}
-                {step.title}
-                {count !== undefined && (
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                      isActive ? styles.badge : styles.badgeInactive
-                    }`}
-                  >
-                    {count}
-                  </span>
-                )}
-                {step.id === 'docs' && docsPendingReviewCount > 0 && (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">
-                    {docsPendingReviewCount} review
-                  </span>
-                )}
-              </button>
-            );
-          })}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
       <div
-        className={`overflow-hidden rounded-b-xl rounded-tr-xl border bg-white shadow-md ${activePanelStyle}`}
+        className={`mt-6 overflow-hidden rounded-xl border bg-white shadow-md ${activePanelStyle}`}
       >
         {loading && (
           <p className="bg-gradient-to-r from-sky-50/50 to-violet-50/50 p-6 text-sm text-muted">
@@ -302,7 +279,11 @@ export function TutorsPage() {
 
         {!loading && !error && items.length === 0 && (
           <p className="bg-gradient-to-r from-gray-50 to-slate-50 p-6 text-sm text-muted">
-            No tutors at this stage.
+            {isUniversalSearch
+              ? 'No tutors match your search.'
+              : activeStage === 'complete'
+                ? 'No tutors with completed onboarding.'
+                : 'No tutors at this stage.'}
           </p>
         )}
 
@@ -310,18 +291,21 @@ export function TutorsPage() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead>
-                <tr className={`border-b text-xs font-semibold uppercase tracking-wide ${activeTabStyles.header}`}>
+                <tr className={`border-b text-xs font-semibold uppercase tracking-wide ${activeHeaderStyle}`}>
                   <th className="px-4 py-3">Tutor ID</th>
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Email</th>
                   <th className="px-4 py-3">Mobile</th>
+                  {isUniversalSearch && <th className="px-4 py-3">Stage</th>}
                   <th className="px-4 py-3">Days in stage</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((tutor, index) => {
                   const needsReview =
-                    activeStage === 'docs' && tutor.pendingAdminDocumentReview;
+                    isUniversalSearch
+                      ? tutor.pendingAdminDocumentReview
+                      : activeStage === 'docs' && tutor.pendingAdminDocumentReview;
 
                   return (
                   <tr
@@ -365,6 +349,11 @@ export function TutorsPage() {
                         tutor.mobileNumber,
                       )}
                     </td>
+                    {isUniversalSearch && (
+                      <td className="px-4 py-3 text-muted">
+                        {getStageTitle(tutor.certificationStage)}
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex min-w-[2.5rem] justify-center rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums ${daysInStageBadgeClass(tutor.daysInStage)}`}
