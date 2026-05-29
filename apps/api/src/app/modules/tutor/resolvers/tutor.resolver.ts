@@ -1,4 +1,3 @@
-import { appendFileSync } from 'fs';
 import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent } from '@nestjs/graphql';
 import { BadRequestException, UseGuards } from '@nestjs/common';
 import { Tutor } from '../entities/tutor.entity';
@@ -120,31 +119,7 @@ export class TutorResolver {
       return null;
     }
 
-    const tutor = await this.tutorService.ensureTutorExists(user.id);
-    // #region agent log
-    try {
-      appendFileSync(
-        '/Users/atulmala/tutor-student/tutorix/.cursor/debug-7291db.log',
-        `${JSON.stringify({
-          sessionId: '7291db',
-          location: 'tutor.resolver.ts:getMyTutorProfile',
-          message: 'profile_loaded',
-          data: {
-            userId: user.id,
-            tutorId: tutor?.id,
-            onBoardingComplete: tutor?.onBoardingComplete,
-            onboardingCelebrationSeen: tutor?.onboardingCelebrationSeen,
-            certificationStage: tutor?.certificationStage,
-          },
-          timestamp: Date.now(),
-          hypothesisId: 'D',
-        })}\n`,
-      );
-    } catch {
-      /* ignore debug log failures */
-    }
-    // #endregion
-    return tutor;
+    return this.tutorService.ensureTutorExists(user.id);
   }
 
   /**
