@@ -4,9 +4,10 @@ import { TutorCertificationStageEnum } from '../../tutor/enums/tutor.enums';
 
 @InputType()
 export class AdminTutorListInput {
-  @Field(() => TutorCertificationStageEnum)
+  @Field(() => TutorCertificationStageEnum, { nullable: true })
+  @IsOptional()
   @IsEnum(TutorCertificationStageEnum)
-  certificationStage: TutorCertificationStageEnum;
+  certificationStage?: TutorCertificationStageEnum;
 
   @Field(() => Int, { defaultValue: 1 })
   @IsOptional()

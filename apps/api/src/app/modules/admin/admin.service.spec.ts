@@ -230,6 +230,27 @@ describe('AdminService', () => {
       expect(qb.skip).toHaveBeenCalledWith(20);
     });
 
+    it('searches across all stages when certificationStage is omitted', async () => {
+      const qb = createQueryBuilderMock();
+      qb.getManyAndCount.mockResolvedValue([[], 0]);
+      tutorRepo.createQueryBuilder.mockReturnValue(qb);
+
+      await service.listTutors({
+        page: 1,
+        pageSize: 20,
+        search: 'anna@gmail.com',
+      });
+
+      expect(qb.andWhere).not.toHaveBeenCalledWith(
+        'tutor.certificationStage = :stage',
+        expect.anything(),
+      );
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('ILIKE :term'),
+        { term: '%anna@gmail.com%' },
+      );
+    });
+
     it('orders docs-stage tutors with pending review first and flags them', async () => {
       const qb = createQueryBuilderMock();
       qb.getManyAndCount.mockResolvedValue([
