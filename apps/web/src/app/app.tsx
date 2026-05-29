@@ -63,49 +63,46 @@ export function App() {
     setCurrentViewInternal(view);
   };
 
-  const [getMyTutorProfile] = useLazyQuery(GET_MY_TUTOR_PROFILE, {
-    onCompleted: (data) => {
-      console.log('[App] getMyTutorProfile response:', data);
-      const tutor = data?.myTutorProfile;
-      
-      // No tutor profile means something went wrong, go home
-      if (!tutor) {
-        console.log('[App] No tutor profile, going home');
-        setTutorProfileForOnboarding(null);
-        setCurrentView('home');
-        return;
-      }
-      
-      const onboardingComplete = tutor.onBoardingComplete;
-      const celebrationSeen = tutor.onboardingCelebrationSeen;
-      console.log(
-        '[App] onBoardingComplete:',
-        onboardingComplete,
-        'celebrationSeen:',
-        celebrationSeen,
-        'certificationStage:',
-        tutor.certificationStage,
-      );
-
-      if (!onboardingComplete) {
-        setTutorProfileForOnboarding({
-          certificationStage: tutor.certificationStage,
-        });
-        setCurrentView('tutor-onboarding');
-      } else if (!celebrationSeen) {
-        setTutorProfileForOnboarding({ certificationStage: 'complete' });
-        setCurrentView('tutor-onboarding');
-      } else {
-        setTutorProfileForOnboarding(null);
-        setCurrentView('tutor-profile');
-      }
-    },
-    onError: (error) => {
-      console.error('Error fetching tutor profile:', error);
-      setCurrentView('home');
-    },
+  const [fetchMyTutorProfile] = useLazyQuery(GET_MY_TUTOR_PROFILE, {
     fetchPolicy: 'network-only',
   });
+
+  const routeTutorAfterProfile = (tutor: {
+    onBoardingComplete?: boolean;
+    onboardingCelebrationSeen?: boolean;
+    certificationStage?: string | null;
+  } | null | undefined) => {
+    if (!tutor) {
+      console.log('[App] No tutor profile, going home');
+      setTutorProfileForOnboarding(null);
+      setCurrentView('home');
+      return;
+    }
+
+    const onboardingComplete = tutor.onBoardingComplete === true;
+    const celebrationSeen = tutor.onboardingCelebrationSeen === true;
+    console.log(
+      '[App] onBoardingComplete:',
+      onboardingComplete,
+      'celebrationSeen:',
+      celebrationSeen,
+      'certificationStage:',
+      tutor.certificationStage,
+    );
+
+    if (!onboardingComplete) {
+      setTutorProfileForOnboarding({
+        certificationStage: tutor.certificationStage ?? undefined,
+      });
+      setCurrentView('tutor-onboarding');
+    } else if (!celebrationSeen) {
+      setTutorProfileForOnboarding({ certificationStage: 'complete' });
+      setCurrentView('tutor-onboarding');
+    } else {
+      setTutorProfileForOnboarding(null);
+      setCurrentView('tutor-profile');
+    }
+  };
 
 
   // Check for reset password token in URL on mount
@@ -158,7 +155,6 @@ export function App() {
   };
 
   const handleLoginSuccess = async (user?: { id: number; role?: string; firstName?: string; lastName?: string; email?: string }) => {
-    // Store user info for displaying name in header
     if (user) {
       setCurrentUser({
         id: user.id,
@@ -168,11 +164,25 @@ export function App() {
         role: user.role,
       });
     }
-    
-    const isTutor = user?.role != null && String(user.role).toUpperCase() === 'TUTOR';
-    if (isTutor) {
-      getMyTutorProfile();
-    } else {
+
+    const role = user?.role != null ? String(user.role).toUpperCase() : '';
+    const isTutor = role === 'TUTOR';
+
+    if (!isTutor) {
+      setCurrentView('home');
+      return;
+    }
+
+    try {
+      const { data, error } = await fetchMyTutorProfile();
+      if (error) {
+        console.error('Error fetching tutor profile:', error);
+        setCurrentView('home');
+        return;
+      }
+      routeTutorAfterProfile(data?.myTutorProfile);
+    } catch (err) {
+      console.error('Error fetching tutor profile:', err);
       setCurrentView('home');
     }
   };

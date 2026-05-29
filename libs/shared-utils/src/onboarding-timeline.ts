@@ -2,7 +2,7 @@ import {
   ONBOARDING_STEPS,
   normalizeCertificationStage,
   type OnboardingStepId,
-} from '@tutorix/shared-utils';
+} from './onboarding-types';
 
 type Timestamped = {
   createdDate?: string | null;

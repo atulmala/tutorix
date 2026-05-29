@@ -13,7 +13,7 @@ import { LoginScreen } from './components/LoginScreen';
 import { ForgotPasswordScreen } from './components/ForgotPasswordScreen';
 import { SignUpScreen } from './components/sign-up/SignUpScreen';
 import { TutorOnboarding } from './components/tutor-onboarding';
-import { TutorProfileScreen } from './components/tutor-profile/TutorProfileScreen';
+import { TutorDetailScreen } from './components/tutor-profile/TutorDetailScreen';
 import { NavHeader } from './components/NavHeader';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { createApolloClient } from '@tutorix/shared-graphql/client/mobile';
@@ -151,7 +151,7 @@ function AppContent() {
     return (
       <View style={{ flex: 1 }}>
         <NavHeader title="My profile" onLogout={handleLogout} />
-        <TutorProfileScreen />
+        <TutorDetailScreen />
       </View>
     );
   }

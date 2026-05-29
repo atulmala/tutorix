@@ -1,0 +1,443 @@
+import React, { useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  TouchableOpacity,
+  Image,
+  Modal,
+  Linking,
+} from 'react-native';
+import { useQuery } from '@apollo/client';
+import { GET_MY_TUTOR_DETAIL } from '@tutorix/shared-graphql/queries';
+import {
+  buildOnboardingTimeline,
+  documentStatusLabel,
+  experienceDurationMonths,
+  formatDate,
+  formatDateTime,
+  formatExperienceDuration,
+  formatQualificationTitle,
+  monthsToExperienceDuration,
+  ptStatusLabel,
+  sortQualificationsHighestFirst,
+  sumExperienceDurations,
+  type OnboardingTimelineEntry,
+} from '@tutorix/shared-utils';
+import type { TutorDetailRecord } from '@tutorix/tutor-detail-ui';
+
+type MyTutorDetailData = {
+  myTutorDetail: TutorDetailRecord;
+};
+
+type TutorDocumentDetail = TutorDetailRecord['documents'][number];
+
+function formatMobile(user?: TutorDetailRecord['user']): string {
+  if (!user) return '—';
+  if (user.mobile?.trim()) return user.mobile.trim();
+  if (user.mobileNumber?.trim()) {
+    const code = user.mobileCountryCode?.trim() || '+91';
+    return `${code} ${user.mobileNumber.trim()}`;
+  }
+  return '—';
+}
+
+function formatAddress(address: TutorDetailRecord['addresses'][0]): string {
+  if (address.fullAddress?.trim()) return address.fullAddress.trim();
+  return [address.street, address.subArea, address.city, address.state, address.postalCode, address.country]
+    .filter(Boolean)
+    .join(', ');
+}
+
+function timelineStatusColor(status: OnboardingTimelineEntry['status']): string {
+  switch (status) {
+    case 'completed':
+      return '#10b981';
+    case 'current':
+      return '#0ea5e9';
+    case 'skipped':
+      return '#f59e0b';
+    default:
+      return '#cbd5e1';
+  }
+}
+
+function formatTimelineDate(entry: OnboardingTimelineEntry): string {
+  if (entry.status === 'skipped') return 'Payment skipped';
+  if (entry.completedAt) return formatDateTime(entry.completedAt);
+  if (entry.status === 'current') return 'In progress';
+  return '—';
+}
+
+function DocumentViewerModal({
+  document,
+  onClose,
+}: {
+  document: TutorDocumentDetail;
+  onClose: () => void;
+}) {
+  const isPdf = document.mimeType?.includes('pdf');
+  const viewerUrl = isPdf ? document.viewUrl : document.previewUrl ?? document.viewUrl;
+
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{document.name ?? 'Document'}</Text>
+            <TouchableOpacity onPress={onClose} accessibilityLabel="Close">
+              <Text style={styles.modalClose}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.docStatus}>
+            {documentStatusLabel(document.screening?.status)}
+          </Text>
+          {viewerUrl && !isPdf ? (
+            <Image source={{ uri: viewerUrl }} style={styles.modalImage} resizeMode="contain" />
+          ) : viewerUrl ? (
+            <TouchableOpacity
+              style={styles.openPdfButton}
+              onPress={() => void Linking.openURL(viewerUrl)}
+            >
+              <Text style={styles.openPdfText}>Open document</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.muted}>Preview unavailable.</Text>
+          )}
+          {document.screening?.summaryNotes ? (
+            <View style={styles.noteBox}>
+              <Text style={styles.noteLabel}>AI screening notes</Text>
+              <Text style={styles.noteText}>{document.screening.summaryNotes}</Text>
+            </View>
+          ) : null}
+          {document.screening?.reviewerNote ? (
+            <View style={styles.noteBox}>
+              <Text style={styles.noteLabel}>Reviewer note</Text>
+              <Text style={styles.noteText}>{document.screening.reviewerNote}</Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+export const TutorDetailScreen: React.FC = () => {
+  const { data, loading, error } = useQuery<MyTutorDetailData>(GET_MY_TUTOR_DETAIL, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const [selectedDocument, setSelectedDocument] = useState<TutorDocumentDetail | null>(null);
+
+  const tutor = data?.myTutorDetail;
+
+  const timelineEntries = useMemo(
+    () =>
+      tutor
+        ? buildOnboardingTimeline({
+            certificationStage: tutor.certificationStage,
+            regFeePaid: tutor.regFeePaid,
+            regFeeDate: tutor.regFeeDate,
+            addresses: tutor.addresses,
+            qualifications: tutor.qualifications,
+            experiences: tutor.experiences,
+            offerings: tutor.offerings,
+            documents: tutor.documents,
+          })
+        : [],
+    [tutor],
+  );
+
+  const sortedQualifications = useMemo(
+    () => sortQualificationsHighestFirst(tutor?.qualifications ?? []),
+    [tutor?.qualifications],
+  );
+
+  if (loading && !tutor) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#5fa8ff" />
+        <Text style={styles.muted}>Loading your profile…</Text>
+      </View>
+    );
+  }
+
+  if (error || !tutor) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.error}>Could not load your tutor profile.</Text>
+      </View>
+    );
+  }
+
+  const feeAmount = tutor.regFeePaid ? tutor.regFeeAmount : tutor.regFeeAmountToBePaid;
+  const totalExperience = sumExperienceDurations(tutor.experiences);
+  const displayName = [tutor.user?.firstName, tutor.user?.lastName].filter(Boolean).join(' ').trim();
+
+  return (
+    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <Text style={styles.title}>{displayName || 'Your profile'}</Text>
+      <Text style={styles.subtitle}>
+        Tutor #{tutor.id}
+        {tutor.certificationStage ? ` · ${tutor.certificationStage}` : ''}
+      </Text>
+      <Text style={styles.meta}>
+        {formatMobile(tutor.user)}
+        {tutor.user?.email ? ` · ${tutor.user.email}` : ''}
+        {tutor.user?.createdDate ? ` · Registered ${formatDate(tutor.user.createdDate)}` : ''}
+      </Text>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Onboarding timeline</Text>
+        {timelineEntries.map((entry) => (
+          <View key={entry.id} style={styles.timelineRow}>
+            <View
+              style={[styles.timelineDot, { backgroundColor: timelineStatusColor(entry.status) }]}
+            />
+            <View style={styles.timelineBody}>
+              <Text style={styles.row}>{entry.title}</Text>
+              <Text style={styles.muted}>{formatTimelineDate(entry)}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Registration fee</Text>
+        <Text style={styles.row}>Status: {tutor.regFeePaid ? 'Paid' : 'Not received'}</Text>
+        <Text style={styles.row}>Amount: {feeAmount != null ? `₹${feeAmount}` : '—'}</Text>
+        <Text style={styles.row}>
+          Date received: {tutor.regFeePaid ? formatDate(tutor.regFeeDate) : 'Not received'}
+        </Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Address</Text>
+        {tutor.addresses.length === 0 ? (
+          <Text style={styles.muted}>No address on file.</Text>
+        ) : (
+          tutor.addresses.map((addr) => (
+            <Text key={addr.id} style={styles.row}>
+              {formatAddress(addr)}
+            </Text>
+          ))
+        )}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Education</Text>
+        {sortedQualifications.length === 0 ? (
+          <Text style={styles.muted}>No qualifications on file.</Text>
+        ) : (
+          sortedQualifications.map((q, index) => (
+            <View key={q.id} style={styles.blockItem}>
+              <Text style={styles.rowBold}>
+                {index + 1}. {formatQualificationTitle(q.qualificationType, q.degreeName)}
+              </Text>
+              <Text style={styles.row}>
+                {q.boardOrUniversity} · {q.gradeType}: {q.gradeValue} · {q.yearObtained}
+              </Text>
+              {q.fieldOfStudy ? <Text style={styles.muted}>{q.fieldOfStudy}</Text> : null}
+            </View>
+          ))
+        )}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Experience</Text>
+        {tutor.experiences.length > 0 ? (
+          <Text style={styles.badge}>
+            {formatExperienceDuration(totalExperience)} total
+          </Text>
+        ) : null}
+        {tutor.experiences.length === 0 ? (
+          <Text style={styles.muted}>No experience on file.</Text>
+        ) : (
+          tutor.experiences.map((exp) => {
+            const months = experienceDurationMonths(exp);
+            const durationLabel =
+              months != null
+                ? formatExperienceDuration(monthsToExperienceDuration(months))
+                : null;
+            return (
+              <View key={exp.id} style={styles.blockItem}>
+                <Text style={styles.rowBold}>
+                  {exp.jobTitle}
+                  {durationLabel ? ` (${durationLabel})` : ''}
+                </Text>
+                <Text style={styles.row}>
+                  {exp.employerName ?? 'Self-employed'}
+                  {exp.employerAddress ? ` · ${exp.employerAddress}` : ''}
+                </Text>
+                <Text style={styles.muted}>
+                  {formatDate(exp.startDate)} – {exp.isCurrent ? 'Present' : formatDate(exp.endDate)}
+                </Text>
+              </View>
+            );
+          })
+        )}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Offerings & proficiency tests</Text>
+        {tutor.offerings.length === 0 ? (
+          <Text style={styles.muted}>No offerings on file.</Text>
+        ) : (
+          tutor.offerings.map((o) => (
+            <View key={o.id} style={styles.blockItem}>
+              <Text style={styles.rowBold}>
+                {o.offeringDisplayName ?? o.offeringName ?? 'Offering'}
+              </Text>
+              <Text style={styles.row}>PT: {ptStatusLabel(o.status)}</Text>
+              <Text style={styles.row}>
+                Date: {formatDateTime(o.lastAttemptAt ?? o.passedAt)}
+              </Text>
+              <Text style={styles.row}>
+                Score:{' '}
+                {o.lastScore != null && o.lastMaxScore != null
+                  ? `${o.lastScore}/${o.lastMaxScore}`
+                  : '—'}
+              </Text>
+              <Text style={styles.row}>
+                Attempts: {o.attemptsUsed} used · {o.attemptsRemaining} left
+              </Text>
+            </View>
+          ))
+        )}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Documents</Text>
+        {tutor.documents.length === 0 ? (
+          <Text style={styles.muted}>No documents uploaded.</Text>
+        ) : (
+          tutor.documents.map((doc) => (
+            <TouchableOpacity
+              key={doc.id}
+              style={styles.docCard}
+              onPress={() => setSelectedDocument(doc)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.docCardHeader}>
+                <Text style={styles.rowBold}>{doc.name ?? 'Document'}</Text>
+                <Text style={styles.docStatusSmall}>
+                  {documentStatusLabel(doc.screening?.status)}
+                </Text>
+              </View>
+              {doc.previewUrl ? (
+                <Image source={{ uri: doc.previewUrl }} style={styles.docThumb} resizeMode="contain" />
+              ) : (
+                <Text style={styles.muted}>Tap to view</Text>
+              )}
+              {doc.filename ? <Text style={styles.muted}>{doc.filename}</Text> : null}
+            </TouchableOpacity>
+          ))
+        )}
+      </View>
+
+      {selectedDocument ? (
+        <DocumentViewerModal
+          document={selectedDocument}
+          onClose={() => setSelectedDocument(null)}
+        />
+      ) : null}
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: '#f8fafc' },
+  content: { padding: 20, paddingBottom: 40 },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  title: { fontSize: 22, fontWeight: '700', color: '#0f172a' },
+  subtitle: { fontSize: 14, color: '#64748b', marginTop: 4 },
+  meta: { fontSize: 13, color: '#64748b', marginTop: 8, marginBottom: 16, lineHeight: 18 },
+  section: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 16,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  row: { fontSize: 14, color: '#0f172a', lineHeight: 20, marginBottom: 6 },
+  rowBold: { fontSize: 14, fontWeight: '600', color: '#0f172a', marginBottom: 4 },
+  muted: { fontSize: 14, color: '#64748b', marginBottom: 6 },
+  error: { fontSize: 14, color: '#b91c1c' },
+  badge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#7c3aed',
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  blockItem: { marginBottom: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  timelineRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  timelineDot: { width: 10, height: 10, borderRadius: 5, marginTop: 5 },
+  timelineBody: { flex: 1 },
+  docCard: {
+    borderWidth: 1,
+    borderColor: '#d1fae5',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    backgroundColor: '#f0fdf4',
+  },
+  docCardHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
+  docStatusSmall: { fontSize: 11, fontWeight: '600', color: '#047857' },
+  docThumb: { height: 120, width: '100%', marginBottom: 6 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 20,
+    maxHeight: '90%',
+  },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  modalTitle: { fontSize: 18, fontWeight: '600', color: '#0f172a', flex: 1 },
+  modalClose: { fontSize: 22, color: '#64748b', paddingLeft: 12 },
+  docStatus: { fontSize: 12, fontWeight: '600', color: '#047857', marginVertical: 8 },
+  modalImage: { height: 280, width: '100%', marginVertical: 8 },
+  openPdfButton: {
+    backgroundColor: '#0ea5e9',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginVertical: 12,
+  },
+  openPdfText: { color: '#fff', fontWeight: '600' },
+  noteBox: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#fffbeb',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  noteLabel: { fontSize: 11, fontWeight: '600', color: '#92400e', textTransform: 'uppercase' },
+  noteText: { fontSize: 14, color: '#78350f', marginTop: 4 },
+});

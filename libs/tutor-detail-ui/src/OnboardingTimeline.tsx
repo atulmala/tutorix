@@ -2,8 +2,8 @@ import React from 'react';
 import {
   type OnboardingTimelineEntry,
   type OnboardingTimelineStatus,
-} from '../utils/onboarding-timeline';
-import { formatDateTime } from '../utils/tutor-detail-formatters';
+  formatDateTime,
+} from '@tutorix/shared-utils';
 
 type OnboardingTimelineProps = {
   entries: OnboardingTimelineEntry[];
