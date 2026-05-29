@@ -63,49 +63,50 @@ export function App() {
     setCurrentViewInternal(view);
   };
 
-  const [getMyTutorProfile] = useLazyQuery(GET_MY_TUTOR_PROFILE, {
-    onCompleted: (data) => {
-      console.log('[App] getMyTutorProfile response:', data);
-      const tutor = data?.myTutorProfile;
-      
-      // No tutor profile means something went wrong, go home
-      if (!tutor) {
-        console.log('[App] No tutor profile, going home');
-        setTutorProfileForOnboarding(null);
-        setCurrentView('home');
-        return;
-      }
-      
-      const onboardingComplete = tutor.onBoardingComplete;
-      const celebrationSeen = tutor.onboardingCelebrationSeen;
-      console.log(
-        '[App] onBoardingComplete:',
-        onboardingComplete,
-        'celebrationSeen:',
-        celebrationSeen,
-        'certificationStage:',
-        tutor.certificationStage,
-      );
-
-      if (!onboardingComplete) {
-        setTutorProfileForOnboarding({
-          certificationStage: tutor.certificationStage,
-        });
-        setCurrentView('tutor-onboarding');
-      } else if (!celebrationSeen) {
-        setTutorProfileForOnboarding({ certificationStage: 'complete' });
-        setCurrentView('tutor-onboarding');
-      } else {
-        setTutorProfileForOnboarding(null);
-        setCurrentView('tutor-profile');
-      }
-    },
-    onError: (error) => {
-      console.error('Error fetching tutor profile:', error);
-      setCurrentView('home');
-    },
+  const [fetchMyTutorProfile] = useLazyQuery(GET_MY_TUTOR_PROFILE, {
     fetchPolicy: 'network-only',
   });
+
+  const routeTutorAfterProfile = (tutor: {
+    onBoardingComplete?: boolean;
+    onboardingCelebrationSeen?: boolean;
+    certificationStage?: string | null;
+  } | null | undefined, source: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7676/ingest/864fd570-d922-464e-bce0-8023d73126b8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7291db'},body:JSON.stringify({sessionId:'7291db',location:'app.tsx:routeTutorAfterProfile',message:'route_decision',data:{source,hasTutor:!!tutor,onBoardingComplete:tutor?.onBoardingComplete,onboardingCelebrationSeen:tutor?.onboardingCelebrationSeen,certificationStage:tutor?.certificationStage},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+
+    if (!tutor) {
+      console.log('[App] No tutor profile, going home');
+      setTutorProfileForOnboarding(null);
+      setCurrentView('home');
+      return;
+    }
+
+    const onboardingComplete = tutor.onBoardingComplete === true;
+    const celebrationSeen = tutor.onboardingCelebrationSeen === true;
+    console.log(
+      '[App] onBoardingComplete:',
+      onboardingComplete,
+      'celebrationSeen:',
+      celebrationSeen,
+      'certificationStage:',
+      tutor.certificationStage,
+    );
+
+    if (!onboardingComplete) {
+      setTutorProfileForOnboarding({
+        certificationStage: tutor.certificationStage ?? undefined,
+      });
+      setCurrentView('tutor-onboarding');
+    } else if (!celebrationSeen) {
+      setTutorProfileForOnboarding({ certificationStage: 'complete' });
+      setCurrentView('tutor-onboarding');
+    } else {
+      setTutorProfileForOnboarding(null);
+      setCurrentView('tutor-profile');
+    }
+  };
 
 
   // Check for reset password token in URL on mount
@@ -158,7 +159,6 @@ export function App() {
   };
 
   const handleLoginSuccess = async (user?: { id: number; role?: string; firstName?: string; lastName?: string; email?: string }) => {
-    // Store user info for displaying name in header
     if (user) {
       setCurrentUser({
         id: user.id,
@@ -168,11 +168,32 @@ export function App() {
         role: user.role,
       });
     }
-    
-    const isTutor = user?.role != null && String(user.role).toUpperCase() === 'TUTOR';
-    if (isTutor) {
-      getMyTutorProfile();
-    } else {
+
+    const role = user?.role != null ? String(user.role).toUpperCase() : '';
+    const isTutor = role === 'TUTOR';
+
+    // #region agent log
+    fetch('http://127.0.0.1:7676/ingest/864fd570-d922-464e-bce0-8023d73126b8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7291db'},body:JSON.stringify({sessionId:'7291db',location:'app.tsx:handleLoginSuccess',message:'login_success',data:{userId:user?.id,role,isTutor},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+
+    if (!isTutor) {
+      setCurrentView('home');
+      return;
+    }
+
+    try {
+      const { data, error } = await fetchMyTutorProfile();
+      // #region agent log
+      fetch('http://127.0.0.1:7676/ingest/864fd570-d922-464e-bce0-8023d73126b8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7291db'},body:JSON.stringify({sessionId:'7291db',location:'app.tsx:handleLoginSuccess',message:'profile_query_done',data:{hasData:!!data,hasError:!!error,errorMessage:error?.message?.slice(0,200),hasTutor:!!data?.myTutorProfile},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      if (error) {
+        console.error('Error fetching tutor profile:', error);
+        setCurrentView('home');
+        return;
+      }
+      routeTutorAfterProfile(data?.myTutorProfile, 'login');
+    } catch (err) {
+      console.error('Error fetching tutor profile:', err);
       setCurrentView('home');
     }
   };

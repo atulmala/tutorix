@@ -5,29 +5,13 @@ import {
   documentStatusBadgeClass,
   documentStatusLabel,
   isDocumentPendingHuman,
-} from '../utils/tutor-detail-formatters';
+} from '@tutorix/shared-utils';
+import type { TutorDocumentDetail } from './types';
 
-export type AdminDocumentDetail = {
-  id: number;
-  name?: string | null;
-  documentType?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  previewUrl?: string | null;
-  viewUrl?: string | null;
-  createdDate?: string | null;
-  screening?: {
-    status?: string | null;
-    summaryNotes?: string | null;
-    confidence?: number | null;
-    automatedAt?: string | null;
-    reviewerNote?: string | null;
-    reviewedAt?: string | null;
-  } | null;
-};
+export type { TutorDocumentDetail as AdminDocumentDetail };
 
 type AdminDocumentViewerModalProps = {
-  document: AdminDocumentDetail;
+  document: TutorDocumentDetail;
   onClose: () => void;
   onReviewComplete: () => void;
 };

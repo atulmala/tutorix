@@ -11,3 +11,5 @@ export * from './employment-type.enum';
 export * from './years-of-experience.enum';
 export * from './onboarding-types';
 export * from './study-areas.constants';
+export * from './onboarding-timeline';
+export * from './tutor-detail-formatters';

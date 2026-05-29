@@ -2,7 +2,7 @@ import {
   EDUCATIONAL_QUALIFICATION_LABELS,
   EDUCATIONAL_QUALIFICATION_LIST,
   EducationalQualification,
-} from '@tutorix/shared-utils';
+} from './education-qualification.enum';
 
 export type DocumentScreeningStatus =
   | 'PASSED_AUTOMATED'

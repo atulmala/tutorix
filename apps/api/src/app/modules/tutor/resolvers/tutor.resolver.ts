@@ -1,3 +1,4 @@
+import { appendFileSync } from 'fs';
 import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent } from '@nestjs/graphql';
 import { BadRequestException, UseGuards } from '@nestjs/common';
 import { Tutor } from '../entities/tutor.entity';
@@ -7,6 +8,8 @@ import { TutorService } from '../services/tutor.service';
 import { TutorQualificationService } from '../services/tutor-qualification.service';
 import { TutorOfferingService } from '../services/tutor-offering.service';
 import { TutorOnboardingService } from '../services/tutor-onboarding.service';
+import { TutorDetailService } from '../services/tutor-detail.service';
+import { AdminTutorDetail } from '../../admin/dto/admin-tutor-detail.dto';
 import { SaveTutorQualificationsInput } from '../dto/tutor-qualification.input';
 import { SaveTutorOfferingsInput } from '../dto/tutor-offering.input';
 import { TutorCertificationStageEnum } from '../enums/tutor.enums';
@@ -24,6 +27,7 @@ export class TutorResolver {
     private readonly tutorQualificationService: TutorQualificationService,
     private readonly tutorOfferingService: TutorOfferingService,
     private readonly tutorOnboardingService: TutorOnboardingService,
+    private readonly tutorDetailService: TutorDetailService,
   ) {}
 
   /**
@@ -99,16 +103,48 @@ export class TutorResolver {
     return test;
   }
 
+  @Query(() => AdminTutorDetail, {
+    name: 'myTutorDetail',
+    description:
+      'Full tutor profile for certified tutors (onboarding complete and celebration acknowledged)',
+  })
+  @UseGuards(JwtAuthGuard)
+  async myTutorDetail(@CurrentUser() user: User): Promise<AdminTutorDetail> {
+    return this.tutorDetailService.getMyTutorDetail(user);
+  }
+
   @Query(() => Tutor, { name: 'myTutorProfile', nullable: true, description: 'Get current tutor profile, creates if doesn\'t exist' })
   @UseGuards(JwtAuthGuard)
   async getMyTutorProfile(@CurrentUser() user: User): Promise<Tutor | null> {
-    // Only create tutor if user role is TUTOR
-    if (user.role !== 'TUTOR') {
+    if (String(user.role).toUpperCase() !== 'TUTOR') {
       return null;
     }
-    
-    // Ensure tutor exists (create if doesn't exist)
-    return this.tutorService.ensureTutorExists(user.id);
+
+    const tutor = await this.tutorService.ensureTutorExists(user.id);
+    // #region agent log
+    try {
+      appendFileSync(
+        '/Users/atulmala/tutor-student/tutorix/.cursor/debug-7291db.log',
+        `${JSON.stringify({
+          sessionId: '7291db',
+          location: 'tutor.resolver.ts:getMyTutorProfile',
+          message: 'profile_loaded',
+          data: {
+            userId: user.id,
+            tutorId: tutor?.id,
+            onBoardingComplete: tutor?.onBoardingComplete,
+            onboardingCelebrationSeen: tutor?.onboardingCelebrationSeen,
+            certificationStage: tutor?.certificationStage,
+          },
+          timestamp: Date.now(),
+          hypothesisId: 'D',
+        })}\n`,
+      );
+    } catch {
+      /* ignore debug log failures */
+    }
+    // #endregion
+    return tutor;
   }
 
   /**

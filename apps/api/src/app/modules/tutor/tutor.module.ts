@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BatchJobAuditModule } from '../../batch-jobs/batch-job-audit.module';
@@ -13,6 +13,8 @@ import { TutorOfferingService } from './services/tutor-offering.service';
 import { TutorOnboardingService } from './services/tutor-onboarding.service';
 import { TutorOnboardingApprovalBatchService } from './services/tutor-onboarding-approval-batch.service';
 import { ProficiencyModule } from '../proficiency/proficiency.module';
+import { ExperienceModule } from '../experience/experience.module';
+import { TutorDetailService } from './services/tutor-detail.service';
 
 @Module({
   imports: [
@@ -21,6 +23,7 @@ import { ProficiencyModule } from '../proficiency/proficiency.module';
     TypeOrmModule.forFeature([Tutor, TutorQualificationEntity, TutorOfferingEntity]),
     DocumentModule,
     ProficiencyModule,
+    forwardRef(() => ExperienceModule),
   ],
   providers: [
     TutorResolver,
@@ -29,6 +32,7 @@ import { ProficiencyModule } from '../proficiency/proficiency.module';
     TutorOfferingService,
     TutorOnboardingService,
     TutorOnboardingApprovalBatchService,
+    TutorDetailService,
   ],
   exports: [
     TutorService,
@@ -36,6 +40,7 @@ import { ProficiencyModule } from '../proficiency/proficiency.module';
     TutorOfferingService,
     TutorOnboardingService,
     TutorOnboardingApprovalBatchService,
+    TutorDetailService,
   ],
 })
 export class TutorModule {}

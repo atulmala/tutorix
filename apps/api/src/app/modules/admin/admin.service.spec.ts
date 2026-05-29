@@ -7,17 +7,10 @@ import { UserRole } from '../auth/enums/user-role.enum';
 import { TutorCertificationStageEnum } from '../tutor/enums/tutor.enums';
 import { SessionService } from '../auth/services/session.service';
 import { DocumentScreeningService } from '../document/services/document-screening.service';
-import { DocumentService } from '../document/services/document.service';
-import { ExperienceService } from '../experience/services/experience.service';
-import { TutorOfferingService } from '../tutor/services/tutor-offering.service';
-import { TutorQualificationService } from '../tutor/services/tutor-qualification.service';
 import { TutorService } from '../tutor/services/tutor.service';
+import { TutorDetailService } from '../tutor/services/tutor-detail.service';
 import { ProficiencyTestService } from '../proficiency/services/proficiency-test.service';
 import { OfferingService } from '../offerings/services/offering.service';
-import { YearsOfExperienceEnum } from '../tutor/enums/years-of-experience.enum';
-import { TutorOfferingStatusEnum } from '../tutor/enums/tutor.enums';
-import { DocumentTypeEnum } from '../document/enums/document-type.enum';
-import { DocumentScreeningStatusEnum } from '../document/enums/document-screening-status.enum';
 import * as adminTutorUtils from './admin-tutor.utils';
 
 jest.mock('../document/document-image-media', () => ({
@@ -55,16 +48,11 @@ describe('AdminService', () => {
     findOneWithProfile: jest.Mock;
     updateTestTutor: jest.Mock;
   };
-  let tutorQualificationService: { findByTutorId: jest.Mock };
-  let experienceService: { findByTutorId: jest.Mock };
-  let tutorOfferingService: { findByTutorId: jest.Mock };
-  let documentService: {
-    findOnboardingDocumentsByTutorId: jest.Mock;
-    resolvePreviewUrlForAdmin: jest.Mock;
-    resolveViewUrlForAdmin: jest.Mock;
+  let tutorDetailService: {
+    getTutorDetail: jest.Mock;
+    mapDocumentDetail: jest.Mock;
   };
   let documentScreeningService: {
-    findByDocumentIds: jest.Mock;
     reviewByAdmin: jest.Mock;
   };
   let proficiencyTestService: {
@@ -83,16 +71,11 @@ describe('AdminService', () => {
       studentActiveSessions: 11,
     });
     tutorService = { findOneWithProfile: jest.fn(), updateTestTutor: jest.fn() };
-    tutorQualificationService = { findByTutorId: jest.fn().mockResolvedValue([]) };
-    experienceService = { findByTutorId: jest.fn().mockResolvedValue([]) };
-    tutorOfferingService = { findByTutorId: jest.fn().mockResolvedValue([]) };
-    documentService = {
-      findOnboardingDocumentsByTutorId: jest.fn().mockResolvedValue([]),
-      resolvePreviewUrlForAdmin: jest.fn().mockResolvedValue(null),
-      resolveViewUrlForAdmin: jest.fn().mockResolvedValue(null),
+    tutorDetailService = {
+      getTutorDetail: jest.fn(),
+      mapDocumentDetail: jest.fn(),
     };
     documentScreeningService = {
-      findByDocumentIds: jest.fn().mockResolvedValue(new Map()),
       reviewByAdmin: jest.fn(),
     };
     proficiencyTestService = {
@@ -119,10 +102,7 @@ describe('AdminService', () => {
           useValue: { getActiveSessionStatsByRole },
         },
         { provide: TutorService, useValue: tutorService },
-        { provide: TutorQualificationService, useValue: tutorQualificationService },
-        { provide: ExperienceService, useValue: experienceService },
-        { provide: TutorOfferingService, useValue: tutorOfferingService },
-        { provide: DocumentService, useValue: documentService },
+        { provide: TutorDetailService, useValue: tutorDetailService },
         { provide: DocumentScreeningService, useValue: documentScreeningService },
         { provide: ProficiencyTestService, useValue: proficiencyTestService },
         { provide: OfferingService, useValue: offeringService },
@@ -339,121 +319,29 @@ describe('AdminService', () => {
   });
 
   describe('getTutorDetail', () => {
-    it('maps nested profile data, PT attempts remaining, and document URLs', async () => {
-      const registrationDate = new Date('2026-01-10T12:00:00.000Z');
-      tutorService.findOneWithProfile.mockResolvedValue({
-        id: 7,
-        certificationStage: TutorCertificationStageEnum.docs,
-        yearsOfExperience: YearsOfExperienceEnum.TWO_TO_FIVE,
-        regFeePaid: false,
-        regFeeAmount: 0,
-        regFeeAmountToBePaid: 999,
-        regFeeDate: null,
-        user: {
-          firstName: 'Jane',
-          lastName: 'Tutor',
-          email: 'jane@example.com',
-          mobile: '+91 9000000000',
-          createdDate: registrationDate,
-        },
-        addresses: [{ id: 1, fullAddress: '123 Main St' }],
-      });
-      tutorQualificationService.findByTutorId.mockResolvedValue([
-        { id: 11, qualificationType: 'GRADUATION', boardOrUniversity: 'DU' },
-      ]);
-      experienceService.findByTutorId.mockResolvedValue([
-        { id: 21, jobTitle: 'Teacher' },
-      ]);
-      tutorOfferingService.findByTutorId.mockResolvedValue([
-        {
-          id: 31,
-          status: TutorOfferingStatusEnum.pt_passed,
-          attemptsUsed: 1,
-          lastScore: 18,
-          lastMaxScore: 20,
-          offering: { name: 'math', displayName: 'Math' },
-        },
-      ]);
-      documentService.findOnboardingDocumentsByTutorId.mockResolvedValue([
-        {
-          id: 41,
-          name: 'PAN Card',
-          documentType: DocumentTypeEnum.PAN_CARD,
-          filename: 'pan.pdf',
-          mimeType: 'application/pdf',
-        },
-      ]);
-      documentScreeningService.findByDocumentIds.mockResolvedValue(
-        new Map([
-          [
-            41,
-            {
-              status: DocumentScreeningStatusEnum.PENDING_HUMAN,
-              summaryNotes: 'Name mismatch',
-            },
-          ],
-        ]),
-      );
-      documentService.resolvePreviewUrlForAdmin.mockResolvedValue('https://preview');
-      documentService.resolveViewUrlForAdmin.mockResolvedValue('https://view');
+    it('delegates to TutorDetailService', async () => {
+      const expected = { id: 7, testTutor: false };
+      tutorDetailService.getTutorDetail.mockResolvedValue(expected);
 
       const detail = await service.getTutorDetail(7);
 
-      expect(detail).toMatchObject({
-        id: 7,
-        user: {
-          firstName: 'Jane',
-          lastName: 'Tutor',
-          email: 'jane@example.com',
-          createdDate: registrationDate,
-        },
-        addresses: [{ id: 1, fullAddress: '123 Main St' }],
-        qualifications: [{ id: 11 }],
-        experiences: [{ id: 21 }],
-        offerings: [
-          {
-            id: 31,
-            offeringDisplayName: 'Math',
-            attemptsUsed: 1,
-            attemptsRemaining: 1,
-            lastScore: 18,
-            lastMaxScore: 20,
-          },
-        ],
-        documents: [
-          {
-            id: 41,
-            previewUrl: 'https://preview',
-            viewUrl: 'https://view',
-            screening: {
-              status: DocumentScreeningStatusEnum.PENDING_HUMAN,
-              summaryNotes: 'Name mismatch',
-            },
-          },
-        ],
-      });
+      expect(tutorDetailService.getTutorDetail).toHaveBeenCalledWith(7);
+      expect(detail).toBe(expected);
     });
   });
 
   describe('setTestTutor', () => {
     it('updates test tutor flag and returns refreshed detail', async () => {
       tutorService.updateTestTutor.mockResolvedValue({ id: 7, testTutor: true });
-      tutorService.findOneWithProfile.mockResolvedValue({
+      tutorDetailService.getTutorDetail.mockResolvedValue({
         id: 7,
         testTutor: true,
-        yearsOfExperience: YearsOfExperienceEnum.ZERO_TO_TWO,
-        regFeePaid: false,
-        user: { firstName: 'Jane', lastName: 'Tutor' },
-        addresses: [],
       });
-      tutorQualificationService.findByTutorId.mockResolvedValue([]);
-      experienceService.findByTutorId.mockResolvedValue([]);
-      tutorOfferingService.findByTutorId.mockResolvedValue([]);
-      documentService.findOnboardingDocumentsByTutorId.mockResolvedValue([]);
 
       const detail = await service.setTestTutor(7, true);
 
       expect(tutorService.updateTestTutor).toHaveBeenCalledWith(7, true);
+      expect(tutorDetailService.getTutorDetail).toHaveBeenCalledWith(7);
       expect(detail.testTutor).toBe(true);
     });
   });

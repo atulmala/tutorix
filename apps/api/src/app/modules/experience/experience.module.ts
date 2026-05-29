@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ExperienceEntity } from './entities/experience.entity';
 import { ExperienceService } from './services/experience.service';
@@ -8,7 +8,7 @@ import { TutorModule } from '../tutor/tutor.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([ExperienceEntity]),
-    TutorModule,
+    forwardRef(() => TutorModule),
   ],
   providers: [ExperienceService, ExperienceResolver],
   exports: [ExperienceService],

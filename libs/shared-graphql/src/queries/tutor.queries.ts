@@ -91,3 +91,97 @@ export const GET_MY_TUTOR_PROFILE = gql`
     }
   }
 `;
+
+export const GET_MY_TUTOR_DETAIL = gql`
+  query GetMyTutorDetail {
+    myTutorDetail {
+      id
+      certificationStage
+      yearsOfExperience
+      regFeePaid
+      testTutor
+      regFeeAmount
+      regFeeAmountToBePaid
+      regFeeDate
+      user {
+        firstName
+        lastName
+        email
+        mobile
+        mobileCountryCode
+        mobileNumber
+        createdDate
+      }
+      addresses {
+        id
+        type
+        street
+        subArea
+        city
+        state
+        country
+        postalCode
+        fullAddress
+        createdDate
+        updatedDate
+      }
+      qualifications {
+        id
+        qualificationType
+        boardOrUniversity
+        degreeName
+        gradeType
+        gradeValue
+        yearObtained
+        fieldOfStudy
+        displayOrder
+        createdDate
+        updatedDate
+      }
+      experiences {
+        id
+        jobTitle
+        employerName
+        employerAddress
+        employmentType
+        startDate
+        endDate
+        isCurrent
+        createdDate
+        updatedDate
+      }
+      offerings {
+        id
+        offeringName
+        offeringDisplayName
+        status
+        attemptsUsed
+        attemptsRemaining
+        lastScore
+        lastMaxScore
+        lastAttemptAt
+        passedAt
+        lastTimeTakenSeconds
+        createdDate
+      }
+      documents {
+        id
+        name
+        documentType
+        filename
+        mimeType
+        previewUrl
+        viewUrl
+        createdDate
+        screening {
+          status
+          summaryNotes
+          confidence
+          automatedAt
+          reviewerNote
+          reviewedAt
+        }
+      }
+    }
+  }
+`;
