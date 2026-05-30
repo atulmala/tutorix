@@ -20,6 +20,9 @@ export class UserBankDetailsEntity extends QBaseEntity {
   @Column({ name: 'gst_number', type: 'varchar', nullable: true })
   gstNumber?: string | null;
 
+  @Column({ name: 'pan_number', type: 'varchar', length: 10, nullable: true })
+  panNumber?: string | null;
+
   @OneToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user?: User;

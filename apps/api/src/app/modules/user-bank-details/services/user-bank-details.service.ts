@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { maskAccountNumber, isBankDetailsComplete } from '@tutorix/shared-utils';
+import {
+  maskAccountNumber,
+  isBankDetailsComplete,
+  normalizePanNumber,
+} from '@tutorix/shared-utils';
 import { UserBankDetailsEntity } from '../entities/user-bank-details.entity';
 import { SaveUserBankDetailsInput } from '../dto/save-user-bank-details.input';
 import { UserBankDetails } from '../dto/user-bank-details.dto';
@@ -31,6 +35,7 @@ export class UserBankDetailsService {
       entity.accountNumber = normalized.accountNumber;
       entity.ifscCode = normalized.ifscCode;
       entity.gstNumber = normalized.gstNumber;
+      entity.panNumber = normalized.panNumber;
     } else {
       entity = this.repo.create({
         userId,
@@ -38,6 +43,7 @@ export class UserBankDetailsService {
         accountNumber: normalized.accountNumber,
         ifscCode: normalized.ifscCode,
         gstNumber: normalized.gstNumber,
+        panNumber: normalized.panNumber,
       });
     }
 
@@ -57,11 +63,13 @@ export class UserBankDetailsService {
       bankName: entity.bankName,
       ifscCode: entity.ifscCode,
       gstNumber: entity.gstNumber ?? null,
+      panNumber: entity.panNumber ?? null,
       accountNumberMasked: maskAccountNumber(entity.accountNumber),
       isComplete: isBankDetailsComplete({
         bankName: entity.bankName,
         accountNumber: entity.accountNumber,
         ifscCode: entity.ifscCode,
+        panNumber: entity.panNumber,
       }),
       fullAccountNumber: entity.accountNumber,
     };
@@ -72,6 +80,7 @@ export class UserBankDetailsService {
     accountNumber: string;
     ifscCode: string;
     gstNumber: string | null;
+    panNumber: string;
   } {
     const gst = input.gstNumber?.trim();
     return {
@@ -79,6 +88,7 @@ export class UserBankDetailsService {
       accountNumber: input.accountNumber.trim(),
       ifscCode: input.ifscCode.trim().toUpperCase(),
       gstNumber: gst ? gst.toUpperCase() : null,
+      panNumber: normalizePanNumber(input.panNumber),
     };
   }
 }

@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { UserBankDetailsService } from './user-bank-details.service';
 import { UserBankDetailsEntity } from '../entities/user-bank-details.entity';
 
+const SAMPLE_PAN = 'ABCDE1234F';
+
 describe('UserBankDetailsService', () => {
   let service: UserBankDetailsService;
   let repo: {
@@ -40,6 +42,7 @@ describe('UserBankDetailsService', () => {
         bankName: 'HDFC Bank',
         accountNumber: '123456789012',
         ifscCode: 'hdfc0001234',
+        panNumber: 'abcde1234f',
         gstNumber: null,
       });
 
@@ -48,11 +51,13 @@ describe('UserBankDetailsService', () => {
         bankName: 'HDFC Bank',
         accountNumber: '123456789012',
         ifscCode: 'HDFC0001234',
+        panNumber: SAMPLE_PAN,
         gstNumber: null,
       });
       expect(result).toMatchObject({
         bankName: 'HDFC Bank',
         ifscCode: 'HDFC0001234',
+        panNumber: SAMPLE_PAN,
         accountNumberMasked: 'xxxxxxxx9012',
         isComplete: true,
         fullAccountNumber: '123456789012',
@@ -67,12 +72,14 @@ describe('UserBankDetailsService', () => {
         accountNumber: '111111111',
         ifscCode: 'OLD0001111',
         gstNumber: null,
+        panNumber: null,
       });
 
       const result = await service.saveForUser(5, {
         bankName: 'ICICI Bank',
         accountNumber: '987654321098',
         ifscCode: 'ICIC0001234',
+        panNumber: SAMPLE_PAN,
         gstNumber: '22AAAAA0000A1Z5',
       });
 
@@ -81,10 +88,12 @@ describe('UserBankDetailsService', () => {
           bankName: 'ICICI Bank',
           accountNumber: '987654321098',
           ifscCode: 'ICIC0001234',
+          panNumber: SAMPLE_PAN,
           gstNumber: '22AAAAA0000A1Z5',
         }),
       );
       expect(result.gstNumber).toBe('22AAAAA0000A1Z5');
+      expect(result.panNumber).toBe(SAMPLE_PAN);
     });
 
     it('stores null GST when omitted or blank', async () => {
@@ -94,12 +103,14 @@ describe('UserBankDetailsService', () => {
         bankName: 'SBI',
         accountNumber: '123456789',
         ifscCode: 'SBIN0001234',
+        panNumber: SAMPLE_PAN,
         gstNumber: '   ',
       });
 
       expect(repo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           gstNumber: null,
+          panNumber: SAMPLE_PAN,
         }),
       );
     });
@@ -110,21 +121,36 @@ describe('UserBankDetailsService', () => {
       expect(service.mapToGraphql(null)).toBeNull();
     });
 
-    it('masks account number and marks complete details', () => {
+    it('masks account number and marks complete details when PAN present', () => {
       const mapped = service.mapToGraphql({
         bankName: 'Axis Bank',
         accountNumber: '1234567890',
         ifscCode: 'UTIB0000123',
         gstNumber: null,
+        panNumber: SAMPLE_PAN,
       } as UserBankDetailsEntity);
 
       expect(mapped).toMatchObject({
         bankName: 'Axis Bank',
         ifscCode: 'UTIB0000123',
+        panNumber: SAMPLE_PAN,
         accountNumberMasked: 'xxxxxx7890',
         isComplete: true,
         fullAccountNumber: '1234567890',
       });
+    });
+
+    it('marks incomplete when PAN is missing', () => {
+      const mapped = service.mapToGraphql({
+        bankName: 'Axis Bank',
+        accountNumber: '1234567890',
+        ifscCode: 'UTIB0000123',
+        gstNumber: null,
+        panNumber: null,
+      } as UserBankDetailsEntity);
+
+      expect(mapped?.isComplete).toBe(false);
+      expect(mapped?.panNumber).toBeNull();
     });
   });
 });

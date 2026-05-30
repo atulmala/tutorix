@@ -5,6 +5,7 @@ export type BankDetailsFormValues = {
   bankName: string;
   accountNumber: string;
   ifscCode: string;
+  panNumber: string;
   gstNumber: string;
 };
 
@@ -13,6 +14,7 @@ type BankDetailsModalProps = {
   initialValues?: {
     bankName?: string | null;
     ifscCode?: string | null;
+    panNumber?: string | null;
     gstNumber?: string | null;
   } | null;
   saving?: boolean;
@@ -21,10 +23,13 @@ type BankDetailsModalProps = {
   onSubmit: (values: BankDetailsFormValues) => void;
 };
 
+const PAN_INPUT_PATTERN = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+
 const EMPTY_FORM: BankDetailsFormValues = {
   bankName: '',
   accountNumber: '',
   ifscCode: '',
+  panNumber: '',
   gstNumber: '',
 };
 
@@ -50,6 +55,7 @@ export function BankDetailsModal({
   const [customBankName, setCustomBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [ifscCode, setIfscCode] = useState('');
+  const [panNumber, setPanNumber] = useState('');
   const [gstNumber, setGstNumber] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -64,6 +70,7 @@ export function BankDetailsModal({
     );
     setAccountNumber('');
     setIfscCode(initialValues?.ifscCode?.trim().toUpperCase() ?? '');
+    setPanNumber(initialValues?.panNumber?.trim().toUpperCase() ?? '');
     setGstNumber(initialValues?.gstNumber?.trim() ?? '');
     setValidationError(null);
   }, [open, initialValues]);
@@ -92,6 +99,11 @@ export function BankDetailsModal({
       setValidationError('Please enter a valid IFSC code (e.g. HDFC0001234).');
       return;
     }
+    const pan = panNumber.trim().toUpperCase();
+    if (!PAN_INPUT_PATTERN.test(pan)) {
+      setValidationError('Please enter a valid PAN (e.g. ABCDE1234F).');
+      return;
+    }
     const gst = gstNumber.trim();
     if (
       gst &&
@@ -106,6 +118,7 @@ export function BankDetailsModal({
       bankName: resolvedBankName,
       accountNumber: accountNumber.trim(),
       ifscCode: ifscCode.trim().toUpperCase(),
+      panNumber: pan,
       gstNumber: gst,
     });
   };
@@ -198,6 +211,21 @@ export function BankDetailsModal({
               className="w-full rounded-md border border-subtle bg-white px-md py-sm uppercase text-primary shadow-sm focus:border-primary focus:outline-none"
               placeholder="HDFC0001234"
               maxLength={11}
+            />
+          </div>
+
+          <div className="space-y-1 text-left">
+            <label htmlFor="pan-number" className="text-sm font-medium text-primary">
+              PAN
+            </label>
+            <input
+              id="pan-number"
+              type="text"
+              value={panNumber}
+              onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+              className="w-full rounded-md border border-subtle bg-white px-md py-sm uppercase text-primary shadow-sm focus:border-primary focus:outline-none"
+              placeholder="ABCDE1234F"
+              maxLength={10}
             />
           </div>
 

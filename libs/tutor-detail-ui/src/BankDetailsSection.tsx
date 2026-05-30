@@ -8,7 +8,7 @@ type BankDetailsSectionProps = {
   onEnterOrEdit?: () => void;
 };
 
-function DetailRow({
+function DetailField({
   label,
   value,
 }: {
@@ -16,11 +16,20 @@ function DetailRow({
   value: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-lg border border-teal-100 bg-teal-50/50 px-3 py-2">
+    <div className="min-w-0">
       <dt className="text-xs font-semibold uppercase tracking-wide text-teal-800/80">
         {label}
       </dt>
-      <dd className="text-sm font-medium text-teal-950">{value}</dd>
+      <dd className="mt-0.5 text-sm font-medium text-teal-950">{value ?? '—'}</dd>
+    </div>
+  );
+}
+
+/** 3-column grid: row 1 bank / account / IFSC; row 2 PAN / GST (under account) / empty */
+function BankDetailsGrid({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-teal-100 bg-teal-50/50 px-3 py-2.5">
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-3">{children}</dl>
     </div>
   );
 }
@@ -62,10 +71,9 @@ export function BankDetailsSection({
           </div>
         ) : (
           <div className="space-y-3">
-            <dl className="grid gap-2.5">
-              <DetailRow label="Bank name" value={bankDetails?.bankName} />
-              <DetailRow label="IFSC code" value={bankDetails?.ifscCode} />
-              <DetailRow
+            <BankDetailsGrid>
+              <DetailField label="Bank name" value={bankDetails?.bankName} />
+              <DetailField
                 label="Account no"
                 value={
                   isAdmin
@@ -73,8 +81,11 @@ export function BankDetailsSection({
                     : bankDetails?.accountNumberMasked
                 }
               />
-              {gstDisplay ? <DetailRow label="GST" value={gstDisplay} /> : null}
-            </dl>
+              <DetailField label="IFSC code" value={bankDetails?.ifscCode} />
+              <DetailField label="PAN" value={bankDetails?.panNumber} />
+              <DetailField label="GST" value={gstDisplay ?? 'Not Applicable'} />
+              <div className="hidden min-w-0 sm:block" aria-hidden />
+            </BankDetailsGrid>
             {!isAdmin && onEnterOrEdit ? (
               <div className="pt-1">
                 <button

@@ -144,6 +144,7 @@ describe('TutorDetailService', () => {
       userBankDetailsService.mapToGraphql.mockReturnValue({
         bankName: 'HDFC Bank',
         ifscCode: 'HDFC0001234',
+        panNumber: 'ABCDE1234F',
         accountNumberMasked: 'xxxxxxxx9012',
         isComplete: true,
         fullAccountNumber: '123456789012',
@@ -161,6 +162,7 @@ describe('TutorDetailService', () => {
           bankDetails: {
             bankName: 'HDFC Bank',
             ifscCode: 'HDFC0001234',
+            panNumber: 'ABCDE1234F',
             accountNumberMasked: 'xxxxxxxx9012',
             isComplete: true,
             fullAccountNumber: '123456789012',

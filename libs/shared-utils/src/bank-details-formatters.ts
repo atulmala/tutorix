@@ -3,7 +3,15 @@ type BankDetailsLike = {
   accountNumber?: string | null;
   ifscCode?: string | null;
   gstNumber?: string | null;
+  panNumber?: string | null;
 };
+
+/** Indian PAN: 5 letters, 4 digits, 1 letter (e.g. ABCDE1234F). */
+export const PAN_PATTERN = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+
+export function normalizePanNumber(panNumber: string): string {
+  return panNumber.trim().toUpperCase();
+}
 
 export function maskAccountNumber(accountNumber: string): string {
   const digits = accountNumber.replace(/\D/g, '');
@@ -19,10 +27,13 @@ export function isBankDetailsComplete(details: BankDetailsLike | null | undefine
   if (!details) {
     return false;
   }
+  const pan = details.panNumber?.trim();
   return Boolean(
     details.bankName?.trim() &&
       details.accountNumber?.trim() &&
-      details.ifscCode?.trim(),
+      details.ifscCode?.trim() &&
+      pan &&
+      PAN_PATTERN.test(pan.toUpperCase()),
   );
 }
 

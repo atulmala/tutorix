@@ -115,6 +115,7 @@ export const GET_MY_TUTOR_DETAIL = gql`
           bankName
           ifscCode
           gstNumber
+          panNumber
           accountNumberMasked
           isComplete
         }
