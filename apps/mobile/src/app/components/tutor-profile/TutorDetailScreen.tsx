@@ -9,6 +9,7 @@ import {
   Image,
   Modal,
   Linking,
+  useWindowDimensions,
 } from 'react-native';
 import { useQuery } from '@apollo/client';
 import { GET_MY_TUTOR_DETAIL } from '@tutorix/shared-graphql/queries';
@@ -62,6 +63,11 @@ function timelineStatusColor(status: OnboardingTimelineEntry['status']): string 
     default:
       return '#cbd5e1';
   }
+}
+
+function formatEntryCount(count: number, singular: string, plural: string): string {
+  if (count === 1) return `1 ${singular}`;
+  return `${count} ${plural}`;
 }
 
 function formatTimelineDate(entry: OnboardingTimelineEntry): string {
@@ -129,6 +135,8 @@ export const TutorDetailScreen: React.FC = () => {
     fetchPolicy: 'cache-and-network',
   });
   const [selectedDocument, setSelectedDocument] = useState<TutorDocumentDetail | null>(null);
+  const { width: windowWidth } = useWindowDimensions();
+  const stackProfileSections = windowWidth < 768;
 
   const tutor = data?.myTutorDetail;
 
@@ -189,103 +197,17 @@ export const TutorDetailScreen: React.FC = () => {
       </Text>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Onboarding timeline</Text>
-        {timelineEntries.map((entry) => (
-          <View key={entry.id} style={styles.timelineRow}>
-            <View
-              style={[styles.timelineDot, { backgroundColor: timelineStatusColor(entry.status) }]}
-            />
-            <View style={styles.timelineBody}>
-              <Text style={styles.row}>{entry.title}</Text>
-              <Text style={styles.muted}>{formatTimelineDate(entry)}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Registration fee</Text>
-        <Text style={styles.row}>Status: {tutor.regFeePaid ? 'Paid' : 'Not received'}</Text>
-        <Text style={styles.row}>Amount: {feeAmount != null ? `₹${feeAmount}` : '—'}</Text>
-        <Text style={styles.row}>
-          Date received: {tutor.regFeePaid ? formatDate(tutor.regFeeDate) : 'Not received'}
-        </Text>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Address</Text>
-        {tutor.addresses.length === 0 ? (
-          <Text style={styles.muted}>No address on file.</Text>
-        ) : (
-          tutor.addresses.map((addr) => (
-            <Text key={addr.id} style={styles.row}>
-              {formatAddress(addr)}
-            </Text>
-          ))
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Education</Text>
-        {sortedQualifications.length === 0 ? (
-          <Text style={styles.muted}>No qualifications on file.</Text>
-        ) : (
-          sortedQualifications.map((q, index) => (
-            <View key={q.id} style={styles.blockItem}>
-              <Text style={styles.rowBold}>
-                {index + 1}. {formatQualificationTitle(q.qualificationType, q.degreeName)}
-              </Text>
-              <Text style={styles.row}>
-                {q.boardOrUniversity} · {q.gradeType}: {q.gradeValue} · {q.yearObtained}
-              </Text>
-              {q.fieldOfStudy ? <Text style={styles.muted}>{q.fieldOfStudy}</Text> : null}
-            </View>
-          ))
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Experience</Text>
-        {tutor.experiences.length > 0 ? (
-          <Text style={styles.badge}>
-            {formatExperienceDuration(totalExperience)} total
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Offerings & proficiency tests</Text>
+          <Text style={styles.offeringsCount}>
+            {formatEntryCount(tutor.offerings.length, 'offering', 'offerings')}
           </Text>
-        ) : null}
-        {tutor.experiences.length === 0 ? (
-          <Text style={styles.muted}>No experience on file.</Text>
-        ) : (
-          tutor.experiences.map((exp) => {
-            const months = experienceDurationMonths(exp);
-            const durationLabel =
-              months != null
-                ? formatExperienceDuration(monthsToExperienceDuration(months))
-                : null;
-            return (
-              <View key={exp.id} style={styles.blockItem}>
-                <Text style={styles.rowBold}>
-                  {exp.jobTitle}
-                  {durationLabel ? ` (${durationLabel})` : ''}
-                </Text>
-                <Text style={styles.row}>
-                  {exp.employerName ?? 'Self-employed'}
-                  {exp.employerAddress ? ` · ${exp.employerAddress}` : ''}
-                </Text>
-                <Text style={styles.muted}>
-                  {formatDate(exp.startDate)} – {exp.isCurrent ? 'Present' : formatDate(exp.endDate)}
-                </Text>
-              </View>
-            );
-          })
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Offerings & proficiency tests</Text>
+        </View>
         {tutor.offerings.length === 0 ? (
           <Text style={styles.muted}>No offerings on file.</Text>
         ) : (
           tutor.offerings.map((o) => (
-            <View key={o.id} style={styles.blockItem}>
+            <View key={o.id} style={styles.offeringItem}>
               <Text style={styles.rowBold}>
                 {o.offeringDisplayName ?? o.offeringName ?? 'Offering'}
               </Text>
@@ -305,6 +227,152 @@ export const TutorDetailScreen: React.FC = () => {
             </View>
           ))
         )}
+      </View>
+
+      <View
+        style={[
+          styles.sideBySideRow,
+          stackProfileSections ? styles.sideBySideRowStacked : null,
+        ]}
+      >
+        <View
+          style={[
+            styles.section,
+            styles.sideBySideCol,
+            stackProfileSections ? styles.sideBySideColStacked : null,
+          ]}
+        >
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Experience</Text>
+            <Text style={styles.experienceCount}>
+              {formatEntryCount(tutor.experiences.length, 'experience', 'experiences')}
+            </Text>
+          </View>
+          {tutor.experiences.length > 0 ? (
+            <Text style={styles.badge}>
+              {formatExperienceDuration(totalExperience)} total
+            </Text>
+          ) : null}
+          {tutor.experiences.length === 0 ? (
+            <Text style={styles.muted}>No experience on file.</Text>
+          ) : (
+            tutor.experiences.map((exp) => {
+              const months = experienceDurationMonths(exp);
+              const durationLabel =
+                months != null
+                  ? formatExperienceDuration(monthsToExperienceDuration(months))
+                  : null;
+              return (
+                <View key={exp.id} style={styles.experienceItem}>
+                  <Text style={styles.rowBold}>
+                    {exp.jobTitle}
+                    {durationLabel ? ` (${durationLabel})` : ''}
+                  </Text>
+                  <Text style={styles.row}>
+                    {exp.employerName ?? 'Self-employed'}
+                    {exp.employerAddress ? ` · ${exp.employerAddress}` : ''}
+                  </Text>
+                  <Text style={styles.muted}>
+                    {formatDate(exp.startDate)} –{' '}
+                    {exp.isCurrent ? 'Present' : formatDate(exp.endDate)}
+                  </Text>
+                </View>
+              );
+            })
+          )}
+        </View>
+
+        <View
+          style={[
+            styles.section,
+            styles.sideBySideCol,
+            styles.educationCol,
+            stackProfileSections ? styles.sideBySideColStacked : styles.educationColStretch,
+          ]}
+        >
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Education</Text>
+            <Text style={styles.educationCount}>
+              {formatEntryCount(sortedQualifications.length, 'qualification', 'qualifications')}
+            </Text>
+          </View>
+          {sortedQualifications.length === 0 ? (
+            <Text style={styles.muted}>No qualifications on file.</Text>
+          ) : (
+            sortedQualifications.map((q, index) => (
+              <View key={q.id} style={styles.educationItem}>
+                <Text style={styles.rowBold}>
+                  {index + 1}. {formatQualificationTitle(q.qualificationType, q.degreeName)}
+                </Text>
+                <Text style={styles.row}>
+                  {q.boardOrUniversity} · {q.gradeType}: {q.gradeValue} · {q.yearObtained}
+                </Text>
+                {q.fieldOfStudy ? <Text style={styles.muted}>{q.fieldOfStudy}</Text> : null}
+              </View>
+            ))
+          )}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Address</Text>
+          <Text style={styles.addressCount}>
+            {formatEntryCount(tutor.addresses.length, 'address', 'addresses')}
+          </Text>
+        </View>
+        {tutor.addresses.length === 0 ? (
+          <Text style={styles.muted}>No address on file.</Text>
+        ) : (
+          tutor.addresses.map((addr) => (
+            <View key={addr.id} style={styles.addressItem}>
+              <Text style={styles.row}>{formatAddress(addr)}</Text>
+            </View>
+          ))
+        )}
+      </View>
+
+      <View
+        style={[
+          styles.sideBySideRow,
+          stackProfileSections ? styles.sideBySideRowStacked : null,
+        ]}
+      >
+        <View
+          style={[
+            styles.section,
+            styles.sideBySideCol,
+            stackProfileSections ? styles.sideBySideColStacked : null,
+          ]}
+        >
+          <Text style={styles.sectionTitle}>Onboarding timeline</Text>
+          {timelineEntries.map((entry) => (
+            <View key={entry.id} style={styles.timelineRow}>
+              <View
+                style={[styles.timelineDot, { backgroundColor: timelineStatusColor(entry.status) }]}
+              />
+              <View style={styles.timelineBody}>
+                <Text style={styles.row}>{entry.title}</Text>
+                <Text style={styles.muted}>{formatTimelineDate(entry)}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <View
+          style={[
+            styles.section,
+            styles.sideBySideCol,
+            stackProfileSections ? styles.sideBySideColStacked : null,
+          ]}
+        >
+          <Text style={styles.sectionTitle}>Registration fee</Text>
+          <Text style={styles.row}>Status: {tutor.regFeePaid ? 'Paid' : 'Not received'}</Text>
+          <Text style={styles.row}>Amount: {feeAmount != null ? `₹${feeAmount}` : '—'}</Text>
+          <Text style={styles.row}>
+            Date received: {tutor.regFeePaid ? formatDate(tutor.regFeeDate) : 'Not received'}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -358,6 +426,31 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '700', color: '#0f172a' },
   subtitle: { fontSize: 14, color: '#64748b', marginTop: 4 },
   meta: { fontSize: 13, color: '#64748b', marginTop: 8, marginBottom: 16, lineHeight: 18 },
+  sideBySideRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+    alignItems: 'stretch',
+  },
+  sideBySideRowStacked: {
+    flexDirection: 'column',
+  },
+  sideBySideCol: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  sideBySideColStacked: {
+    flex: 0,
+    alignSelf: 'stretch',
+    marginBottom: 12,
+  },
+  educationCol: {
+    backgroundColor: '#fff',
+  },
+  educationColStretch: {
+    flex: 1,
+    alignSelf: 'stretch',
+  },
   section: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -366,13 +459,72 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 10,
+  },
   sectionTitle: {
     fontSize: 12,
     fontWeight: '600',
     color: '#64748b',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    marginBottom: 0,
+  },
+  experienceCount: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6d28d9',
+  },
+  educationCount: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#4338ca',
+  },
+  offeringsCount: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#7e22ce',
+  },
+  addressCount: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#0e7490',
+  },
+  offeringItem: {
     marginBottom: 10,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#f3e8ff',
+    backgroundColor: '#faf5ff',
+  },
+  addressItem: {
+    marginBottom: 10,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#cffafe',
+    backgroundColor: '#ecfeff',
+  },
+  experienceItem: {
+    marginBottom: 10,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ede9fe',
+    backgroundColor: '#f5f3ff',
+  },
+  educationItem: {
+    marginBottom: 10,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e0e7ff',
+    backgroundColor: '#eef2ff',
   },
   row: { fontSize: 14, color: '#0f172a', lineHeight: 20, marginBottom: 6 },
   rowBold: { fontSize: 14, fontWeight: '600', color: '#0f172a', marginBottom: 4 },
