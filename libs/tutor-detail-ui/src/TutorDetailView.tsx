@@ -33,8 +33,10 @@ export type TutorDetailViewProps = {
 type SectionStyle = {
   border: string;
   shadow: string;
+  section?: string;
   header: string;
   headerText: string;
+  headerMeta?: string;
   bar: string;
   body: string;
   item: string;
@@ -42,6 +44,11 @@ type SectionStyle = {
   tableRowEven: string;
   tableRowOdd: string;
 };
+
+function formatEntryCount(count: number, singular: string, plural: string): string {
+  if (count === 1) return `1 ${singular}`;
+  return `${count} ${plural}`;
+}
 
 const SECTION_STYLES: Record<string, SectionStyle> = {
   fee: {
@@ -71,11 +78,13 @@ const SECTION_STYLES: Record<string, SectionStyle> = {
   education: {
     border: 'border-indigo-200/90',
     shadow: 'shadow-indigo-100/40',
-    header: 'bg-gradient-to-r from-indigo-100 via-indigo-50 to-white',
+    section: 'flex h-full min-h-0 flex-col bg-white',
+    header: 'shrink-0 border-b border-indigo-100 bg-white',
     headerText: 'text-indigo-900',
+    headerMeta: 'text-indigo-700/80',
     bar: 'bg-indigo-500',
-    body: 'bg-gradient-to-b from-indigo-50/30 to-white',
-    item: 'border-indigo-100 bg-gradient-to-r from-indigo-50/80 to-white',
+    body: 'flex flex-1 flex-col bg-white',
+    item: 'border-indigo-100 bg-indigo-50/70',
     tableHeader: '',
     tableRowEven: '',
     tableRowOdd: '',
@@ -85,9 +94,10 @@ const SECTION_STYLES: Record<string, SectionStyle> = {
     shadow: 'shadow-violet-100/40',
     header: 'bg-gradient-to-r from-violet-100 via-violet-50 to-white',
     headerText: 'text-violet-900',
+    headerMeta: 'text-violet-700/80',
     bar: 'bg-violet-500',
     body: 'bg-gradient-to-b from-violet-50/30 to-white',
-    item: 'border-violet-100 bg-gradient-to-r from-violet-50/80 to-white',
+    item: 'border-violet-100 bg-violet-50/70',
     tableHeader: '',
     tableRowEven: '',
     tableRowOdd: '',
@@ -122,23 +132,36 @@ const SECTION_STYLES: Record<string, SectionStyle> = {
 function SectionCard({
   title,
   styleKey,
+  headerMeta,
   children,
 }: {
   title: string;
   styleKey: keyof typeof SECTION_STYLES;
+  headerMeta?: string;
   children: React.ReactNode;
 }) {
   const styles = SECTION_STYLES[styleKey];
 
   return (
     <section
-      className={`overflow-hidden rounded-2xl border shadow-md ${styles.border} ${styles.shadow}`}
+      className={`overflow-hidden rounded-2xl border shadow-md ${styles.border} ${styles.shadow} ${styles.section ?? ''}`}
     >
-      <div className={`flex items-center gap-3 border-b px-5 py-3.5 ${styles.header}`}>
-        <span className={`h-8 w-1 rounded-full ${styles.bar}`} aria-hidden />
-        <h2 className={`text-sm font-bold uppercase tracking-wide ${styles.headerText}`}>
-          {title}
-        </h2>
+      <div
+        className={`flex items-center justify-between gap-3 border-b px-5 py-3.5 ${styles.header}`}
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <span className={`h-8 w-1 shrink-0 rounded-full ${styles.bar}`} aria-hidden />
+          <h2 className={`text-sm font-bold uppercase tracking-wide ${styles.headerText}`}>
+            {title}
+          </h2>
+        </div>
+        {headerMeta ? (
+          <span
+            className={`shrink-0 text-xs font-semibold normal-case tracking-normal ${styles.headerMeta ?? 'text-muted'}`}
+          >
+            {headerMeta}
+          </span>
+        ) : null}
       </div>
       <div className={`p-5 ${styles.body}`}>{children}</div>
     </section>
@@ -193,6 +216,202 @@ function formatAddress(address: TutorDetailRecord['addresses'][0]): string {
     .join(', ');
 }
 
+function OfferingsSection({ offerings }: { offerings: TutorDetailRecord['offerings'] }) {
+  return (
+    <SectionCard title="Offerings & proficiency tests" styleKey="offerings">
+      {offerings.length === 0 ? (
+        <p className="text-sm text-purple-800/70">No offerings on file.</p>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-purple-100">
+          <table className="min-w-full text-left text-sm">
+            <thead>
+              <tr
+                className={`text-xs font-bold uppercase tracking-wide ${SECTION_STYLES.offerings.tableHeader}`}
+              >
+                <th className="px-4 py-3">Offering</th>
+                <th className="px-4 py-3">PT status</th>
+                <th className="px-4 py-3">Date taken</th>
+                <th className="px-4 py-3">Score</th>
+                <th className="px-4 py-3">Attempts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {offerings.map((offering, index) => (
+                <tr
+                  key={offering.id}
+                  className={
+                    index % 2 === 0
+                      ? SECTION_STYLES.offerings.tableRowEven
+                      : SECTION_STYLES.offerings.tableRowOdd
+                  }
+                >
+                  <td className="px-4 py-3 font-semibold text-purple-950">
+                    {offering.offeringDisplayName ?? offering.offeringName ?? '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${ptStatusBadgeClass(offering.status)}`}
+                    >
+                      {ptStatusLabel(offering.status)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-purple-900/70">
+                    {formatDateTime(offering.lastAttemptAt ?? offering.passedAt)}
+                  </td>
+                  <td className="px-4 py-3">
+                    {offering.lastScore != null && offering.lastMaxScore != null ? (
+                      <span className="rounded-md bg-purple-100 px-2 py-0.5 font-bold text-purple-900">
+                        {offering.lastScore}/{offering.lastMaxScore}
+                      </span>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-purple-900/70">
+                    <span className="font-medium text-purple-950">{offering.attemptsUsed}</span>{' '}
+                    used ·{' '}
+                    <span className="font-medium text-purple-950">
+                      {offering.attemptsRemaining}
+                    </span>{' '}
+                    left
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
+function AddressSection({ addresses }: { addresses: TutorDetailRecord['addresses'] }) {
+  return (
+    <SectionCard title="Address" styleKey="address">
+      {addresses.length === 0 ? (
+        <p className="text-sm text-cyan-800/70">No address on file.</p>
+      ) : (
+        <ul className="space-y-3">
+          {addresses.map((address) => (
+            <li
+              key={address.id}
+              className={`rounded-xl border px-4 py-3 text-sm font-medium text-primary ${SECTION_STYLES.address.item}`}
+            >
+              {formatAddress(address)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </SectionCard>
+  );
+}
+
+function EducationSection({
+  qualifications,
+}: {
+  qualifications: TutorDetailRecord['qualifications'];
+}) {
+  const sorted = sortQualificationsHighestFirst(qualifications ?? []);
+
+  return (
+    <SectionCard
+      title="Education"
+      styleKey="education"
+      headerMeta={formatEntryCount(sorted.length, 'qualification', 'qualifications')}
+    >
+      {sorted.length === 0 ? (
+        <p className="text-sm text-indigo-800/70">No qualifications on file.</p>
+      ) : (
+        <ul className="space-y-3">
+          {sorted.map((qual, index) => (
+            <li
+              key={qual.id}
+              className={`rounded-xl border px-4 py-3 text-sm ${SECTION_STYLES.education.item}`}
+            >
+              <div className="flex items-start gap-3">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-500 text-xs font-bold text-white">
+                  {index + 1}
+                </span>
+                <div>
+                  <p className="font-semibold text-indigo-950">
+                    {formatQualificationTitle(qual.qualificationType, qual.degreeName)}
+                  </p>
+                  <p className="mt-1 text-indigo-900/70">
+                    {qual.boardOrUniversity} · {qual.gradeType}: {qual.gradeValue} ·{' '}
+                    {qual.yearObtained}
+                  </p>
+                  {qual.fieldOfStudy && (
+                    <p className="mt-0.5 text-indigo-800/60">{qual.fieldOfStudy}</p>
+                  )}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </SectionCard>
+  );
+}
+
+function ExperienceSection({
+  experiences,
+}: {
+  experiences: TutorDetailRecord['experiences'];
+}) {
+  const totalExperience = sumExperienceDurations(experiences);
+
+  return (
+    <SectionCard
+      title="Experience"
+      styleKey="experience"
+      headerMeta={formatEntryCount(experiences.length, 'experience', 'experiences')}
+    >
+      {experiences.length > 0 && (
+        <div className="mb-4 inline-flex rounded-full bg-violet-500 px-3 py-1 text-xs font-bold text-white">
+          {formatExperienceDuration(totalExperience)} total
+        </div>
+      )}
+      {experiences.length === 0 ? (
+        <p className="text-sm text-violet-800/70">No experience entries on file.</p>
+      ) : (
+        <ul className="space-y-3">
+          {experiences.map((exp) => {
+            const durationMonths = experienceDurationMonths(exp);
+            const durationLabel =
+              durationMonths != null
+                ? formatExperienceDuration(monthsToExperienceDuration(durationMonths))
+                : null;
+
+            return (
+              <li
+                key={exp.id}
+                className={`rounded-xl border px-4 py-3 text-sm ${SECTION_STYLES.experience.item}`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="font-semibold text-violet-950">{exp.jobTitle}</p>
+                  {durationLabel && (
+                    <span className="rounded-full bg-violet-200/80 px-2.5 py-0.5 text-xs font-bold text-violet-900">
+                      {durationLabel}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-violet-900/70">
+                  {exp.employerName ?? 'Self-employed'}
+                  {exp.employerAddress ? ` · ${exp.employerAddress}` : ''}
+                </p>
+                <p className="mt-1 text-violet-800/60">
+                  {formatDate(exp.startDate)} –{' '}
+                  {exp.isCurrent ? 'Present' : formatDate(exp.endDate)}
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </SectionCard>
+  );
+}
+
 export function TutorDetailView({
   mode,
   tutor,
@@ -219,13 +438,7 @@ export function TutorDetailView({
     [tutor],
   );
 
-  const sortedQualifications = useMemo(
-    () => sortQualificationsHighestFirst(tutor.qualifications ?? []),
-    [tutor.qualifications],
-  );
-
   const feeAmount = tutor.regFeePaid ? tutor.regFeeAmount : tutor.regFeeAmountToBePaid;
-  const totalExperience = sumExperienceDurations(tutor.experiences);
 
   return (
     <div className="space-y-6">
@@ -270,6 +483,19 @@ export function TutorDetailView({
         </p>
       </div>
 
+      {!isAdmin && (
+        <>
+          <OfferingsSection offerings={tutor.offerings} />
+          <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2">
+            <ExperienceSection experiences={tutor.experiences} />
+            <div className="h-full min-h-0">
+              <EducationSection qualifications={tutor.qualifications} />
+            </div>
+          </div>
+          <AddressSection addresses={tutor.addresses} />
+        </>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <OnboardingTimeline entries={timelineEntries} />
 
@@ -304,165 +530,16 @@ export function TutorDetailView({
         </SectionCard>
       </div>
 
-      <SectionCard title="Address" styleKey="address">
-        {tutor.addresses.length === 0 ? (
-          <p className="text-sm text-cyan-800/70">No address on file.</p>
-        ) : (
-          <ul className="space-y-3">
-            {tutor.addresses.map((address) => (
-              <li
-                key={address.id}
-                className={`rounded-xl border px-4 py-3 text-sm font-medium text-primary ${SECTION_STYLES.address.item}`}
-              >
-                {formatAddress(address)}
-              </li>
-            ))}
-          </ul>
-        )}
-      </SectionCard>
-
-      <SectionCard title="Education" styleKey="education">
-        {sortedQualifications.length === 0 ? (
-          <p className="text-sm text-indigo-800/70">No qualifications on file.</p>
-        ) : (
-          <ul className="space-y-3">
-            {sortedQualifications.map((qual, index) => (
-              <li
-                key={qual.id}
-                className={`rounded-xl border px-4 py-3 text-sm ${SECTION_STYLES.education.item}`}
-              >
-                <div className="flex items-start gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-500 text-xs font-bold text-white">
-                    {index + 1}
-                  </span>
-                  <div>
-                    <p className="font-semibold text-indigo-950">
-                      {formatQualificationTitle(qual.qualificationType, qual.degreeName)}
-                    </p>
-                    <p className="mt-1 text-indigo-900/70">
-                      {qual.boardOrUniversity} · {qual.gradeType}: {qual.gradeValue} ·{' '}
-                      {qual.yearObtained}
-                    </p>
-                    {qual.fieldOfStudy && (
-                      <p className="mt-0.5 text-indigo-800/60">{qual.fieldOfStudy}</p>
-                    )}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </SectionCard>
-
-      <SectionCard title="Experience" styleKey="experience">
-        {tutor.experiences.length > 0 && (
-          <div className="mb-4 inline-flex rounded-full bg-violet-500 px-3 py-1 text-xs font-bold text-white">
-            {formatExperienceDuration(totalExperience)} total
+      {isAdmin && (
+        <>
+          <AddressSection addresses={tutor.addresses} />
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <EducationSection qualifications={tutor.qualifications} />
+            <ExperienceSection experiences={tutor.experiences} />
           </div>
-        )}
-        {tutor.experiences.length === 0 ? (
-          <p className="text-sm text-violet-800/70">No experience entries on file.</p>
-        ) : (
-          <ul className="space-y-3">
-            {tutor.experiences.map((exp) => {
-              const durationMonths = experienceDurationMonths(exp);
-              const durationLabel =
-                durationMonths != null
-                  ? formatExperienceDuration(monthsToExperienceDuration(durationMonths))
-                  : null;
-
-              return (
-                <li
-                  key={exp.id}
-                  className={`rounded-xl border px-4 py-3 text-sm ${SECTION_STYLES.experience.item}`}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <p className="font-semibold text-violet-950">{exp.jobTitle}</p>
-                    {durationLabel && (
-                      <span className="rounded-full bg-violet-200/80 px-2.5 py-0.5 text-xs font-bold text-violet-900">
-                        {durationLabel}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 text-violet-900/70">
-                    {exp.employerName ?? 'Self-employed'}
-                    {exp.employerAddress ? ` · ${exp.employerAddress}` : ''}
-                  </p>
-                  <p className="mt-1 text-violet-800/60">
-                    {formatDate(exp.startDate)} –{' '}
-                    {exp.isCurrent ? 'Present' : formatDate(exp.endDate)}
-                  </p>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </SectionCard>
-
-      <SectionCard title="Offerings & proficiency tests" styleKey="offerings">
-        {tutor.offerings.length === 0 ? (
-          <p className="text-sm text-purple-800/70">No offerings on file.</p>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-purple-100">
-            <table className="min-w-full text-left text-sm">
-              <thead>
-                <tr
-                  className={`text-xs font-bold uppercase tracking-wide ${SECTION_STYLES.offerings.tableHeader}`}
-                >
-                  <th className="px-4 py-3">Offering</th>
-                  <th className="px-4 py-3">PT status</th>
-                  <th className="px-4 py-3">Date taken</th>
-                  <th className="px-4 py-3">Score</th>
-                  <th className="px-4 py-3">Attempts</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tutor.offerings.map((offering, index) => (
-                  <tr
-                    key={offering.id}
-                    className={
-                      index % 2 === 0
-                        ? SECTION_STYLES.offerings.tableRowEven
-                        : SECTION_STYLES.offerings.tableRowOdd
-                    }
-                  >
-                    <td className="px-4 py-3 font-semibold text-purple-950">
-                      {offering.offeringDisplayName ?? offering.offeringName ?? '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${ptStatusBadgeClass(offering.status)}`}
-                      >
-                        {ptStatusLabel(offering.status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-purple-900/70">
-                      {formatDateTime(offering.lastAttemptAt ?? offering.passedAt)}
-                    </td>
-                    <td className="px-4 py-3">
-                      {offering.lastScore != null && offering.lastMaxScore != null ? (
-                        <span className="rounded-md bg-purple-100 px-2 py-0.5 font-bold text-purple-900">
-                          {offering.lastScore}/{offering.lastMaxScore}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-purple-900/70">
-                      <span className="font-medium text-purple-950">{offering.attemptsUsed}</span>{' '}
-                      used ·{' '}
-                      <span className="font-medium text-purple-950">
-                        {offering.attemptsRemaining}
-                      </span>{' '}
-                      left
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </SectionCard>
+          <OfferingsSection offerings={tutor.offerings} />
+        </>
+      )}
 
       <SectionCard title="Documents" styleKey="documents">
         {tutor.documents.length === 0 ? (
