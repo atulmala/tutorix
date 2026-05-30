@@ -14,6 +14,7 @@ import { OfferingsModule } from './modules/offerings/offerings.module';
 import { ProficiencyModule } from './modules/proficiency/proficiency.module';
 import { BatchJobsModule } from './batch-jobs/batch-jobs.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { UserBankDetailsModule } from './modules/user-bank-details/user-bank-details.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { AdminModule } from './modules/admin/admin.module';
     ProficiencyModule,
     BatchJobsModule,
     AdminModule,
+    UserBankDetailsModule,
     // Add other modules here as they are created:
     // StudentModule,
     // ClassesModule,

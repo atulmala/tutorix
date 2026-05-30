@@ -34,6 +34,14 @@ export type TutorDetailRecord = {
     mobileCountryCode?: string | null;
     mobileNumber?: string | null;
     createdDate?: string | null;
+    bankDetails?: {
+      bankName?: string | null;
+      ifscCode?: string | null;
+      accountNumberMasked?: string | null;
+      accountNumber?: string | null;
+      gstNumber?: string | null;
+      isComplete?: boolean;
+    } | null;
   } | null;
   addresses: Array<{
     id: number;

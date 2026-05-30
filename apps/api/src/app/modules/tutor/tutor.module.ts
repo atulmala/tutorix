@@ -14,6 +14,7 @@ import { TutorOnboardingService } from './services/tutor-onboarding.service';
 import { TutorOnboardingApprovalBatchService } from './services/tutor-onboarding-approval-batch.service';
 import { ProficiencyModule } from '../proficiency/proficiency.module';
 import { ExperienceModule } from '../experience/experience.module';
+import { UserBankDetailsModule } from '../user-bank-details/user-bank-details.module';
 import { TutorDetailService } from './services/tutor-detail.service';
 
 @Module({
@@ -24,6 +25,7 @@ import { TutorDetailService } from './services/tutor-detail.service';
     DocumentModule,
     ProficiencyModule,
     forwardRef(() => ExperienceModule),
+    UserBankDetailsModule,
   ],
   providers: [
     TutorResolver,

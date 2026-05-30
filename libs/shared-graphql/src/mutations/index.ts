@@ -19,5 +19,6 @@ export * from './address.mutations';
 export * from './tutor.mutations';
 export * from './document.mutations';
 export * from './admin.mutations';
+export * from './user-bank-details.mutations';
 // export * from './student.mutations';
 // export * from './class.mutations';

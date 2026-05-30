@@ -66,6 +66,14 @@ export const GET_ADMIN_TUTOR_DETAIL = gql`
         mobileCountryCode
         mobileNumber
         createdDate
+        bankDetails {
+          bankName
+          ifscCode
+          gstNumber
+          accountNumberMasked
+          accountNumber
+          isComplete
+        }
       }
       addresses {
         id

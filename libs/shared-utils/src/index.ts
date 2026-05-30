@@ -13,3 +13,5 @@ export * from './onboarding-types';
 export * from './study-areas.constants';
 export * from './onboarding-timeline';
 export * from './tutor-detail-formatters';
+export * from './indian-banks';
+export * from './bank-details-formatters';
