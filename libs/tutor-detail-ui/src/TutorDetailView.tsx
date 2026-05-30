@@ -17,7 +17,11 @@ import {
 import { OnboardingTimeline } from './OnboardingTimeline';
 import { AdminDocumentViewerModal } from './AdminDocumentViewerModal';
 import { TutorDocumentViewerModal } from './TutorDocumentViewerModal';
+import { BankDetailsSection } from './BankDetailsSection';
+import { BankDetailsModal, type BankDetailsFormValues } from './BankDetailsModal';
 import type { TutorDetailRecord, TutorDocumentDetail } from './types';
+
+export type { BankDetailsFormValues } from './BankDetailsModal';
 
 export type TutorDetailViewMode = 'admin' | 'tutor';
 
@@ -28,6 +32,9 @@ export type TutorDetailViewProps = {
   onTestTutorChange?: (testTutor: boolean) => void;
   savingTestTutor?: boolean;
   onDocumentReviewComplete?: () => void;
+  onSaveBankDetails?: (values: BankDetailsFormValues) => void | Promise<void>;
+  savingBankDetails?: boolean;
+  bankDetailsSaveError?: string | null;
 };
 
 type SectionStyle = {
@@ -419,8 +426,12 @@ export function TutorDetailView({
   onTestTutorChange,
   savingTestTutor = false,
   onDocumentReviewComplete,
+  onSaveBankDetails,
+  savingBankDetails = false,
+  bankDetailsSaveError = null,
 }: TutorDetailViewProps) {
   const [selectedDocument, setSelectedDocument] = useState<TutorDocumentDetail | null>(null);
+  const [bankDetailsModalOpen, setBankDetailsModalOpen] = useState(false);
   const isAdmin = mode === 'admin';
 
   const timelineEntries = useMemo(
@@ -482,6 +493,30 @@ export function TutorDetailView({
             : ''}
         </p>
       </div>
+
+      <BankDetailsSection
+        mode={mode}
+        bankDetails={tutor.user?.bankDetails}
+        onEnterOrEdit={
+          !isAdmin && onSaveBankDetails
+            ? () => setBankDetailsModalOpen(true)
+            : undefined
+        }
+      />
+
+      {!isAdmin && onSaveBankDetails ? (
+        <BankDetailsModal
+          open={bankDetailsModalOpen}
+          initialValues={tutor.user?.bankDetails}
+          saving={savingBankDetails}
+          error={bankDetailsSaveError}
+          onClose={() => setBankDetailsModalOpen(false)}
+          onSubmit={async (values) => {
+            await onSaveBankDetails(values);
+            setBankDetailsModalOpen(false);
+          }}
+        />
+      ) : null}
 
       {!isAdmin && (
         <>

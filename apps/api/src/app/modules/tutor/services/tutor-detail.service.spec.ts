@@ -11,6 +11,7 @@ import { ExperienceService } from '../../experience/services/experience.service'
 import { TutorOfferingService } from './tutor-offering.service';
 import { DocumentService } from '../../document/services/document.service';
 import { DocumentScreeningService } from '../../document/services/document-screening.service';
+import { UserBankDetailsService } from '../../user-bank-details/services/user-bank-details.service';
 import { UserRole } from '../../auth/enums/user-role.enum';
 import { TutorCertificationStageEnum } from '../enums/tutor.enums';
 import { YearsOfExperienceEnum } from '../enums/years-of-experience.enum';
@@ -33,6 +34,10 @@ describe('TutorDetailService', () => {
     resolveViewUrlForAdmin: jest.Mock;
   };
   let documentScreeningService: { findByDocumentIds: jest.Mock };
+  let userBankDetailsService: {
+    findByUserId: jest.Mock;
+    mapToGraphql: jest.Mock;
+  };
 
   beforeEach(async () => {
     tutorService = {
@@ -50,6 +55,10 @@ describe('TutorDetailService', () => {
     documentScreeningService = {
       findByDocumentIds: jest.fn().mockResolvedValue(new Map()),
     };
+    userBankDetailsService = {
+      findByUserId: jest.fn().mockResolvedValue(null),
+      mapToGraphql: jest.fn().mockReturnValue(null),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -60,6 +69,7 @@ describe('TutorDetailService', () => {
         { provide: TutorOfferingService, useValue: tutorOfferingService },
         { provide: DocumentService, useValue: documentService },
         { provide: DocumentScreeningService, useValue: documentScreeningService },
+        { provide: UserBankDetailsService, useValue: userBankDetailsService },
       ],
     }).compile();
 
@@ -78,6 +88,7 @@ describe('TutorDetailService', () => {
         regFeeAmountToBePaid: 999,
         regFeeDate: null,
         user: {
+          id: 99,
           firstName: 'Jane',
           lastName: 'Tutor',
           email: 'jane@example.com',
@@ -124,6 +135,19 @@ describe('TutorDetailService', () => {
       );
       documentService.resolvePreviewUrlForAdmin.mockResolvedValue('https://preview');
       documentService.resolveViewUrlForAdmin.mockResolvedValue('https://view');
+      userBankDetailsService.findByUserId.mockResolvedValue({
+        bankName: 'HDFC Bank',
+        accountNumber: '123456789012',
+        ifscCode: 'HDFC0001234',
+        gstNumber: null,
+      });
+      userBankDetailsService.mapToGraphql.mockReturnValue({
+        bankName: 'HDFC Bank',
+        ifscCode: 'HDFC0001234',
+        accountNumberMasked: 'xxxxxxxx9012',
+        isComplete: true,
+        fullAccountNumber: '123456789012',
+      });
 
       const detail = await service.getTutorDetail(7);
 
@@ -134,6 +158,13 @@ describe('TutorDetailService', () => {
           lastName: 'Tutor',
           email: 'jane@example.com',
           createdDate: registrationDate,
+          bankDetails: {
+            bankName: 'HDFC Bank',
+            ifscCode: 'HDFC0001234',
+            accountNumberMasked: 'xxxxxxxx9012',
+            isComplete: true,
+            fullAccountNumber: '123456789012',
+          },
         },
         addresses: [{ id: 1, fullAddress: '123 Main St' }],
         qualifications: [{ id: 11 }],
@@ -160,6 +191,7 @@ describe('TutorDetailService', () => {
           },
         ],
       });
+      expect(userBankDetailsService.findByUserId).toHaveBeenCalledWith(99);
     });
   });
 

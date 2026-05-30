@@ -20,6 +20,7 @@ import { ProficiencyTestEntity } from '../modules/proficiency/entities/proficien
 import { PTQuestionEntity } from '../modules/proficiency/entities/pt-question.entity';
 import { PtAnswerEntity } from '../modules/proficiency/entities/pt-answer.entity';
 import { Example } from '../entities/example.entity';
+import { UserBankDetailsEntity } from '../modules/user-bank-details/entities/user-bank-details.entity';
 // Add other entities as they are created
 
 /**
@@ -57,6 +58,7 @@ export function createDatabaseOptions(
       PTQuestionEntity,
       PtAnswerEntity,
       Example, // Remove this when you no longer need the example entity
+      UserBankDetailsEntity,
       // Add other entities here as they are created
       // Student,
       // Class,

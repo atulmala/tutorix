@@ -18,6 +18,7 @@ import { TutorOfferingEntity } from '../entities/tutor-offering.entity';
 import { TutorOfferingService } from './tutor-offering.service';
 import { TutorQualificationService } from './tutor-qualification.service';
 import { TutorService } from './tutor.service';
+import { UserBankDetailsService } from '../../user-bank-details/services/user-bank-details.service';
 
 const PT_MAX_ATTEMPTS = 2;
 
@@ -30,6 +31,7 @@ export class TutorDetailService {
     private readonly tutorOfferingService: TutorOfferingService,
     private readonly documentService: DocumentService,
     private readonly documentScreeningService: DocumentScreeningService,
+    private readonly userBankDetailsService: UserBankDetailsService,
   ) {}
 
   async getTutorDetail(tutorId: number): Promise<AdminTutorDetail> {
@@ -53,6 +55,10 @@ export class TutorDetailService {
     );
 
     const user = tutor.user;
+    const bankDetailsEntity = user
+      ? await this.userBankDetailsService.findByUserId(user.id)
+      : null;
+    const bankDetails = this.userBankDetailsService.mapToGraphql(bankDetailsEntity);
 
     return {
       id: tutor.id,
@@ -72,6 +78,7 @@ export class TutorDetailService {
             mobileCountryCode: user.mobileCountryCode,
             mobileNumber: user.mobileNumber,
             createdDate: user.createdDate,
+            bankDetails,
           }
         : undefined,
       addresses: tutor.addresses ?? [],

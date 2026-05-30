@@ -1,4 +1,5 @@
 import { Field, ObjectType } from '@nestjs/graphql';
+import { UserBankDetails } from '../../user-bank-details/dto/user-bank-details.dto';
 
 @ObjectType()
 export class AdminTutorDetailUser {
@@ -22,4 +23,7 @@ export class AdminTutorDetailUser {
 
   @Field({ nullable: true, description: 'Account signup / registration date' })
   createdDate?: Date;
+
+  @Field(() => UserBankDetails, { nullable: true })
+  bankDetails?: UserBankDetails | null;
 }

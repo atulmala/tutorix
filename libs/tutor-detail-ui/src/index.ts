@@ -7,3 +7,5 @@ export {
   AdminDocumentViewerModal,
   type AdminDocumentDetail,
 } from './AdminDocumentViewerModal';
+export { BankDetailsSection } from './BankDetailsSection';
+export { BankDetailsModal, type BankDetailsFormValues } from './BankDetailsModal';
