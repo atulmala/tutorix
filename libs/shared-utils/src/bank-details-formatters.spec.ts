@@ -2,6 +2,7 @@ import {
   isBankDetailsComplete,
   normalizePanNumber,
   PAN_PATTERN,
+  validateBankDetailsForm,
 } from './bank-details-formatters';
 
 describe('bank-details-formatters', () => {
@@ -35,6 +36,42 @@ describe('bank-details-formatters', () => {
   describe('PAN_PATTERN', () => {
     it('matches valid Indian PAN', () => {
       expect(PAN_PATTERN.test('ABCDE1234F')).toBe(true);
+    });
+  });
+
+  describe('validateBankDetailsForm', () => {
+    it('returns normalized values when valid', () => {
+      const result = validateBankDetailsForm({
+        bankName: 'HDFC Bank',
+        accountNumber: '123456789012',
+        ifscCode: 'hdfc0001234',
+        panNumber: 'abcde1234f',
+        gstNumber: '',
+      });
+      expect(result).toEqual({
+        ok: true,
+        normalized: {
+          bankName: 'HDFC Bank',
+          accountNumber: '123456789012',
+          ifscCode: 'HDFC0001234',
+          panNumber: 'ABCDE1234F',
+          gstNumber: '',
+        },
+      });
+    });
+
+    it('returns error when PAN is invalid', () => {
+      const result = validateBankDetailsForm({
+        bankName: 'SBI',
+        accountNumber: '123456789',
+        ifscCode: 'SBIN0001234',
+        panNumber: 'BAD',
+        gstNumber: '',
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.message).toContain('PAN');
+      }
     });
   });
 });

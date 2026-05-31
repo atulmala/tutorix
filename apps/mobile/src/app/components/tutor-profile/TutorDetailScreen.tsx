@@ -11,8 +11,9 @@ import {
   Linking,
   useWindowDimensions,
 } from 'react-native';
-import { useQuery } from '@apollo/client';
+import { useMutation, useQuery } from '@apollo/client';
 import { GET_MY_TUTOR_DETAIL } from '@tutorix/shared-graphql/queries';
+import { SAVE_MY_BANK_DETAILS } from '@tutorix/shared-graphql/mutations';
 import {
   buildOnboardingTimeline,
   documentStatusLabel,
@@ -27,7 +28,9 @@ import {
   sumExperienceDurations,
   type OnboardingTimelineEntry,
 } from '@tutorix/shared-utils';
-import type { TutorDetailRecord } from '@tutorix/tutor-detail-ui';
+import type { BankDetailsFormValues, TutorDetailRecord } from '@tutorix/tutor-detail-ui';
+import { BankDetailsSection } from './BankDetailsSection';
+import { BankDetailsModal } from './BankDetailsModal';
 
 type MyTutorDetailData = {
   myTutorDetail: TutorDetailRecord;
@@ -131,10 +134,14 @@ function DocumentViewerModal({
 }
 
 export const TutorDetailScreen: React.FC = () => {
-  const { data, loading, error } = useQuery<MyTutorDetailData>(GET_MY_TUTOR_DETAIL, {
+  const { data, loading, error, refetch } = useQuery<MyTutorDetailData>(GET_MY_TUTOR_DETAIL, {
     fetchPolicy: 'cache-and-network',
   });
   const [selectedDocument, setSelectedDocument] = useState<TutorDocumentDetail | null>(null);
+  const [bankModalVisible, setBankModalVisible] = useState(false);
+  const [bankDetailsSaveError, setBankDetailsSaveError] = useState<string | null>(null);
+
+  const [saveBankDetails, { loading: savingBankDetails }] = useMutation(SAVE_MY_BANK_DETAILS);
   const { width: windowWidth } = useWindowDimensions();
   const stackProfileSections = windowWidth < 768;
 
@@ -161,6 +168,30 @@ export const TutorDetailScreen: React.FC = () => {
     () => sortQualificationsHighestFirst(tutor?.qualifications ?? []),
     [tutor?.qualifications],
   );
+
+  const handleSaveBankDetails = async (values: BankDetailsFormValues) => {
+    setBankDetailsSaveError(null);
+    try {
+      await saveBankDetails({
+        variables: {
+          input: {
+            bankName: values.bankName,
+            accountNumber: values.accountNumber,
+            ifscCode: values.ifscCode,
+            panNumber: values.panNumber,
+            gstNumber: values.gstNumber.trim() || null,
+          },
+        },
+      });
+      await refetch();
+      setBankModalVisible(false);
+    } catch (err) {
+      setBankDetailsSaveError(
+        err instanceof Error ? err.message : 'Could not save bank details.',
+      );
+      throw err;
+    }
+  };
 
   if (loading && !tutor) {
     return (
@@ -195,6 +226,14 @@ export const TutorDetailScreen: React.FC = () => {
         {tutor.user?.email ? ` · ${tutor.user.email}` : ''}
         {tutor.user?.createdDate ? ` · Registered ${formatDate(tutor.user.createdDate)}` : ''}
       </Text>
+
+      <BankDetailsSection
+        bankDetails={tutor.user?.bankDetails}
+        onEnterOrEdit={() => {
+          setBankDetailsSaveError(null);
+          setBankModalVisible(true);
+        }}
+      />
 
       <View style={styles.section}>
         <View style={styles.sectionHeaderRow}>
@@ -410,6 +449,15 @@ export const TutorDetailScreen: React.FC = () => {
           onClose={() => setSelectedDocument(null)}
         />
       ) : null}
+
+      <BankDetailsModal
+        visible={bankModalVisible}
+        initialValues={tutor.user?.bankDetails}
+        saving={savingBankDetails}
+        error={bankDetailsSaveError}
+        onClose={() => setBankModalVisible(false)}
+        onSubmit={handleSaveBankDetails}
+      />
     </ScrollView>
   );
 };

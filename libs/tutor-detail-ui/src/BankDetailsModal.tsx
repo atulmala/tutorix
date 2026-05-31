@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { INDIAN_BANKS, OTHER_BANK_OPTION } from '@tutorix/shared-utils';
+import { INDIAN_BANKS, OTHER_BANK_OPTION, validateBankDetailsForm } from '@tutorix/shared-utils';
 
 export type BankDetailsFormValues = {
   bankName: string;
@@ -22,8 +22,6 @@ type BankDetailsModalProps = {
   onClose: () => void;
   onSubmit: (values: BankDetailsFormValues) => void;
 };
-
-const PAN_INPUT_PATTERN = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 
 const EMPTY_FORM: BankDetailsFormValues = {
   bankName: '',
@@ -87,40 +85,19 @@ export function BankDetailsModal({
   }
 
   const handleSubmit = () => {
-    if (!resolvedBankName) {
-      setValidationError('Please select or enter a bank name.');
-      return;
-    }
-    if (!/^\d{9,18}$/.test(accountNumber.trim())) {
-      setValidationError('Account number must be 9 to 18 digits.');
-      return;
-    }
-    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode.trim().toUpperCase())) {
-      setValidationError('Please enter a valid IFSC code (e.g. HDFC0001234).');
-      return;
-    }
-    const pan = panNumber.trim().toUpperCase();
-    if (!PAN_INPUT_PATTERN.test(pan)) {
-      setValidationError('Please enter a valid PAN (e.g. ABCDE1234F).');
-      return;
-    }
-    const gst = gstNumber.trim();
-    if (
-      gst &&
-      !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gst.toUpperCase())
-    ) {
-      setValidationError('Please enter a valid GST number or leave it blank.');
-      return;
-    }
-
-    setValidationError(null);
-    onSubmit({
+    const result = validateBankDetailsForm({
       bankName: resolvedBankName,
-      accountNumber: accountNumber.trim(),
-      ifscCode: ifscCode.trim().toUpperCase(),
-      panNumber: pan,
-      gstNumber: gst,
+      accountNumber,
+      ifscCode,
+      panNumber,
+      gstNumber,
     });
+    if (result.ok === false) {
+      setValidationError(result.message);
+      return;
+    }
+    setValidationError(null);
+    onSubmit(result.normalized);
   };
 
   const displayError = validationError ?? error;
