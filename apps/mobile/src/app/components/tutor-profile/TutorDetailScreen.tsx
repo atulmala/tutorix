@@ -11,8 +11,9 @@ import {
   Linking,
   useWindowDimensions,
 } from 'react-native';
-import { useQuery } from '@apollo/client';
+import { useMutation, useQuery } from '@apollo/client';
 import { GET_MY_TUTOR_DETAIL } from '@tutorix/shared-graphql/queries';
+import { SAVE_MY_BANK_DETAILS } from '@tutorix/shared-graphql/mutations';
 import {
   buildOnboardingTimeline,
   documentStatusLabel,
@@ -22,12 +23,13 @@ import {
   formatExperienceDuration,
   formatQualificationTitle,
   monthsToExperienceDuration,
-  ptStatusLabel,
   sortQualificationsHighestFirst,
   sumExperienceDurations,
   type OnboardingTimelineEntry,
 } from '@tutorix/shared-utils';
-import type { TutorDetailRecord } from '@tutorix/tutor-detail-ui';
+import type { BankDetailsFormValues, TutorDetailRecord } from '@tutorix/tutor-detail-ui';
+import { BankDetailsSection } from './BankDetailsSection';
+import { BankDetailsModal } from './BankDetailsModal';
 
 type MyTutorDetailData = {
   myTutorDetail: TutorDetailRecord;
@@ -68,6 +70,15 @@ function timelineStatusColor(status: OnboardingTimelineEntry['status']): string 
 function formatEntryCount(count: number, singular: string, plural: string): string {
   if (count === 1) return `1 ${singular}`;
   return `${count} ${plural}`;
+}
+
+function OfferingDetailField({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <View style={styles.offeringField}>
+      <Text style={styles.offeringFieldLabel}>{label}</Text>
+      <Text style={styles.offeringFieldValue}>{value ?? '—'}</Text>
+    </View>
+  );
 }
 
 function formatTimelineDate(entry: OnboardingTimelineEntry): string {
@@ -131,12 +142,17 @@ function DocumentViewerModal({
 }
 
 export const TutorDetailScreen: React.FC = () => {
-  const { data, loading, error } = useQuery<MyTutorDetailData>(GET_MY_TUTOR_DETAIL, {
+  const { data, loading, error, refetch } = useQuery<MyTutorDetailData>(GET_MY_TUTOR_DETAIL, {
     fetchPolicy: 'cache-and-network',
   });
   const [selectedDocument, setSelectedDocument] = useState<TutorDocumentDetail | null>(null);
+  const [bankModalVisible, setBankModalVisible] = useState(false);
+  const [bankDetailsSaveError, setBankDetailsSaveError] = useState<string | null>(null);
+
+  const [saveBankDetails, { loading: savingBankDetails }] = useMutation(SAVE_MY_BANK_DETAILS);
   const { width: windowWidth } = useWindowDimensions();
   const stackProfileSections = windowWidth < 768;
+  const offeringFieldsInRow = windowWidth >= 400;
 
   const tutor = data?.myTutorDetail;
 
@@ -161,6 +177,30 @@ export const TutorDetailScreen: React.FC = () => {
     () => sortQualificationsHighestFirst(tutor?.qualifications ?? []),
     [tutor?.qualifications],
   );
+
+  const handleSaveBankDetails = async (values: BankDetailsFormValues) => {
+    setBankDetailsSaveError(null);
+    try {
+      await saveBankDetails({
+        variables: {
+          input: {
+            bankName: values.bankName,
+            accountNumber: values.accountNumber,
+            ifscCode: values.ifscCode,
+            panNumber: values.panNumber,
+            gstNumber: values.gstNumber.trim() || null,
+          },
+        },
+      });
+      await refetch();
+      setBankModalVisible(false);
+    } catch (err) {
+      setBankDetailsSaveError(
+        err instanceof Error ? err.message : 'Could not save bank details.',
+      );
+      throw err;
+    }
+  };
 
   if (loading && !tutor) {
     return (
@@ -196,9 +236,17 @@ export const TutorDetailScreen: React.FC = () => {
         {tutor.user?.createdDate ? ` · Registered ${formatDate(tutor.user.createdDate)}` : ''}
       </Text>
 
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Offerings & proficiency tests</Text>
+      <BankDetailsSection
+        bankDetails={tutor.user?.bankDetails}
+        onEnterOrEdit={() => {
+          setBankDetailsSaveError(null);
+          setBankModalVisible(true);
+        }}
+      />
+
+      <View style={styles.offeringsSection}>
+        <View style={styles.offeringsSectionHeaderRow}>
+          <Text style={styles.offeringsSectionTitle}>Offerings</Text>
           <Text style={styles.offeringsCount}>
             {formatEntryCount(tutor.offerings.length, 'offering', 'offerings')}
           </Text>
@@ -206,26 +254,34 @@ export const TutorDetailScreen: React.FC = () => {
         {tutor.offerings.length === 0 ? (
           <Text style={styles.muted}>No offerings on file.</Text>
         ) : (
-          tutor.offerings.map((o) => (
-            <View key={o.id} style={styles.offeringItem}>
-              <Text style={styles.rowBold}>
-                {o.offeringDisplayName ?? o.offeringName ?? 'Offering'}
-              </Text>
-              <Text style={styles.row}>PT: {ptStatusLabel(o.status)}</Text>
-              <Text style={styles.row}>
-                Date: {formatDateTime(o.lastAttemptAt ?? o.passedAt)}
-              </Text>
-              <Text style={styles.row}>
-                Score:{' '}
-                {o.lastScore != null && o.lastMaxScore != null
-                  ? `${o.lastScore}/${o.lastMaxScore}`
-                  : '—'}
-              </Text>
-              <Text style={styles.row}>
-                Attempts: {o.attemptsUsed} used · {o.attemptsRemaining} left
-              </Text>
-            </View>
-          ))
+          <View style={styles.offeringsList}>
+            {tutor.offerings.map((o) => (
+              <View key={o.id} style={styles.offeringGridCard}>
+                <Text style={styles.offeringName}>
+                  {o.offeringDisplayName ?? o.offeringName ?? 'Offering'}
+                </Text>
+                <View
+                  style={[
+                    styles.offeringGridRow,
+                    !offeringFieldsInRow && styles.offeringGridRowStacked,
+                  ]}
+                >
+                  <OfferingDetailField
+                    label="PT Passed on"
+                    value={formatDate(o.passedAt ?? o.lastAttemptAt)}
+                  />
+                  <OfferingDetailField
+                    label="Score"
+                    value={
+                      o.lastScore != null && o.lastMaxScore != null
+                        ? `${o.lastScore}/${o.lastMaxScore}`
+                        : '—'
+                    }
+                  />
+                </View>
+              </View>
+            ))}
+          </View>
         )}
       </View>
 
@@ -410,6 +466,15 @@ export const TutorDetailScreen: React.FC = () => {
           onClose={() => setSelectedDocument(null)}
         />
       ) : null}
+
+      <BankDetailsModal
+        visible={bankModalVisible}
+        initialValues={tutor.user?.bankDetails}
+        saving={savingBankDetails}
+        error={bankDetailsSaveError}
+        onClose={() => setBankModalVisible(false)}
+        onSubmit={handleSaveBankDetails}
+      />
     </ScrollView>
   );
 };
@@ -487,20 +552,75 @@ const styles = StyleSheet.create({
   offeringsCount: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#7e22ce',
+    color: '#0f766e',
+  },
+  offeringsSection: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#99f6e4',
+    padding: 16,
+    marginBottom: 12,
+  },
+  offeringsSectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 12,
+  },
+  offeringsSectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f766e',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  offeringsList: {
+    gap: 12,
+  },
+  offeringGridCard: {
+    backgroundColor: '#f0fdfa',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ccfbf1',
+    padding: 12,
+    gap: 10,
+  },
+  offeringName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#134e4a',
+  },
+  offeringGridRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  offeringGridRowStacked: {
+    flexDirection: 'column',
+    gap: 10,
+  },
+  offeringField: {
+    flex: 1,
+    minWidth: 0,
+  },
+  offeringFieldLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#0f766e',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  offeringFieldValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#134e4a',
+    marginTop: 2,
   },
   addressCount: {
     fontSize: 11,
     fontWeight: '600',
     color: '#0e7490',
-  },
-  offeringItem: {
-    marginBottom: 10,
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#f3e8ff',
-    backgroundColor: '#faf5ff',
   },
   addressItem: {
     marginBottom: 10,

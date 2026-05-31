@@ -40,6 +40,7 @@ export type TutorDetailRecord = {
       accountNumberMasked?: string | null;
       accountNumber?: string | null;
       gstNumber?: string | null;
+      panNumber?: string | null;
       isComplete?: boolean;
     } | null;
   } | null;

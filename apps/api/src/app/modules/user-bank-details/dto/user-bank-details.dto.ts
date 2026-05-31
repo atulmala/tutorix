@@ -11,6 +11,9 @@ export class UserBankDetails {
   @Field(() => String, { nullable: true })
   gstNumber?: string | null;
 
+  @Field(() => String, { nullable: true })
+  panNumber?: string | null;
+
   @Field()
   accountNumberMasked: string;
 

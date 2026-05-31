@@ -6,6 +6,7 @@ export const SAVE_MY_BANK_DETAILS = gql`
       bankName
       ifscCode
       gstNumber
+      panNumber
       accountNumberMasked
       isComplete
     }

@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { INDIAN_BANKS, OTHER_BANK_OPTION } from '@tutorix/shared-utils';
+import { INDIAN_BANKS, OTHER_BANK_OPTION, validateBankDetailsForm } from '@tutorix/shared-utils';
 
 export type BankDetailsFormValues = {
   bankName: string;
   accountNumber: string;
   ifscCode: string;
+  panNumber: string;
   gstNumber: string;
 };
 
@@ -13,6 +14,7 @@ type BankDetailsModalProps = {
   initialValues?: {
     bankName?: string | null;
     ifscCode?: string | null;
+    panNumber?: string | null;
     gstNumber?: string | null;
   } | null;
   saving?: boolean;
@@ -25,6 +27,7 @@ const EMPTY_FORM: BankDetailsFormValues = {
   bankName: '',
   accountNumber: '',
   ifscCode: '',
+  panNumber: '',
   gstNumber: '',
 };
 
@@ -50,6 +53,7 @@ export function BankDetailsModal({
   const [customBankName, setCustomBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [ifscCode, setIfscCode] = useState('');
+  const [panNumber, setPanNumber] = useState('');
   const [gstNumber, setGstNumber] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -64,6 +68,7 @@ export function BankDetailsModal({
     );
     setAccountNumber('');
     setIfscCode(initialValues?.ifscCode?.trim().toUpperCase() ?? '');
+    setPanNumber(initialValues?.panNumber?.trim().toUpperCase() ?? '');
     setGstNumber(initialValues?.gstNumber?.trim() ?? '');
     setValidationError(null);
   }, [open, initialValues]);
@@ -80,34 +85,19 @@ export function BankDetailsModal({
   }
 
   const handleSubmit = () => {
-    if (!resolvedBankName) {
-      setValidationError('Please select or enter a bank name.');
-      return;
-    }
-    if (!/^\d{9,18}$/.test(accountNumber.trim())) {
-      setValidationError('Account number must be 9 to 18 digits.');
-      return;
-    }
-    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode.trim().toUpperCase())) {
-      setValidationError('Please enter a valid IFSC code (e.g. HDFC0001234).');
-      return;
-    }
-    const gst = gstNumber.trim();
-    if (
-      gst &&
-      !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gst.toUpperCase())
-    ) {
-      setValidationError('Please enter a valid GST number or leave it blank.');
-      return;
-    }
-
-    setValidationError(null);
-    onSubmit({
+    const result = validateBankDetailsForm({
       bankName: resolvedBankName,
-      accountNumber: accountNumber.trim(),
-      ifscCode: ifscCode.trim().toUpperCase(),
-      gstNumber: gst,
+      accountNumber,
+      ifscCode,
+      panNumber,
+      gstNumber,
     });
+    if (result.ok === false) {
+      setValidationError(result.message);
+      return;
+    }
+    setValidationError(null);
+    onSubmit(result.normalized);
   };
 
   const displayError = validationError ?? error;
@@ -198,6 +188,21 @@ export function BankDetailsModal({
               className="w-full rounded-md border border-subtle bg-white px-md py-sm uppercase text-primary shadow-sm focus:border-primary focus:outline-none"
               placeholder="HDFC0001234"
               maxLength={11}
+            />
+          </div>
+
+          <div className="space-y-1 text-left">
+            <label htmlFor="pan-number" className="text-sm font-medium text-primary">
+              PAN
+            </label>
+            <input
+              id="pan-number"
+              type="text"
+              value={panNumber}
+              onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+              className="w-full rounded-md border border-subtle bg-white px-md py-sm uppercase text-primary shadow-sm focus:border-primary focus:outline-none"
+              placeholder="ABCDE1234F"
+              maxLength={10}
             />
           </div>
 

@@ -70,6 +70,7 @@ export const GET_ADMIN_TUTOR_DETAIL = gql`
           bankName
           ifscCode
           gstNumber
+          panNumber
           accountNumberMasked
           accountNumber
           isComplete

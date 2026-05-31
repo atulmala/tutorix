@@ -30,6 +30,7 @@ export const TutorProfilePage: React.FC = () => {
             bankName: values.bankName,
             accountNumber: values.accountNumber,
             ifscCode: values.ifscCode,
+            panNumber: values.panNumber,
             gstNumber: values.gstNumber.trim() || null,
           },
         },
