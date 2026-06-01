@@ -61,6 +61,9 @@ export const TutorProfilePage: React.FC = () => {
             freeDemoOffered: values.freeDemoOffered,
             offlineEnabled: values.offlineEnabled,
             offlineBaseRate: values.offlineEnabled ? values.offlineBaseRate : null,
+            offlineBaseDiscountPct: values.offlineEnabled
+              ? values.offlineBaseDiscountPct
+              : null,
             offlineSlab2DiscountPct: values.offlineEnabled
               ? values.offlineSlab2DiscountPct
               : null,
@@ -69,6 +72,9 @@ export const TutorProfilePage: React.FC = () => {
               : null,
             onlineEnabled: values.onlineEnabled,
             onlineBaseRate: values.onlineEnabled ? values.onlineBaseRate : null,
+            onlineBaseDiscountPct: values.onlineEnabled
+              ? values.onlineBaseDiscountPct
+              : null,
             onlineSlab2DiscountPct: values.onlineEnabled ? values.onlineSlab2DiscountPct : null,
             onlineSlab3DiscountPct: values.onlineEnabled ? values.onlineSlab3DiscountPct : null,
           },

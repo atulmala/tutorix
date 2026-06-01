@@ -162,6 +162,7 @@ export const GET_MY_TUTOR_DETAIL = gql`
         id
         offeringName
         offeringDisplayName
+        offeringFullLabel
         status
         attemptsUsed
         attemptsRemaining
@@ -175,10 +176,12 @@ export const GET_MY_TUTOR_DETAIL = gql`
           freeDemoOffered
           offlineEnabled
           offlineBaseRate
+          offlineBaseDiscountPct
           offlineSlab2DiscountPct
           offlineSlab3DiscountPct
           onlineEnabled
           onlineBaseRate
+          onlineBaseDiscountPct
           onlineSlab2DiscountPct
           onlineSlab3DiscountPct
           isComplete

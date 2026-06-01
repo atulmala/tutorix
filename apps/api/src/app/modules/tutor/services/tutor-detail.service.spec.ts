@@ -13,6 +13,8 @@ import { DocumentService } from '../../document/services/document.service';
 import { DocumentScreeningService } from '../../document/services/document-screening.service';
 import { UserBankDetailsService } from '../../user-bank-details/services/user-bank-details.service';
 import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
+import { OfferingService } from '../../offerings/services/offering.service';
+import { ProficiencyTestService } from '../../proficiency/services/proficiency-test.service';
 import { UserRole } from '../../auth/enums/user-role.enum';
 import { TutorCertificationStageEnum } from '../enums/tutor.enums';
 import { YearsOfExperienceEnum } from '../enums/years-of-experience.enum';
@@ -43,6 +45,8 @@ describe('TutorDetailService', () => {
     findByTutorOfferingIds: jest.Mock;
     mapToGraphql: jest.Mock;
   };
+  let offeringService: { findAll: jest.Mock };
+  let proficiencyTestService: { findByIdsWithOfferings: jest.Mock };
 
   beforeEach(async () => {
     tutorService = {
@@ -68,6 +72,10 @@ describe('TutorDetailService', () => {
       findByTutorOfferingIds: jest.fn().mockResolvedValue(new Map()),
       mapToGraphql: jest.fn().mockReturnValue(null),
     };
+    offeringService = { findAll: jest.fn().mockResolvedValue([]) };
+    proficiencyTestService = {
+      findByIdsWithOfferings: jest.fn().mockResolvedValue([]),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -80,6 +88,8 @@ describe('TutorDetailService', () => {
         { provide: DocumentScreeningService, useValue: documentScreeningService },
         { provide: UserBankDetailsService, useValue: userBankDetailsService },
         { provide: TutorRateCardService, useValue: tutorRateCardService },
+        { provide: OfferingService, useValue: offeringService },
+        { provide: ProficiencyTestService, useValue: proficiencyTestService },
       ],
     }).compile();
 

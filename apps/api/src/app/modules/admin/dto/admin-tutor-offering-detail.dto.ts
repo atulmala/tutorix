@@ -13,6 +13,13 @@ export class AdminTutorOfferingDetail {
   @Field({ nullable: true })
   offeringDisplayName?: string;
 
+  @Field({
+    nullable: true,
+    description:
+      'Full offering label for display (e.g. English CBSE classes 4, or full path for other study areas)',
+  })
+  offeringFullLabel?: string;
+
   @Field(() => TutorOfferingStatusEnum)
   status: TutorOfferingStatusEnum;
 

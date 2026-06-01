@@ -7,6 +7,7 @@ export const RATE_CARD_SLABS = [
 export type RateCardModeValues = {
   enabled: boolean;
   baseRate: string;
+  baseDiscountPct: string;
   slab2DiscountPct: string;
   slab3DiscountPct: string;
 };
@@ -21,10 +22,12 @@ export type RateCardFormValues = {
   freeDemoOffered: boolean;
   offlineEnabled: boolean;
   offlineBaseRate: number;
+  offlineBaseDiscountPct: number;
   offlineSlab2DiscountPct: number | null;
   offlineSlab3DiscountPct: number | null;
   onlineEnabled: boolean;
   onlineBaseRate: number;
+  onlineBaseDiscountPct: number;
   onlineSlab2DiscountPct: number | null;
   onlineSlab3DiscountPct: number | null;
 };
@@ -33,10 +36,12 @@ export type RateCardLike = {
   freeDemoOffered?: boolean | null;
   offlineEnabled?: boolean | null;
   offlineBaseRate?: number | null;
+  offlineBaseDiscountPct?: number | null;
   offlineSlab2DiscountPct?: number | null;
   offlineSlab3DiscountPct?: number | null;
   onlineEnabled?: boolean | null;
   onlineBaseRate?: number | null;
+  onlineBaseDiscountPct?: number | null;
   onlineSlab2DiscountPct?: number | null;
   onlineSlab3DiscountPct?: number | null;
 };
@@ -80,9 +85,22 @@ function parseOptionalDiscount(value: string): number | null {
   return parsed;
 }
 
+function parseBaseDiscount(value: string): number {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return 0;
+  }
+  const parsed = Number.parseInt(trimmed, 10);
+  if (Number.isNaN(parsed)) {
+    return Number.NaN;
+  }
+  return parsed;
+}
+
 type ModeValidationSuccess = {
   ok: true;
   baseRate: number;
+  baseDiscount: number;
   slab2: number | null;
   slab3: number | null;
 };
@@ -98,16 +116,25 @@ function validateMode(
   modeLabel: string,
   enabled: boolean,
   baseRate: string,
+  baseDiscountPct: string,
   slab2DiscountPct: string,
   slab3DiscountPct: string,
 ): ModeValidationResult {
   if (!enabled) {
-    return { ok: true, baseRate: 0, slab2: null, slab3: null };
+    return { ok: true, baseRate: 0, baseDiscount: 0, slab2: null, slab3: null };
   }
 
   const parsedBase = Number.parseInt(baseRate.trim(), 10);
   if (Number.isNaN(parsedBase) || parsedBase < 1) {
     return { ok: false, message: `${modeLabel}: enter a base rate of at least ₹1.` };
+  }
+
+  const baseDiscount = parseBaseDiscount(baseDiscountPct);
+  if (Number.isNaN(baseDiscount)) {
+    return { ok: false, message: `${modeLabel}: enter a valid base discount.` };
+  }
+  if (baseDiscount < 0 || baseDiscount > 99) {
+    return { ok: false, message: `${modeLabel}: base discount must be between 0 and 99%.` };
   }
 
   const slab2 = parseOptionalDiscount(slab2DiscountPct);
@@ -126,6 +153,13 @@ function validateMode(
     return { ok: false, message: `${modeLabel}: 11+ class discount must be between 0 and 99%.` };
   }
 
+  if (slab2 != null && baseDiscount > slab2) {
+    return {
+      ok: false,
+      message: `${modeLabel}: 5–10 class discount must be at least the base discount.`,
+    };
+  }
+
   if (slab2 != null && slab3 != null && slab3 < slab2) {
     return {
       ok: false,
@@ -133,7 +167,7 @@ function validateMode(
     };
   }
 
-  return { ok: true, baseRate: parsedBase, slab2, slab3 };
+  return { ok: true, baseRate: parsedBase, baseDiscount, slab2, slab3 };
 }
 
 export function validateRateCardForm(
@@ -145,6 +179,7 @@ export function validateRateCardForm(
     'Offline',
     values.offline.enabled,
     values.offline.baseRate,
+    values.offline.baseDiscountPct,
     values.offline.slab2DiscountPct,
     values.offline.slab3DiscountPct,
   );
@@ -156,6 +191,7 @@ export function validateRateCardForm(
     'Online',
     values.online.enabled,
     values.online.baseRate,
+    values.online.baseDiscountPct,
     values.online.slab2DiscountPct,
     values.online.slab3DiscountPct,
   );
@@ -173,10 +209,12 @@ export function validateRateCardForm(
       freeDemoOffered: values.freeDemoOffered,
       offlineEnabled: values.offline.enabled,
       offlineBaseRate: offline.baseRate,
+      offlineBaseDiscountPct: offline.baseDiscount,
       offlineSlab2DiscountPct: offline.slab2,
       offlineSlab3DiscountPct: offline.slab3,
       onlineEnabled: values.online.enabled,
       onlineBaseRate: online.baseRate,
+      onlineBaseDiscountPct: online.baseDiscount,
       onlineSlab2DiscountPct: online.slab2,
       onlineSlab3DiscountPct: online.slab3,
     },
@@ -190,10 +228,18 @@ export function formatRateCardSummary(rateCard: RateCardLike | null | undefined)
 
   const parts: string[] = [];
   if (rateCard?.offlineEnabled && rateCard.offlineBaseRate) {
-    parts.push(`${formatInr(rateCard.offlineBaseRate)}/class offline`);
+    const effective = calculateEffectiveRate(
+      rateCard.offlineBaseRate,
+      rateCard.offlineBaseDiscountPct ?? 0,
+    );
+    parts.push(`${formatInr(effective)}/class offline`);
   }
   if (rateCard?.onlineEnabled && rateCard.onlineBaseRate) {
-    parts.push(`${formatInr(rateCard.onlineBaseRate)}/class online`);
+    const effective = calculateEffectiveRate(
+      rateCard.onlineBaseRate,
+      rateCard.onlineBaseDiscountPct ?? 0,
+    );
+    parts.push(`${formatInr(effective)}/class online`);
   }
   if (rateCard?.freeDemoOffered) {
     parts.push('Demo: Yes');
@@ -210,6 +256,10 @@ export function rateCardToFormInput(rateCard: RateCardLike | null | undefined): 
         rateCard?.offlineEnabled && rateCard.offlineBaseRate
           ? String(rateCard.offlineBaseRate)
           : '',
+      baseDiscountPct:
+        rateCard?.offlineBaseDiscountPct != null && rateCard.offlineBaseDiscountPct > 0
+          ? String(rateCard.offlineBaseDiscountPct)
+          : '',
       slab2DiscountPct:
         rateCard?.offlineSlab2DiscountPct != null
           ? String(rateCard.offlineSlab2DiscountPct)
@@ -224,6 +274,10 @@ export function rateCardToFormInput(rateCard: RateCardLike | null | undefined): 
       baseRate:
         rateCard?.onlineEnabled && rateCard.onlineBaseRate
           ? String(rateCard.onlineBaseRate)
+          : '',
+      baseDiscountPct:
+        rateCard?.onlineBaseDiscountPct != null && rateCard.onlineBaseDiscountPct > 0
+          ? String(rateCard.onlineBaseDiscountPct)
           : '',
       slab2DiscountPct:
         rateCard?.onlineSlab2DiscountPct != null

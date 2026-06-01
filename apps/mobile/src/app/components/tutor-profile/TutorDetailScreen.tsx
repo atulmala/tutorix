@@ -25,6 +25,7 @@ import {
   monthsToExperienceDuration,
   sortQualificationsHighestFirst,
   sumExperienceDurations,
+  formatOfferingLabelForDisplay,
   type OnboardingTimelineEntry,
 } from '@tutorix/shared-utils';
 import type { BankDetailsFormValues, TutorDetailRecord } from '@tutorix/tutor-detail-ui';
@@ -257,8 +258,13 @@ export const TutorDetailScreen: React.FC = () => {
           <View style={styles.offeringsList}>
             {tutor.offerings.map((o) => (
               <View key={o.id} style={styles.offeringGridCard}>
-                <Text style={styles.offeringName}>
-                  {o.offeringDisplayName ?? o.offeringName ?? 'Offering'}
+                <Text style={styles.offeringName} numberOfLines={2}>
+                  {formatOfferingLabelForDisplay(
+                    o.offeringFullLabel ??
+                      o.offeringDisplayName ??
+                      o.offeringName ??
+                      'Offering',
+                  )}
                 </Text>
                 <View
                   style={[
@@ -267,7 +273,7 @@ export const TutorDetailScreen: React.FC = () => {
                   ]}
                 >
                   <OfferingDetailField
-                    label="PT Passed on"
+                    label="Date"
                     value={formatDate(o.passedAt ?? o.lastAttemptAt)}
                   />
                   <OfferingDetailField

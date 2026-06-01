@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { ProficiencyTestEntity } from '../entities/proficiency-test.entity';
 import { PTQuestionEntity } from '../entities/pt-question.entity';
 import { QuestionDifficultyEnum } from '../enums/question-difficulty.enum';
@@ -91,6 +91,21 @@ export class ProficiencyTestService {
    * One PT can map to many offerings (e.g. common PT for CBSE Class 4 & 5 Maths).
    * @throws NotFoundException if no PT found for the offering
    */
+  /**
+   * Load proficiency tests with linked leaf offerings (for class-range labels).
+   */
+  async findByIdsWithOfferings(ids: number[]): Promise<ProficiencyTestEntity[]> {
+    const uniqueIds = [...new Set(ids.filter((id) => id > 0))];
+    if (uniqueIds.length === 0) {
+      return [];
+    }
+
+    return this.proficiencyTestRepository.find({
+      where: { id: In(uniqueIds), deleted: false },
+      relations: ['offerings'],
+    });
+  }
+
   async getTestForOffering(offeringId: number): Promise<ProficiencyTestEntity> {
     const test = await this.proficiencyTestRepository
       .createQueryBuilder('pt')
