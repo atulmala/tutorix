@@ -13,7 +13,10 @@ import {
 } from 'react-native';
 import { useMutation, useQuery } from '@apollo/client';
 import { GET_MY_TUTOR_DETAIL } from '@tutorix/shared-graphql/queries';
-import { SAVE_MY_BANK_DETAILS } from '@tutorix/shared-graphql/mutations';
+import {
+  SAVE_MY_BANK_DETAILS,
+  SAVE_MY_TUTOR_OFFERING_RATE_CARD,
+} from '@tutorix/shared-graphql/mutations';
 import {
   buildOnboardingTimeline,
   documentStatusLabel,
@@ -28,9 +31,16 @@ import {
   formatOfferingLabelForDisplay,
   type OnboardingTimelineEntry,
 } from '@tutorix/shared-utils';
-import type { BankDetailsFormValues, TutorDetailRecord } from '@tutorix/tutor-detail-ui';
+import type {
+  BankDetailsFormValues,
+  RateCardFormValues,
+  TutorDetailRecord,
+} from '@tutorix/tutor-detail-ui';
 import { BankDetailsSection } from './BankDetailsSection';
 import { BankDetailsModal } from './BankDetailsModal';
+import { RateCardModal } from './RateCardModal';
+
+type TutorOffering = TutorDetailRecord['offerings'][number];
 
 type MyTutorDetailData = {
   myTutorDetail: TutorDetailRecord;
@@ -149,8 +159,11 @@ export const TutorDetailScreen: React.FC = () => {
   const [selectedDocument, setSelectedDocument] = useState<TutorDocumentDetail | null>(null);
   const [bankModalVisible, setBankModalVisible] = useState(false);
   const [bankDetailsSaveError, setBankDetailsSaveError] = useState<string | null>(null);
+  const [rateCardOffering, setRateCardOffering] = useState<TutorOffering | null>(null);
+  const [rateCardSaveError, setRateCardSaveError] = useState<string | null>(null);
 
   const [saveBankDetails, { loading: savingBankDetails }] = useMutation(SAVE_MY_BANK_DETAILS);
+  const [saveRateCard, { loading: savingRateCard }] = useMutation(SAVE_MY_TUTOR_OFFERING_RATE_CARD);
   const { width: windowWidth } = useWindowDimensions();
   const stackProfileSections = windowWidth < 768;
   const offeringFieldsInRow = windowWidth >= 400;
@@ -178,6 +191,45 @@ export const TutorDetailScreen: React.FC = () => {
     () => sortQualificationsHighestFirst(tutor?.qualifications ?? []),
     [tutor?.qualifications],
   );
+
+  const handleSaveRateCard = async (tutorOfferingId: number, values: RateCardFormValues) => {
+    setRateCardSaveError(null);
+    try {
+      await saveRateCard({
+        variables: {
+          input: {
+            tutorOfferingId,
+            freeDemoOffered: values.freeDemoOffered,
+            offlineEnabled: values.offlineEnabled,
+            offlineBaseRate: values.offlineEnabled ? values.offlineBaseRate : null,
+            offlineBaseDiscountPct: values.offlineEnabled
+              ? values.offlineBaseDiscountPct
+              : null,
+            offlineSlab2DiscountPct: values.offlineEnabled
+              ? values.offlineSlab2DiscountPct
+              : null,
+            offlineSlab3DiscountPct: values.offlineEnabled
+              ? values.offlineSlab3DiscountPct
+              : null,
+            onlineEnabled: values.onlineEnabled,
+            onlineBaseRate: values.onlineEnabled ? values.onlineBaseRate : null,
+            onlineBaseDiscountPct: values.onlineEnabled
+              ? values.onlineBaseDiscountPct
+              : null,
+            onlineSlab2DiscountPct: values.onlineEnabled ? values.onlineSlab2DiscountPct : null,
+            onlineSlab3DiscountPct: values.onlineEnabled ? values.onlineSlab3DiscountPct : null,
+          },
+        },
+      });
+      await refetch();
+      setRateCardOffering(null);
+    } catch (err) {
+      setRateCardSaveError(
+        err instanceof Error ? err.message : 'Could not save rate card.',
+      );
+      throw err;
+    }
+  };
 
   const handleSaveBankDetails = async (values: BankDetailsFormValues) => {
     setBankDetailsSaveError(null);
@@ -256,37 +308,59 @@ export const TutorDetailScreen: React.FC = () => {
           <Text style={styles.muted}>No offerings on file.</Text>
         ) : (
           <View style={styles.offeringsList}>
-            {tutor.offerings.map((o) => (
-              <View key={o.id} style={styles.offeringGridCard}>
-                <Text style={styles.offeringName} numberOfLines={2}>
-                  {formatOfferingLabelForDisplay(
-                    o.offeringFullLabel ??
-                      o.offeringDisplayName ??
-                      o.offeringName ??
-                      'Offering',
-                  )}
-                </Text>
-                <View
-                  style={[
-                    styles.offeringGridRow,
-                    !offeringFieldsInRow && styles.offeringGridRowStacked,
-                  ]}
-                >
-                  <OfferingDetailField
-                    label="Date"
-                    value={formatDate(o.passedAt ?? o.lastAttemptAt)}
-                  />
-                  <OfferingDetailField
-                    label="Score"
-                    value={
-                      o.lastScore != null && o.lastMaxScore != null
-                        ? `${o.lastScore}/${o.lastMaxScore}`
-                        : '—'
-                    }
-                  />
+            {tutor.offerings.map((o) => {
+              const hasRateCard = Boolean(o.rateCard?.isComplete);
+              return (
+                <View key={o.id} style={styles.offeringGridCard}>
+                  <Text style={styles.offeringName} numberOfLines={2}>
+                    {formatOfferingLabelForDisplay(
+                      o.offeringFullLabel ??
+                        o.offeringDisplayName ??
+                        o.offeringName ??
+                        'Offering',
+                    )}
+                  </Text>
+                  <View
+                    style={[
+                      styles.offeringGridRow,
+                      !offeringFieldsInRow && styles.offeringGridRowStacked,
+                    ]}
+                  >
+                    <OfferingDetailField
+                      label="Date"
+                      value={formatDate(o.passedAt ?? o.lastAttemptAt)}
+                    />
+                    <OfferingDetailField
+                      label="Score"
+                      value={
+                        o.lastScore != null && o.lastMaxScore != null
+                          ? `${o.lastScore}/${o.lastMaxScore}`
+                          : '—'
+                      }
+                    />
+                  </View>
+                  <View style={styles.rateCardRow}>
+                    {hasRateCard ? (
+                      <View style={styles.configuredBadge}>
+                        <Text style={styles.configuredBadgeText}>Configured</Text>
+                      </View>
+                    ) : null}
+                    <TouchableOpacity
+                      style={styles.rateCardButton}
+                      onPress={() => {
+                        setRateCardSaveError(null);
+                        setRateCardOffering(o);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.rateCardButtonText}>
+                        {hasRateCard ? 'Edit rate card' : 'Rate card'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
       </View>
@@ -473,6 +547,33 @@ export const TutorDetailScreen: React.FC = () => {
         />
       ) : null}
 
+      <RateCardModal
+        visible={rateCardOffering != null}
+        offeringName={
+          rateCardOffering
+            ? formatOfferingLabelForDisplay(
+                rateCardOffering.offeringFullLabel ??
+                  rateCardOffering.offeringDisplayName ??
+                  rateCardOffering.offeringName ??
+                  'Offering',
+              )
+            : 'Offering'
+        }
+        initialValues={rateCardOffering?.rateCard}
+        saving={savingRateCard}
+        error={rateCardSaveError}
+        onClose={() => {
+          setRateCardOffering(null);
+          setRateCardSaveError(null);
+        }}
+        onSubmit={async (values) => {
+          if (!rateCardOffering) {
+            return;
+          }
+          await handleSaveRateCard(rateCardOffering.id, values);
+        }}
+      />
+
       <BankDetailsModal
         visible={bankModalVisible}
         initialValues={tutor.user?.bankDetails}
@@ -622,6 +723,37 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#134e4a',
     marginTop: 2,
+  },
+  rateCardRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  configuredBadge: {
+    backgroundColor: '#d1fae5',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  configuredBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#047857',
+  },
+  rateCardButton: {
+    borderWidth: 1,
+    borderColor: '#99f6e4',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+  },
+  rateCardButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#0f766e',
   },
   addressCount: {
     fontSize: 11,
