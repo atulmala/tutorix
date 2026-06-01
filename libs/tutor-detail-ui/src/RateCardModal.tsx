@@ -224,16 +224,18 @@ type RateCardModalProps = {
   open: boolean;
   offeringName: string;
   initialValues?: RateCardLike | null;
+  readOnly?: boolean;
   saving?: boolean;
   error?: string | null;
   onClose: () => void;
-  onSubmit: (values: RateCardFormValues) => void;
+  onSubmit?: (values: RateCardFormValues) => void;
 };
 
 export function RateCardModal({
   open,
   offeringName,
   initialValues,
+  readOnly = false,
   saving = false,
   error,
   onClose,
@@ -255,16 +257,23 @@ export function RateCardModal({
     );
   }, [open, initialValues]);
 
-  const modalTitle = useMemo(
-    () => (isRateCardComplete(initialValues) ? 'Edit rate card' : 'Rate card'),
-    [initialValues],
-  );
+  const modalTitle = useMemo(() => {
+    if (readOnly) {
+      return 'View rate card';
+    }
+    return isRateCardComplete(initialValues) ? 'Edit rate card' : 'Rate card';
+  }, [initialValues, readOnly]);
+
+  const fieldsDisabled = readOnly || saving;
 
   if (!open) {
     return null;
   }
 
   const handleSubmit = () => {
+    if (readOnly || !onSubmit) {
+      return;
+    }
     const result = validateRateCardForm(form);
     if (result.ok === false) {
       setValidationError(result.message);
@@ -274,7 +283,7 @@ export function RateCardModal({
     onSubmit(result.normalized);
   };
 
-  const displayError = validationError ?? error;
+  const displayError = readOnly ? null : validationError ?? error;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
@@ -290,7 +299,11 @@ export function RateCardModal({
               {modalTitle}
             </h3>
             <p className="mt-1 text-sm text-muted">{offeringName}</p>
-            <p className="mt-0.5 text-xs text-muted">Set how you charge for this offering.</p>
+            <p className="mt-0.5 text-xs text-muted">
+              {readOnly
+                ? 'How this tutor charges for this offering.'
+                : 'Set how you charge for this offering.'}
+            </p>
           </div>
           <button
             type="button"
@@ -303,12 +316,16 @@ export function RateCardModal({
         </div>
 
         <div className="mt-5 space-y-4">
-          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-purple-100 bg-purple-50/30 px-3 py-2.5">
+          <label
+            className={`flex items-center gap-2 rounded-lg border border-purple-100 bg-purple-50/30 px-3 py-2.5${
+              readOnly ? '' : ' cursor-pointer'
+            }`}
+          >
             <input
               type="checkbox"
               checked={form.freeDemoOffered}
               onChange={(e) => setForm((prev) => ({ ...prev, freeDemoOffered: e.target.checked }))}
-              disabled={saving}
+              disabled={fieldsDisabled}
               className="h-4 w-4 rounded border-purple-300 text-purple-600 focus:ring-purple-500"
             />
             <span className="text-sm font-medium text-purple-950">
@@ -334,7 +351,7 @@ export function RateCardModal({
                   title="Offer offline classes"
                   values={form.offline}
                   onChange={(offline) => setForm((prev) => ({ ...prev, offline }))}
-                  disabled={saving}
+                  disabled={fieldsDisabled}
                 />
               </div>
               <div
@@ -347,7 +364,7 @@ export function RateCardModal({
                   title="Offer online classes"
                   values={form.online}
                   onChange={(online) => setForm((prev) => ({ ...prev, online }))}
-                  disabled={saving}
+                  disabled={fieldsDisabled}
                 />
               </div>
             </div>
@@ -360,22 +377,34 @@ export function RateCardModal({
           ) : null}
 
           <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-subtle px-4 py-2 text-sm font-medium text-primary transition hover:bg-subtle"
-              disabled={saving}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={saving}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {saving ? 'Saving…' : 'Save rate card'}
-            </button>
+            {readOnly ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+              >
+                Close
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-lg border border-subtle px-4 py-2 text-sm font-medium text-primary transition hover:bg-subtle"
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={saving}
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {saving ? 'Saving…' : 'Save rate card'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

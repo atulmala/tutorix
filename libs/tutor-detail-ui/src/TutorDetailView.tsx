@@ -7,7 +7,6 @@ import {
   formatDate,
   formatExperienceDuration,
   formatQualificationTitle,
-  formatRateCardSummary,
   monthsToExperienceDuration,
   ptStatusBadgeClass,
   ptStatusLabel,
@@ -123,6 +122,7 @@ const SECTION_STYLES: Record<string, SectionStyle> = {
     shadow: 'shadow-purple-100/40',
     header: 'bg-gradient-to-r from-purple-100 via-purple-50 to-white',
     headerText: 'text-purple-900',
+    headerMeta: 'text-purple-700/80',
     bar: 'bg-purple-500',
     body: 'bg-gradient-to-b from-purple-50/30 to-white',
     item: '',
@@ -153,7 +153,7 @@ function SectionCard({
 }: {
   title: string;
   styleKey: keyof typeof SECTION_STYLES;
-  headerMeta?: string;
+  headerMeta?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const styles = SECTION_STYLES[styleKey];
@@ -163,7 +163,7 @@ function SectionCard({
       className={`overflow-hidden rounded-2xl border shadow-md ${styles.border} ${styles.shadow} ${styles.section ?? ''}`}
     >
       <div
-        className={`flex items-center justify-between gap-3 border-b px-5 py-3.5 ${styles.header}`}
+        className={`flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5 ${styles.header}`}
       >
         <div className="flex min-w-0 items-center gap-3">
           <span className={`h-8 w-1 shrink-0 rounded-full ${styles.bar}`} aria-hidden />
@@ -172,11 +172,11 @@ function SectionCard({
           </h2>
         </div>
         {headerMeta ? (
-          <span
-            className={`shrink-0 text-xs font-semibold normal-case tracking-normal ${styles.headerMeta ?? 'text-muted'}`}
+          <div
+            className={`flex shrink-0 flex-wrap items-center justify-end gap-2 ${typeof headerMeta === 'string' ? `text-xs font-semibold normal-case tracking-normal ${styles.headerMeta ?? 'text-muted'}` : ''}`}
           >
-            {headerMeta}
-          </span>
+            {typeof headerMeta === 'string' ? <span>{headerMeta}</span> : headerMeta}
+          </div>
         ) : null}
       </div>
       <div className={`p-5 ${styles.body}`}>{children}</div>
@@ -245,7 +245,11 @@ function OfferingsSection({
   const showRateCardColumn = isAdmin || Boolean(onOpenRateCard);
 
   return (
-    <SectionCard title="Offerings" styleKey="offerings">
+    <SectionCard
+      title="Offerings"
+      styleKey="offerings"
+      headerMeta={formatEntryCount(offerings.length, 'offering', 'offerings')}
+    >
       {offerings.length === 0 ? (
         <p className="text-sm text-purple-800/70">No offerings on file.</p>
       ) : (
@@ -264,7 +268,6 @@ function OfferingsSection({
             </thead>
             <tbody>
               {offerings.map((offering, index) => {
-                const rateCardSummary = formatRateCardSummary(offering.rateCard);
                 const hasRateCard = Boolean(offering.rateCard?.isComplete);
 
                 return (
@@ -276,15 +279,20 @@ function OfferingsSection({
                         : SECTION_STYLES.offerings.tableRowOdd
                     }
                   >
-                    <td className="max-w-xs px-4 py-3 font-semibold text-purple-950">
-                      <OfferingLabel
-                        className="line-clamp-2"
-                        label={
-                          offering.offeringFullLabel ??
-                          offering.offeringDisplayName ??
-                          offering.offeringName
-                        }
-                      />
+                    <td className="max-w-xs px-4 py-3">
+                      <div className="flex items-start gap-3">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-purple-500 text-xs font-bold text-white">
+                          {index + 1}
+                        </span>
+                        <OfferingLabel
+                          className="line-clamp-2 font-semibold text-purple-950"
+                          label={
+                            offering.offeringFullLabel ??
+                            offering.offeringDisplayName ??
+                            offering.offeringName
+                          }
+                        />
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -308,9 +316,21 @@ function OfferingsSection({
                     {showRateCardColumn ? (
                       <td className="px-4 py-3">
                         {isAdmin ? (
-                          <span className="text-sm text-purple-900/70">
-                            {rateCardSummary ?? 'Not configured'}
-                          </span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm text-purple-900/70">
+                              {hasRateCard ? 'Created' : 'Not created'}
+                            </span>
+                            {onOpenRateCard ? (
+                              <button
+                                type="button"
+                                onClick={() => onOpenRateCard(offering)}
+                                disabled={!hasRateCard}
+                                className="rounded-lg border border-purple-200 bg-white px-3 py-1.5 text-xs font-semibold text-purple-800 transition hover:bg-purple-50 disabled:cursor-not-allowed disabled:border-purple-100 disabled:text-purple-400 disabled:hover:bg-white"
+                              >
+                                View rate card
+                              </button>
+                            ) : null}
+                          </div>
                         ) : (
                           <div className="flex flex-wrap items-center gap-2">
                             {hasRateCard ? (
@@ -421,18 +441,24 @@ function ExperienceSection({
     <SectionCard
       title="Experience"
       styleKey="experience"
-      headerMeta={formatEntryCount(experiences.length, 'experience', 'experiences')}
+      headerMeta={
+        <>
+          <span className="text-xs font-semibold normal-case tracking-normal text-violet-700/80">
+            {formatEntryCount(experiences.length, 'experience', 'experiences')}
+          </span>
+          {experiences.length > 0 ? (
+            <span className="inline-flex rounded-full bg-violet-500 px-3 py-1 text-xs font-bold text-white">
+              {formatExperienceDuration(totalExperience)} total
+            </span>
+          ) : null}
+        </>
+      }
     >
-      {experiences.length > 0 && (
-        <div className="mb-4 inline-flex rounded-full bg-violet-500 px-3 py-1 text-xs font-bold text-white">
-          {formatExperienceDuration(totalExperience)} total
-        </div>
-      )}
       {experiences.length === 0 ? (
         <p className="text-sm text-violet-800/70">No experience entries on file.</p>
       ) : (
         <ul className="space-y-3">
-          {experiences.map((exp) => {
+          {experiences.map((exp, index) => {
             const durationMonths = experienceDurationMonths(exp);
             const durationLabel =
               durationMonths != null
@@ -444,22 +470,29 @@ function ExperienceSection({
                 key={exp.id}
                 className={`rounded-xl border px-4 py-3 text-sm ${SECTION_STYLES.experience.item}`}
               >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="font-semibold text-violet-950">{exp.jobTitle}</p>
-                  {durationLabel && (
-                    <span className="rounded-full bg-violet-200/80 px-2.5 py-0.5 text-xs font-bold text-violet-900">
-                      {durationLabel}
-                    </span>
-                  )}
+                <div className="flex items-start gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold text-white">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <p className="font-semibold text-violet-950">{exp.jobTitle}</p>
+                      {durationLabel ? (
+                        <span className="rounded-full bg-violet-200/80 px-2.5 py-0.5 text-xs font-bold text-violet-900">
+                          {durationLabel}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-violet-900/70">
+                      {exp.employerName ?? 'Self-employed'}
+                      {exp.employerAddress ? ` · ${exp.employerAddress}` : ''}
+                    </p>
+                    <p className="mt-1 text-violet-800/60">
+                      {formatDate(exp.startDate)} –{' '}
+                      {exp.isCurrent ? 'Present' : formatDate(exp.endDate)}
+                    </p>
+                  </div>
                 </div>
-                <p className="mt-1 text-violet-900/70">
-                  {exp.employerName ?? 'Self-employed'}
-                  {exp.employerAddress ? ` · ${exp.employerAddress}` : ''}
-                </p>
-                <p className="mt-1 text-violet-800/60">
-                  {formatDate(exp.startDate)} –{' '}
-                  {exp.isCurrent ? 'Present' : formatDate(exp.endDate)}
-                </p>
               </li>
             );
           })}
@@ -574,9 +607,10 @@ export function TutorDetailView({
         />
       ) : null}
 
-      {!isAdmin && onSaveRateCard && rateCardOffering ? (
+      {rateCardOffering ? (
         <RateCardModal
           open={Boolean(rateCardOffering)}
+          readOnly={isAdmin}
           offeringName={
             rateCardOffering.offeringFullLabel ??
             rateCardOffering.offeringDisplayName ??
@@ -584,13 +618,17 @@ export function TutorDetailView({
             'Offering'
           }
           initialValues={rateCardOffering.rateCard}
-          saving={savingRateCard}
-          error={rateCardSaveError}
+          saving={isAdmin ? false : savingRateCard}
+          error={isAdmin ? null : rateCardSaveError}
           onClose={() => setRateCardOffering(null)}
-          onSubmit={async (values) => {
-            await onSaveRateCard(rateCardOffering.id, values);
-            setRateCardOffering(null);
-          }}
+          onSubmit={
+            !isAdmin && onSaveRateCard
+              ? async (values) => {
+                  await onSaveRateCard(rateCardOffering.id, values);
+                  setRateCardOffering(null);
+                }
+              : undefined
+          }
         />
       ) : null}
 
@@ -654,7 +692,11 @@ export function TutorDetailView({
             <EducationSection qualifications={tutor.qualifications} />
             <ExperienceSection experiences={tutor.experiences} />
           </div>
-          <OfferingsSection offerings={tutor.offerings} mode={mode} />
+          <OfferingsSection
+            offerings={tutor.offerings}
+            mode={mode}
+            onOpenRateCard={(offering) => setRateCardOffering(offering)}
+          />
         </>
       )}
 
