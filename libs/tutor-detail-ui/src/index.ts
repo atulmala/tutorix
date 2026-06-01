@@ -9,3 +9,4 @@ export {
 } from './AdminDocumentViewerModal';
 export { BankDetailsSection } from './BankDetailsSection';
 export { BankDetailsModal, type BankDetailsFormValues } from './BankDetailsModal';
+export { RateCardModal, type RateCardFormValuesExport as RateCardFormValues } from './RateCardModal';

@@ -15,3 +15,4 @@ export * from './onboarding-timeline';
 export * from './tutor-detail-formatters';
 export * from './indian-banks';
 export * from './bank-details-formatters';
+export * from './rate-card';

@@ -12,6 +12,7 @@ import { TutorOfferingService } from './tutor-offering.service';
 import { DocumentService } from '../../document/services/document.service';
 import { DocumentScreeningService } from '../../document/services/document-screening.service';
 import { UserBankDetailsService } from '../../user-bank-details/services/user-bank-details.service';
+import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
 import { UserRole } from '../../auth/enums/user-role.enum';
 import { TutorCertificationStageEnum } from '../enums/tutor.enums';
 import { YearsOfExperienceEnum } from '../enums/years-of-experience.enum';
@@ -38,6 +39,10 @@ describe('TutorDetailService', () => {
     findByUserId: jest.Mock;
     mapToGraphql: jest.Mock;
   };
+  let tutorRateCardService: {
+    findByTutorOfferingIds: jest.Mock;
+    mapToGraphql: jest.Mock;
+  };
 
   beforeEach(async () => {
     tutorService = {
@@ -59,6 +64,10 @@ describe('TutorDetailService', () => {
       findByUserId: jest.fn().mockResolvedValue(null),
       mapToGraphql: jest.fn().mockReturnValue(null),
     };
+    tutorRateCardService = {
+      findByTutorOfferingIds: jest.fn().mockResolvedValue(new Map()),
+      mapToGraphql: jest.fn().mockReturnValue(null),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -70,6 +79,7 @@ describe('TutorDetailService', () => {
         { provide: DocumentService, useValue: documentService },
         { provide: DocumentScreeningService, useValue: documentScreeningService },
         { provide: UserBankDetailsService, useValue: userBankDetailsService },
+        { provide: TutorRateCardService, useValue: tutorRateCardService },
       ],
     }).compile();
 

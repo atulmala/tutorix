@@ -127,6 +127,18 @@ export const GET_ADMIN_TUTOR_DETAIL = gql`
         passedAt
         lastTimeTakenSeconds
         createdDate
+        rateCard {
+          freeDemoOffered
+          offlineEnabled
+          offlineBaseRate
+          offlineSlab2DiscountPct
+          offlineSlab3DiscountPct
+          onlineEnabled
+          onlineBaseRate
+          onlineSlab2DiscountPct
+          onlineSlab3DiscountPct
+          isComplete
+        }
       }
       documents {
         id

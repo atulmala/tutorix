@@ -15,10 +15,12 @@ import { DocumentScreeningService } from '../../document/services/document-scree
 import { DocumentService } from '../../document/services/document.service';
 import { ExperienceService } from '../../experience/services/experience.service';
 import { TutorOfferingEntity } from '../entities/tutor-offering.entity';
+import { TutorOfferingRateCardEntity } from '../../tutor-rate-card/entities/tutor-offering-rate-card.entity';
 import { TutorOfferingService } from './tutor-offering.service';
 import { TutorQualificationService } from './tutor-qualification.service';
 import { TutorService } from './tutor.service';
 import { UserBankDetailsService } from '../../user-bank-details/services/user-bank-details.service';
+import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
 
 const PT_MAX_ATTEMPTS = 2;
 
@@ -32,6 +34,7 @@ export class TutorDetailService {
     private readonly documentService: DocumentService,
     private readonly documentScreeningService: DocumentScreeningService,
     private readonly userBankDetailsService: UserBankDetailsService,
+    private readonly tutorRateCardService: TutorRateCardService,
   ) {}
 
   async getTutorDetail(tutorId: number): Promise<AdminTutorDetail> {
@@ -46,6 +49,10 @@ export class TutorDetailService {
 
     const screeningMap = await this.documentScreeningService.findByDocumentIds(
       documents.map((doc) => doc.id),
+    );
+
+    const rateCardMap = await this.tutorRateCardService.findByTutorOfferingIds(
+      offerings.map((offering) => offering.id),
     );
 
     const documentDetails = await Promise.all(
@@ -84,7 +91,9 @@ export class TutorDetailService {
       addresses: tutor.addresses ?? [],
       qualifications,
       experiences,
-      offerings: offerings.map((offering) => this.mapOfferingDetail(offering)),
+      offerings: offerings.map((offering) =>
+        this.mapOfferingDetail(offering, rateCardMap.get(offering.id) ?? null),
+      ),
       documents: documentDetails,
     };
   }
@@ -130,7 +139,10 @@ export class TutorDetailService {
     };
   }
 
-  private mapOfferingDetail(offering: TutorOfferingEntity): AdminTutorOfferingDetail {
+  private mapOfferingDetail(
+    offering: TutorOfferingEntity,
+    rateCardEntity: TutorOfferingRateCardEntity | null,
+  ): AdminTutorOfferingDetail {
     return {
       id: offering.id,
       offeringName: offering.offering?.name,
@@ -144,6 +156,7 @@ export class TutorDetailService {
       passedAt: offering.passedAt,
       lastTimeTakenSeconds: offering.lastTimeTakenSeconds,
       createdDate: offering.createdDate,
+      rateCard: this.tutorRateCardService.mapToGraphql(rateCardEntity),
     };
   }
 
