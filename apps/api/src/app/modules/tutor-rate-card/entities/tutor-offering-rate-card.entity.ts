@@ -17,6 +17,9 @@ export class TutorOfferingRateCardEntity extends QBaseEntity {
   @Column({ name: 'offline_base_rate', type: 'integer', nullable: true })
   offlineBaseRate?: number | null;
 
+  @Column({ name: 'offline_base_discount_pct', type: 'smallint', default: 0 })
+  offlineBaseDiscountPct: number;
+
   @Column({ name: 'offline_slab2_discount_pct', type: 'smallint', nullable: true })
   offlineSlab2DiscountPct?: number | null;
 
@@ -28,6 +31,9 @@ export class TutorOfferingRateCardEntity extends QBaseEntity {
 
   @Column({ name: 'online_base_rate', type: 'integer', nullable: true })
   onlineBaseRate?: number | null;
+
+  @Column({ name: 'online_base_discount_pct', type: 'smallint', default: 0 })
+  onlineBaseDiscountPct: number;
 
   @Column({ name: 'online_slab2_discount_pct', type: 'smallint', nullable: true })
   onlineSlab2DiscountPct?: number | null;

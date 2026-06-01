@@ -6,10 +6,12 @@ export const SAVE_MY_TUTOR_OFFERING_RATE_CARD = gql`
       freeDemoOffered
       offlineEnabled
       offlineBaseRate
+      offlineBaseDiscountPct
       offlineSlab2DiscountPct
       offlineSlab3DiscountPct
       onlineEnabled
       onlineBaseRate
+      onlineBaseDiscountPct
       onlineSlab2DiscountPct
       onlineSlab3DiscountPct
       isComplete

@@ -5,7 +5,6 @@ import {
   documentStatusLabel,
   experienceDurationMonths,
   formatDate,
-  formatDateTime,
   formatExperienceDuration,
   formatQualificationTitle,
   formatRateCardSummary,
@@ -15,6 +14,7 @@ import {
   sortQualificationsHighestFirst,
   sumExperienceDurations,
 } from '@tutorix/shared-utils';
+import { OfferingLabel } from './OfferingLabel';
 import { OnboardingTimeline } from './OnboardingTimeline';
 import { AdminDocumentViewerModal } from './AdminDocumentViewerModal';
 import { TutorDocumentViewerModal } from './TutorDocumentViewerModal';
@@ -245,7 +245,7 @@ function OfferingsSection({
   const showRateCardColumn = isAdmin || Boolean(onOpenRateCard);
 
   return (
-    <SectionCard title="Offerings & proficiency tests" styleKey="offerings">
+    <SectionCard title="Offerings" styleKey="offerings">
       {offerings.length === 0 ? (
         <p className="text-sm text-purple-800/70">No offerings on file.</p>
       ) : (
@@ -257,9 +257,8 @@ function OfferingsSection({
               >
                 <th className="px-4 py-3">Offering</th>
                 <th className="px-4 py-3">PT status</th>
-                <th className="px-4 py-3">Date taken</th>
+                <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">Score</th>
-                <th className="px-4 py-3">Attempts</th>
                 {showRateCardColumn ? <th className="px-4 py-3">Rate card</th> : null}
               </tr>
             </thead>
@@ -277,8 +276,15 @@ function OfferingsSection({
                         : SECTION_STYLES.offerings.tableRowOdd
                     }
                   >
-                    <td className="px-4 py-3 font-semibold text-purple-950">
-                      {offering.offeringDisplayName ?? offering.offeringName ?? '—'}
+                    <td className="max-w-xs px-4 py-3 font-semibold text-purple-950">
+                      <OfferingLabel
+                        className="line-clamp-2"
+                        label={
+                          offering.offeringFullLabel ??
+                          offering.offeringDisplayName ??
+                          offering.offeringName
+                        }
+                      />
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -288,7 +294,7 @@ function OfferingsSection({
                       </span>
                     </td>
                     <td className="px-4 py-3 text-purple-900/70">
-                      {formatDateTime(offering.lastAttemptAt ?? offering.passedAt)}
+                      {formatDate(offering.lastAttemptAt ?? offering.passedAt)}
                     </td>
                     <td className="px-4 py-3">
                       {offering.lastScore != null && offering.lastMaxScore != null ? (
@@ -298,14 +304,6 @@ function OfferingsSection({
                       ) : (
                         '—'
                       )}
-                    </td>
-                    <td className="px-4 py-3 text-purple-900/70">
-                      <span className="font-medium text-purple-950">{offering.attemptsUsed}</span>{' '}
-                      used ·{' '}
-                      <span className="font-medium text-purple-950">
-                        {offering.attemptsRemaining}
-                      </span>{' '}
-                      left
                     </td>
                     {showRateCardColumn ? (
                       <td className="px-4 py-3">
@@ -580,6 +578,7 @@ export function TutorDetailView({
         <RateCardModal
           open={Boolean(rateCardOffering)}
           offeringName={
+            rateCardOffering.offeringFullLabel ??
             rateCardOffering.offeringDisplayName ??
             rateCardOffering.offeringName ??
             'Offering'

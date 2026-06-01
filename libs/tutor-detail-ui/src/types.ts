@@ -84,6 +84,7 @@ export type TutorDetailRecord = {
     id: number;
     offeringName?: string | null;
     offeringDisplayName?: string | null;
+    offeringFullLabel?: string | null;
     status: string;
     attemptsUsed: number;
     attemptsRemaining: number;
@@ -97,10 +98,12 @@ export type TutorDetailRecord = {
       freeDemoOffered: boolean;
       offlineEnabled: boolean;
       offlineBaseRate?: number | null;
+      offlineBaseDiscountPct?: number | null;
       offlineSlab2DiscountPct?: number | null;
       offlineSlab3DiscountPct?: number | null;
       onlineEnabled: boolean;
       onlineBaseRate?: number | null;
+      onlineBaseDiscountPct?: number | null;
       onlineSlab2DiscountPct?: number | null;
       onlineSlab3DiscountPct?: number | null;
       isComplete: boolean;

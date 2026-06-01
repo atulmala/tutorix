@@ -15,6 +15,9 @@ export class SaveTutorOfferingRateCardInput {
   offlineBaseRate?: number | null;
 
   @Field(() => Int, { nullable: true })
+  offlineBaseDiscountPct?: number | null;
+
+  @Field(() => Int, { nullable: true })
   offlineSlab2DiscountPct?: number | null;
 
   @Field(() => Int, { nullable: true })
@@ -25,6 +28,9 @@ export class SaveTutorOfferingRateCardInput {
 
   @Field(() => Int, { nullable: true })
   onlineBaseRate?: number | null;
+
+  @Field(() => Int, { nullable: true })
+  onlineBaseDiscountPct?: number | null;
 
   @Field(() => Int, { nullable: true })
   onlineSlab2DiscountPct?: number | null;

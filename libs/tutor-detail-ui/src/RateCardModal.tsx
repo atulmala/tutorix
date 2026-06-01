@@ -31,6 +31,9 @@ function ModeSection({ title, values, onChange, disabled }: ModeSectionProps) {
   const baseRateNum = Number.parseInt(values.baseRate.trim(), 10);
   const hasBaseRate = !Number.isNaN(baseRateNum) && baseRateNum >= 1;
 
+  const baseDiscountPct = values.baseDiscountPct.trim()
+    ? Number.parseInt(values.baseDiscountPct.trim(), 10)
+    : 0;
   const slab2Pct = values.slab2DiscountPct.trim()
     ? Number.parseInt(values.slab2DiscountPct.trim(), 10)
     : 0;
@@ -80,9 +83,30 @@ function ModeSection({ title, values, onChange, disabled }: ModeSectionProps) {
             <div className="space-y-2 rounded-lg border border-purple-100 bg-white/80 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                 <span className="font-medium text-purple-950">{RATE_CARD_SLABS[0].label}</span>
-                <span className="text-purple-800/70">
-                  {hasBaseRate ? `${formatInr(baseRateNum)}/class` : 'Base rate (no discount)'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={values.baseDiscountPct}
+                    onChange={(e) =>
+                      onChange({
+                        ...values,
+                        baseDiscountPct: e.target.value.replace(/\D/g, '').slice(0, 2),
+                      })
+                    }
+                    disabled={disabled}
+                    className="w-16 rounded-md border border-subtle px-2 py-1 text-center text-primary"
+                    placeholder="0"
+                  />
+                  <span className="text-muted">%</span>
+                  {hasBaseRate ? (
+                    <span className="text-purple-800/70">
+                      → {formatInr(calculateEffectiveRate(baseRateNum, baseDiscountPct))}/class
+                    </span>
+                  ) : (
+                    <span className="text-purple-800/70">Base discount</span>
+                  )}
+                </div>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                 <span className="font-medium text-purple-950">{RATE_CARD_SLABS[1].label}</span>

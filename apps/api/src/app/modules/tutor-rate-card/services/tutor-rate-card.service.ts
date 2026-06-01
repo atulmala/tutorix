@@ -67,6 +67,10 @@ export class TutorRateCardService {
       offline: {
         enabled: input.offlineEnabled,
         baseRate: input.offlineBaseRate != null ? String(input.offlineBaseRate) : '',
+        baseDiscountPct:
+          input.offlineBaseDiscountPct != null
+            ? String(input.offlineBaseDiscountPct)
+            : '',
         slab2DiscountPct:
           input.offlineSlab2DiscountPct != null
             ? String(input.offlineSlab2DiscountPct)
@@ -79,6 +83,10 @@ export class TutorRateCardService {
       online: {
         enabled: input.onlineEnabled,
         baseRate: input.onlineBaseRate != null ? String(input.onlineBaseRate) : '',
+        baseDiscountPct:
+          input.onlineBaseDiscountPct != null
+            ? String(input.onlineBaseDiscountPct)
+            : '',
         slab2DiscountPct:
           input.onlineSlab2DiscountPct != null
             ? String(input.onlineSlab2DiscountPct)
@@ -101,6 +109,9 @@ export class TutorRateCardService {
       entity.freeDemoOffered = normalized.freeDemoOffered;
       entity.offlineEnabled = normalized.offlineEnabled;
       entity.offlineBaseRate = normalized.offlineEnabled ? normalized.offlineBaseRate : null;
+      entity.offlineBaseDiscountPct = normalized.offlineEnabled
+        ? normalized.offlineBaseDiscountPct
+        : 0;
       entity.offlineSlab2DiscountPct = normalized.offlineEnabled
         ? normalized.offlineSlab2DiscountPct
         : null;
@@ -109,6 +120,9 @@ export class TutorRateCardService {
         : null;
       entity.onlineEnabled = normalized.onlineEnabled;
       entity.onlineBaseRate = normalized.onlineEnabled ? normalized.onlineBaseRate : null;
+      entity.onlineBaseDiscountPct = normalized.onlineEnabled
+        ? normalized.onlineBaseDiscountPct
+        : 0;
       entity.onlineSlab2DiscountPct = normalized.onlineEnabled
         ? normalized.onlineSlab2DiscountPct
         : null;
@@ -121,6 +135,9 @@ export class TutorRateCardService {
         freeDemoOffered: normalized.freeDemoOffered,
         offlineEnabled: normalized.offlineEnabled,
         offlineBaseRate: normalized.offlineEnabled ? normalized.offlineBaseRate : null,
+        offlineBaseDiscountPct: normalized.offlineEnabled
+          ? normalized.offlineBaseDiscountPct
+          : 0,
         offlineSlab2DiscountPct: normalized.offlineEnabled
           ? normalized.offlineSlab2DiscountPct
           : null,
@@ -129,6 +146,9 @@ export class TutorRateCardService {
           : null,
         onlineEnabled: normalized.onlineEnabled,
         onlineBaseRate: normalized.onlineEnabled ? normalized.onlineBaseRate : null,
+        onlineBaseDiscountPct: normalized.onlineEnabled
+          ? normalized.onlineBaseDiscountPct
+          : 0,
         onlineSlab2DiscountPct: normalized.onlineEnabled
           ? normalized.onlineSlab2DiscountPct
           : null,
@@ -154,10 +174,12 @@ export class TutorRateCardService {
       freeDemoOffered: entity.freeDemoOffered,
       offlineEnabled: entity.offlineEnabled,
       offlineBaseRate: entity.offlineBaseRate ?? null,
+      offlineBaseDiscountPct: entity.offlineBaseDiscountPct ?? 0,
       offlineSlab2DiscountPct: entity.offlineSlab2DiscountPct ?? null,
       offlineSlab3DiscountPct: entity.offlineSlab3DiscountPct ?? null,
       onlineEnabled: entity.onlineEnabled,
       onlineBaseRate: entity.onlineBaseRate ?? null,
+      onlineBaseDiscountPct: entity.onlineBaseDiscountPct ?? 0,
       onlineSlab2DiscountPct: entity.onlineSlab2DiscountPct ?? null,
       onlineSlab3DiscountPct: entity.onlineSlab3DiscountPct ?? null,
       isComplete: isRateCardComplete(entity),

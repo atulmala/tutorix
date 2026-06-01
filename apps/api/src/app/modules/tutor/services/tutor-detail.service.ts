@@ -21,6 +21,13 @@ import { TutorQualificationService } from './tutor-qualification.service';
 import { TutorService } from './tutor.service';
 import { UserBankDetailsService } from '../../user-bank-details/services/user-bank-details.service';
 import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
+import { OfferingService } from '../../offerings/services/offering.service';
+import { OfferingEntity } from '../../offerings/entities/offering.entity';
+import { ProficiencyTestService } from '../../proficiency/services/proficiency-test.service';
+import {
+  formatTutorOfferingFullLabel,
+  type OfferingNodeForLabel,
+} from '@tutorix/shared-utils';
 
 const PT_MAX_ATTEMPTS = 2;
 
@@ -35,6 +42,8 @@ export class TutorDetailService {
     private readonly documentScreeningService: DocumentScreeningService,
     private readonly userBankDetailsService: UserBankDetailsService,
     private readonly tutorRateCardService: TutorRateCardService,
+    private readonly offeringService: OfferingService,
+    private readonly proficiencyTestService: ProficiencyTestService,
   ) {}
 
   async getTutorDetail(tutorId: number): Promise<AdminTutorDetail> {
@@ -51,8 +60,23 @@ export class TutorDetailService {
       documents.map((doc) => doc.id),
     );
 
-    const rateCardMap = await this.tutorRateCardService.findByTutorOfferingIds(
-      offerings.map((offering) => offering.id),
+    const ptIds = [...new Set(offerings.map((o) => o.proficiencyTestId))];
+
+    const [rateCardMap, catalogOfferings, proficiencyTests] = await Promise.all([
+      this.tutorRateCardService.findByTutorOfferingIds(
+        offerings.map((offering) => offering.id),
+      ),
+      this.offeringService.findAll(),
+      this.proficiencyTestService.findByIdsWithOfferings(ptIds),
+    ]);
+    const offeringsById = new Map(
+      catalogOfferings.map((o) => [o.id, this.toOfferingNodeForLabel(o)]),
+    );
+    const ptOfferingIdsByPtId = new Map(
+      proficiencyTests.map((pt) => [
+        pt.id,
+        (pt.offerings ?? []).filter((o) => !o.deleted).map((o) => o.id),
+      ]),
     );
 
     const documentDetails = await Promise.all(
@@ -92,7 +116,12 @@ export class TutorDetailService {
       qualifications,
       experiences,
       offerings: offerings.map((offering) =>
-        this.mapOfferingDetail(offering, rateCardMap.get(offering.id) ?? null),
+        this.mapOfferingDetail(
+          offering,
+          rateCardMap.get(offering.id) ?? null,
+          offeringsById,
+          ptOfferingIdsByPtId.get(offering.proficiencyTestId),
+        ),
       ),
       documents: documentDetails,
     };
@@ -139,14 +168,39 @@ export class TutorDetailService {
     };
   }
 
+  private toOfferingNodeForLabel(offering: OfferingEntity): OfferingNodeForLabel {
+    return {
+      id: offering.id,
+      displayName: offering.displayName,
+      level: offering.level,
+      mediumOfInstruction: offering.mediumOfInstruction,
+      parentOffering: offering.parentOffering
+        ? { id: offering.parentOffering.id }
+        : undefined,
+      rootOffering: offering.rootOffering
+        ? { id: offering.rootOffering.id, displayName: offering.rootOffering.displayName }
+        : undefined,
+    };
+  }
+
   private mapOfferingDetail(
     offering: TutorOfferingEntity,
     rateCardEntity: TutorOfferingRateCardEntity | null,
+    offeringsById: Map<number, OfferingNodeForLabel>,
+    proficiencyTestOfferingIds?: number[],
   ): AdminTutorOfferingDetail {
+    const leaf = offering.offering
+      ? offeringsById.get(offering.offering.id) ??
+        this.toOfferingNodeForLabel(offering.offering)
+      : undefined;
+
     return {
       id: offering.id,
       offeringName: offering.offering?.name,
       offeringDisplayName: offering.offering?.displayName,
+      offeringFullLabel: formatTutorOfferingFullLabel(leaf, offeringsById, {
+        proficiencyTestOfferingIds,
+      }),
       status: offering.status,
       attemptsUsed: offering.attemptsUsed,
       attemptsRemaining: Math.max(0, PT_MAX_ATTEMPTS - offering.attemptsUsed),

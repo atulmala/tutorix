@@ -17,6 +17,7 @@ import { ExperienceModule } from '../experience/experience.module';
 import { UserBankDetailsModule } from '../user-bank-details/user-bank-details.module';
 import { TutorRateCardModule } from '../tutor-rate-card/tutor-rate-card.module';
 import { TutorDetailService } from './services/tutor-detail.service';
+import { OfferingsModule } from '../offerings/offerings.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { TutorDetailService } from './services/tutor-detail.service';
     forwardRef(() => ExperienceModule),
     UserBankDetailsModule,
     TutorRateCardModule,
+    OfferingsModule,
   ],
   providers: [
     TutorResolver,
