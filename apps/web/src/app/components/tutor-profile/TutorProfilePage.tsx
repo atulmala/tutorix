@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
-import { GET_MY_TUTOR_DETAIL, SAVE_MY_BANK_DETAILS } from '@tutorix/shared-graphql';
+import {
+  GET_MY_TUTOR_DETAIL,
+  SAVE_MY_BANK_DETAILS,
+  SAVE_MY_TUTOR_OFFERING_RATE_CARD,
+} from '@tutorix/shared-graphql';
 import {
   TutorDetailView,
   type BankDetailsFormValues,
+  type RateCardFormValues,
   type TutorDetailRecord,
 } from '@tutorix/tutor-detail-ui';
 
@@ -16,8 +21,10 @@ export const TutorProfilePage: React.FC = () => {
     fetchPolicy: 'cache-and-network',
   });
   const [bankDetailsSaveError, setBankDetailsSaveError] = useState<string | null>(null);
+  const [rateCardSaveError, setRateCardSaveError] = useState<string | null>(null);
 
   const [saveBankDetails, { loading: savingBankDetails }] = useMutation(SAVE_MY_BANK_DETAILS);
+  const [saveRateCard, { loading: savingRateCard }] = useMutation(SAVE_MY_TUTOR_OFFERING_RATE_CARD);
 
   const tutor = data?.myTutorDetail;
 
@@ -40,6 +47,36 @@ export const TutorProfilePage: React.FC = () => {
       setBankDetailsSaveError(
         err instanceof Error ? err.message : 'Could not save bank details.',
       );
+      throw err;
+    }
+  };
+
+  const handleSaveRateCard = async (tutorOfferingId: number, values: RateCardFormValues) => {
+    setRateCardSaveError(null);
+    try {
+      await saveRateCard({
+        variables: {
+          input: {
+            tutorOfferingId,
+            freeDemoOffered: values.freeDemoOffered,
+            offlineEnabled: values.offlineEnabled,
+            offlineBaseRate: values.offlineEnabled ? values.offlineBaseRate : null,
+            offlineSlab2DiscountPct: values.offlineEnabled
+              ? values.offlineSlab2DiscountPct
+              : null,
+            offlineSlab3DiscountPct: values.offlineEnabled
+              ? values.offlineSlab3DiscountPct
+              : null,
+            onlineEnabled: values.onlineEnabled,
+            onlineBaseRate: values.onlineEnabled ? values.onlineBaseRate : null,
+            onlineSlab2DiscountPct: values.onlineEnabled ? values.onlineSlab2DiscountPct : null,
+            onlineSlab3DiscountPct: values.onlineEnabled ? values.onlineSlab3DiscountPct : null,
+          },
+        },
+      });
+      await refetch();
+    } catch (err) {
+      setRateCardSaveError(err instanceof Error ? err.message : 'Could not save rate card.');
       throw err;
     }
   };
@@ -71,6 +108,9 @@ export const TutorProfilePage: React.FC = () => {
         onSaveBankDetails={handleSaveBankDetails}
         savingBankDetails={savingBankDetails}
         bankDetailsSaveError={bankDetailsSaveError}
+        onSaveRateCard={handleSaveRateCard}
+        savingRateCard={savingRateCard}
+        rateCardSaveError={rateCardSaveError}
       />
     </div>
   );

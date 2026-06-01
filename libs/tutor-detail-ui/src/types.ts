@@ -93,6 +93,18 @@ export type TutorDetailRecord = {
     passedAt?: string | null;
     lastTimeTakenSeconds?: number | null;
     createdDate?: string | null;
+    rateCard?: {
+      freeDemoOffered: boolean;
+      offlineEnabled: boolean;
+      offlineBaseRate?: number | null;
+      offlineSlab2DiscountPct?: number | null;
+      offlineSlab3DiscountPct?: number | null;
+      onlineEnabled: boolean;
+      onlineBaseRate?: number | null;
+      onlineSlab2DiscountPct?: number | null;
+      onlineSlab3DiscountPct?: number | null;
+      isComplete: boolean;
+    } | null;
   }>;
   documents: TutorDocumentDetail[];
 };

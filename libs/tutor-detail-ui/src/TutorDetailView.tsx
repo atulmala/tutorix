@@ -8,6 +8,7 @@ import {
   formatDateTime,
   formatExperienceDuration,
   formatQualificationTitle,
+  formatRateCardSummary,
   monthsToExperienceDuration,
   ptStatusBadgeClass,
   ptStatusLabel,
@@ -19,9 +20,11 @@ import { AdminDocumentViewerModal } from './AdminDocumentViewerModal';
 import { TutorDocumentViewerModal } from './TutorDocumentViewerModal';
 import { BankDetailsSection } from './BankDetailsSection';
 import { BankDetailsModal, type BankDetailsFormValues } from './BankDetailsModal';
+import { RateCardModal, type RateCardFormValuesExport } from './RateCardModal';
 import type { TutorDetailRecord, TutorDocumentDetail } from './types';
 
 export type { BankDetailsFormValues } from './BankDetailsModal';
+export type { RateCardFormValuesExport as RateCardFormValues } from './RateCardModal';
 
 export type TutorDetailViewMode = 'admin' | 'tutor';
 
@@ -35,6 +38,12 @@ export type TutorDetailViewProps = {
   onSaveBankDetails?: (values: BankDetailsFormValues) => void | Promise<void>;
   savingBankDetails?: boolean;
   bankDetailsSaveError?: string | null;
+  onSaveRateCard?: (
+    tutorOfferingId: number,
+    values: RateCardFormValuesExport,
+  ) => void | Promise<void>;
+  savingRateCard?: boolean;
+  rateCardSaveError?: string | null;
 };
 
 type SectionStyle = {
@@ -223,7 +232,18 @@ function formatAddress(address: TutorDetailRecord['addresses'][0]): string {
     .join(', ');
 }
 
-function OfferingsSection({ offerings }: { offerings: TutorDetailRecord['offerings'] }) {
+function OfferingsSection({
+  offerings,
+  mode,
+  onOpenRateCard,
+}: {
+  offerings: TutorDetailRecord['offerings'];
+  mode: TutorDetailViewMode;
+  onOpenRateCard?: (offering: TutorDetailRecord['offerings'][number]) => void;
+}) {
+  const isAdmin = mode === 'admin';
+  const showRateCardColumn = isAdmin || Boolean(onOpenRateCard);
+
   return (
     <SectionCard title="Offerings & proficiency tests" styleKey="offerings">
       {offerings.length === 0 ? (
@@ -240,50 +260,82 @@ function OfferingsSection({ offerings }: { offerings: TutorDetailRecord['offerin
                 <th className="px-4 py-3">Date taken</th>
                 <th className="px-4 py-3">Score</th>
                 <th className="px-4 py-3">Attempts</th>
+                {showRateCardColumn ? <th className="px-4 py-3">Rate card</th> : null}
               </tr>
             </thead>
             <tbody>
-              {offerings.map((offering, index) => (
-                <tr
-                  key={offering.id}
-                  className={
-                    index % 2 === 0
-                      ? SECTION_STYLES.offerings.tableRowEven
-                      : SECTION_STYLES.offerings.tableRowOdd
-                  }
-                >
-                  <td className="px-4 py-3 font-semibold text-purple-950">
-                    {offering.offeringDisplayName ?? offering.offeringName ?? '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${ptStatusBadgeClass(offering.status)}`}
-                    >
-                      {ptStatusLabel(offering.status)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-purple-900/70">
-                    {formatDateTime(offering.lastAttemptAt ?? offering.passedAt)}
-                  </td>
-                  <td className="px-4 py-3">
-                    {offering.lastScore != null && offering.lastMaxScore != null ? (
-                      <span className="rounded-md bg-purple-100 px-2 py-0.5 font-bold text-purple-900">
-                        {offering.lastScore}/{offering.lastMaxScore}
+              {offerings.map((offering, index) => {
+                const rateCardSummary = formatRateCardSummary(offering.rateCard);
+                const hasRateCard = Boolean(offering.rateCard?.isComplete);
+
+                return (
+                  <tr
+                    key={offering.id}
+                    className={
+                      index % 2 === 0
+                        ? SECTION_STYLES.offerings.tableRowEven
+                        : SECTION_STYLES.offerings.tableRowOdd
+                    }
+                  >
+                    <td className="px-4 py-3 font-semibold text-purple-950">
+                      {offering.offeringDisplayName ?? offering.offeringName ?? '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${ptStatusBadgeClass(offering.status)}`}
+                      >
+                        {ptStatusLabel(offering.status)}
                       </span>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-purple-900/70">
-                    <span className="font-medium text-purple-950">{offering.attemptsUsed}</span>{' '}
-                    used ·{' '}
-                    <span className="font-medium text-purple-950">
-                      {offering.attemptsRemaining}
-                    </span>{' '}
-                    left
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-3 text-purple-900/70">
+                      {formatDateTime(offering.lastAttemptAt ?? offering.passedAt)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {offering.lastScore != null && offering.lastMaxScore != null ? (
+                        <span className="rounded-md bg-purple-100 px-2 py-0.5 font-bold text-purple-900">
+                          {offering.lastScore}/{offering.lastMaxScore}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-purple-900/70">
+                      <span className="font-medium text-purple-950">{offering.attemptsUsed}</span>{' '}
+                      used ·{' '}
+                      <span className="font-medium text-purple-950">
+                        {offering.attemptsRemaining}
+                      </span>{' '}
+                      left
+                    </td>
+                    {showRateCardColumn ? (
+                      <td className="px-4 py-3">
+                        {isAdmin ? (
+                          <span className="text-sm text-purple-900/70">
+                            {rateCardSummary ?? 'Not configured'}
+                          </span>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-2">
+                            {hasRateCard ? (
+                              <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
+                                Configured
+                              </span>
+                            ) : null}
+                            {onOpenRateCard ? (
+                              <button
+                                type="button"
+                                onClick={() => onOpenRateCard(offering)}
+                                className="rounded-lg border border-purple-200 bg-white px-3 py-1.5 text-xs font-semibold text-purple-800 transition hover:bg-purple-50"
+                              >
+                                {hasRateCard ? 'Edit rate card' : 'Rate card'}
+                              </button>
+                            ) : null}
+                          </div>
+                        )}
+                      </td>
+                    ) : null}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -429,9 +481,15 @@ export function TutorDetailView({
   onSaveBankDetails,
   savingBankDetails = false,
   bankDetailsSaveError = null,
+  onSaveRateCard,
+  savingRateCard = false,
+  rateCardSaveError = null,
 }: TutorDetailViewProps) {
   const [selectedDocument, setSelectedDocument] = useState<TutorDocumentDetail | null>(null);
   const [bankDetailsModalOpen, setBankDetailsModalOpen] = useState(false);
+  const [rateCardOffering, setRateCardOffering] = useState<
+    TutorDetailRecord['offerings'][number] | null
+  >(null);
   const isAdmin = mode === 'admin';
 
   const timelineEntries = useMemo(
@@ -518,9 +576,34 @@ export function TutorDetailView({
         />
       ) : null}
 
+      {!isAdmin && onSaveRateCard && rateCardOffering ? (
+        <RateCardModal
+          open={Boolean(rateCardOffering)}
+          offeringName={
+            rateCardOffering.offeringDisplayName ??
+            rateCardOffering.offeringName ??
+            'Offering'
+          }
+          initialValues={rateCardOffering.rateCard}
+          saving={savingRateCard}
+          error={rateCardSaveError}
+          onClose={() => setRateCardOffering(null)}
+          onSubmit={async (values) => {
+            await onSaveRateCard(rateCardOffering.id, values);
+            setRateCardOffering(null);
+          }}
+        />
+      ) : null}
+
       {!isAdmin && (
         <>
-          <OfferingsSection offerings={tutor.offerings} />
+          <OfferingsSection
+            offerings={tutor.offerings}
+            mode={mode}
+            onOpenRateCard={
+              onSaveRateCard ? (offering) => setRateCardOffering(offering) : undefined
+            }
+          />
           <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2">
             <ExperienceSection experiences={tutor.experiences} />
             <div className="h-full min-h-0">
@@ -572,7 +655,7 @@ export function TutorDetailView({
             <EducationSection qualifications={tutor.qualifications} />
             <ExperienceSection experiences={tutor.experiences} />
           </div>
-          <OfferingsSection offerings={tutor.offerings} />
+          <OfferingsSection offerings={tutor.offerings} mode={mode} />
         </>
       )}
 

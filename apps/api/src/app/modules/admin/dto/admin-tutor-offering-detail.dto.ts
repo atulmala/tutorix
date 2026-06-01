@@ -1,5 +1,6 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
 import { TutorOfferingStatusEnum } from '../../tutor/enums/tutor.enums';
+import { TutorOfferingRateCard } from '../../tutor-rate-card/dto/tutor-offering-rate-card.dto';
 
 @ObjectType()
 export class AdminTutorOfferingDetail {
@@ -38,4 +39,7 @@ export class AdminTutorOfferingDetail {
 
   @Field({ nullable: true })
   createdDate?: Date;
+
+  @Field(() => TutorOfferingRateCard, { nullable: true })
+  rateCard?: TutorOfferingRateCard | null;
 }
