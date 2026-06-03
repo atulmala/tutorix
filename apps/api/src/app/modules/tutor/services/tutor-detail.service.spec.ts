@@ -13,6 +13,7 @@ import { DocumentService } from '../../document/services/document.service';
 import { DocumentScreeningService } from '../../document/services/document-screening.service';
 import { UserBankDetailsService } from '../../user-bank-details/services/user-bank-details.service';
 import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
+import { TutorCalendarService } from '../../tutor-calendar/services/tutor-calendar.service';
 import { OfferingService } from '../../offerings/services/offering.service';
 import { ProficiencyTestService } from '../../proficiency/services/proficiency-test.service';
 import { UserRole } from '../../auth/enums/user-role.enum';
@@ -47,6 +48,7 @@ describe('TutorDetailService', () => {
   };
   let offeringService: { findAll: jest.Mock };
   let proficiencyTestService: { findByIdsWithOfferings: jest.Mock };
+  let tutorCalendarService: { tutorHasCompleteRateCard: jest.Mock };
 
   beforeEach(async () => {
     tutorService = {
@@ -76,6 +78,9 @@ describe('TutorDetailService', () => {
     proficiencyTestService = {
       findByIdsWithOfferings: jest.fn().mockResolvedValue([]),
     };
+    tutorCalendarService = {
+      tutorHasCompleteRateCard: jest.fn().mockResolvedValue(false),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -90,6 +95,7 @@ describe('TutorDetailService', () => {
         { provide: TutorRateCardService, useValue: tutorRateCardService },
         { provide: OfferingService, useValue: offeringService },
         { provide: ProficiencyTestService, useValue: proficiencyTestService },
+        { provide: TutorCalendarService, useValue: tutorCalendarService },
       ],
     }).compile();
 
@@ -104,9 +110,11 @@ describe('TutorDetailService', () => {
         certificationStage: TutorCertificationStageEnum.docs,
         yearsOfExperience: YearsOfExperienceEnum.TWO_TO_FIVE,
         regFeePaid: false,
+        testTutor: false,
         regFeeAmount: 0,
         regFeeAmountToBePaid: 999,
         regFeeDate: null,
+        availabilityConfiguredAt: null,
         user: {
           id: 99,
           firstName: 'Jane',
@@ -174,6 +182,7 @@ describe('TutorDetailService', () => {
 
       expect(detail).toMatchObject({
         id: 7,
+        canSetAvailability: false,
         user: {
           firstName: 'Jane',
           lastName: 'Tutor',

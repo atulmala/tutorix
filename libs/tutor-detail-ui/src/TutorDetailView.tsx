@@ -20,6 +20,7 @@ import { TutorDocumentViewerModal } from './TutorDocumentViewerModal';
 import { BankDetailsSection } from './BankDetailsSection';
 import { BankDetailsModal, type BankDetailsFormValues } from './BankDetailsModal';
 import { RateCardModal, type RateCardFormValuesExport } from './RateCardModal';
+import { TutorAvailabilitySection } from '@tutorix/tutor-availability-ui';
 import type { TutorDetailRecord, TutorDocumentDetail } from './types';
 
 export type { BankDetailsFormValues } from './BankDetailsModal';
@@ -583,30 +584,6 @@ export function TutorDetailView({
         </p>
       </div>
 
-      <BankDetailsSection
-        mode={mode}
-        bankDetails={tutor.user?.bankDetails}
-        onEnterOrEdit={
-          !isAdmin && onSaveBankDetails
-            ? () => setBankDetailsModalOpen(true)
-            : undefined
-        }
-      />
-
-      {!isAdmin && onSaveBankDetails ? (
-        <BankDetailsModal
-          open={bankDetailsModalOpen}
-          initialValues={tutor.user?.bankDetails}
-          saving={savingBankDetails}
-          error={bankDetailsSaveError}
-          onClose={() => setBankDetailsModalOpen(false)}
-          onSubmit={async (values) => {
-            await onSaveBankDetails(values);
-            setBankDetailsModalOpen(false);
-          }}
-        />
-      ) : null}
-
       {rateCardOffering ? (
         <RateCardModal
           open={Boolean(rateCardOffering)}
@@ -634,6 +611,18 @@ export function TutorDetailView({
 
       {!isAdmin && (
         <>
+          <TutorAvailabilitySection
+            canSetAvailability={tutor.canSetAvailability === true}
+            offerings={tutor.offerings}
+            onOpenRateCard={
+              onSaveRateCard
+                ? (offering) => {
+                    const full = tutor.offerings.find((o) => o.id === offering.id);
+                    if (full) setRateCardOffering(full);
+                  }
+                : undefined
+            }
+          />
           <OfferingsSection
             offerings={tutor.offerings}
             mode={mode}
@@ -647,6 +636,26 @@ export function TutorDetailView({
               <EducationSection qualifications={tutor.qualifications} />
             </div>
           </div>
+          <BankDetailsSection
+            mode={mode}
+            bankDetails={tutor.user?.bankDetails}
+            onEnterOrEdit={
+              onSaveBankDetails ? () => setBankDetailsModalOpen(true) : undefined
+            }
+          />
+          {onSaveBankDetails ? (
+            <BankDetailsModal
+              open={bankDetailsModalOpen}
+              initialValues={tutor.user?.bankDetails}
+              saving={savingBankDetails}
+              error={bankDetailsSaveError}
+              onClose={() => setBankDetailsModalOpen(false)}
+              onSubmit={async (values) => {
+                await onSaveBankDetails(values);
+                setBankDetailsModalOpen(false);
+              }}
+            />
+          ) : null}
           <AddressSection addresses={tutor.addresses} />
         </>
       )}
@@ -687,6 +696,7 @@ export function TutorDetailView({
 
       {isAdmin && (
         <>
+          <BankDetailsSection mode={mode} bankDetails={tutor.user?.bankDetails} />
           <AddressSection addresses={tutor.addresses} />
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <EducationSection qualifications={tutor.qualifications} />

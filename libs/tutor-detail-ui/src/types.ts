@@ -23,6 +23,8 @@ export type TutorDetailRecord = {
   yearsOfExperience: string;
   regFeePaid: boolean;
   testTutor: boolean;
+  canSetAvailability?: boolean;
+  availabilityConfiguredAt?: string | null;
   regFeeAmount?: number | null;
   regFeeAmountToBePaid?: number | null;
   regFeeDate?: string | null;

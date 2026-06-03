@@ -24,7 +24,9 @@
       "@tutorix/shared-utils": ["libs/shared-utils/src/index.ts"],
       "@tutorix/shared-utils/*": ["libs/shared-utils/src/*"],
       "@tutorix/tutor-detail-ui": ["libs/tutor-detail-ui/src/index.ts"],
-      "@tutorix/tutor-detail-ui/*": ["libs/tutor-detail-ui/src/*"]
+      "@tutorix/tutor-detail-ui/*": ["libs/tutor-detail-ui/src/*"],
+      "@tutorix/tutor-availability-ui": ["libs/tutor-availability-ui/src/index.ts"],
+      "@tutorix/tutor-availability-ui/*": ["libs/tutor-availability-ui/src/*"]
     }
   },
   "exclude": ["node_modules", "tmp"]

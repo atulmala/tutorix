@@ -22,6 +22,7 @@ import { PtAnswerEntity } from '../modules/proficiency/entities/pt-answer.entity
 import { Example } from '../entities/example.entity';
 import { UserBankDetailsEntity } from '../modules/user-bank-details/entities/user-bank-details.entity';
 import { TutorOfferingRateCardEntity } from '../modules/tutor-rate-card/entities/tutor-offering-rate-card.entity';
+import { TutorCalendar } from '../modules/tutor-calendar/entities/tutor-calendar.entity';
 // Add other entities as they are created
 
 /**
@@ -61,6 +62,7 @@ export function createDatabaseOptions(
       Example, // Remove this when you no longer need the example entity
       UserBankDetailsEntity,
       TutorOfferingRateCardEntity,
+      TutorCalendar,
       // Add other entities here as they are created
       // Student,
       // Class,

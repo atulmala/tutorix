@@ -16,6 +16,7 @@ import { BatchJobsModule } from './batch-jobs/batch-jobs.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { UserBankDetailsModule } from './modules/user-bank-details/user-bank-details.module';
 import { TutorRateCardModule } from './modules/tutor-rate-card/tutor-rate-card.module';
+import { TutorCalendarModule } from './modules/tutor-calendar/tutor-calendar.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { TutorRateCardModule } from './modules/tutor-rate-card/tutor-rate-card.m
     AdminModule,
     UserBankDetailsModule,
     TutorRateCardModule,
+    TutorCalendarModule,
     // Add other modules here as they are created:
     // StudentModule,
     // ClassesModule,

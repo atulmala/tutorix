@@ -21,5 +21,6 @@ export * from './document.mutations';
 export * from './admin.mutations';
 export * from './user-bank-details.mutations';
 export * from './tutor-rate-card.mutations';
+export * from './tutor-calendar.mutations';
 // export * from './student.mutations';
 // export * from './class.mutations';

@@ -21,6 +21,7 @@ import { TutorQualificationService } from './tutor-qualification.service';
 import { TutorService } from './tutor.service';
 import { UserBankDetailsService } from '../../user-bank-details/services/user-bank-details.service';
 import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
+import { TutorCalendarService } from '../../tutor-calendar/services/tutor-calendar.service';
 import { OfferingService } from '../../offerings/services/offering.service';
 import { OfferingEntity } from '../../offerings/entities/offering.entity';
 import { ProficiencyTestService } from '../../proficiency/services/proficiency-test.service';
@@ -42,6 +43,7 @@ export class TutorDetailService {
     private readonly documentScreeningService: DocumentScreeningService,
     private readonly userBankDetailsService: UserBankDetailsService,
     private readonly tutorRateCardService: TutorRateCardService,
+    private readonly tutorCalendarService: TutorCalendarService,
     private readonly offeringService: OfferingService,
     private readonly proficiencyTestService: ProficiencyTestService,
   ) {}
@@ -90,6 +92,8 @@ export class TutorDetailService {
       ? await this.userBankDetailsService.findByUserId(user.id)
       : null;
     const bankDetails = this.userBankDetailsService.mapToGraphql(bankDetailsEntity);
+    const canSetAvailability =
+      await this.tutorCalendarService.tutorHasCompleteRateCard(tutor.id);
 
     return {
       id: tutor.id,
@@ -97,6 +101,8 @@ export class TutorDetailService {
       yearsOfExperience: tutor.yearsOfExperience,
       regFeePaid: tutor.regFeePaid,
       testTutor: tutor.testTutor,
+      canSetAvailability,
+      availabilityConfiguredAt: tutor.availabilityConfiguredAt,
       regFeeAmount: tutor.regFeeAmount,
       regFeeAmountToBePaid: tutor.regFeeAmountToBePaid,
       regFeeDate: tutor.regFeeDate,

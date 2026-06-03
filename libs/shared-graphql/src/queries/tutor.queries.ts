@@ -100,6 +100,8 @@ export const GET_MY_TUTOR_DETAIL = gql`
       yearsOfExperience
       regFeePaid
       testTutor
+      canSetAvailability
+      availabilityConfiguredAt
       regFeeAmount
       regFeeAmountToBePaid
       regFeeDate
