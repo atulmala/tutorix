@@ -39,6 +39,7 @@ import type {
 import { BankDetailsSection } from './BankDetailsSection';
 import { BankDetailsModal } from './BankDetailsModal';
 import { RateCardModal } from './RateCardModal';
+import { TutorAvailabilitySection } from './TutorAvailabilitySection';
 
 type TutorOffering = TutorDetailRecord['offerings'][number];
 
@@ -289,11 +290,11 @@ export const TutorDetailScreen: React.FC = () => {
         {tutor.user?.createdDate ? ` · Registered ${formatDate(tutor.user.createdDate)}` : ''}
       </Text>
 
-      <BankDetailsSection
-        bankDetails={tutor.user?.bankDetails}
-        onEnterOrEdit={() => {
-          setBankDetailsSaveError(null);
-          setBankModalVisible(true);
+      <TutorAvailabilitySection
+        tutor={tutor}
+        onOpenRateCard={(offering) => {
+          setRateCardSaveError(null);
+          setRateCardOffering(offering);
         }}
       />
 
@@ -449,6 +450,14 @@ export const TutorDetailScreen: React.FC = () => {
           )}
         </View>
       </View>
+
+      <BankDetailsSection
+        bankDetails={tutor.user?.bankDetails}
+        onEnterOrEdit={() => {
+          setBankDetailsSaveError(null);
+          setBankModalVisible(true);
+        }}
+      />
 
       <View style={styles.section}>
         <View style={styles.sectionHeaderRow}>

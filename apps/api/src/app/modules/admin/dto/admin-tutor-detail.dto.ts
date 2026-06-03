@@ -25,6 +25,12 @@ export class AdminTutorDetail {
   @Field()
   testTutor: boolean;
 
+  @Field()
+  canSetAvailability: boolean;
+
+  @Field({ nullable: true })
+  availabilityConfiguredAt?: Date;
+
   @Field({ nullable: true })
   regFeeAmount?: number;
 

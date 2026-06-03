@@ -63,6 +63,10 @@ export class Tutor extends QBaseEntity {
   @Column({ name: 'onboarding_celebration_seen', default: false })
   onboardingCelebrationSeen: boolean;
 
+  @Field({ nullable: true })
+  @Column({ name: 'availability_configured_at', type: 'timestamptz', nullable: true })
+  availabilityConfiguredAt?: Date;
+
   @Field()
   @Column({ name: 'test_tutor', default: false })
   testTutor: boolean;
