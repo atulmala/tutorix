@@ -87,7 +87,7 @@ export function TutorAvailabilitySection({ tutor, onOpenRateCard }: Props) {
   const canSet = tutor.canSetAvailability === true;
   const hasRateCard = tutorHasAtLeastOneCompleteRateCard(tutor.offerings);
   const unlocked = canSet && hasRateCard;
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const rangeEditor = useAvailabilityEditor({ loadedSlots: [], loading: false });

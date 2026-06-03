@@ -33,7 +33,7 @@ const CALENDAR_STYLES = {
 
 function CollapsibleSectionCard({
   title,
-  defaultOpen = true,
+  defaultOpen = false,
   variant = 'unlocked',
   updatedTillLabel,
   updatedTillLoading = false,
