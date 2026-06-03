@@ -8,6 +8,7 @@ import { ExperienceModule } from '../experience/experience.module';
 import { OfferingsModule } from '../offerings/offerings.module';
 import { ProficiencyModule } from '../proficiency/proficiency.module';
 import { TutorModule } from '../tutor/tutor.module';
+import { TutorCalendarModule } from '../tutor-calendar/tutor-calendar.module';
 import { AdminService } from './admin.service';
 import { AdminResolver } from './admin.resolver';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -17,6 +18,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
     TypeOrmModule.forFeature([User, Tutor]),
     AuthModule,
     TutorModule,
+    TutorCalendarModule,
     ExperienceModule,
     DocumentModule,
     ProficiencyModule,

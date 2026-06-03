@@ -10,6 +10,13 @@ export type TutorAvailabilitySectionProps = {
   canSetAvailability: boolean;
   offerings: TutorDetailOffering[];
   onOpenRateCard?: (offering: TutorDetailOffering) => void;
+  /** Admin detail: load this tutor's calendar (read-only). */
+  tutorId?: number;
+  readOnly?: boolean;
+  /** Section title; defaults to "My Calendar" or "Tutor calendar" when read-only. */
+  title?: string;
+  /** When true, hide the section entirely if rate card / offering requirements are not met. */
+  hideWhenLocked?: boolean;
 };
 
 const CALENDAR_STYLES = {
@@ -99,6 +106,10 @@ export function TutorAvailabilitySection({
   canSetAvailability,
   offerings,
   onOpenRateCard,
+  tutorId,
+  readOnly = false,
+  title,
+  hideWhenLocked = false,
 }: TutorAvailabilitySectionProps) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [updatedTillLabel, setUpdatedTillLabel] = useState<string | null>(null);
@@ -107,15 +118,23 @@ export function TutorAvailabilitySection({
     () => tutorHasAtLeastOneCompleteRateCard(offerings),
     [offerings],
   );
-  const unlocked = canSetAvailability && hasLocalRateCard;
+  const hasOfferings = offerings.length > 0;
+  const unlocked =
+    hasOfferings && hasLocalRateCard && (readOnly || canSetAvailability);
+
+  const sectionTitle =
+    title ?? (readOnly ? 'Tutor calendar' : 'My Calendar');
 
   const firstOfferingNeedingRate = offerings.find(
     (o) => !tutorHasAtLeastOneCompleteRateCard([o]),
   );
 
   if (!unlocked) {
+    if (hideWhenLocked) {
+      return null;
+    }
     return (
-      <CollapsibleSectionCard title="My Calendar" variant="locked">
+      <CollapsibleSectionCard title={sectionTitle} variant="locked">
         <p className="text-sm text-amber-900/90">{RATE_CARD_REQUIRED_MESSAGE}</p>
         {firstOfferingNeedingRate && onOpenRateCard ? (
           <button
@@ -132,15 +151,24 @@ export function TutorAvailabilitySection({
 
   return (
     <CollapsibleSectionCard
-      title="My Calendar"
+      title={sectionTitle}
+      defaultOpen={false}
       updatedTillLabel={updatedTillLabel}
       updatedTillLoading={updatedTillLoading}
     >
-      <p className="mb-4 text-sm text-teal-900/80">
-        Click a slot to mark available (A). Empty slots are not offered to students.
-        Each slot is a 1-hour class.
-      </p>
+      {!readOnly ? (
+        <p className="mb-4 text-sm text-teal-900/80">
+          Click a slot to mark available (A). Empty slots are not offered to students.
+          Each slot is a 1-hour class.
+        </p>
+      ) : (
+        <p className="mb-4 text-sm text-teal-900/80">
+          View-only schedule. Green slots (A) are when this tutor is available for classes.
+        </p>
+      )}
       <TutorAvailabilityCalendar
+        tutorId={tutorId}
+        readOnly={readOnly}
         onSaveError={setSaveError}
         onUpdatedTill={({ label, loading }) => {
           setUpdatedTillLabel(label);

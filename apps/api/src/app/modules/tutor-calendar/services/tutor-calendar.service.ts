@@ -89,10 +89,33 @@ export class TutorCalendarService {
   ): Promise<Date | null> {
     const tutor = await this.requireTutorForUser(userId);
     await this.assertCanSetCalendar(tutor.id);
+    return this.getLatestSlotStartForTutor(tutor.id);
+  }
+
+  async getAdminCalendar(
+    tutorId: number,
+    from: Date,
+    to: Date,
+  ): Promise<TutorCalendar[]> {
+    await this.requireTutorById(tutorId);
+    if (to <= from) {
+      throw new BadRequestException('Invalid date range');
+    }
+    return this.findForTutorInRange(tutorId, from, to);
+  }
+
+  async getAdminCalendarUpdatedTill(tutorId: number): Promise<Date | null> {
+    await this.requireTutorById(tutorId);
+    return this.getLatestSlotStartForTutor(tutorId);
+  }
+
+  private async getLatestSlotStartForTutor(
+    tutorId: number,
+  ): Promise<Date | null> {
     const row = await this.calendarRepo
       .createQueryBuilder('c')
       .select('MAX(c.startsAt)', 'maxStartsAt')
-      .where('c.tutorId = :tutorId', { tutorId: tutor.id })
+      .where('c.tutorId = :tutorId', { tutorId })
       .andWhere('c.deleted = false')
       .getRawOne<{ maxStartsAt: Date | string | null }>();
     if (row?.maxStartsAt == null) return null;
@@ -185,6 +208,16 @@ export class TutorCalendarService {
     }
 
     return this.findForTutorInRange(tutor.id, rangeStart, rangeEnd);
+  }
+
+  private async requireTutorById(tutorId: number): Promise<Tutor> {
+    const tutor = await this.tutorRepo.findOne({
+      where: { id: tutorId, deleted: false },
+    });
+    if (!tutor) {
+      throw new NotFoundException('Tutor not found');
+    }
+    return tutor;
   }
 
   private async requireTutorForUser(userId: number): Promise<Tutor> {
