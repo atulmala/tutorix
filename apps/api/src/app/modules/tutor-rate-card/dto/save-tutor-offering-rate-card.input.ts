@@ -37,4 +37,10 @@ export class SaveTutorOfferingRateCardInput {
 
   @Field(() => Int, { nullable: true })
   onlineSlab3DiscountPct?: number | null;
+
+  @Field(() => Int, { nullable: true })
+  offlineBatchSize?: number | null;
+
+  @Field(() => Int, { nullable: true })
+  onlineBatchSize?: number | null;
 }

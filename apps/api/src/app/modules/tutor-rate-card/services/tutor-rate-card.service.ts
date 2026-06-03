@@ -79,6 +79,8 @@ export class TutorRateCardService {
           input.offlineSlab3DiscountPct != null
             ? String(input.offlineSlab3DiscountPct)
             : '',
+        batchSize:
+          input.offlineBatchSize != null ? String(input.offlineBatchSize) : '1',
       },
       online: {
         enabled: input.onlineEnabled,
@@ -95,6 +97,7 @@ export class TutorRateCardService {
           input.onlineSlab3DiscountPct != null
             ? String(input.onlineSlab3DiscountPct)
             : '',
+        batchSize: input.onlineBatchSize != null ? String(input.onlineBatchSize) : '1',
       },
     });
 
@@ -129,6 +132,8 @@ export class TutorRateCardService {
       entity.onlineSlab3DiscountPct = normalized.onlineEnabled
         ? normalized.onlineSlab3DiscountPct
         : null;
+      entity.offlineBatchSize = normalized.offlineBatchSize;
+      entity.onlineBatchSize = normalized.onlineBatchSize;
     } else {
       entity = this.rateCardRepo.create({
         tutorOfferingId: input.tutorOfferingId,
@@ -155,6 +160,8 @@ export class TutorRateCardService {
         onlineSlab3DiscountPct: normalized.onlineEnabled
           ? normalized.onlineSlab3DiscountPct
           : null,
+        offlineBatchSize: normalized.offlineBatchSize,
+        onlineBatchSize: normalized.onlineBatchSize,
       });
     }
 
@@ -182,6 +189,8 @@ export class TutorRateCardService {
       onlineBaseDiscountPct: entity.onlineBaseDiscountPct ?? 0,
       onlineSlab2DiscountPct: entity.onlineSlab2DiscountPct ?? null,
       onlineSlab3DiscountPct: entity.onlineSlab3DiscountPct ?? null,
+      offlineBatchSize: entity.offlineBatchSize ?? 1,
+      onlineBatchSize: entity.onlineBatchSize ?? 1,
       isComplete: isRateCardComplete(entity),
     };
   }

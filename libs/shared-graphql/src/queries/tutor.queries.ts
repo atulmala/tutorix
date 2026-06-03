@@ -186,6 +186,8 @@ export const GET_MY_TUTOR_DETAIL = gql`
           onlineBaseDiscountPct
           onlineSlab2DiscountPct
           onlineSlab3DiscountPct
+          offlineBatchSize
+          onlineBatchSize
           isComplete
         }
       }

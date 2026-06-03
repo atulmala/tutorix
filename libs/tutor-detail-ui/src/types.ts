@@ -108,6 +108,8 @@ export type TutorDetailRecord = {
       onlineBaseDiscountPct?: number | null;
       onlineSlab2DiscountPct?: number | null;
       onlineSlab3DiscountPct?: number | null;
+      offlineBatchSize?: number | null;
+      onlineBatchSize?: number | null;
       isComplete: boolean;
     } | null;
   }>;
