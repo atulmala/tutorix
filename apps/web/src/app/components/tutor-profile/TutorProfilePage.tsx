@@ -70,6 +70,7 @@ export const TutorProfilePage: React.FC = () => {
             offlineSlab3DiscountPct: values.offlineEnabled
               ? values.offlineSlab3DiscountPct
               : null,
+            offlineBatchSize: values.offlineEnabled ? values.offlineBatchSize : null,
             onlineEnabled: values.onlineEnabled,
             onlineBaseRate: values.onlineEnabled ? values.onlineBaseRate : null,
             onlineBaseDiscountPct: values.onlineEnabled
@@ -77,6 +78,7 @@ export const TutorProfilePage: React.FC = () => {
               : null,
             onlineSlab2DiscountPct: values.onlineEnabled ? values.onlineSlab2DiscountPct : null,
             onlineSlab3DiscountPct: values.onlineEnabled ? values.onlineSlab3DiscountPct : null,
+            onlineBatchSize: values.onlineEnabled ? values.onlineBatchSize : null,
           },
         },
       });

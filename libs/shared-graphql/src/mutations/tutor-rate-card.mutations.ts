@@ -14,6 +14,8 @@ export const SAVE_MY_TUTOR_OFFERING_RATE_CARD = gql`
       onlineBaseDiscountPct
       onlineSlab2DiscountPct
       onlineSlab3DiscountPct
+      offlineBatchSize
+      onlineBatchSize
       isComplete
     }
   }

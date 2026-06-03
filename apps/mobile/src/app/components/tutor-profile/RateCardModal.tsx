@@ -14,8 +14,10 @@ import {
 } from 'react-native';
 import {
   calculateEffectiveRate,
+  DEFAULT_BATCH_SIZE,
   formatInr,
   isRateCardComplete,
+  MAX_BATCH_SIZE,
   rateCardToFormInput,
   RATE_CARD_SLABS,
   validateRateCardForm,
@@ -24,10 +26,70 @@ import {
   type RateCardLike,
 } from '@tutorix/shared-utils';
 
+const BASE_RATE_TIP = 'Price per class, per student.';
+const BATCH_SIZE_TIP = 'Maximum number of students you will teach in one class.';
+const OFFLINE_OFFER_TIP = 'You conduct physical, face to face class.';
+const ONLINE_OFFER_TIP = 'You conduct online class using our web conferencing tool.';
+
 type RateCardModeTab = 'offline' | 'online';
+
+function FieldLabelWithTip({
+  label,
+  tip,
+  disabled,
+  dense,
+  compactField,
+  labelStyle,
+}: {
+  label: string;
+  tip: string;
+  disabled?: boolean;
+  dense?: boolean;
+  /** Label row only (no extra bottom margin); use above inputs in a column. */
+  compactField?: boolean;
+  labelStyle?: object;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <View
+      style={[
+        styles.labelWithTip,
+        dense && styles.labelWithTipDense,
+        compactField && styles.labelWithTipCompactField,
+      ]}
+    >
+      <View style={styles.labelRow}>
+        <Text
+          style={[styles.fieldLabelText, labelStyle]}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+        <TouchableOpacity
+          onPress={() => setOpen((prev) => !prev)}
+          disabled={disabled}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel={`About ${label}`}
+          accessibilityRole="button"
+        >
+          <View style={[styles.infoIcon, disabled && styles.infoIconDisabled]}>
+            <Text style={styles.infoIconText}>i</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+      {open ? (
+        <View style={[styles.tipBox, compactField && styles.tipBoxOverlay]}>
+          <Text style={styles.tipText}>{tip}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
 
 type ModeSectionProps = {
   title: string;
+  offerTip: string;
   values: RateCardFormInput['offline'];
   onChange: (next: RateCardFormInput['offline']) => void;
   disabled?: boolean;
@@ -70,7 +132,7 @@ function RateCardModeTabs({
   );
 }
 
-function ModeSection({ title, values, onChange, disabled }: ModeSectionProps) {
+function ModeSection({ title, offerTip, values, onChange, disabled }: ModeSectionProps) {
   const inputsDisabled = disabled || !values.enabled;
   const baseRateNum = Number.parseInt(values.baseRate.trim(), 10);
   const hasBaseRate = values.enabled && !Number.isNaN(baseRateNum) && baseRateNum >= 1;
@@ -142,24 +204,83 @@ function ModeSection({ title, values, onChange, disabled }: ModeSectionProps) {
           trackColor={{ false: '#e2e8f0', true: '#a78bfa' }}
           thumbColor={values.enabled ? '#7c3aed' : '#f4f4f5'}
         />
-        <Text style={styles.modeToggleLabel}>{title}</Text>
+        <View style={styles.modeToggleLabelWrap}>
+          <FieldLabelWithTip
+            label={title}
+            tip={offerTip}
+            disabled={disabled}
+            dense
+            labelStyle={styles.modeToggleLabel}
+          />
+        </View>
       </View>
 
       <View style={inputsDisabled ? styles.fieldsDisabled : undefined}>
-        <Text style={styles.label}>Base rate (per class)</Text>
-        <View style={styles.baseRateRow}>
-          <Text style={styles.rupeePrefix}>₹</Text>
-          <TextInput
-            style={[styles.input, styles.baseRateInput, inputsDisabled && styles.inputDisabled]}
-            value={values.baseRate}
-            onChangeText={(text) =>
-              onChange({ ...values, baseRate: text.replace(/\D/g, '') })
-            }
-            placeholder="500"
-            placeholderTextColor="#9ca3af"
-            keyboardType="number-pad"
-            editable={!inputsDisabled}
-          />
+        <View style={styles.baseRateBatchRow}>
+          <View style={styles.baseRateColumn}>
+            <FieldLabelWithTip
+              label="Base rate"
+              tip={BASE_RATE_TIP}
+              disabled={inputsDisabled}
+              compactField
+            />
+            <View style={styles.baseRateRow}>
+              <Text style={styles.rupeePrefix}>₹</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  styles.baseRateInput,
+                  inputsDisabled && styles.inputDisabled,
+                ]}
+                value={values.baseRate}
+                onChangeText={(text) =>
+                  onChange({ ...values, baseRate: text.replace(/\D/g, '') })
+                }
+                placeholder="500"
+                placeholderTextColor="#9ca3af"
+                keyboardType="number-pad"
+                editable={!inputsDisabled}
+              />
+            </View>
+          </View>
+
+          <View style={styles.batchSizeColumn}>
+            <FieldLabelWithTip
+              label="Batch size"
+              tip={BATCH_SIZE_TIP}
+              disabled={inputsDisabled}
+              compactField
+            />
+            <View style={styles.batchSizeRow}>
+              {Array.from(
+                { length: MAX_BATCH_SIZE - DEFAULT_BATCH_SIZE + 1 },
+                (_, i) => DEFAULT_BATCH_SIZE + i,
+              ).map((n) => {
+                const selected = values.batchSize === String(n);
+                return (
+                  <TouchableOpacity
+                    key={n}
+                    style={[
+                      styles.batchSizeChip,
+                      selected && styles.batchSizeChipSelected,
+                      inputsDisabled && styles.inputDisabled,
+                    ]}
+                    onPress={() => onChange({ ...values, batchSize: String(n) })}
+                    disabled={inputsDisabled}
+                  >
+                    <Text
+                      style={[
+                        styles.batchSizeChipText,
+                        selected && styles.batchSizeChipTextSelected,
+                      ]}
+                    >
+                      {n}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
         </View>
 
         <Text style={styles.slabSectionTitle}>Bulk booking discounts (% off base rate)</Text>
@@ -283,14 +404,16 @@ export function RateCardModal({
             <View style={styles.tabPanel}>
               {activeTab === 'offline' ? (
                 <ModeSection
-                  title="Offer offline classes"
+                  title="Offer offline class"
+                  offerTip={OFFLINE_OFFER_TIP}
                   values={form.offline}
                   onChange={(offline) => setForm((prev) => ({ ...prev, offline }))}
                   disabled={saving}
                 />
               ) : (
                 <ModeSection
-                  title="Offer online classes"
+                  title="Offer online class"
+                  offerTip={ONLINE_OFFER_TIP}
                   values={form.online}
                   onChange={(online) => setForm((prev) => ({ ...prev, online }))}
                   disabled={saving}
@@ -417,10 +540,97 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     marginBottom: 6,
   },
+  baseRateBatchRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 14,
+  },
+  baseRateColumn: {
+    flex: 1,
+    minWidth: 88,
+  },
+  batchSizeColumn: {
+    flexShrink: 0,
+    width: 200,
+  },
+  labelWithTip: {
+    marginBottom: 6,
+  },
+  labelWithTipDense: {
+    marginBottom: 0,
+  },
+  labelWithTipCompactField: {
+    marginBottom: 4,
+    position: 'relative',
+    zIndex: 2,
+  },
+  fieldLabelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0f172a',
+    flexShrink: 1,
+  },
+  modeToggleLabelWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minHeight: 22,
+  },
+  infoIcon: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+    backgroundColor: '#fffbeb',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoIconDisabled: {
+    opacity: 0.5,
+  },
+  infoIconText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#78350f',
+    lineHeight: 12,
+  },
+  tipBox: {
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+    backgroundColor: '#fffbeb',
+  },
+  tipBoxOverlay: {
+    position: 'absolute',
+    top: 26,
+    left: 0,
+    right: 0,
+    marginTop: 0,
+    zIndex: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+  },
+  tipText: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#78350f',
+  },
   baseRateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
+    minHeight: 44,
   },
   rupeePrefix: {
     fontSize: 16,
@@ -441,6 +651,29 @@ const styles = StyleSheet.create({
   },
   baseRateInput: { flex: 1 },
   inputDisabled: { backgroundColor: '#f8fafc' },
+  batchSizeRow: {
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    gap: 4,
+    minHeight: 44,
+    alignItems: 'center',
+  },
+  batchSizeChip: {
+    width: 30,
+    height: 40,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  batchSizeChipSelected: {
+    borderColor: '#7c3aed',
+    backgroundColor: '#ede9fe',
+  },
+  batchSizeChipText: { fontSize: 14, fontWeight: '600', color: '#64748b' },
+  batchSizeChipTextSelected: { color: '#581c87' },
   slabSectionTitle: {
     fontSize: 11,
     fontWeight: '700',

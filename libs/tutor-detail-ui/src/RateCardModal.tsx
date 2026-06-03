@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   calculateEffectiveRate,
+  DEFAULT_BATCH_SIZE,
   formatInr,
   isRateCardComplete,
+  MAX_BATCH_SIZE,
   rateCardToFormInput,
   RATE_CARD_SLABS,
   validateRateCardForm,
@@ -13,10 +15,84 @@ import {
 
 export type RateCardFormValuesExport = RateCardFormValues;
 
+const BASE_RATE_TIP = 'Price per class, per student.';
+const BATCH_SIZE_TIP = 'Maximum number of students you will teach in one class.';
+const OFFLINE_OFFER_TIP = 'You conduct physical, face to face class.';
+const ONLINE_OFFER_TIP = 'You conduct online class using our web conferencing tool.';
+
 type RateCardModeTab = 'offline' | 'online';
+
+function FieldLabelWithTip({
+  label,
+  tip,
+  disabled,
+  labelClassName = 'text-sm font-medium text-primary',
+  associatedCheckboxId,
+}: {
+  label: string;
+  tip: string;
+  disabled?: boolean;
+  labelClassName?: string;
+  associatedCheckboxId?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const tipId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const onPointerDown = (event: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [open]);
+
+  const labelProps = associatedCheckboxId
+    ? { htmlFor: associatedCheckboxId, className: `${labelClassName} cursor-pointer` }
+    : { className: labelClassName };
+  const LabelTag = associatedCheckboxId ? 'label' : 'span';
+
+  return (
+    <div ref={rootRef} className="relative">
+      <div className="flex items-center gap-1">
+        <LabelTag {...labelProps}>{label}</LabelTag>
+        <button
+          type="button"
+          aria-label={`About ${label}`}
+          aria-expanded={open}
+          aria-controls={open ? tipId : undefined}
+          disabled={disabled}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpen((prev) => !prev);
+          }}
+          className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-[10px] font-bold leading-none text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          i
+        </button>
+      </div>
+      {open ? (
+        <p
+          id={tipId}
+          role="tooltip"
+          className="absolute left-0 top-full z-20 mt-1 max-w-[14rem] rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs leading-snug text-amber-950 shadow-sm"
+        >
+          {tip}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 type ModeSectionProps = {
   title: string;
+  offerTip: string;
   values: RateCardFormInput['offline'];
   onChange: (next: RateCardFormInput['offline']) => void;
   disabled?: boolean;
@@ -78,7 +154,8 @@ function slabInputCls(inputsDisabled?: boolean): string {
   }`;
 }
 
-function ModeSection({ title, values, onChange, disabled }: ModeSectionProps) {
+function ModeSection({ title, offerTip, values, onChange, disabled }: ModeSectionProps) {
+  const offerCheckboxId = `rate-card-offer-${title.replace(/\s+/g, '-').toLowerCase()}`;
   const inputsDisabled = disabled || !values.enabled;
   const baseRateNum = Number.parseInt(values.baseRate.trim(), 10);
   const hasBaseRate = values.enabled && !Number.isNaN(baseRateNum) && baseRateNum >= 1;
@@ -95,35 +172,73 @@ function ModeSection({ title, values, onChange, disabled }: ModeSectionProps) {
 
   return (
     <div className="rounded-xl border border-purple-100 bg-purple-50/40 p-4">
-      <label className="flex cursor-pointer items-center gap-2">
+      <div className="flex items-start gap-2">
         <input
           type="checkbox"
+          id={offerCheckboxId}
           checked={values.enabled}
           onChange={(e) => onChange({ ...values, enabled: e.target.checked })}
           disabled={disabled}
-          className="h-4 w-4 rounded border-purple-300 text-purple-600 focus:ring-purple-500"
+          className="mt-0.5 h-4 w-4 shrink-0 rounded border-purple-300 text-purple-600 focus:ring-purple-500"
         />
-        <span className="text-sm font-semibold text-purple-950">{title}</span>
-      </label>
+        <div className="min-w-0 flex-1">
+          <FieldLabelWithTip
+            label={title}
+            tip={offerTip}
+            disabled={disabled}
+            labelClassName="text-sm font-semibold text-purple-950"
+            associatedCheckboxId={offerCheckboxId}
+          />
+        </div>
+      </div>
 
       <div className="mt-4 space-y-4" aria-disabled={inputsDisabled}>
-        <div className="space-y-1 text-left">
-          <label className="text-sm font-medium text-primary">Base rate (per class)</label>
-          <div className="relative">
-            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted">
-              ₹
-            </span>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={values.baseRate}
-              onChange={(e) =>
-                onChange({ ...values, baseRate: e.target.value.replace(/\D/g, '') })
-              }
+        <div className="flex flex-nowrap items-start gap-3">
+          <div className="min-w-0 flex-1 space-y-1.5 text-left">
+            <FieldLabelWithTip
+              label="Base rate"
+              tip={BASE_RATE_TIP}
               disabled={inputsDisabled}
-              className={`${inputCls(inputsDisabled)} pl-7`}
-              placeholder="500"
             />
+            <div className="relative">
+              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted">
+                ₹
+              </span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={values.baseRate}
+                onChange={(e) =>
+                  onChange({ ...values, baseRate: e.target.value.replace(/\D/g, '') })
+                }
+                disabled={inputsDisabled}
+                className={`${inputCls(inputsDisabled)} pl-7`}
+                placeholder="500"
+              />
+            </div>
+          </div>
+
+          <div className="w-28 shrink-0 space-y-1.5 text-left">
+            <FieldLabelWithTip
+              label="Batch size"
+              tip={BATCH_SIZE_TIP}
+              disabled={inputsDisabled}
+            />
+            <select
+              value={values.batchSize}
+              onChange={(e) => onChange({ ...values, batchSize: e.target.value })}
+              disabled={inputsDisabled}
+              className={inputCls(inputsDisabled)}
+            >
+              {Array.from(
+                { length: MAX_BATCH_SIZE - DEFAULT_BATCH_SIZE + 1 },
+                (_, i) => DEFAULT_BATCH_SIZE + i,
+              ).map((n) => (
+                <option key={n} value={String(n)}>
+                  {n}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -348,7 +463,8 @@ export function RateCardModal({
                 hidden={activeTab !== 'offline'}
               >
                 <ModeSection
-                  title="Offer offline classes"
+                  title="Offer offline class"
+                  offerTip={OFFLINE_OFFER_TIP}
                   values={form.offline}
                   onChange={(offline) => setForm((prev) => ({ ...prev, offline }))}
                   disabled={fieldsDisabled}
@@ -361,7 +477,8 @@ export function RateCardModal({
                 hidden={activeTab !== 'online'}
               >
                 <ModeSection
-                  title="Offer online classes"
+                  title="Offer online class"
+                  offerTip={ONLINE_OFFER_TIP}
                   values={form.online}
                   onChange={(online) => setForm((prev) => ({ ...prev, online }))}
                   disabled={fieldsDisabled}

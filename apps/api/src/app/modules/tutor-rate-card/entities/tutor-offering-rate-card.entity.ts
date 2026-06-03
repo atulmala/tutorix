@@ -41,6 +41,12 @@ export class TutorOfferingRateCardEntity extends QBaseEntity {
   @Column({ name: 'online_slab3_discount_pct', type: 'smallint', nullable: true })
   onlineSlab3DiscountPct?: number | null;
 
+  @Column({ name: 'offline_batch_size', type: 'smallint', default: 1 })
+  offlineBatchSize: number;
+
+  @Column({ name: 'online_batch_size', type: 'smallint', default: 1 })
+  onlineBatchSize: number;
+
   @OneToOne(() => TutorOfferingEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'tutor_offering_id' })
   tutorOffering?: TutorOfferingEntity;

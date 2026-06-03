@@ -4,12 +4,18 @@ export const RATE_CARD_SLABS = [
   { id: 3 as const, label: '11+ classes', minClasses: 11, maxClasses: null },
 ] as const;
 
+export const DEFAULT_BATCH_SIZE = 1;
+export const MAX_BATCH_SIZE = 6;
+
+export type RateCardDeliveryMode = 'online' | 'offline';
+
 export type RateCardModeValues = {
   enabled: boolean;
   baseRate: string;
   baseDiscountPct: string;
   slab2DiscountPct: string;
   slab3DiscountPct: string;
+  batchSize: string;
 };
 
 export type RateCardFormInput = {
@@ -25,11 +31,13 @@ export type RateCardFormValues = {
   offlineBaseDiscountPct: number;
   offlineSlab2DiscountPct: number | null;
   offlineSlab3DiscountPct: number | null;
+  offlineBatchSize: number;
   onlineEnabled: boolean;
   onlineBaseRate: number;
   onlineBaseDiscountPct: number;
   onlineSlab2DiscountPct: number | null;
   onlineSlab3DiscountPct: number | null;
+  onlineBatchSize: number;
 };
 
 export type RateCardLike = {
@@ -39,11 +47,13 @@ export type RateCardLike = {
   offlineBaseDiscountPct?: number | null;
   offlineSlab2DiscountPct?: number | null;
   offlineSlab3DiscountPct?: number | null;
+  offlineBatchSize?: number | null;
   onlineEnabled?: boolean | null;
   onlineBaseRate?: number | null;
   onlineBaseDiscountPct?: number | null;
   onlineSlab2DiscountPct?: number | null;
   onlineSlab3DiscountPct?: number | null;
+  onlineBatchSize?: number | null;
 };
 
 export function calculateEffectiveRate(
@@ -73,6 +83,28 @@ export function isRateCardComplete(rateCard: RateCardLike | null | undefined): b
   return offlineOk || onlineOk;
 }
 
+/** Max students per 1-hour session for a delivery mode (1 if mode disabled). */
+export function getBatchSizeForMode(
+  rateCard: RateCardLike | null | undefined,
+  mode: RateCardDeliveryMode,
+): number {
+  if (!rateCard) {
+    return DEFAULT_BATCH_SIZE;
+  }
+  if (mode === 'offline') {
+    if (rateCard.offlineEnabled !== true) {
+      return DEFAULT_BATCH_SIZE;
+    }
+    const size = rateCard.offlineBatchSize ?? DEFAULT_BATCH_SIZE;
+    return size >= 1 && size <= MAX_BATCH_SIZE ? size : DEFAULT_BATCH_SIZE;
+  }
+  if (rateCard.onlineEnabled !== true) {
+    return DEFAULT_BATCH_SIZE;
+  }
+  const size = rateCard.onlineBatchSize ?? DEFAULT_BATCH_SIZE;
+  return size >= 1 && size <= MAX_BATCH_SIZE ? size : DEFAULT_BATCH_SIZE;
+}
+
 function parseOptionalDiscount(value: string): number | null {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -97,12 +129,25 @@ function parseBaseDiscount(value: string): number {
   return parsed;
 }
 
+function parseBatchSize(value: string): number {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return DEFAULT_BATCH_SIZE;
+  }
+  const parsed = Number.parseInt(trimmed, 10);
+  if (Number.isNaN(parsed)) {
+    return Number.NaN;
+  }
+  return parsed;
+}
+
 type ModeValidationSuccess = {
   ok: true;
   baseRate: number;
   baseDiscount: number;
   slab2: number | null;
   slab3: number | null;
+  batchSize: number;
 };
 
 type ModeValidationFailure = {
@@ -119,9 +164,17 @@ function validateMode(
   baseDiscountPct: string,
   slab2DiscountPct: string,
   slab3DiscountPct: string,
+  batchSize: string,
 ): ModeValidationResult {
   if (!enabled) {
-    return { ok: true, baseRate: 0, baseDiscount: 0, slab2: null, slab3: null };
+    return {
+      ok: true,
+      baseRate: 0,
+      baseDiscount: 0,
+      slab2: null,
+      slab3: null,
+      batchSize: DEFAULT_BATCH_SIZE,
+    };
   }
 
   const parsedBase = Number.parseInt(baseRate.trim(), 10);
@@ -167,7 +220,25 @@ function validateMode(
     };
   }
 
-  return { ok: true, baseRate: parsedBase, baseDiscount, slab2, slab3 };
+  const parsedBatch = parseBatchSize(batchSize);
+  if (Number.isNaN(parsedBatch)) {
+    return { ok: false, message: `${modeLabel}: enter a valid batch size.` };
+  }
+  if (parsedBatch < DEFAULT_BATCH_SIZE || parsedBatch > MAX_BATCH_SIZE) {
+    return {
+      ok: false,
+      message: `${modeLabel}: batch size must be between ${DEFAULT_BATCH_SIZE} and ${MAX_BATCH_SIZE}.`,
+    };
+  }
+
+  return {
+    ok: true,
+    baseRate: parsedBase,
+    baseDiscount,
+    slab2,
+    slab3,
+    batchSize: parsedBatch,
+  };
 }
 
 export function validateRateCardForm(
@@ -182,6 +253,7 @@ export function validateRateCardForm(
     values.offline.baseDiscountPct,
     values.offline.slab2DiscountPct,
     values.offline.slab3DiscountPct,
+    values.offline.batchSize,
   );
   if (offline.ok === false) {
     return { ok: false, message: offline.message };
@@ -194,6 +266,7 @@ export function validateRateCardForm(
     values.online.baseDiscountPct,
     values.online.slab2DiscountPct,
     values.online.slab3DiscountPct,
+    values.online.batchSize,
   );
   if (online.ok === false) {
     return { ok: false, message: online.message };
@@ -212,11 +285,13 @@ export function validateRateCardForm(
       offlineBaseDiscountPct: offline.baseDiscount,
       offlineSlab2DiscountPct: offline.slab2,
       offlineSlab3DiscountPct: offline.slab3,
+      offlineBatchSize: offline.batchSize,
       onlineEnabled: values.online.enabled,
       onlineBaseRate: online.baseRate,
       onlineBaseDiscountPct: online.baseDiscount,
       onlineSlab2DiscountPct: online.slab2,
       onlineSlab3DiscountPct: online.slab3,
+      onlineBatchSize: online.batchSize,
     },
   };
 }
@@ -232,14 +307,18 @@ export function formatRateCardSummary(rateCard: RateCardLike | null | undefined)
       rateCard.offlineBaseRate,
       rateCard.offlineBaseDiscountPct ?? 0,
     );
-    parts.push(`${formatInr(effective)}/class offline`);
+    const batch = getBatchSizeForMode(rateCard, 'offline');
+    const batchSuffix = batch > 1 ? ` · Batch: ${batch}` : '';
+    parts.push(`${formatInr(effective)}/class offline${batchSuffix}`);
   }
   if (rateCard?.onlineEnabled && rateCard.onlineBaseRate) {
     const effective = calculateEffectiveRate(
       rateCard.onlineBaseRate,
       rateCard.onlineBaseDiscountPct ?? 0,
     );
-    parts.push(`${formatInr(effective)}/class online`);
+    const batch = getBatchSizeForMode(rateCard, 'online');
+    const batchSuffix = batch > 1 ? ` · Batch: ${batch}` : '';
+    parts.push(`${formatInr(effective)}/class online${batchSuffix}`);
   }
   if (rateCard?.freeDemoOffered) {
     parts.push('Demo: Yes');
@@ -268,6 +347,11 @@ export function rateCardToFormInput(rateCard: RateCardLike | null | undefined): 
         rateCard?.offlineSlab3DiscountPct != null
           ? String(rateCard.offlineSlab3DiscountPct)
           : '',
+      batchSize: String(
+        rateCard?.offlineBatchSize != null && rateCard.offlineBatchSize >= 1
+          ? rateCard.offlineBatchSize
+          : DEFAULT_BATCH_SIZE,
+      ),
     },
     online: {
       enabled: rateCard?.onlineEnabled ?? false,
@@ -287,6 +371,11 @@ export function rateCardToFormInput(rateCard: RateCardLike | null | undefined): 
         rateCard?.onlineSlab3DiscountPct != null
           ? String(rateCard.onlineSlab3DiscountPct)
           : '',
+      batchSize: String(
+        rateCard?.onlineBatchSize != null && rateCard.onlineBatchSize >= 1
+          ? rateCard.onlineBatchSize
+          : DEFAULT_BATCH_SIZE,
+      ),
     },
   };
 }

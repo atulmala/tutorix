@@ -17,6 +17,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { UserBankDetailsModule } from './modules/user-bank-details/user-bank-details.module';
 import { TutorRateCardModule } from './modules/tutor-rate-card/tutor-rate-card.module';
 import { TutorCalendarModule } from './modules/tutor-calendar/tutor-calendar.module';
+import { TutorClassSessionModule } from './modules/tutor-class-session/tutor-class-session.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { TutorCalendarModule } from './modules/tutor-calendar/tutor-calendar.mod
     UserBankDetailsModule,
     TutorRateCardModule,
     TutorCalendarModule,
+    TutorClassSessionModule,
     // Add other modules here as they are created:
     // StudentModule,
     // ClassesModule,

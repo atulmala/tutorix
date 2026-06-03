@@ -35,6 +35,12 @@ export class TutorOfferingRateCard {
   @Field(() => Int, { nullable: true })
   onlineSlab3DiscountPct?: number | null;
 
+  @Field(() => Int)
+  offlineBatchSize: number;
+
+  @Field(() => Int)
+  onlineBatchSize: number;
+
   @Field()
   isComplete: boolean;
 }

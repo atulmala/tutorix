@@ -23,6 +23,8 @@ import { Example } from '../entities/example.entity';
 import { UserBankDetailsEntity } from '../modules/user-bank-details/entities/user-bank-details.entity';
 import { TutorOfferingRateCardEntity } from '../modules/tutor-rate-card/entities/tutor-offering-rate-card.entity';
 import { TutorCalendar } from '../modules/tutor-calendar/entities/tutor-calendar.entity';
+import { TutorClassSessionEntity } from '../modules/tutor-class-session/entities/tutor-class-session.entity';
+import { TutorClassSessionEnrollmentEntity } from '../modules/tutor-class-session/entities/tutor-class-session-enrollment.entity';
 // Add other entities as they are created
 
 /**
@@ -63,6 +65,8 @@ export function createDatabaseOptions(
       UserBankDetailsEntity,
       TutorOfferingRateCardEntity,
       TutorCalendar,
+      TutorClassSessionEntity,
+      TutorClassSessionEnrollmentEntity,
       // Add other entities here as they are created
       // Student,
       // Class,
