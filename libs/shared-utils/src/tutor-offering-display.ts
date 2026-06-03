@@ -183,7 +183,7 @@ function formatNonSchoolEducationLabel(
 
 /**
  * Build a full offering label for tutor profile tables.
- * School Education: "{board} | {medium} | Classes {low} - {high}" from PT-linked offerings when available.
+ * School Education: "{board} | {medium} | {subject} | Classes {low} - {high}" from PT-linked offerings when available.
  * Other study areas: space-separated path without the root study area name.
  */
 export function formatTutorOfferingFullLabel(
@@ -233,7 +233,7 @@ function formatSchoolEducationLabelWithCatalog(
   }
 
   if (!grade) {
-    return joinLabelSegments(board, medium);
+    return joinLabelSegments(board, medium, leaf.displayName);
   }
 
   const groupKey = schoolEducationGroupKey(leaf, ancestors);
@@ -247,14 +247,19 @@ function formatSchoolEducationLabelWithCatalog(
     );
     const rangeLabel = formatClassRangeLabel(classNumbers);
     if (rangeLabel) {
-      return joinLabelSegments(board, medium, rangeLabel);
+      return joinLabelSegments(board, medium, leaf.displayName, rangeLabel);
     }
   }
 
   const classNum = parseClassNumber(grade);
   if (classNum != null) {
-    return joinLabelSegments(board, medium, `Classes ${classNum}`);
+    return joinLabelSegments(
+      board,
+      medium,
+      leaf.displayName,
+      `Classes ${classNum}`,
+    );
   }
 
-  return joinLabelSegments(board, medium, grade);
+  return joinLabelSegments(board, medium, leaf.displayName, grade);
 }

@@ -11,7 +11,10 @@ type PTIntroScreenProps = {
   maxMarks?: number;
   passPercentage?: number;
   attemptsLeft?: number;
+  ptFeeDisplayLabel?: string | null;
+  context?: 'onboarding' | 'addOffering' | 'profile';
   onStart: () => void;
+  onTakeLater?: () => void;
 };
 
 export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
@@ -20,7 +23,10 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
   maxMarks = DEFAULT_MAX_MARKS,
   passPercentage = DEFAULT_PASS_PERCENTAGE,
   attemptsLeft = 2,
+  ptFeeDisplayLabel,
+  context = 'onboarding',
   onStart,
+  onTakeLater,
 }) => {
   const passingMarks = Math.ceil((passPercentage / 100) * maxMarks);
 
@@ -66,15 +72,30 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
         </Text>
       </View>
 
+      {ptFeeDisplayLabel ? (
+        <View style={styles.feeCard}>
+          <Text style={styles.feeText}>Test fee: {ptFeeDisplayLabel}</Text>
+        </View>
+      ) : null}
+
       <View style={styles.noteCard}>
         <Text style={styles.noteText}>
-          You will be allowed to change subject if you are not able to pass this{' '}
-          {testName} in 2 attempts. Also once your onboarding is complete, you
-          will be allowed to add more offerings.
+          {context === 'onboarding'
+            ? `You will be allowed to change subject if you are not able to pass this ${testName} in 2 attempts. Also once your onboarding is complete, you will be allowed to add more offerings.`
+            : 'You have up to 2 attempts to pass this test for this offering. After passing, set your rate card from your profile.'}
         </Text>
       </View>
 
       <View style={styles.buttonRow}>
+        {onTakeLater ? (
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={onTakeLater}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.secondaryButtonText}>Take later</Text>
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity
           style={styles.primaryButton}
           onPress={onStart}
@@ -136,6 +157,18 @@ const styles = StyleSheet.create({
   importantBold: {
     fontWeight: '600',
   },
+  feeCard: {
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    borderRadius: 12,
+    padding: 16,
+  },
+  feeText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#78350f',
+  },
   noteCard: {
     backgroundColor: '#f8fafc',
     borderWidth: 1,
@@ -150,6 +183,20 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    gap: 12,
+  },
+  secondaryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0f172a',
   },
   primaryButton: {
     paddingHorizontal: 24,

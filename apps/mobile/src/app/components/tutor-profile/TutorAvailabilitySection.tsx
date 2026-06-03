@@ -159,7 +159,9 @@ export function TutorAvailabilitySection({ tutor, onOpenRateCard }: Props) {
     [editor],
   );
 
-  const firstNeedingRate = tutor.offerings.find((o) => !o.rateCard?.isComplete);
+  const firstNeedingRate = tutor.offerings.find(
+    (o) => o.status === 'pt_passed' && !o.rateCard?.isComplete,
+  );
 
   if (!unlocked) {
     return (

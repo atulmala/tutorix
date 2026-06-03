@@ -126,7 +126,7 @@ export function TutorAvailabilitySection({
     title ?? (readOnly ? 'Tutor calendar' : 'My Calendar');
 
   const firstOfferingNeedingRate = offerings.find(
-    (o) => !tutorHasAtLeastOneCompleteRateCard([o]),
+    (o) => o.status === 'pt_passed' && !tutorHasAtLeastOneCompleteRateCard([o]),
   );
 
   if (!unlocked) {

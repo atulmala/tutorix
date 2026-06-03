@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,8 @@ import {
   sortQualificationsHighestFirst,
   sumExperienceDurations,
   formatOfferingLabelForDisplay,
+  ptStatusLabel,
+  sortTutorOfferingsForDisplay,
   type OnboardingTimelineEntry,
 } from '@tutorix/shared-utils';
 import type {
@@ -40,6 +42,8 @@ import { BankDetailsSection } from './BankDetailsSection';
 import { BankDetailsModal } from './BankDetailsModal';
 import { RateCardModal } from './RateCardModal';
 import { TutorAvailabilitySection } from './TutorAvailabilitySection';
+import { AddOfferingFlow } from './AddOfferingFlow';
+import { TutorPT } from '../tutor-onboarding/tutor-pt/TutorPT';
 
 type TutorOffering = TutorDetailRecord['offerings'][number];
 
@@ -162,6 +166,8 @@ export const TutorDetailScreen: React.FC = () => {
   const [bankDetailsSaveError, setBankDetailsSaveError] = useState<string | null>(null);
   const [rateCardOffering, setRateCardOffering] = useState<TutorOffering | null>(null);
   const [rateCardSaveError, setRateCardSaveError] = useState<string | null>(null);
+  const [showAddOffering, setShowAddOffering] = useState(false);
+  const [ptOffering, setPtOffering] = useState<TutorOffering | null>(null);
 
   const [saveBankDetails, { loading: savingBankDetails }] = useMutation(SAVE_MY_BANK_DETAILS);
   const [saveRateCard, { loading: savingRateCard }] = useMutation(SAVE_MY_TUTOR_OFFERING_RATE_CARD);
@@ -170,6 +176,19 @@ export const TutorDetailScreen: React.FC = () => {
   const offeringFieldsInRow = windowWidth >= 400;
 
   const tutor = data?.myTutorDetail;
+
+  const excludeOfferingIds = useMemo(
+    () =>
+      (tutor?.offerings ?? [])
+        .map((o) => o.offeringId)
+        .filter((id): id is number => id != null),
+    [tutor?.offerings],
+  );
+
+  const handleAddOfferingComplete = useCallback(async () => {
+    setShowAddOffering(false);
+    await refetch();
+  }, [refetch]);
 
   const timelineEntries = useMemo(
     () =>
@@ -191,6 +210,11 @@ export const TutorDetailScreen: React.FC = () => {
   const sortedQualifications = useMemo(
     () => sortQualificationsHighestFirst(tutor?.qualifications ?? []),
     [tutor?.qualifications],
+  );
+
+  const sortedOfferings = useMemo(
+    () => sortTutorOfferingsForDisplay(tutor?.offerings ?? []),
+    [tutor?.offerings],
   );
 
   const handleSaveRateCard = async (tutorOfferingId: number, values: RateCardFormValues) => {
@@ -279,6 +303,42 @@ export const TutorDetailScreen: React.FC = () => {
   const totalExperience = sumExperienceDurations(tutor.experiences);
   const displayName = [tutor.user?.firstName, tutor.user?.lastName].filter(Boolean).join(' ').trim();
 
+  if (showAddOffering) {
+    return (
+      <AddOfferingFlow
+        excludeOfferingIds={excludeOfferingIds}
+        testTutor={tutor.testTutor}
+        onClose={() => setShowAddOffering(false)}
+        onComplete={handleAddOfferingComplete}
+      />
+    );
+  }
+
+  if (ptOffering) {
+    const offeringLabel =
+      ptOffering.offeringFullLabel ??
+      ptOffering.offeringDisplayName ??
+      ptOffering.offeringName ??
+      'this offering';
+    return (
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        <Text style={styles.title}>Proficiency test</Text>
+        <Text style={styles.subtitle}>{offeringLabel}</Text>
+        <TutorPT
+          context="profile"
+          tutorOfferingId={ptOffering.id}
+          offeringDisplayName={offeringLabel}
+          attemptsUsed={ptOffering.attemptsUsed}
+          testTutor={tutor.testTutor}
+          onComplete={async () => {
+            setPtOffering(null);
+            await refetch();
+          }}
+        />
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       <Text style={styles.title}>{displayName || 'Your profile'}</Text>
@@ -295,6 +355,7 @@ export const TutorDetailScreen: React.FC = () => {
       <TutorAvailabilitySection
         tutor={tutor}
         onOpenRateCard={(offering) => {
+          if (offering.status !== 'pt_passed') return;
           setRateCardSaveError(null);
           setRateCardOffering(offering);
         }}
@@ -303,16 +364,27 @@ export const TutorDetailScreen: React.FC = () => {
       <View style={styles.offeringsSection}>
         <View style={styles.offeringsSectionHeaderRow}>
           <Text style={styles.offeringsSectionTitle}>Offerings</Text>
-          <Text style={styles.offeringsCount}>
-            {formatEntryCount(tutor.offerings.length, 'offering', 'offerings')}
-          </Text>
+          <View style={styles.offeringsHeaderActions}>
+            <Text style={styles.offeringsCount}>
+              {formatEntryCount(tutor.offerings.length, 'offering', 'offerings')}
+            </Text>
+            <TouchableOpacity
+              style={styles.addOfferingButton}
+              onPress={() => setShowAddOffering(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.addOfferingButtonText}>Add offering</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         {tutor.offerings.length === 0 ? (
           <Text style={styles.muted}>No offerings on file.</Text>
         ) : (
           <View style={styles.offeringsList}>
-            {tutor.offerings.map((o) => {
+            {sortedOfferings.map((o) => {
               const hasRateCard = Boolean(o.rateCard?.isComplete);
+              const ptPassed = o.status === 'pt_passed';
+              const ptPending = o.status === 'pending_pt';
               return (
                 <View key={o.id} style={styles.offeringGridCard}>
                   <Text style={styles.offeringName} numberOfLines={2}>
@@ -322,6 +394,9 @@ export const TutorDetailScreen: React.FC = () => {
                         o.offeringName ??
                         'Offering',
                     )}
+                  </Text>
+                  <Text style={styles.ptStatusText}>
+                    PT: {ptStatusLabel(o.status)}
                   </Text>
                   <View
                     style={[
@@ -343,23 +418,37 @@ export const TutorDetailScreen: React.FC = () => {
                     />
                   </View>
                   <View style={styles.rateCardRow}>
-                    {hasRateCard ? (
+                    {ptPending ? (
+                      <TouchableOpacity
+                        style={styles.rateCardButton}
+                        onPress={() => setPtOffering(o)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.rateCardButtonText}>
+                          Take proficiency test
+                        </Text>
+                      </TouchableOpacity>
+                    ) : !ptPassed ? (
+                      <Text style={styles.ptRequiredHint}>—</Text>
+                    ) : hasRateCard ? (
                       <View style={styles.configuredBadge}>
                         <Text style={styles.configuredBadgeText}>Configured</Text>
                       </View>
                     ) : null}
-                    <TouchableOpacity
-                      style={styles.rateCardButton}
-                      onPress={() => {
-                        setRateCardSaveError(null);
-                        setRateCardOffering(o);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.rateCardButtonText}>
-                        {hasRateCard ? 'Edit rate card' : 'Rate card'}
-                      </Text>
-                    </TouchableOpacity>
+                    {ptPassed ? (
+                      <TouchableOpacity
+                        style={styles.rateCardButton}
+                        onPress={() => {
+                          setRateCardSaveError(null);
+                          setRateCardOffering(o);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.rateCardButtonText}>
+                          {hasRateCard ? 'Edit rate card' : 'Rate card'}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : null}
                   </View>
                 </View>
               );
@@ -667,10 +756,37 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#4338ca',
   },
+  offeringsHeaderActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+  },
   offeringsCount: {
     fontSize: 11,
     fontWeight: '600',
     color: '#0f766e',
+  },
+  addOfferingButton: {
+    backgroundColor: '#7c3aed',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  addOfferingButtonText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  ptStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6d28d9',
+    marginBottom: 4,
+  },
+  ptRequiredHint: {
+    fontSize: 12,
+    color: '#64748b',
   },
   offeringsSection: {
     backgroundColor: '#fff',

@@ -11,3 +11,8 @@ export { BankDetailsSection } from './BankDetailsSection';
 export { BankDetailsModal, type BankDetailsFormValues } from './BankDetailsModal';
 export { RateCardModal, type RateCardFormValuesExport as RateCardFormValues } from './RateCardModal';
 export { OfferingLabel } from './OfferingLabel';
+export {
+  OfferingCascadePicker,
+  type OfferingCatalogNode,
+  type OfferingCascadePickerProps,
+} from './OfferingCascadePicker';

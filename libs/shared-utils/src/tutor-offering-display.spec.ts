@@ -118,21 +118,25 @@ describe('formatTutorOfferingFullLabel', () => {
       formatTutorOfferingFullLabel(leaf, byId, {
         proficiencyTestOfferingIds: [1001, 1000, 1005],
       }),
-    ).toBe('CBSE | English | Classes 1 - 5');
+    ).toBe('CBSE | English | Mathematics | Classes 1 - 5');
   });
 
   it('formats a single class when no PT offering list is provided', () => {
     const byId = buildSchoolEducationTree();
     const leaf = byId.get(1000)!;
 
-    expect(formatTutorOfferingFullLabel(leaf, byId)).toBe('CBSE | English | Classes 4');
+    expect(formatTutorOfferingFullLabel(leaf, byId)).toBe(
+      'CBSE | English | Mathematics | Classes 4',
+    );
   });
 
   it('uses grade name when class number is not parseable', () => {
     const byId = buildSchoolEducationTree();
     const leaf = byId.get(2000)!;
 
-    expect(formatTutorOfferingFullLabel(leaf, byId)).toBe('CBSE | Hindi | Kindergarten');
+    expect(formatTutorOfferingFullLabel(leaf, byId)).toBe(
+      'CBSE | Hindi | Mathematics | Kindergarten',
+    );
   });
 
   it('formats non-school study areas with full path segments', () => {

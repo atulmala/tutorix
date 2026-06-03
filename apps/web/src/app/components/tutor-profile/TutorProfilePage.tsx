@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import {
   GET_MY_TUTOR_DETAIL,
@@ -11,6 +11,8 @@ import {
   type RateCardFormValues,
   type TutorDetailRecord,
 } from '@tutorix/tutor-detail-ui';
+import { AddOfferingFlow } from './AddOfferingFlow';
+import { TutorPT } from '../tutor-onboarding/tutor-pt/TutorPT';
 
 type MyTutorDetailData = {
   myTutorDetail: TutorDetailRecord;
@@ -22,11 +24,23 @@ export const TutorProfilePage: React.FC = () => {
   });
   const [bankDetailsSaveError, setBankDetailsSaveError] = useState<string | null>(null);
   const [rateCardSaveError, setRateCardSaveError] = useState<string | null>(null);
+  const [showAddOffering, setShowAddOffering] = useState(false);
+  const [ptOffering, setPtOffering] = useState<
+    TutorDetailRecord['offerings'][number] | null
+  >(null);
 
   const [saveBankDetails, { loading: savingBankDetails }] = useMutation(SAVE_MY_BANK_DETAILS);
   const [saveRateCard, { loading: savingRateCard }] = useMutation(SAVE_MY_TUTOR_OFFERING_RATE_CARD);
 
   const tutor = data?.myTutorDetail;
+
+  const excludeOfferingIds = useMemo(
+    () =>
+      (tutor?.offerings ?? [])
+        .map((o) => o.offeringId)
+        .filter((id): id is number => id != null),
+    [tutor?.offerings],
+  );
 
   const handleSaveBankDetails = async (values: BankDetailsFormValues) => {
     setBankDetailsSaveError(null);
@@ -107,12 +121,57 @@ export const TutorProfilePage: React.FC = () => {
     );
   }
 
+  if (ptOffering) {
+    const offeringLabel =
+      ptOffering.offeringFullLabel ??
+      ptOffering.offeringDisplayName ??
+      ptOffering.offeringName ??
+      'this offering';
+    return (
+      <div className="w-full max-w-2xl rounded-2xl border border-purple-200 bg-white p-6 shadow-lg">
+        <h1 className="text-xl font-bold text-primary">Proficiency test</h1>
+        <p className="mt-1 text-sm text-muted">{offeringLabel}</p>
+        <div className="mt-6">
+          <TutorPT
+            context="profile"
+            tutorOfferingId={ptOffering.id}
+            offeringDisplayName={offeringLabel}
+            attemptsUsed={ptOffering.attemptsUsed}
+            testTutor={tutor.testTutor}
+            onComplete={async () => {
+              setPtOffering(null);
+              await refetch();
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (showAddOffering) {
+    return (
+      <div className="w-full max-w-5xl">
+        <AddOfferingFlow
+          excludeOfferingIds={excludeOfferingIds}
+          testTutor={tutor.testTutor}
+          onClose={() => setShowAddOffering(false)}
+          onComplete={async () => {
+            setShowAddOffering(false);
+            await refetch();
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-5xl">
       <p className="mb-4 text-sm text-muted">Your tutor profile</p>
       <TutorDetailView
         mode="tutor"
         tutor={tutor}
+        onAddOffering={() => setShowAddOffering(true)}
+        onStartProficiencyTest={(offering) => setPtOffering(offering)}
         onSaveBankDetails={handleSaveBankDetails}
         savingBankDetails={savingBankDetails}
         bankDetailsSaveError={bankDetailsSaveError}

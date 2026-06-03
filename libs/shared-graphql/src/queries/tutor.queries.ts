@@ -162,6 +162,7 @@ export const GET_MY_TUTOR_DETAIL = gql`
       }
       offerings {
         id
+        offeringId
         offeringName
         offeringDisplayName
         offeringFullLabel

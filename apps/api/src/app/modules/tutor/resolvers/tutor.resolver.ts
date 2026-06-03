@@ -18,7 +18,10 @@ import { User } from '../../auth/entities/user.entity';
 import { SubmitProficiencyTestInput } from '../../proficiency/dto/submit-proficiency-test.input';
 import { SubmitProficiencyTestResult } from '../../proficiency/dto/submit-proficiency-test.result';
 import { ProficiencyTestEntity } from '../../proficiency/entities/proficiency-test.entity';
-
+import { AddTutorOfferingResult } from '../dto/add-tutor-offering.result';
+import { ProficiencyTestFeeInfo } from '../dto/proficiency-test-fee-info.dto';
+import { TutorAddOfferingService } from '../services/tutor-add-offering.service';
+import { TutorOfferingPtFeeService } from '../services/tutor-offering-pt-fee.service';
 @Resolver(() => Tutor)
 export class TutorResolver {
   constructor(
@@ -27,6 +30,8 @@ export class TutorResolver {
     private readonly tutorOfferingService: TutorOfferingService,
     private readonly tutorOnboardingService: TutorOnboardingService,
     private readonly tutorDetailService: TutorDetailService,
+    private readonly tutorAddOfferingService: TutorAddOfferingService,
+    private readonly ptFeeService: TutorOfferingPtFeeService,
   ) {}
 
   /**
@@ -90,6 +95,7 @@ export class TutorResolver {
       tutorOfferingId,
       tutor.id,
     );
+    await this.tutorOfferingService.assertCanTakeProficiencyTest(tutorOffering);
     const test =
       await this.tutorOfferingService.getProficiencyTestWith30Questions(
         tutorOffering.proficiencyTestId,
@@ -147,6 +153,35 @@ export class TutorResolver {
    * Mutation: Save tutor offerings and advance to PT stage.
    * Creates tutor_offering rows for each leaf offering. Each gets 2 PT attempts.
    */
+  @Mutation(() => AddTutorOfferingResult, {
+    description:
+      'Add a new offering after onboarding; creates pending PT and proficiency test fee record',
+  })
+  @UseGuards(JwtAuthGuard)
+  async addMyTutorOffering(
+    @CurrentUser() user: User,
+    @Args('offeringId', { type: () => ID }) offeringId: number,
+  ): Promise<AddTutorOfferingResult> {
+    return this.tutorAddOfferingService.addMyTutorOffering(user, offeringId);
+  }
+
+  @Query(() => ProficiencyTestFeeInfo, {
+    name: 'ptFeeInfo',
+    description: 'Proficiency test fee info for a tutor offering',
+  })
+  @UseGuards(JwtAuthGuard)
+  async ptFeeInfo(
+    @CurrentUser() user: User,
+    @Args('tutorOfferingId', { type: () => ID }) tutorOfferingId: number,
+  ): Promise<ProficiencyTestFeeInfo> {
+    const tutor = await this.tutorService.findByUserId(user.id);
+    if (!tutor) {
+      throw new BadRequestException('Tutor profile not found for this user');
+    }
+    await this.tutorOfferingService.findByIdForTutor(tutorOfferingId, tutor.id);
+    return this.ptFeeService.getFeeInfoForTutorOffering(tutorOfferingId);
+  }
+
   @Mutation(() => [TutorOfferingEntity], {
     description: 'Save offerings for the authenticated tutor and advance to PT stage',
   })

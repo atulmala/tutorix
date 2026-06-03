@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import {
+  GET_MY_TUTOR_DETAIL,
   GET_MY_TUTOR_PROFILE,
   GET_PROFICIENCY_TEST_FOR_TAKER,
   SUBMIT_PROFICIENCY_TEST,
@@ -11,12 +12,31 @@ import { PTTestScreen } from './PTTestScreen';
 
 type Screen = 'intro' | 'test' | 'result';
 
-export const TutorPT: React.FC<StepComponentProps> = ({
+export type TutorPTProps = StepComponentProps & {
+  context?: 'onboarding' | 'addOffering' | 'profile';
+  tutorOfferingId?: number;
+  offeringDisplayName?: string;
+  ptFeeDisplayLabel?: string | null;
+  /** When set (e.g. profile PT), avoids loading full myTutorProfile for test-tutor UI. */
+  testTutor?: boolean;
+  /** Prior PT attempts used for this tutor offering (profile / add-offering flows). */
+  attemptsUsed?: number;
+};
+
+export const TutorPT: React.FC<TutorPTProps> = ({
   onComplete,
   onReturnToOfferings,
+  context = 'onboarding',
+  tutorOfferingId: tutorOfferingIdProp,
+  offeringDisplayName,
+  ptFeeDisplayLabel,
+  testTutor: testTutorProp,
+  attemptsUsed: attemptsUsedProp = 0,
 }) => {
   const [screen, setScreen] = useState<Screen>('intro');
-  const [tutorOfferingId, setTutorOfferingId] = useState<number | null>(null);
+  const [activeTutorOfferingId, setActiveTutorOfferingId] = useState<number | null>(
+    tutorOfferingIdProp ?? null,
+  );
   const [lastResult, setLastResult] = useState<{
     passed: boolean;
     score: number;
@@ -25,30 +45,52 @@ export const TutorPT: React.FC<StepComponentProps> = ({
     passPercentage?: number;
   } | null>(null);
 
+  const isPostOnboardingPt =
+    (context === 'addOffering' || context === 'profile') && tutorOfferingIdProp != null;
+  const skipProfile = isPostOnboardingPt;
+
   const { data: profileData, loading: profileLoading, refetch: refetchProfile } = useQuery(
     GET_MY_TUTOR_PROFILE,
-    { fetchPolicy: 'cache-and-network' },
+    { fetchPolicy: 'cache-and-network', skip: skipProfile },
   );
 
+  const isTestTutor =
+    testTutorProp === true || profileData?.myTutorProfile?.testTutor === true;
+
   const pendingOffering = useMemo(() => {
+    if (tutorOfferingIdProp != null) {
+      return {
+        id: tutorOfferingIdProp,
+        attemptsUsed: attemptsUsedProp,
+        offering: { displayName: offeringDisplayName },
+      };
+    }
     const offerings = profileData?.myTutorProfile?.tutorOfferings ?? [];
     return offerings.find((o: { status: string }) => o.status === 'pending_pt');
-  }, [profileData?.myTutorProfile?.tutorOfferings]);
+  }, [
+    profileData?.myTutorProfile?.tutorOfferings,
+    tutorOfferingIdProp,
+    offeringDisplayName,
+    attemptsUsedProp,
+  ]);
+
+  const resolvedOfferingId = pendingOffering?.id ?? tutorOfferingIdProp;
 
   const { data: testData, loading: testLoading } = useQuery(
     GET_PROFICIENCY_TEST_FOR_TAKER,
     {
-      variables: { tutorOfferingId: pendingOffering?.id },
-      skip: !pendingOffering?.id,
-      fetchPolicy: 'cache-first',
+      variables: { tutorOfferingId: resolvedOfferingId },
+      skip: !resolvedOfferingId,
+      fetchPolicy: isTestTutor ? 'network-only' : 'cache-first',
     },
   );
 
-  const [submitTest] = useMutation(
-    SUBMIT_PROFICIENCY_TEST,
-  );
+  const [submitTest] = useMutation(SUBMIT_PROFICIENCY_TEST, {
+    refetchQueries: isPostOnboardingPt ? [{ query: GET_MY_TUTOR_DETAIL }] : undefined,
+  });
 
-  const offeringName = pendingOffering?.offering?.displayName ?? undefined;
+  const offeringName =
+    offeringDisplayName ?? pendingOffering?.offering?.displayName ?? undefined;
   const testMeta = testData?.proficiencyTestForTaker;
   const questions = testMeta?.questions ?? [];
   const timeMinutes = testMeta?.time ?? 30;
@@ -56,22 +98,23 @@ export const TutorPT: React.FC<StepComponentProps> = ({
   const passPercentage = testMeta?.passPercentage ?? 65;
 
   const handleStart = () => {
-    if (pendingOffering?.id) {
-      setTutorOfferingId(pendingOffering.id);
+    if (resolvedOfferingId) {
+      setActiveTutorOfferingId(resolvedOfferingId);
       setScreen('test');
     }
   };
 
   const handleFinish = async (
     answers: { questionId: number; answerId: number }[],
-    timeTakenSeconds: number
+    timeTakenSeconds: number,
   ) => {
-    if (!tutorOfferingId) return;
+    const id = activeTutorOfferingId ?? resolvedOfferingId;
+    if (!id) return;
     try {
       const result = await submitTest({
         variables: {
           input: {
-            tutorOfferingId,
+            tutorOfferingId: id,
             answers,
             timeTakenSeconds,
           },
@@ -94,7 +137,7 @@ export const TutorPT: React.FC<StepComponentProps> = ({
     }
   };
 
-  if (profileLoading) {
+  if (!skipProfile && profileLoading) {
     return (
       <div className="space-y-6">
         <p className="text-sm text-muted">Loading...</p>
@@ -142,7 +185,9 @@ export const TutorPT: React.FC<StepComponentProps> = ({
           </p>
           {lastResult.passPercentage != null && (
             <p className="text-sm text-muted">
-              Passing marks: {Math.ceil((lastResult.passPercentage / 100) * lastResult.maxScore)} ({lastResult.passPercentage}%)
+              Passing marks:{' '}
+              {Math.ceil((lastResult.passPercentage / 100) * lastResult.maxScore)} (
+              {lastResult.passPercentage}%)
             </p>
           )}
           <p className="text-sm text-muted">
@@ -151,19 +196,26 @@ export const TutorPT: React.FC<StepComponentProps> = ({
         </div>
         <p className="text-sm text-muted">
           {passed
-            ? 'Congratulations! You have passed the proficiency test.'
+            ? isPostOnboardingPt
+              ? 'You can now set a rate card for this offering from your profile.'
+              : 'Congratulations! You have passed the proficiency test.'
             : hasMoreAttempts
               ? 'You have one more attempt. Click Retry to try again.'
-              : 'Please select another offering to continue.'}
+              : isPostOnboardingPt
+                ? 'Return to your profile to try another offering later.'
+                : 'Please select another offering to continue.'}
         </p>
         <div className="flex justify-end gap-3">
           {passed ? (
             <button
               type="button"
-              onClick={() => { refetchProfile(); onComplete?.(); }}
+              onClick={() => {
+                if (!skipProfile) refetchProfile();
+                onComplete?.();
+              }}
               className="h-11 rounded-lg bg-[#5fa8ff] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5]"
             >
-              Continue
+              {isPostOnboardingPt ? 'Back to profile' : 'Continue'}
             </button>
           ) : hasMoreAttempts ? (
             <button
@@ -177,13 +229,13 @@ export const TutorPT: React.FC<StepComponentProps> = ({
               Retry
             </button>
           ) : (
-            onReturnToOfferings && (
+            (onReturnToOfferings || isPostOnboardingPt) && (
               <button
                 type="button"
-                onClick={onReturnToOfferings}
+                onClick={isPostOnboardingPt ? onComplete : onReturnToOfferings}
                 className="h-11 rounded-lg bg-[#5fa8ff] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5]"
               >
-                Continue
+                {isPostOnboardingPt ? 'Back to profile' : 'Continue'}
               </button>
             )
           )}
@@ -203,9 +255,7 @@ export const TutorPT: React.FC<StepComponentProps> = ({
     if (questions.length === 0) {
       return (
         <div className="space-y-6">
-          <p className="text-sm text-muted">
-            No questions available for this test.
-          </p>
+          <p className="text-sm text-muted">No questions available for this test.</p>
           <div className="flex justify-end">
             <button
               type="button"
@@ -220,11 +270,11 @@ export const TutorPT: React.FC<StepComponentProps> = ({
     }
     return (
       <div className="space-y-6">
-        {profileData?.myTutorProfile?.testTutor && (
+        {isTestTutor ? (
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
-            Test mode: correct answers are highlighted.
+            Test mode: correct answers are highlighted in green.
           </p>
-        )}
+        ) : null}
         <PTTestScreen
           questions={questions}
           timeMinutes={timeMinutes}
@@ -244,7 +294,10 @@ export const TutorPT: React.FC<StepComponentProps> = ({
       maxMarks={maxMarks}
       passPercentage={passPercentage}
       attemptsLeft={attemptsLeft}
+      ptFeeDisplayLabel={ptFeeDisplayLabel}
+      context={context}
       onStart={handleStart}
+      onTakeLater={isPostOnboardingPt ? onComplete : undefined}
     />
   );
 };

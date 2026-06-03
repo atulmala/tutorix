@@ -10,7 +10,10 @@ type PTIntroScreenProps = {
   maxMarks?: number;
   passPercentage?: number;
   attemptsLeft?: number;
+  ptFeeDisplayLabel?: string | null;
+  context?: 'onboarding' | 'addOffering' | 'profile';
   onStart: () => void;
+  onTakeLater?: () => void;
 };
 
 export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
@@ -19,7 +22,10 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
   maxMarks = DEFAULT_MAX_MARKS,
   passPercentage = DEFAULT_PASS_PERCENTAGE,
   attemptsLeft = 2,
+  ptFeeDisplayLabel,
+  context = 'onboarding',
   onStart,
+  onTakeLater,
 }) => {
   const passingMarks = Math.ceil((passPercentage / 100) * maxMarks);
 
@@ -70,16 +76,42 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
           </p>
         </div>
 
-        <div className="rounded-lg border border-subtle bg-gray-50/80 p-4">
-          <p className="text-sm text-muted">
-            You will be allowed to change subject if you are not able to pass
-            this {testName} in 2 attempts. Also once your onboarding is complete,
-            you will be allowed to add more offerings.
-          </p>
-        </div>
+        {ptFeeDisplayLabel ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-4">
+            <p className="text-sm font-medium text-amber-950">
+              Test fee: {ptFeeDisplayLabel}
+            </p>
+          </div>
+        ) : null}
+
+        {context === 'onboarding' ? (
+          <div className="rounded-lg border border-subtle bg-gray-50/80 p-4">
+            <p className="text-sm text-muted">
+              You will be allowed to change subject if you are not able to pass
+              this {testName} in 2 attempts. Also once your onboarding is complete,
+              you will be allowed to add more offerings.
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-subtle bg-gray-50/80 p-4">
+            <p className="text-sm text-muted">
+              You have up to 2 attempts to pass this test for this offering. After
+              passing, set your rate card from your profile.
+            </p>
+          </div>
+        )}
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-3">
+        {onTakeLater ? (
+          <button
+            type="button"
+            onClick={onTakeLater}
+            className="h-11 rounded-lg border border-subtle px-6 text-sm font-semibold text-primary transition hover:bg-gray-50"
+          >
+            Take later
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={onStart}

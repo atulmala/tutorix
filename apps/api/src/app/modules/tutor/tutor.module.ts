@@ -6,6 +6,7 @@ import { DocumentModule } from '../document/document.module';
 import { Tutor } from './entities/tutor.entity';
 import { TutorQualificationEntity } from './entities/tutor-qualification.entity';
 import { TutorOfferingEntity } from './entities/tutor-offering.entity';
+import { TutorOfferingPtFeeEntity } from './entities/tutor-offering-pt-fee.entity';
 import { TutorResolver } from './resolvers/tutor.resolver';
 import { TutorService } from './services/tutor.service';
 import { TutorQualificationService } from './services/tutor-qualification.service';
@@ -18,13 +19,21 @@ import { UserBankDetailsModule } from '../user-bank-details/user-bank-details.mo
 import { TutorRateCardModule } from '../tutor-rate-card/tutor-rate-card.module';
 import { TutorCalendarModule } from '../tutor-calendar/tutor-calendar.module';
 import { TutorDetailService } from './services/tutor-detail.service';
+import { TutorAddOfferingService } from './services/tutor-add-offering.service';
+import { TutorOfferingPtFeeService } from './services/tutor-offering-pt-fee.service';
+import { NoOpPtPaymentService } from './services/pt-payment.service';
 import { OfferingsModule } from '../offerings/offerings.module';
 
 @Module({
   imports: [
     ConfigModule,
     BatchJobAuditModule,
-    TypeOrmModule.forFeature([Tutor, TutorQualificationEntity, TutorOfferingEntity]),
+    TypeOrmModule.forFeature([
+      Tutor,
+      TutorQualificationEntity,
+      TutorOfferingEntity,
+      TutorOfferingPtFeeEntity,
+    ]),
     DocumentModule,
     ProficiencyModule,
     forwardRef(() => ExperienceModule),
@@ -41,6 +50,9 @@ import { OfferingsModule } from '../offerings/offerings.module';
     TutorOnboardingService,
     TutorOnboardingApprovalBatchService,
     TutorDetailService,
+    TutorAddOfferingService,
+    TutorOfferingPtFeeService,
+    NoOpPtPaymentService,
   ],
   exports: [
     TutorService,

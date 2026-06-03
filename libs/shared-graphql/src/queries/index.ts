@@ -19,6 +19,7 @@ export * from './offering.queries';
 export * from './proficiency.queries';
 export * from './admin.queries';
 export * from './tutor-calendar.queries';
+export * from './pt-fee.queries';
 
 // Export other query modules here as they are created:
 // export * from './student.queries';
