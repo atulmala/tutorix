@@ -38,20 +38,34 @@ function FieldLabelWithTip({
   tip,
   disabled,
   dense,
+  compactField,
   labelStyle,
 }: {
   label: string;
   tip: string;
   disabled?: boolean;
   dense?: boolean;
+  /** Label row only (no extra bottom margin); use above inputs in a column. */
+  compactField?: boolean;
   labelStyle?: object;
 }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <View style={[styles.labelWithTip, dense && styles.labelWithTipDense]}>
+    <View
+      style={[
+        styles.labelWithTip,
+        dense && styles.labelWithTipDense,
+        compactField && styles.labelWithTipCompactField,
+      ]}
+    >
       <View style={styles.labelRow}>
-        <Text style={[styles.label, labelStyle]}>{label}</Text>
+        <Text
+          style={[styles.fieldLabelText, labelStyle]}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
         <TouchableOpacity
           onPress={() => setOpen((prev) => !prev)}
           disabled={disabled}
@@ -65,7 +79,7 @@ function FieldLabelWithTip({
         </TouchableOpacity>
       </View>
       {open ? (
-        <View style={styles.tipBox}>
+        <View style={[styles.tipBox, compactField && styles.tipBoxOverlay]}>
           <Text style={styles.tipText}>{tip}</Text>
         </View>
       ) : null}
@@ -208,6 +222,7 @@ function ModeSection({ title, offerTip, values, onChange, disabled }: ModeSectio
               label="Base rate"
               tip={BASE_RATE_TIP}
               disabled={inputsDisabled}
+              compactField
             />
             <View style={styles.baseRateRow}>
               <Text style={styles.rupeePrefix}>₹</Text>
@@ -234,6 +249,7 @@ function ModeSection({ title, offerTip, values, onChange, disabled }: ModeSectio
               label="Batch size"
               tip={BATCH_SIZE_TIP}
               disabled={inputsDisabled}
+              compactField
             />
             <View style={styles.batchSizeRow}>
               {Array.from(
@@ -526,22 +542,34 @@ const styles = StyleSheet.create({
   },
   baseRateBatchRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 12,
+    alignItems: 'flex-start',
+    gap: 10,
     marginBottom: 14,
   },
   baseRateColumn: {
     flex: 1,
-    minWidth: 0,
+    minWidth: 88,
   },
   batchSizeColumn: {
     flexShrink: 0,
+    width: 200,
   },
   labelWithTip: {
     marginBottom: 6,
   },
   labelWithTipDense: {
     marginBottom: 0,
+  },
+  labelWithTipCompactField: {
+    marginBottom: 4,
+    position: 'relative',
+    zIndex: 2,
+  },
+  fieldLabelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0f172a',
+    flexShrink: 1,
   },
   modeToggleLabelWrap: {
     flex: 1,
@@ -550,7 +578,8 @@ const styles = StyleSheet.create({
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
+    minHeight: 22,
   },
   infoIcon: {
     width: 16,
@@ -580,6 +609,19 @@ const styles = StyleSheet.create({
     borderColor: '#fcd34d',
     backgroundColor: '#fffbeb',
   },
+  tipBoxOverlay: {
+    position: 'absolute',
+    top: 26,
+    left: 0,
+    right: 0,
+    marginTop: 0,
+    zIndex: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+  },
   tipText: {
     fontSize: 12,
     lineHeight: 16,
@@ -588,6 +630,7 @@ const styles = StyleSheet.create({
   baseRateRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: 44,
   },
   rupeePrefix: {
     fontSize: 16,
@@ -610,24 +653,26 @@ const styles = StyleSheet.create({
   inputDisabled: { backgroundColor: '#f8fafc' },
   batchSizeRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
+    flexWrap: 'nowrap',
+    gap: 4,
+    minHeight: 44,
+    alignItems: 'center',
   },
   batchSizeChip: {
-    minWidth: 40,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    width: 30,
+    height: 40,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     backgroundColor: '#fff',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   batchSizeChipSelected: {
     borderColor: '#7c3aed',
     backgroundColor: '#ede9fe',
   },
-  batchSizeChipText: { fontSize: 15, fontWeight: '600', color: '#64748b' },
+  batchSizeChipText: { fontSize: 14, fontWeight: '600', color: '#64748b' },
   batchSizeChipTextSelected: { color: '#581c87' },
   slabSectionTitle: {
     fontSize: 11,

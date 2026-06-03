@@ -193,8 +193,8 @@ function ModeSection({ title, offerTip, values, onChange, disabled }: ModeSectio
       </div>
 
       <div className="mt-4 space-y-4" aria-disabled={inputsDisabled}>
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="min-w-0 flex-1 space-y-1 text-left">
+        <div className="flex flex-nowrap items-start gap-3">
+          <div className="min-w-0 flex-1 space-y-1.5 text-left">
             <FieldLabelWithTip
               label="Base rate"
               tip={BASE_RATE_TIP}
@@ -218,7 +218,7 @@ function ModeSection({ title, offerTip, values, onChange, disabled }: ModeSectio
             </div>
           </div>
 
-          <div className="w-28 shrink-0 space-y-1 text-left">
+          <div className="w-28 shrink-0 space-y-1.5 text-left">
             <FieldLabelWithTip
               label="Batch size"
               tip={BATCH_SIZE_TIP}
