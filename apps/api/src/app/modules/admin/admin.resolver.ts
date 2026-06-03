@@ -16,10 +16,15 @@ import { AdminTutorListResult } from './dto/admin-tutor-list-result.dto';
 import { AdminTutorStageCount } from './dto/admin-tutor-stage-count.dto';
 import { AdminProficiencyTestListItem } from './dto/admin-proficiency-test-list-item.dto';
 import { ProficiencyTestEntity } from '../proficiency/entities/proficiency-test.entity';
+import { TutorCalendar } from '../tutor-calendar/entities/tutor-calendar.entity';
+import { TutorCalendarService } from '../tutor-calendar/services/tutor-calendar.service';
 
 @Resolver()
 export class AdminResolver {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly tutorCalendarService: TutorCalendarService,
+  ) {}
 
   @Query(() => AdminDashboardStats, {
     description: 'Signup counts for admin dashboard (admin only)',
@@ -61,6 +66,33 @@ export class AdminResolver {
     @Args('tutorId', { type: () => Int }) tutorId: number,
   ): Promise<AdminTutorDetail> {
     return this.adminService.getTutorDetail(tutorId);
+  }
+
+  @Query(() => [TutorCalendar], {
+    description:
+      'Available teaching slots for a tutor within a date range (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminTutorCalendar(
+    @Args('tutorId', { type: () => Int }) tutorId: number,
+    @Args('from') from: Date,
+    @Args('to') to: Date,
+  ): Promise<TutorCalendar[]> {
+    return this.tutorCalendarService.getAdminCalendar(tutorId, from, to);
+  }
+
+  @Query(() => Date, {
+    nullable: true,
+    description:
+      'Latest available slot start for a tutor, or null if none (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminTutorCalendarUpdatedTill(
+    @Args('tutorId', { type: () => Int }) tutorId: number,
+  ): Promise<Date | null> {
+    return this.tutorCalendarService.getAdminCalendarUpdatedTill(tutorId);
   }
 
   @Mutation(() => AdminTutorDocumentDetail, {

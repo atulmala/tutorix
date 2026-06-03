@@ -12,6 +12,7 @@ import {
   ptStatusLabel,
   sortQualificationsHighestFirst,
   sumExperienceDurations,
+  tutorHasAtLeastOneCompleteRateCard,
 } from '@tutorix/shared-utils';
 import { OfferingLabel } from './OfferingLabel';
 import { OnboardingTimeline } from './OnboardingTimeline';
@@ -541,6 +542,13 @@ export function TutorDetailView({
 
   const feeAmount = tutor.regFeePaid ? tutor.regFeeAmount : tutor.regFeeAmountToBePaid;
 
+  const showTutorCalendar = useMemo(
+    () =>
+      tutor.offerings.length > 0 &&
+      tutorHasAtLeastOneCompleteRateCard(tutor.offerings),
+    [tutor.offerings],
+  );
+
   return (
     <div className="space-y-6">
       <div className="overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-r from-sky-100/80 via-white to-violet-100/80 px-6 py-5 shadow-md shadow-sky-100/30">
@@ -660,53 +668,28 @@ export function TutorDetailView({
         </>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <OnboardingTimeline entries={timelineEntries} />
-
-        <SectionCard title="Registration fee" styleKey="fee">
-          <dl className="grid gap-2.5 text-sm">
-            <DetailRow
-              label="Status"
-              accentClass="bg-amber-50/80"
-              value={
-                <span
-                  className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                    tutor.regFeePaid
-                      ? 'bg-emerald-500 text-white'
-                      : 'bg-slate-200 text-slate-700'
-                  }`}
-                >
-                  {tutor.regFeePaid ? 'Paid' : 'Not received'}
-                </span>
-              }
-            />
-            <DetailRow
-              label="Amount"
-              value={feeAmount != null ? `₹${feeAmount}` : '—'}
-              accentClass="bg-amber-50/80"
-            />
-            <DetailRow
-              label="Date received"
-              value={tutor.regFeePaid ? formatDate(tutor.regFeeDate) : 'Not received'}
-              accentClass="bg-amber-50/80"
-            />
-          </dl>
-        </SectionCard>
-      </div>
-
       {isAdmin && (
         <>
+          {showTutorCalendar ? (
+            <TutorAvailabilitySection
+              canSetAvailability={tutor.canSetAvailability === true}
+              offerings={tutor.offerings}
+              tutorId={tutor.id}
+              readOnly
+              hideWhenLocked
+            />
+          ) : null}
+          <OfferingsSection
+            offerings={tutor.offerings}
+            mode={mode}
+            onOpenRateCard={(offering) => setRateCardOffering(offering)}
+          />
           <BankDetailsSection mode={mode} bankDetails={tutor.user?.bankDetails} />
           <AddressSection addresses={tutor.addresses} />
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <EducationSection qualifications={tutor.qualifications} />
             <ExperienceSection experiences={tutor.experiences} />
           </div>
-          <OfferingsSection
-            offerings={tutor.offerings}
-            mode={mode}
-            onOpenRateCard={(offering) => setRateCardOffering(offering)}
-          />
         </>
       )}
 
@@ -749,6 +732,40 @@ export function TutorDetailView({
           </div>
         )}
       </SectionCard>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <OnboardingTimeline entries={timelineEntries} />
+
+        <SectionCard title="Registration fee" styleKey="fee">
+          <dl className="grid gap-2.5 text-sm">
+            <DetailRow
+              label="Status"
+              accentClass="bg-amber-50/80"
+              value={
+                <span
+                  className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                    tutor.regFeePaid
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  {tutor.regFeePaid ? 'Paid' : 'Not received'}
+                </span>
+              }
+            />
+            <DetailRow
+              label="Amount"
+              value={feeAmount != null ? `₹${feeAmount}` : '—'}
+              accentClass="bg-amber-50/80"
+            />
+            <DetailRow
+              label="Date received"
+              value={tutor.regFeePaid ? formatDate(tutor.regFeeDate) : 'Not received'}
+              accentClass="bg-amber-50/80"
+            />
+          </dl>
+        </SectionCard>
+      </div>
 
       {selectedDocument &&
         (isAdmin ? (

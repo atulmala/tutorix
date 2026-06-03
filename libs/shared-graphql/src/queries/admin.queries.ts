@@ -55,6 +55,8 @@ export const GET_ADMIN_TUTOR_DETAIL = gql`
       yearsOfExperience
       regFeePaid
       testTutor
+      canSetAvailability
+      availabilityConfiguredAt
       regFeeAmount
       regFeeAmountToBePaid
       regFeeDate
