@@ -84,6 +84,7 @@ export type TutorDetailRecord = {
   }>;
   offerings: Array<{
     id: number;
+    offeringId: number;
     offeringName?: string | null;
     offeringDisplayName?: string | null;
     offeringFullLabel?: string | null;

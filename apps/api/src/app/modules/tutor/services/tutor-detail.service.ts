@@ -202,6 +202,7 @@ export class TutorDetailService {
 
     return {
       id: offering.id,
+      offeringId: offering.offeringId,
       offeringName: offering.offering?.name,
       offeringDisplayName: offering.offering?.displayName,
       offeringFullLabel: formatTutorOfferingFullLabel(leaf, offeringsById, {

@@ -72,6 +72,27 @@ export function ptStatusBadgeClass(status: string): string {
   }
 }
 
+/** Lower rank = shown earlier in profile offerings list. */
+export function getTutorOfferingDisplaySortRank(offering: {
+  status: string;
+  rateCard?: { isComplete?: boolean } | null;
+}): number {
+  const hasRateCard = Boolean(offering.rateCard?.isComplete);
+  if (hasRateCard) return 0;
+  if (offering.status === 'pt_passed') return 1;
+  if (offering.status === 'pending_pt') return 2;
+  if (offering.status === 'pt_failed') return 3;
+  return 4;
+}
+
+export function sortTutorOfferingsForDisplay<
+  T extends { status: string; rateCard?: { isComplete?: boolean } | null },
+>(offerings: T[]): T[] {
+  return [...offerings].sort(
+    (a, b) => getTutorOfferingDisplaySortRank(a) - getTutorOfferingDisplaySortRank(b),
+  );
+}
+
 export function formatDate(value?: string | null): string {
   if (!value) return '—';
   const date = new Date(value);

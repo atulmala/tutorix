@@ -13,6 +13,9 @@ import { TutorService } from './tutor.service';
 import { SubmitProficiencyTestInput } from '../../proficiency/dto/submit-proficiency-test.input';
 import { SubmitProficiencyTestResult } from '../../proficiency/dto/submit-proficiency-test.result';
 import { filterQuestionsWithoutImages } from '../../proficiency/proficiency.utils';
+import { TutorOfferingPtFeeService } from './tutor-offering-pt-fee.service';
+
+const PT_MAX_ATTEMPTS = 2;
 
 @Injectable()
 export class TutorOfferingService {
@@ -21,7 +24,42 @@ export class TutorOfferingService {
     private readonly tutorOfferingRepository: Repository<TutorOfferingEntity>,
     private readonly proficiencyTestService: ProficiencyTestService,
     private readonly tutorService: TutorService,
+    private readonly ptFeeService: TutorOfferingPtFeeService,
   ) {}
+
+  /**
+   * Validates the tutor offering may start or continue a proficiency test attempt.
+   */
+  async assertCanTakeProficiencyTest(
+    tutorOffering: TutorOfferingEntity,
+  ): Promise<void> {
+    if (tutorOffering.status === TutorOfferingStatusEnum.pt_passed) {
+      throw new BadRequestException(
+        'Proficiency test already passed for this offering',
+      );
+    }
+
+    const canRetryFailed =
+      tutorOffering.status === TutorOfferingStatusEnum.pt_failed &&
+      tutorOffering.attemptsUsed < PT_MAX_ATTEMPTS;
+
+    if (
+      tutorOffering.status !== TutorOfferingStatusEnum.pending_pt &&
+      !canRetryFailed
+    ) {
+      throw new BadRequestException(
+        'Proficiency test is not available for this offering',
+      );
+    }
+
+    if (tutorOffering.attemptsUsed >= PT_MAX_ATTEMPTS) {
+      throw new BadRequestException(
+        'No attempts remaining. Select another offering or retry after 30 days.',
+      );
+    }
+
+    await this.ptFeeService.assertCanTakeProficiencyTest(tutorOffering.id);
+  }
 
   /**
    * Save tutor offerings and optionally advance to PT stage.
@@ -140,16 +178,7 @@ export class TutorOfferingService {
       tutorId,
     );
 
-    if (tutorOffering.status === TutorOfferingStatusEnum.pt_passed) {
-      throw new BadRequestException(
-        'Proficiency test already passed for this offering',
-      );
-    }
-    if (tutorOffering.attemptsUsed >= 2) {
-      throw new BadRequestException(
-        'No attempts remaining. Select another offering or retry after 30 days.',
-      );
-    }
+    await this.assertCanTakeProficiencyTest(tutorOffering);
 
     const test = await this.proficiencyTestService.getTestWithQuestionsForTaker(
       tutorOffering.proficiencyTestId,
@@ -196,11 +225,17 @@ export class TutorOfferingService {
     if (passed) {
       tutorOffering.status = TutorOfferingStatusEnum.pt_passed;
       tutorOffering.passedAt = new Date();
-      await this.tutorService.updateCertificationStage(
-        tutorId,
-        TutorCertificationStageEnum.registrationPayment,
-      );
-    } else if (tutorOffering.attemptsUsed >= 2) {
+      const tutor = await this.tutorService.findOne(tutorId);
+      if (
+        tutorOffering.isInitialOnboarding &&
+        tutor.certificationStage === TutorCertificationStageEnum.pt
+      ) {
+        await this.tutorService.updateCertificationStage(
+          tutorId,
+          TutorCertificationStageEnum.registrationPayment,
+        );
+      }
+    } else if (tutorOffering.attemptsUsed >= PT_MAX_ATTEMPTS) {
       tutorOffering.status = TutorOfferingStatusEnum.pt_failed;
     }
 

@@ -109,35 +109,50 @@ function buildStudyAbroadTree(): Map<number, OfferingNodeForLabel> {
   return new Map([root, ielts, reading].map((o) => [o.id, o]));
 }
 
+function offeringFrom(
+  byId: Map<number, OfferingNodeForLabel>,
+  id: number,
+): OfferingNodeForLabel {
+  const node = byId.get(id);
+  if (node === undefined) {
+    throw new Error(`Offering ${id} not found in test catalog`);
+  }
+  return node;
+}
+
 describe('formatTutorOfferingFullLabel', () => {
   it('formats school education with class range from proficiency test offerings', () => {
     const byId = buildSchoolEducationTree();
-    const leaf = byId.get(1001)!;
+    const leaf = offeringFrom(byId, 1001);
 
     expect(
       formatTutorOfferingFullLabel(leaf, byId, {
         proficiencyTestOfferingIds: [1001, 1000, 1005],
       }),
-    ).toBe('CBSE | English | Classes 1 - 5');
+    ).toBe('CBSE | English | Mathematics | Classes 1 - 5');
   });
 
   it('formats a single class when no PT offering list is provided', () => {
     const byId = buildSchoolEducationTree();
-    const leaf = byId.get(1000)!;
+    const leaf = offeringFrom(byId, 1000);
 
-    expect(formatTutorOfferingFullLabel(leaf, byId)).toBe('CBSE | English | Classes 4');
+    expect(formatTutorOfferingFullLabel(leaf, byId)).toBe(
+      'CBSE | English | Mathematics | Classes 4',
+    );
   });
 
   it('uses grade name when class number is not parseable', () => {
     const byId = buildSchoolEducationTree();
-    const leaf = byId.get(2000)!;
+    const leaf = offeringFrom(byId, 2000);
 
-    expect(formatTutorOfferingFullLabel(leaf, byId)).toBe('CBSE | Hindi | Kindergarten');
+    expect(formatTutorOfferingFullLabel(leaf, byId)).toBe(
+      'CBSE | Hindi | Mathematics | Kindergarten',
+    );
   });
 
   it('formats non-school study areas with full path segments', () => {
     const byId = buildStudyAbroadTree();
-    const leaf = byId.get(200)!;
+    const leaf = offeringFrom(byId, 200);
 
     expect(formatTutorOfferingFullLabel(leaf, byId)).toBe(
       'IELTS | Ielts Academic Reading',

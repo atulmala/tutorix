@@ -10,6 +10,7 @@ import {
   monthsToExperienceDuration,
   ptStatusBadgeClass,
   ptStatusLabel,
+  sortTutorOfferingsForDisplay,
   sortQualificationsHighestFirst,
   sumExperienceDurations,
   tutorHasAtLeastOneCompleteRateCard,
@@ -45,6 +46,10 @@ export type TutorDetailViewProps = {
   ) => void | Promise<void>;
   savingRateCard?: boolean;
   rateCardSaveError?: string | null;
+  onAddOffering?: () => void;
+  onStartProficiencyTest?: (
+    offering: TutorDetailRecord['offerings'][number],
+  ) => void;
 };
 
 type SectionStyle = {
@@ -238,19 +243,43 @@ function OfferingsSection({
   offerings,
   mode,
   onOpenRateCard,
+  onAddOffering,
+  onStartProficiencyTest,
 }: {
   offerings: TutorDetailRecord['offerings'];
   mode: TutorDetailViewMode;
   onOpenRateCard?: (offering: TutorDetailRecord['offerings'][number]) => void;
+  onAddOffering?: () => void;
+  onStartProficiencyTest?: (offering: TutorDetailRecord['offerings'][number]) => void;
 }) {
   const isAdmin = mode === 'admin';
   const showRateCardColumn = isAdmin || Boolean(onOpenRateCard);
+
+  const sortedOfferings = useMemo(
+    () => sortTutorOfferingsForDisplay(offerings),
+    [offerings],
+  );
+
+  const headerMeta = (
+    <div className="flex flex-wrap items-center gap-2">
+      <span>{formatEntryCount(offerings.length, 'offering', 'offerings')}</span>
+      {!isAdmin && onAddOffering ? (
+        <button
+          type="button"
+          onClick={onAddOffering}
+          className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-purple-700"
+        >
+          Add offering
+        </button>
+      ) : null}
+    </div>
+  );
 
   return (
     <SectionCard
       title="Offerings"
       styleKey="offerings"
-      headerMeta={formatEntryCount(offerings.length, 'offering', 'offerings')}
+      headerMeta={headerMeta}
     >
       {offerings.length === 0 ? (
         <p className="text-sm text-purple-800/70">No offerings on file.</p>
@@ -269,8 +298,12 @@ function OfferingsSection({
               </tr>
             </thead>
             <tbody>
-              {offerings.map((offering, index) => {
+              {sortedOfferings.map((offering, index) => {
                 const hasRateCard = Boolean(offering.rateCard?.isComplete);
+                const ptPassed = offering.status === 'pt_passed';
+                const ptPending = offering.status === 'pending_pt';
+                const canEditRateCard = ptPassed && Boolean(onOpenRateCard);
+                const canStartPt = ptPending && Boolean(onStartProficiencyTest);
 
                 return (
                   <tr
@@ -335,15 +368,25 @@ function OfferingsSection({
                           </div>
                         ) : (
                           <div className="flex flex-wrap items-center gap-2">
-                            {hasRateCard ? (
+                            {canStartPt ? (
+                              <button
+                                type="button"
+                                onClick={() => onStartProficiencyTest!(offering)}
+                                className="rounded-lg border border-purple-200 bg-white px-3 py-1.5 text-xs font-semibold text-purple-800 transition hover:bg-purple-50"
+                              >
+                                Take proficiency test
+                              </button>
+                            ) : !ptPassed ? (
+                              <span className="text-sm text-purple-800/70">—</span>
+                            ) : hasRateCard ? (
                               <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
                                 Configured
                               </span>
                             ) : null}
-                            {onOpenRateCard ? (
+                            {canEditRateCard ? (
                               <button
                                 type="button"
-                                onClick={() => onOpenRateCard(offering)}
+                                onClick={() => onOpenRateCard!(offering)}
                                 className="rounded-lg border border-purple-200 bg-white px-3 py-1.5 text-xs font-semibold text-purple-800 transition hover:bg-purple-50"
                               >
                                 {hasRateCard ? 'Edit rate card' : 'Rate card'}
@@ -517,6 +560,8 @@ export function TutorDetailView({
   onSaveRateCard,
   savingRateCard = false,
   rateCardSaveError = null,
+  onAddOffering,
+  onStartProficiencyTest,
 }: TutorDetailViewProps) {
   const [selectedDocument, setSelectedDocument] = useState<TutorDocumentDetail | null>(null);
   const [bankDetailsModalOpen, setBankDetailsModalOpen] = useState(false);
@@ -634,6 +679,8 @@ export function TutorDetailView({
           <OfferingsSection
             offerings={tutor.offerings}
             mode={mode}
+            onAddOffering={onAddOffering}
+            onStartProficiencyTest={onStartProficiencyTest}
             onOpenRateCard={
               onSaveRateCard ? (offering) => setRateCardOffering(offering) : undefined
             }

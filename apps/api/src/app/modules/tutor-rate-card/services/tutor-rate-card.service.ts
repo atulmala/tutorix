@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { isRateCardComplete, validateRateCardForm } from '@tutorix/shared-utils';
 import { TutorOfferingEntity } from '../../tutor/entities/tutor-offering.entity';
+import { TutorOfferingStatusEnum } from '../../tutor/enums/tutor.enums';
 import { Tutor } from '../../tutor/entities/tutor.entity';
 import { SaveTutorOfferingRateCardInput } from '../dto/save-tutor-offering-rate-card.input';
 import { TutorOfferingRateCard } from '../dto/tutor-offering-rate-card.dto';
@@ -60,6 +61,11 @@ export class TutorRateCardService {
     });
     if (!tutorOffering) {
       throw new ForbiddenException('You do not have access to this offering');
+    }
+    if (tutorOffering.status !== TutorOfferingStatusEnum.pt_passed) {
+      throw new BadRequestException(
+        'Rate card can be set only after passing the proficiency test for this offering',
+      );
     }
 
     const validation = validateRateCardForm({

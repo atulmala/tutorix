@@ -7,6 +7,9 @@ export class AdminTutorOfferingDetail {
   @Field(() => Int)
   id: number;
 
+  @Field(() => Int, { description: 'Catalog leaf offering id' })
+  offeringId: number;
+
   @Field({ nullable: true })
   offeringName?: string;
 
