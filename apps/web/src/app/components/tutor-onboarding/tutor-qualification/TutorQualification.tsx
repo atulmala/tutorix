@@ -6,41 +6,44 @@ import {
 } from '@tutorix/shared-graphql';
 import {
   EducationalQualification,
-  EDUCATIONAL_QUALIFICATION_LIST,
   EDUCATIONAL_QUALIFICATION_LABELS,
   GradeType,
   GRADE_TYPE_LIST,
   GRADE_TYPE_LABELS,
+  buildQualificationMutationInput,
+  emptyQualificationRow,
+  getAvailableQualificationTypes,
+  getQualificationDegreeLabel,
+  getQualificationDegreePlaceholder,
+  getQualificationFieldOfStudyPlaceholder,
+  getQualificationGradeValuePlaceholder,
+  mapQualificationToFormRow,
+  validateQualificationList,
+  validateQualificationRow,
+  type QualificationFormRow,
+  type QualificationRowFieldErrors,
 } from '@tutorix/shared-utils';
 import type { StepComponentProps } from '../types';
 
-interface QualificationRow {
-  qualificationType: EducationalQualification;
-  boardOrUniversity: string;
-  gradeType: GradeType;
-  gradeValue: string;
-  yearObtained: string;
-  fieldOfStudy: string;
-  degreeName: string;
-}
+type MyTutorProfileQualification = Parameters<typeof mapQualificationToFormRow>[0];
+
+type MyTutorProfileData = {
+  myTutorProfile?: {
+    qualifications?: MyTutorProfileQualification[];
+  };
+};
 
 const currentYear = new Date().getFullYear();
 
 export const TutorQualification: React.FC<StepComponentProps> = ({
   onComplete,
 }) => {
-  const [qualifications, setQualifications] = useState<QualificationRow[]>(() => [
-    {
-      qualificationType: EducationalQualification.HIGHER_SECONDARY,
-      boardOrUniversity: '',
-      gradeType: GradeType.PERCENTAGE,
-      gradeValue: '',
-      yearObtained: '',
-      fieldOfStudy: '',
-      degreeName: 'Higher Secondary',
-    },
+  const [qualifications, setQualifications] = useState<QualificationFormRow[]>(() => [
+    emptyQualificationRow(EducationalQualification.HIGHER_SECONDARY),
   ]);
-  const [errors, setErrors] = useState<Record<number, Partial<Record<keyof QualificationRow, string>>>>({});
+  const [errors, setErrors] = useState<
+    Record<number, QualificationRowFieldErrors>
+  >({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [savingSectionIndex, setSavingSectionIndex] = useState<number | null>(null);
@@ -48,7 +51,7 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
     () => new Set()
   );
 
-  const { data: profileData } = useQuery(GET_MY_TUTOR_PROFILE, {
+  const { data: profileData } = useQuery<MyTutorProfileData>(GET_MY_TUTOR_PROFILE, {
     fetchPolicy: 'network-only',
   });
 
@@ -56,38 +59,11 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
     const list = profileData?.myTutorProfile?.qualifications;
     if (list?.length) {
       setSavedQualificationTypes(
-        new Set(list.map((q: { qualificationType: string }) => q.qualificationType as EducationalQualification))
+        new Set(list.map((q) => q.qualificationType as EducationalQualification))
       );
     }
     if (!list?.length) return;
-    setQualifications(
-      list.map(
-        (q: {
-          qualificationType: string;
-          boardOrUniversity: string;
-          gradeType: string;
-          gradeValue: string;
-          yearObtained: number;
-          fieldOfStudy?: string | null;
-          degreeName?: string | null;
-        }) => {
-          const qualificationType = q.qualificationType as EducationalQualification;
-          return {
-            qualificationType,
-            boardOrUniversity: q.boardOrUniversity ?? '',
-            gradeType: q.gradeType as GradeType,
-            gradeValue: String(q.gradeValue ?? ''),
-            yearObtained: q.yearObtained != null ? String(q.yearObtained) : '',
-            fieldOfStudy: q.fieldOfStudy ?? '',
-            degreeName:
-              q.degreeName ??
-              (qualificationType === EducationalQualification.HIGHER_SECONDARY
-                ? 'Higher Secondary'
-                : ''),
-          };
-        }
-      )
-    );
+    setQualifications(list.map((q) => mapQualificationToFormRow(q)));
   }, [profileData?.myTutorProfile?.qualifications]);
 
   const [saveQualifications, { loading: isSubmitting }] = useMutation(
@@ -155,7 +131,7 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
     }
   );
 
-  const updateRow = useCallback((index: number, updates: Partial<QualificationRow>) => {
+  const updateRow = useCallback((index: number, updates: Partial<QualificationFormRow>) => {
     setQualifications((prev) =>
       prev.map((row, i) => (i === index ? { ...row, ...updates } : row))
     );
@@ -163,7 +139,7 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
       const next = { ...prev };
       const rowErrors = next[index];
       if (rowErrors) {
-        const keys = Object.keys(updates) as (keyof QualificationRow)[];
+        const keys = Object.keys(updates) as (keyof QualificationFormRow)[];
         keys.forEach((k) => delete rowErrors[k]);
         if (Object.keys(rowErrors).length === 0) delete next[index];
       }
@@ -172,18 +148,7 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
   }, []);
 
   const addQualification = useCallback((type: EducationalQualification) => {
-    setQualifications((prev) => [
-      ...prev,
-      {
-        qualificationType: type,
-        boardOrUniversity: '',
-        gradeType: GradeType.PERCENTAGE,
-        gradeValue: '',
-        yearObtained: '',
-        fieldOfStudy: '',
-        degreeName: '',
-      },
-    ]);
+    setQualifications((prev) => [...prev, emptyQualificationRow(type)]);
   }, []);
 
   const handleDeleteSection = useCallback(
@@ -204,23 +169,10 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
         delete next[index];
         return next;
       });
-      // Persist deletion to backend
       saveQualifications({
         variables: {
           input: {
-            qualifications: updated.map((r, i) => ({
-              qualificationType: r.qualificationType,
-              boardOrUniversity: r.boardOrUniversity.trim(),
-              gradeType: r.gradeType,
-              gradeValue: r.gradeValue.trim(),
-              yearObtained: parseInt(r.yearObtained, 10),
-              fieldOfStudy: r.fieldOfStudy.trim() || undefined,
-              degreeName:
-                r.qualificationType === EducationalQualification.HIGHER_SECONDARY
-                  ? 'Higher Secondary'
-                  : r.degreeName.trim() || undefined,
-              displayOrder: i,
-            })),
+            qualifications: buildQualificationMutationInput(updated),
             advanceToNextStep: false,
           },
         },
@@ -229,9 +181,8 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
     [qualifications, saveQualifications]
   );
 
-  const usedTypes = qualifications.map((q) => q.qualificationType);
-  const availableToAdd = EDUCATIONAL_QUALIFICATION_LIST.filter(
-    (t) => t !== EducationalQualification.HIGHER_SECONDARY && !usedTypes.includes(t)
+  const availableToAdd = getAvailableQualificationTypes(
+    qualifications.map((q) => q.qualificationType),
   );
 
   const validateRow = useCallback(
@@ -239,19 +190,9 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
       setFormError(null);
       const row = qualifications[index];
       if (!row) return false;
-      const e: Partial<Record<keyof QualificationRow, string>> = {};
-      if (!row.boardOrUniversity.trim()) e.boardOrUniversity = 'Required';
-      if (!row.gradeValue.trim()) e.gradeValue = 'Required';
-      if (!row.fieldOfStudy.trim()) e.fieldOfStudy = 'Required';
-      const year = parseInt(row.yearObtained, 10);
-      if (!row.yearObtained.trim()) e.yearObtained = 'Required';
-      else if (Number.isNaN(year) || year < 1950 || year > currentYear)
-        e.yearObtained = `Enter a year between 1950 and ${currentYear}`;
-      if (row.qualificationType !== EducationalQualification.HIGHER_SECONDARY) {
-        if (!row.degreeName.trim()) e.degreeName = 'Required';
-      }
-      if (Object.keys(e).length) {
-        setErrors((prev) => ({ ...prev, [index]: e }));
+      const result = validateQualificationRow(row);
+      if (result.ok === false) {
+        setErrors((prev) => ({ ...prev, [index]: result.fieldErrors }));
         return false;
       }
       setErrors((prev) => {
@@ -266,50 +207,22 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
 
   const validate = useCallback((): boolean => {
     setFormError(null);
-    const next: Record<number, Partial<Record<keyof QualificationRow, string>>> = {};
-    let valid = true;
-    const hasHigherSecondary = qualifications.some(
-      (q) => q.qualificationType === EducationalQualification.HIGHER_SECONDARY
-    );
-    if (!hasHigherSecondary) {
-      setFormError('At least one qualification must be Higher Secondary.');
-      valid = false;
+    const listResult = validateQualificationList(qualifications);
+    if (listResult.ok === false) {
+      setFormError(listResult.message);
     }
+    const next: Record<number, QualificationRowFieldErrors> = {};
+    let valid = listResult.ok;
     qualifications.forEach((row, index) => {
-      const e: Partial<Record<keyof QualificationRow, string>> = {};
-      if (!row.boardOrUniversity.trim()) e.boardOrUniversity = 'Required';
-      if (!row.gradeValue.trim()) e.gradeValue = 'Required';
-      if (!row.fieldOfStudy.trim()) e.fieldOfStudy = 'Required';
-      const year = parseInt(row.yearObtained, 10);
-      if (!row.yearObtained.trim()) e.yearObtained = 'Required';
-      else if (Number.isNaN(year) || year < 1950 || year > currentYear)
-        e.yearObtained = `Enter a year between 1950 and ${currentYear}`;
-      if (row.qualificationType !== EducationalQualification.HIGHER_SECONDARY) {
-        if (!row.degreeName.trim()) e.degreeName = 'Required';
-      }
-      if (Object.keys(e).length) {
-        next[index] = { ...next[index], ...e };
+      const result = validateQualificationRow(row);
+      if (result.ok === false) {
+        next[index] = result.fieldErrors;
         valid = false;
       }
     });
     setErrors(next);
     return valid;
   }, [qualifications]);
-
-  const buildQualificationsInput = () =>
-    qualifications.map((row, index) => ({
-      qualificationType: row.qualificationType,
-      boardOrUniversity: row.boardOrUniversity.trim(),
-      gradeType: row.gradeType,
-      gradeValue: row.gradeValue.trim(),
-      yearObtained: parseInt(row.yearObtained, 10),
-      fieldOfStudy: row.fieldOfStudy.trim() || undefined,
-      degreeName:
-        row.qualificationType === EducationalQualification.HIGHER_SECONDARY
-          ? 'Higher Secondary'
-          : row.degreeName.trim() || undefined,
-      displayOrder: index,
-    }));
 
   const handleSaveSection = (index: number) => {
     setSubmitError(null);
@@ -318,7 +231,7 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
     saveQualifications({
       variables: {
         input: {
-          qualifications: buildQualificationsInput(),
+          qualifications: buildQualificationMutationInput(qualifications),
           advanceToNextStep: false,
         },
       },
@@ -350,7 +263,7 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
     saveQualifications({
       variables: {
         input: {
-          qualifications: buildQualificationsInput(),
+          qualifications: buildQualificationMutationInput(qualifications),
           advanceToNextStep: true,
         },
       },
@@ -374,35 +287,6 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
       </div>
 
       {qualifications.map((row, index) => {
-        const degreeLabel =
-          row.qualificationType === EducationalQualification.DIPLOMA
-            ? 'Diploma Name'
-            : row.qualificationType === EducationalQualification.PG_DIPLOMA
-              ? 'PG Diploma Name'
-              : 'Degree name';
-
-        const degreePlaceholder =
-          row.qualificationType === EducationalQualification.HIGHER_SECONDARY
-            ? 'Higher Secondary'
-            : row.qualificationType === EducationalQualification.DIPLOMA
-              ? 'e.g. A level Diploma in French'
-              : row.qualificationType === EducationalQualification.PG_DIPLOMA
-                ? 'e.g. PG Diploma in German'
-                : row.qualificationType === EducationalQualification.BACHELORS
-                  ? 'e.g. BA, BSc, BCom, BTech'
-                  : row.qualificationType === EducationalQualification.MASTERS
-                    ? 'e.g. MA, MSc, MCom'
-                    : row.qualificationType === EducationalQualification.MPHIL ||
-                        row.qualificationType === EducationalQualification.PHD
-                      ? 'e.g. MPhil, PhD'
-                      : 'e.g. BA, BSc, MSc';
-
-        const fieldOfStudyPlaceholder =
-          row.qualificationType === EducationalQualification.DIPLOMA ||
-          row.qualificationType === EducationalQualification.PG_DIPLOMA
-            ? 'e.g. French, German, Spanish'
-            : 'e.g. Science, Commerce, Computer';
-
         const isHigherSecondary =
           row.qualificationType === EducationalQualification.HIGHER_SECONDARY;
 
@@ -423,7 +307,7 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-1">
               <label className="text-sm font-medium text-primary">
-                {degreeLabel}
+                {getQualificationDegreeLabel(row.qualificationType)}
                 {!isHigherSecondary && <span className="text-danger"> *</span>}
               </label>
               <input
@@ -431,7 +315,7 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
                 value={row.degreeName}
                 onChange={(e) => updateRow(index, { degreeName: e.target.value })}
                 className={inputCls(!isHigherSecondary && !!errors[index]?.degreeName)}
-                placeholder={degreePlaceholder}
+                placeholder={getQualificationDegreePlaceholder(row.qualificationType)}
                 disabled={isHigherSecondary}
               />
               {!isHigherSecondary && errors[index]?.degreeName && (
@@ -448,7 +332,7 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
                 value={row.fieldOfStudy}
                 onChange={(e) => updateRow(index, { fieldOfStudy: e.target.value })}
                 className={inputCls(!!errors[index]?.fieldOfStudy)}
-                placeholder={fieldOfStudyPlaceholder}
+                placeholder={getQualificationFieldOfStudyPlaceholder(row.qualificationType)}
               />
               {errors[index]?.fieldOfStudy && (
                 <p className="text-xs text-danger">{errors[index].fieldOfStudy}</p>
@@ -515,7 +399,7 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
                 value={row.gradeValue}
                 onChange={(e) => updateRow(index, { gradeValue: e.target.value })}
                 className={inputCls(!!errors[index]?.gradeValue)}
-                placeholder={row.gradeType === GradeType.CGPA ? 'e.g. 8.5' : row.gradeType === GradeType.PERCENTAGE ? 'e.g. 85' : 'e.g. First Division'}
+                placeholder={getQualificationGradeValuePlaceholder(row.gradeType)}
               />
               {errors[index]?.gradeValue && (
                 <p className="text-xs text-danger">{errors[index].gradeValue}</p>

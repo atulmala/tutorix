@@ -1,14 +1,20 @@
 import React, { useMemo, useState } from 'react';
 import {
   buildOnboardingTimeline,
+  canDeleteQualificationType,
   documentStatusBadgeClass,
   documentStatusLabel,
+  EDUCATIONAL_QUALIFICATION_LABELS,
+  EducationalQualification,
   emptyExperienceRow,
+  emptyQualificationRow,
   experienceDurationMonths,
   formatDate,
   formatExperienceDuration,
   formatQualificationTitle,
+  getAvailableQualificationTypes,
   mapExperienceToFormRow,
+  mapQualificationToFormRow,
   monthsToExperienceDuration,
   ptStatusBadgeClass,
   ptStatusLabel,
@@ -24,12 +30,14 @@ import { TutorDocumentViewerModal } from './TutorDocumentViewerModal';
 import { BankDetailsSection } from './BankDetailsSection';
 import { BankDetailsModal, type BankDetailsFormValues } from './BankDetailsModal';
 import { ExperienceModal, type ExperienceFormRow } from './ExperienceModal';
+import { QualificationModal, type QualificationFormRow } from './QualificationModal';
 import { RateCardModal, type RateCardFormValuesExport } from './RateCardModal';
 import { TutorAvailabilitySection } from '@tutorix/tutor-availability-ui';
 import type { TutorDetailRecord, TutorDocumentDetail } from './types';
 
 export type { BankDetailsFormValues } from './BankDetailsModal';
 export type { ExperienceFormRow } from './ExperienceModal';
+export type { QualificationFormRow } from './QualificationModal';
 export type { RateCardFormValuesExport as RateCardFormValues } from './RateCardModal';
 
 export type TutorDetailViewMode = 'admin' | 'tutor';
@@ -57,6 +65,9 @@ export type TutorDetailViewProps = {
   onSaveExperiences?: (experiences: ExperienceFormRow[]) => void | Promise<void>;
   savingExperiences?: boolean;
   experienceSaveError?: string | null;
+  onSaveQualifications?: (rows: QualificationFormRow[]) => void | Promise<void>;
+  savingQualifications?: boolean;
+  qualificationSaveError?: string | null;
 };
 
 type SectionStyle = {
@@ -437,8 +448,28 @@ function AddressSection({ addresses }: { addresses: TutorDetailRecord['addresses
 
 function EducationSection({
   qualifications,
+  editable = false,
+  savingQualifications = false,
+  deletingQualificationType = null,
+  availableTypes = [],
+  showTypePicker = false,
+  onEditQualification,
+  onDeleteQualification,
+  onAddQualification,
+  onPickQualificationType,
+  onCancelTypePicker,
 }: {
   qualifications: TutorDetailRecord['qualifications'];
+  editable?: boolean;
+  savingQualifications?: boolean;
+  deletingQualificationType?: EducationalQualification | null;
+  availableTypes?: EducationalQualification[];
+  showTypePicker?: boolean;
+  onEditQualification?: (qualificationType: EducationalQualification) => void;
+  onDeleteQualification?: (qualificationType: EducationalQualification) => void;
+  onAddQualification?: () => void;
+  onPickQualificationType?: (type: EducationalQualification) => void;
+  onCancelTypePicker?: () => void;
 }) {
   const sorted = sortQualificationsHighestFirst(qualifications ?? []);
 
@@ -449,34 +480,155 @@ function EducationSection({
       headerMeta={formatEntryCount(sorted.length, 'qualification', 'qualifications')}
     >
       {sorted.length === 0 ? (
-        <p className="text-sm text-indigo-800/70">No qualifications on file.</p>
-      ) : (
-        <ul className="space-y-3">
-          {sorted.map((qual, index) => (
-            <li
-              key={qual.id}
-              className={`rounded-xl border px-4 py-3 text-sm ${SECTION_STYLES.education.item}`}
+        <div className="space-y-3">
+          <p className="text-sm text-indigo-800/70">No qualifications on file.</p>
+          {editable && onAddQualification && availableTypes.length > 0 ? (
+            <button
+              type="button"
+              onClick={onAddQualification}
+              disabled={savingQualifications}
+              className="rounded-lg border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-800 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <div className="flex items-start gap-3">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-500 text-xs font-bold text-white">
-                  {index + 1}
-                </span>
-                <div>
-                  <p className="font-semibold text-indigo-950">
-                    {formatQualificationTitle(qual.qualificationType, qual.degreeName)}
-                  </p>
-                  <p className="mt-1 text-indigo-900/70">
-                    {qual.boardOrUniversity} · {qual.gradeType}: {qual.gradeValue} ·{' '}
-                    {qual.yearObtained}
-                  </p>
-                  {qual.fieldOfStudy && (
-                    <p className="mt-0.5 text-indigo-800/60">{qual.fieldOfStudy}</p>
-                  )}
+              Add qualification
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <>
+          <ul className="space-y-3">
+            {sorted.map((qual, index) => {
+              const qualType = qual.qualificationType as EducationalQualification;
+              const isDeleting = deletingQualificationType === qualType;
+              const canDelete = canDeleteQualificationType(qualType);
+
+              return (
+                <li
+                  key={qual.id}
+                  className={`rounded-xl border px-4 py-3 text-sm ${SECTION_STYLES.education.item}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-500 text-xs font-bold text-white">
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <p className="font-semibold text-indigo-950">
+                          {formatQualificationTitle(qual.qualificationType, qual.degreeName)}
+                        </p>
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          {editable && onEditQualification ? (
+                            <button
+                              type="button"
+                              onClick={() => onEditQualification(qualType)}
+                              disabled={savingQualifications}
+                              aria-label="Edit qualification"
+                              title="Edit qualification"
+                              className="rounded-lg p-1.5 text-indigo-700 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                className="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden
+                              >
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                              </svg>
+                            </button>
+                          ) : null}
+                          {editable && canDelete && onDeleteQualification ? (
+                            <button
+                              type="button"
+                              onClick={() => onDeleteQualification(qualType)}
+                              disabled={savingQualifications}
+                              aria-label={
+                                isDeleting ? 'Deleting qualification' : 'Delete qualification'
+                              }
+                              title={isDeleting ? 'Deleting…' : 'Delete qualification'}
+                              className="rounded-lg p-1.5 text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {isDeleting ? (
+                                <span className="block h-4 w-4 animate-pulse rounded bg-red-200" />
+                              ) : (
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  viewBox="0 0 24 24"
+                                  className="h-4 w-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  aria-hidden
+                                >
+                                  <path d="M3 6h18" />
+                                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                  <line x1="10" x2="10" y1="11" y2="17" />
+                                  <line x1="14" x2="14" y1="11" y2="17" />
+                                </svg>
+                              )}
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                      <p className="mt-1 text-indigo-900/70">
+                        {qual.boardOrUniversity} · {qual.gradeType}: {qual.gradeValue} ·{' '}
+                        {qual.yearObtained}
+                      </p>
+                      {qual.fieldOfStudy && (
+                        <p className="mt-0.5 text-indigo-800/60">{qual.fieldOfStudy}</p>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          {editable && onAddQualification && availableTypes.length > 0 ? (
+            <div className="mt-4 space-y-3">
+              <button
+                type="button"
+                onClick={onAddQualification}
+                disabled={savingQualifications || showTypePicker}
+                className="rounded-lg border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-800 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Add qualification
+              </button>
+              {showTypePicker && onPickQualificationType && onCancelTypePicker ? (
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
+                  <p className="text-sm font-medium text-indigo-900">Choose qualification type</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {availableTypes.map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => onPickQualificationType(type)}
+                        disabled={savingQualifications}
+                        className="rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-sm font-medium text-indigo-800 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {EDUCATIONAL_QUALIFICATION_LABELS[type]}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={onCancelTypePicker}
+                      disabled={savingQualifications}
+                      className="rounded-lg px-3 py-1.5 text-sm font-medium text-indigo-700/80 transition hover:text-indigo-900 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </li>
-          ))}
-        </ul>
+              ) : null}
+            </div>
+          ) : null}
+        </>
       )}
     </SectionCard>
   );
@@ -670,6 +822,9 @@ export function TutorDetailView({
   onSaveExperiences,
   savingExperiences = false,
   experienceSaveError = null,
+  onSaveQualifications,
+  savingQualifications = false,
+  qualificationSaveError = null,
 }: TutorDetailViewProps) {
   const [selectedDocument, setSelectedDocument] = useState<TutorDocumentDetail | null>(null);
   const [bankDetailsModalOpen, setBankDetailsModalOpen] = useState(false);
@@ -680,12 +835,32 @@ export function TutorDetailView({
     { mode: 'edit' | 'add'; experienceId?: number } | null
   >(null);
   const [deletingExperienceId, setDeletingExperienceId] = useState<number | null>(null);
+  const [qualificationModal, setQualificationModal] = useState<
+    { mode: 'edit' | 'add'; qualificationType: EducationalQualification } | null
+  >(null);
+  const [qualificationTypePickerOpen, setQualificationTypePickerOpen] = useState(false);
+  const [deletingQualificationType, setDeletingQualificationType] =
+    useState<EducationalQualification | null>(null);
   const isAdmin = mode === 'admin';
   const canEditExperiences = !isAdmin && Boolean(onSaveExperiences);
+  const canEditQualifications = !isAdmin && Boolean(onSaveQualifications);
 
   const experiencesAsFormRows = useMemo(
     () => tutor.experiences.map((exp) => mapExperienceToFormRow(exp)),
     [tutor.experiences],
+  );
+
+  const qualificationsAsFormRows = useMemo(
+    () => (tutor.qualifications ?? []).map((qual) => mapQualificationToFormRow(qual)),
+    [tutor.qualifications],
+  );
+
+  const availableQualificationTypes = useMemo(
+    () =>
+      getAvailableQualificationTypes(
+        qualificationsAsFormRows.map((row) => row.qualificationType),
+      ),
+    [qualificationsAsFormRows],
   );
 
   const handleSaveExperiences = async (rows: ExperienceFormRow[]) => {
@@ -736,6 +911,75 @@ export function TutorDetailView({
     }
     return emptyExperienceRow();
   }, [experienceModal, experiencesAsFormRows]);
+
+  const handleSaveQualifications = async (rows: QualificationFormRow[]) => {
+    if (!onSaveQualifications) return;
+    await onSaveQualifications(rows);
+  };
+
+  const handleQualificationModalSubmit = async (row: QualificationFormRow) => {
+    if (!qualificationModal || !onSaveQualifications) return;
+    const nextRows =
+      qualificationModal.mode === 'edit'
+        ? qualificationsAsFormRows.map((existing) =>
+            existing.qualificationType === row.qualificationType ? row : existing,
+          )
+        : [...qualificationsAsFormRows, row];
+    try {
+      await handleSaveQualifications(nextRows);
+      setQualificationModal(null);
+      setQualificationTypePickerOpen(false);
+    } catch {
+      /* error surfaced via qualificationSaveError */
+    }
+  };
+
+  const handleDeleteQualification = async (qualificationType: EducationalQualification) => {
+    if (!onSaveQualifications || !canDeleteQualificationType(qualificationType)) return;
+    const confirmed = window.confirm(
+      'Delete this qualification? This cannot be undone.',
+    );
+    if (!confirmed) return;
+    setDeletingQualificationType(qualificationType);
+    try {
+      const nextRows = qualificationsAsFormRows.filter(
+        (row) => row.qualificationType !== qualificationType,
+      );
+      await handleSaveQualifications(nextRows);
+    } finally {
+      setDeletingQualificationType(null);
+    }
+  };
+
+  const handleAddQualification = () => {
+    if (availableQualificationTypes.length === 1) {
+      setQualificationModal({
+        mode: 'add',
+        qualificationType: availableQualificationTypes[0],
+      });
+      return;
+    }
+    setQualificationTypePickerOpen(true);
+  };
+
+  const handlePickQualificationType = (type: EducationalQualification) => {
+    setQualificationTypePickerOpen(false);
+    setQualificationModal({ mode: 'add', qualificationType: type });
+  };
+
+  const qualificationModalInitialRow = useMemo(() => {
+    if (!qualificationModal) {
+      return emptyQualificationRow(EducationalQualification.HIGHER_SECONDARY);
+    }
+    if (qualificationModal.mode === 'edit') {
+      return (
+        qualificationsAsFormRows.find(
+          (row) => row.qualificationType === qualificationModal.qualificationType,
+        ) ?? emptyQualificationRow(qualificationModal.qualificationType)
+      );
+    }
+    return emptyQualificationRow(qualificationModal.qualificationType);
+  }, [qualificationModal, qualificationsAsFormRows]);
 
   const timelineEntries = useMemo(
     () =>
@@ -872,7 +1116,34 @@ export function TutorDetailView({
               }
             />
             <div className="h-full min-h-0">
-              <EducationSection qualifications={tutor.qualifications} />
+              <EducationSection
+                qualifications={tutor.qualifications}
+                editable={canEditQualifications}
+                savingQualifications={savingQualifications}
+                deletingQualificationType={deletingQualificationType}
+                availableTypes={availableQualificationTypes}
+                showTypePicker={qualificationTypePickerOpen}
+                onEditQualification={
+                  canEditQualifications
+                    ? (qualificationType) =>
+                        setQualificationModal({ mode: 'edit', qualificationType })
+                    : undefined
+                }
+                onDeleteQualification={
+                  canEditQualifications ? handleDeleteQualification : undefined
+                }
+                onAddQualification={
+                  canEditQualifications ? handleAddQualification : undefined
+                }
+                onPickQualificationType={
+                  canEditQualifications ? handlePickQualificationType : undefined
+                }
+                onCancelTypePicker={
+                  canEditQualifications
+                    ? () => setQualificationTypePickerOpen(false)
+                    : undefined
+                }
+              />
             </div>
           </div>
           {canEditExperiences ? (
@@ -884,6 +1155,20 @@ export function TutorDetailView({
               error={experienceSaveError}
               onClose={() => setExperienceModal(null)}
               onSubmit={(row) => void handleExperienceModalSubmit(row)}
+            />
+          ) : null}
+          {canEditQualifications ? (
+            <QualificationModal
+              open={Boolean(qualificationModal)}
+              mode={qualificationModal?.mode ?? 'add'}
+              initialRow={qualificationModalInitialRow}
+              saving={savingQualifications}
+              error={qualificationSaveError}
+              onClose={() => {
+                setQualificationModal(null);
+                setQualificationTypePickerOpen(false);
+              }}
+              onSubmit={(row) => void handleQualificationModalSubmit(row)}
             />
           ) : null}
           <BankDetailsSection

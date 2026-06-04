@@ -10,6 +10,7 @@ export {
 export { BankDetailsSection } from './BankDetailsSection';
 export { BankDetailsModal, type BankDetailsFormValues } from './BankDetailsModal';
 export { ExperienceModal, type ExperienceFormRow } from './ExperienceModal';
+export { QualificationModal, type QualificationFormRow } from './QualificationModal';
 export { RateCardModal, type RateCardFormValuesExport as RateCardFormValues } from './RateCardModal';
 export { OfferingLabel } from './OfferingLabel';
 export {

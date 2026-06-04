@@ -5,11 +5,14 @@ import {
   SAVE_MY_BANK_DETAILS,
   SAVE_MY_TUTOR_OFFERING_RATE_CARD,
   SAVE_TUTOR_EXPERIENCES,
+  SAVE_TUTOR_QUALIFICATIONS,
 } from '@tutorix/shared-graphql';
 import {
   buildExperienceMutationInput,
+  buildQualificationMutationInput,
   normalizeYearsOfExperience,
   type ExperienceFormRow,
+  type QualificationFormRow,
 } from '@tutorix/shared-utils';
 import {
   TutorDetailView,
@@ -31,6 +34,7 @@ export const TutorProfilePage: React.FC = () => {
   const [bankDetailsSaveError, setBankDetailsSaveError] = useState<string | null>(null);
   const [rateCardSaveError, setRateCardSaveError] = useState<string | null>(null);
   const [experienceSaveError, setExperienceSaveError] = useState<string | null>(null);
+  const [qualificationSaveError, setQualificationSaveError] = useState<string | null>(null);
   const [showAddOffering, setShowAddOffering] = useState(false);
   const [ptOffering, setPtOffering] = useState<
     TutorDetailRecord['offerings'][number] | null
@@ -39,6 +43,9 @@ export const TutorProfilePage: React.FC = () => {
   const [saveBankDetails, { loading: savingBankDetails }] = useMutation(SAVE_MY_BANK_DETAILS);
   const [saveRateCard, { loading: savingRateCard }] = useMutation(SAVE_MY_TUTOR_OFFERING_RATE_CARD);
   const [saveExperiences, { loading: savingExperiences }] = useMutation(SAVE_TUTOR_EXPERIENCES);
+  const [saveQualifications, { loading: savingQualifications }] = useMutation(
+    SAVE_TUTOR_QUALIFICATIONS,
+  );
 
   const tutor = data?.myTutorDetail;
 
@@ -133,6 +140,26 @@ export const TutorProfilePage: React.FC = () => {
     }
   };
 
+  const handleSaveQualifications = async (rows: QualificationFormRow[]) => {
+    setQualificationSaveError(null);
+    try {
+      await saveQualifications({
+        variables: {
+          input: {
+            qualifications: buildQualificationMutationInput(rows),
+            advanceToNextStep: false,
+          },
+        },
+      });
+      await refetch();
+    } catch (err) {
+      setQualificationSaveError(
+        err instanceof Error ? err.message : 'Could not save qualifications.',
+      );
+      throw err;
+    }
+  };
+
   if (loading && !tutor) {
     return (
       <div className="w-full max-w-5xl rounded-2xl border border-sky-200/80 bg-gradient-to-r from-sky-50 via-white to-violet-50 p-8 text-center">
@@ -211,6 +238,9 @@ export const TutorProfilePage: React.FC = () => {
         onSaveExperiences={handleSaveExperiences}
         savingExperiences={savingExperiences}
         experienceSaveError={experienceSaveError}
+        onSaveQualifications={handleSaveQualifications}
+        savingQualifications={savingQualifications}
+        qualificationSaveError={qualificationSaveError}
       />
     </div>
   );
