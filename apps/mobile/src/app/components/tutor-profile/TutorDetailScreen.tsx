@@ -10,27 +10,35 @@ import {
   Modal,
   Linking,
   useWindowDimensions,
+  Alert,
 } from 'react-native';
+import Svg, { Line, Path } from 'react-native-svg';
 import { useMutation, useQuery } from '@apollo/client';
 import { GET_MY_TUTOR_DETAIL } from '@tutorix/shared-graphql/queries';
 import {
   SAVE_MY_BANK_DETAILS,
   SAVE_MY_TUTOR_OFFERING_RATE_CARD,
+  SAVE_TUTOR_EXPERIENCES,
 } from '@tutorix/shared-graphql/mutations';
 import {
   buildOnboardingTimeline,
+  buildExperienceMutationInput,
   documentStatusLabel,
+  emptyExperienceRow,
   experienceDurationMonths,
   formatDate,
   formatDateTime,
   formatExperienceDuration,
   formatQualificationTitle,
+  mapExperienceToFormRow,
   monthsToExperienceDuration,
+  normalizeYearsOfExperience,
   sortQualificationsHighestFirst,
   sumExperienceDurations,
   formatOfferingLabelForDisplay,
   ptStatusLabel,
   sortTutorOfferingsForDisplay,
+  type ExperienceFormRow,
   type OnboardingTimelineEntry,
 } from '@tutorix/shared-utils';
 import type {
@@ -41,6 +49,7 @@ import type {
 import { BankDetailsSection } from './BankDetailsSection';
 import { BankDetailsModal } from './BankDetailsModal';
 import { RateCardModal } from './RateCardModal';
+import { ExperienceModal } from './ExperienceModal';
 import { TutorAvailabilitySection } from './TutorAvailabilitySection';
 import { AddOfferingFlow } from './AddOfferingFlow';
 import { TutorPT } from '../tutor-onboarding/tutor-pt/TutorPT';
@@ -86,6 +95,27 @@ function timelineStatusColor(status: OnboardingTimelineEntry['status']): string 
 function formatEntryCount(count: number, singular: string, plural: string): string {
   if (count === 1) return `1 ${singular}`;
   return `${count} ${plural}`;
+}
+
+function PenIcon() {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#6d28d9" strokeWidth={2}>
+      <Path d="M12 20h9" strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth={2}>
+      <Path d="M3 6h18" strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" strokeLinecap="round" strokeLinejoin="round" />
+      <Line x1="10" x2="10" y1="11" y2="17" strokeLinecap="round" />
+      <Line x1="14" x2="14" y1="11" y2="17" strokeLinecap="round" />
+    </Svg>
+  );
 }
 
 function OfferingDetailField({ label, value }: { label: string; value: React.ReactNode }) {
@@ -168,9 +198,15 @@ export const TutorDetailScreen: React.FC = () => {
   const [rateCardSaveError, setRateCardSaveError] = useState<string | null>(null);
   const [showAddOffering, setShowAddOffering] = useState(false);
   const [ptOffering, setPtOffering] = useState<TutorOffering | null>(null);
+  const [experienceModal, setExperienceModal] = useState<
+    { mode: 'edit' | 'add'; experienceId?: number } | null
+  >(null);
+  const [deletingExperienceId, setDeletingExperienceId] = useState<number | null>(null);
+  const [experienceSaveError, setExperienceSaveError] = useState<string | null>(null);
 
   const [saveBankDetails, { loading: savingBankDetails }] = useMutation(SAVE_MY_BANK_DETAILS);
   const [saveRateCard, { loading: savingRateCard }] = useMutation(SAVE_MY_TUTOR_OFFERING_RATE_CARD);
+  const [saveExperiences, { loading: savingExperiences }] = useMutation(SAVE_TUTOR_EXPERIENCES);
   const { width: windowWidth } = useWindowDimensions();
   const stackProfileSections = windowWidth < 768;
   const offeringFieldsInRow = windowWidth >= 400;
@@ -216,6 +252,98 @@ export const TutorDetailScreen: React.FC = () => {
     () => sortTutorOfferingsForDisplay(tutor?.offerings ?? []),
     [tutor?.offerings],
   );
+
+  const experiencesAsFormRows = useMemo(
+    () => (tutor?.experiences ?? []).map((exp) => mapExperienceToFormRow(exp)),
+    [tutor?.experiences],
+  );
+
+  const handleSaveExperiences = useCallback(
+    async (rows: ExperienceFormRow[]) => {
+      if (!tutor) return;
+      setExperienceSaveError(null);
+      try {
+        await saveExperiences({
+          variables: {
+            input: {
+              experiences: buildExperienceMutationInput(rows),
+              yearsOfExperience: normalizeYearsOfExperience(tutor.yearsOfExperience),
+              advanceToNextStep: false,
+            },
+          },
+        });
+        await refetch();
+      } catch (err) {
+        setExperienceSaveError(
+          err instanceof Error ? err.message : 'Could not save experience.',
+        );
+        throw err;
+      }
+    },
+    [tutor, saveExperiences, refetch],
+  );
+
+  const handleExperienceModalSubmit = useCallback(
+    async (row: ExperienceFormRow) => {
+      if (!experienceModal) return;
+      const nextRows =
+        experienceModal.mode === 'edit' && experienceModal.experienceId != null
+          ? experiencesAsFormRows.map((existing) =>
+              existing.id === experienceModal.experienceId
+                ? { ...row, id: existing.id }
+                : existing,
+            )
+          : [...experiencesAsFormRows, row];
+      try {
+        await handleSaveExperiences(nextRows);
+        setExperienceModal(null);
+      } catch {
+        /* error surfaced via experienceSaveError */
+      }
+    },
+    [experienceModal, experiencesAsFormRows, handleSaveExperiences],
+  );
+
+  const handleDeleteExperience = useCallback(
+    (experienceId: number) => {
+      Alert.alert(
+        'Delete experience',
+        'Delete this experience? This cannot be undone.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => {
+              void (async () => {
+                setDeletingExperienceId(experienceId);
+                try {
+                  const nextRows = experiencesAsFormRows.filter(
+                    (row) => row.id !== experienceId,
+                  );
+                  await handleSaveExperiences(nextRows);
+                } finally {
+                  setDeletingExperienceId(null);
+                }
+              })();
+            },
+          },
+        ],
+      );
+    },
+    [experiencesAsFormRows, handleSaveExperiences],
+  );
+
+  const experienceModalInitialRow = useMemo(() => {
+    if (!experienceModal) return emptyExperienceRow();
+    if (experienceModal.mode === 'edit' && experienceModal.experienceId != null) {
+      return (
+        experiencesAsFormRows.find((row) => row.id === experienceModal.experienceId) ??
+        emptyExperienceRow()
+      );
+    }
+    return emptyExperienceRow();
+  }, [experienceModal, experiencesAsFormRows]);
 
   const handleSaveRateCard = async (tutorOfferingId: number, values: RateCardFormValues) => {
     setRateCardSaveError(null);
@@ -482,31 +610,81 @@ export const TutorDetailScreen: React.FC = () => {
             </Text>
           ) : null}
           {tutor.experiences.length === 0 ? (
-            <Text style={styles.muted}>No experience on file.</Text>
+            <View>
+              <Text style={styles.muted}>No experience on file.</Text>
+              <TouchableOpacity
+                style={styles.addExperienceButton}
+                onPress={() => setExperienceModal({ mode: 'add' })}
+                disabled={savingExperiences}
+              >
+                <Text style={styles.addExperienceButtonText}>Add new Experience</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
-            tutor.experiences.map((exp) => {
-              const months = experienceDurationMonths(exp);
-              const durationLabel =
-                months != null
-                  ? formatExperienceDuration(monthsToExperienceDuration(months))
-                  : null;
-              return (
-                <View key={exp.id} style={styles.experienceItem}>
-                  <Text style={styles.rowBold}>
-                    {exp.jobTitle}
-                    {durationLabel ? ` (${durationLabel})` : ''}
-                  </Text>
-                  <Text style={styles.row}>
-                    {exp.employerName ?? 'Self-employed'}
-                    {exp.employerAddress ? ` · ${exp.employerAddress}` : ''}
-                  </Text>
-                  <Text style={styles.muted}>
-                    {formatDate(exp.startDate)} –{' '}
-                    {exp.isCurrent ? 'Present' : formatDate(exp.endDate)}
-                  </Text>
-                </View>
-              );
-            })
+            <>
+              {tutor.experiences.map((exp) => {
+                const months = experienceDurationMonths(exp);
+                const durationLabel =
+                  months != null
+                    ? formatExperienceDuration(monthsToExperienceDuration(months))
+                    : null;
+                const isDeleting = deletingExperienceId === exp.id;
+
+                return (
+                  <View key={exp.id} style={styles.experienceItem}>
+                    <View style={styles.experienceTitleRow}>
+                      <Text style={[styles.rowBold, styles.experienceJobTitle]}>
+                        {exp.jobTitle}
+                      </Text>
+                      <View style={styles.experienceActions}>
+                        {durationLabel ? (
+                          <Text style={styles.experienceDurationBadge}>{durationLabel}</Text>
+                        ) : null}
+                        <TouchableOpacity
+                          style={styles.experienceIconButton}
+                          onPress={() =>
+                            setExperienceModal({ mode: 'edit', experienceId: exp.id })
+                          }
+                          disabled={savingExperiences}
+                          accessibilityLabel="Edit experience"
+                        >
+                          <PenIcon />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.experienceIconButton}
+                          onPress={() => handleDeleteExperience(exp.id)}
+                          disabled={savingExperiences}
+                          accessibilityLabel={
+                            isDeleting ? 'Deleting experience' : 'Delete experience'
+                          }
+                        >
+                          {isDeleting ? (
+                            <ActivityIndicator size="small" color="#dc2626" />
+                          ) : (
+                            <TrashIcon />
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <Text style={styles.row}>
+                      {exp.employerName ?? 'Self-employed'}
+                      {exp.employerAddress ? ` · ${exp.employerAddress}` : ''}
+                    </Text>
+                    <Text style={styles.muted}>
+                      {formatDate(exp.startDate)} –{' '}
+                      {exp.isCurrent ? 'Present' : formatDate(exp.endDate)}
+                    </Text>
+                  </View>
+                );
+              })}
+              <TouchableOpacity
+                style={styles.addExperienceButton}
+                onPress={() => setExperienceModal({ mode: 'add' })}
+                disabled={savingExperiences}
+              >
+                <Text style={styles.addExperienceButtonText}>Add new Experience</Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
 
@@ -681,6 +859,19 @@ export const TutorDetailScreen: React.FC = () => {
         error={bankDetailsSaveError}
         onClose={() => setBankModalVisible(false)}
         onSubmit={handleSaveBankDetails}
+      />
+
+      <ExperienceModal
+        visible={experienceModal != null}
+        mode={experienceModal?.mode ?? 'add'}
+        initialRow={experienceModalInitialRow}
+        saving={savingExperiences}
+        error={experienceSaveError}
+        onClose={() => {
+          setExperienceModal(null);
+          setExperienceSaveError(null);
+        }}
+        onSubmit={(row) => void handleExperienceModalSubmit(row)}
       />
     </ScrollView>
   );
@@ -902,6 +1093,53 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ede9fe',
     backgroundColor: '#f5f3ff',
+  },
+  experienceTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 4,
+  },
+  experienceJobTitle: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  experienceActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 6,
+  },
+  experienceDurationBadge: {
+    backgroundColor: '#ddd6fe',
+    color: '#5b21b6',
+    fontSize: 11,
+    fontWeight: '700',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  experienceIconButton: {
+    padding: 6,
+    borderRadius: 8,
+  },
+  addExperienceButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#ddd6fe',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+  },
+  addExperienceButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6d28d9',
   },
   educationItem: {
     marginBottom: 10,

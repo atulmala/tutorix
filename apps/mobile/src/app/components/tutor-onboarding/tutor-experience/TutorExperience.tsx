@@ -19,58 +19,33 @@ import {
   EmploymentType,
   EMPLOYMENT_TYPE_LIST,
   EMPLOYMENT_TYPE_LABELS,
+  buildExperienceMutationInput,
+  emptyExperienceRow,
+  mapExperienceToFormRow,
+  normalizeYearsOfExperience,
+  validateExperienceRow,
+  type ExperienceFormRow,
+  type ExperienceRowFieldErrors,
+  type StepComponentProps,
 } from '@tutorix/shared-utils';
-import type { StepComponentProps } from '@tutorix/shared-utils';
 
-interface ExperienceRow {
-  id?: number;
-  jobTitle: string;
-  employerName: string;
-  employerAddress: string;
-  employmentType: EmploymentType;
-  startDate: string;
-  endDate: string;
-  isCurrent: boolean;
-}
+type MyTutorProfileExperience = Parameters<typeof mapExperienceToFormRow>[0];
 
-const currentYear = new Date().getFullYear();
-
-const EMPLOYMENT_TYPE_BY_NUM: Record<number, EmploymentType> = {
-  1: EmploymentType.FULL_TIME,
-  2: EmploymentType.PART_TIME,
-  3: EmploymentType.SELF_EMPLOYED,
-  4: EmploymentType.FREELANCE,
-  5: EmploymentType.INTERNSHIP,
-  6: EmploymentType.TRAINEE,
+type MyTutorProfileData = {
+  myTutorProfile?: {
+    yearsOfExperience?: string | number | null;
+    experiences?: MyTutorProfileExperience[];
+  };
 };
-
-function mapEmploymentType(v: string | number | null | undefined): EmploymentType {
-  if (v == null) return EmploymentType.FULL_TIME;
-  if (typeof v === 'number') return EMPLOYMENT_TYPE_BY_NUM[v] ?? EmploymentType.FULL_TIME;
-  const found = Object.values(EmploymentType).find((x) => x === v);
-  return found ?? EmploymentType.FULL_TIME;
-}
-
-const emptyExperience = (): ExperienceRow => ({
-  jobTitle: '',
-  employerName: '',
-  employerAddress: '',
-  employmentType: EmploymentType.FULL_TIME,
-  startDate: '',
-  endDate: '',
-  isCurrent: false,
-});
 
 export const TutorExperience: React.FC<StepComponentProps> = () => {
   const [yearsOfExperience, setYearsOfExperience] = useState<YearsOfExperienceEnum>(
     YearsOfExperienceEnum.ZERO_TO_TWO
   );
-  const [experiences, setExperiences] = useState<ExperienceRow[]>(() => [
-    emptyExperience(),
+  const [experiences, setExperiences] = useState<ExperienceFormRow[]>(() => [
+    emptyExperienceRow(),
   ]);
-  const [errors, setErrors] = useState<
-    Record<number, Partial<Record<keyof ExperienceRow, string>>>
-  >({});
+  const [errors, setErrors] = useState<Record<number, ExperienceRowFieldErrors>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [savingSectionIndex, setSavingSectionIndex] = useState<number | null>(null);
@@ -79,54 +54,20 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
   } | null>(null);
   const [yearsModalVisible, setYearsModalVisible] = useState(false);
 
-  const { data: profileData } = useQuery(GET_MY_TUTOR_PROFILE, {
+  const { data: profileData } = useQuery<MyTutorProfileData>(GET_MY_TUTOR_PROFILE, {
     fetchPolicy: 'network-only',
   });
 
   useEffect(() => {
     const profile = profileData?.myTutorProfile;
     if (profile?.yearsOfExperience != null) {
-      const v = profile.yearsOfExperience;
-      if (typeof v === 'number') {
-        setYearsOfExperience(
-          ([
-            YearsOfExperienceEnum.ZERO_TO_TWO,
-            YearsOfExperienceEnum.TWO_TO_FIVE,
-            YearsOfExperienceEnum.FIVE_TO_TEN,
-            YearsOfExperienceEnum.MORE_THAN_TEN,
-          ] as const)[(v as number) - 1] ?? YearsOfExperienceEnum.ZERO_TO_TWO
-        );
-      } else {
-        setYearsOfExperience(v as YearsOfExperienceEnum);
-      }
+      setYearsOfExperience(normalizeYearsOfExperience(profile.yearsOfExperience));
     }
     const list = profile?.experiences;
     if (list?.length) {
-      setExperiences(
-        list.map(
-          (e: {
-            id?: number;
-            jobTitle: string;
-            employerName?: string | null;
-            employerAddress?: string | null;
-            employmentType: string;
-            startDate: string;
-            endDate?: string | null;
-            isCurrent?: boolean;
-          }) => ({
-            id: e.id,
-            jobTitle: e.jobTitle ?? '',
-            employerName: e.employerName ?? '',
-            employerAddress: e.employerAddress ?? '',
-            employmentType: mapEmploymentType(e.employmentType),
-            startDate: e.startDate ? e.startDate.slice(0, 10) : '',
-            endDate: e.endDate ? e.endDate.slice(0, 10) : '',
-            isCurrent: e.isCurrent ?? false,
-          })
-        )
-      );
+      setExperiences(list.map(mapExperienceToFormRow));
     } else if (list && list.length === 0 && profile?.yearsOfExperience) {
-      setExperiences([emptyExperience()]);
+      setExperiences([emptyExperienceRow()]);
     }
   }, [profileData?.myTutorProfile]);
 
@@ -180,7 +121,7 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
     }
   );
 
-  const updateRow = useCallback((index: number, updates: Partial<ExperienceRow>) => {
+  const updateRow = useCallback((index: number, updates: Partial<ExperienceFormRow>) => {
     setExperiences((prev) =>
       prev.map((row, i) => (i === index ? { ...row, ...updates } : row))
     );
@@ -188,7 +129,7 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
       const next = { ...prev };
       const rowErrors = next[index];
       if (rowErrors) {
-        const keys = Object.keys(updates) as (keyof ExperienceRow)[];
+        const keys = Object.keys(updates) as (keyof ExperienceFormRow)[];
         keys.forEach((k) => delete rowErrors[k]);
         if (Object.keys(rowErrors).length === 0) delete next[index];
       }
@@ -197,7 +138,7 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
   }, []);
 
   const addExperience = useCallback(() => {
-    setExperiences((prev) => [...prev, emptyExperience()]);
+    setExperiences((prev) => [...prev, emptyExperienceRow()]);
   }, []);
 
   const validateRow = useCallback(
@@ -205,29 +146,9 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
       setFormError(null);
       const row = experiences[index];
       if (!row) return false;
-      const e: Partial<Record<keyof ExperienceRow, string>> = {};
-      if (!row.jobTitle.trim()) e.jobTitle = 'Required';
-      if (row.employmentType !== EmploymentType.SELF_EMPLOYED) {
-        if (!row.employerName.trim()) e.employerName = 'Required';
-        if (!row.employerAddress.trim()) e.employerAddress = 'Required';
-      }
-      if (!row.startDate.trim()) e.startDate = 'Required';
-      else {
-        const start = new Date(row.startDate);
-        if (Number.isNaN(start.getTime())) e.startDate = 'Invalid date';
-        else if (start.getFullYear() < 1950 || start.getFullYear() > currentYear)
-          e.startDate = `Year must be between 1950 and ${currentYear}`;
-      }
-      if (!row.isCurrent && !row.endDate.trim()) {
-        e.endDate = 'Required when not currently working';
-      } else if (!row.isCurrent && row.endDate.trim()) {
-        const end = new Date(row.endDate);
-        if (Number.isNaN(end.getTime())) e.endDate = 'Invalid date';
-        else if (row.startDate && new Date(row.startDate) > end)
-          e.endDate = 'End date must be after start date';
-      }
-      if (Object.keys(e).length) {
-        setErrors((prev) => ({ ...prev, [index]: e }));
+      const result = validateExperienceRow(row);
+      if (result.ok === false) {
+        setErrors((prev) => ({ ...prev, [index]: result.fieldErrors }));
         return false;
       }
       setErrors((prev) => {
@@ -243,55 +164,17 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
   const validate = useCallback((): boolean => {
     setFormError(null);
     let valid = true;
-    const next: Record<number, Partial<Record<keyof ExperienceRow, string>>> = {};
+    const next: Record<number, ExperienceRowFieldErrors> = {};
     experiences.forEach((row, index) => {
-      const e: Partial<Record<keyof ExperienceRow, string>> = {};
-      if (!row.jobTitle.trim()) e.jobTitle = 'Required';
-      if (row.employmentType !== EmploymentType.SELF_EMPLOYED) {
-        if (!row.employerName.trim()) e.employerName = 'Required';
-        if (!row.employerAddress.trim()) e.employerAddress = 'Required';
-      }
-      if (!row.startDate.trim()) e.startDate = 'Required';
-      else {
-        const start = new Date(row.startDate);
-        if (Number.isNaN(start.getTime())) e.startDate = 'Invalid date';
-        else if (start.getFullYear() < 1950 || start.getFullYear() > currentYear)
-          e.startDate = `Year must be between 1950 and ${currentYear}`;
-      }
-      if (!row.isCurrent && !row.endDate.trim()) {
-        e.endDate = 'Required when not currently working';
-      } else if (!row.isCurrent && row.endDate.trim()) {
-        const end = new Date(row.endDate);
-        if (Number.isNaN(end.getTime())) e.endDate = 'Invalid date';
-        else if (row.startDate && new Date(row.startDate) > end)
-          e.endDate = 'End date must be after start date';
-      }
-      if (Object.keys(e).length) {
-        next[index] = e;
+      const result = validateExperienceRow(row);
+      if (result.ok === false) {
+        next[index] = result.fieldErrors;
         valid = false;
       }
     });
     setErrors(next);
     return valid;
   }, [experiences]);
-
-  const buildExperiencesInput = () =>
-    experiences.map((row) => ({
-      id: row.id,
-      jobTitle: row.jobTitle.trim(),
-      employerName:
-        row.employmentType === EmploymentType.SELF_EMPLOYED
-          ? undefined
-          : row.employerName.trim() || undefined,
-      employerAddress:
-        row.employmentType === EmploymentType.SELF_EMPLOYED
-          ? undefined
-          : row.employerAddress.trim() || undefined,
-      employmentType: row.employmentType,
-      startDate: row.startDate,
-      endDate: row.isCurrent ? undefined : (row.endDate || undefined),
-      isCurrent: row.isCurrent,
-    }));
 
   const handleSaveSection = (index: number) => {
     setSubmitError(null);
@@ -300,7 +183,7 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
     saveExperiences({
       variables: {
         input: {
-          experiences: buildExperiencesInput(),
+          experiences: buildExperienceMutationInput(experiences),
           yearsOfExperience,
           advanceToNextStep: false,
         },
@@ -314,7 +197,7 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
     saveExperiences({
       variables: {
         input: {
-          experiences: buildExperiencesInput(),
+          experiences: buildExperienceMutationInput(experiences),
           yearsOfExperience,
           advanceToNextStep: true,
         },
