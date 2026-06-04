@@ -19,18 +19,26 @@ import {
   SAVE_MY_BANK_DETAILS,
   SAVE_MY_TUTOR_OFFERING_RATE_CARD,
   SAVE_TUTOR_EXPERIENCES,
+  SAVE_TUTOR_QUALIFICATIONS,
 } from '@tutorix/shared-graphql/mutations';
 import {
   buildOnboardingTimeline,
   buildExperienceMutationInput,
+  buildQualificationMutationInput,
+  canDeleteQualificationType,
   documentStatusLabel,
+  EDUCATIONAL_QUALIFICATION_LABELS,
+  EducationalQualification,
   emptyExperienceRow,
+  emptyQualificationRow,
   experienceDurationMonths,
   formatDate,
   formatDateTime,
   formatExperienceDuration,
   formatQualificationTitle,
+  getAvailableQualificationTypes,
   mapExperienceToFormRow,
+  mapQualificationToFormRow,
   monthsToExperienceDuration,
   normalizeYearsOfExperience,
   sortQualificationsHighestFirst,
@@ -40,6 +48,7 @@ import {
   sortTutorOfferingsForDisplay,
   type ExperienceFormRow,
   type OnboardingTimelineEntry,
+  type QualificationFormRow,
 } from '@tutorix/shared-utils';
 import type {
   BankDetailsFormValues,
@@ -50,6 +59,7 @@ import { BankDetailsSection } from './BankDetailsSection';
 import { BankDetailsModal } from './BankDetailsModal';
 import { RateCardModal } from './RateCardModal';
 import { ExperienceModal } from './ExperienceModal';
+import { QualificationModal } from './QualificationModal';
 import { TutorAvailabilitySection } from './TutorAvailabilitySection';
 import { AddOfferingFlow } from './AddOfferingFlow';
 import { TutorPT } from '../tutor-onboarding/tutor-pt/TutorPT';
@@ -203,10 +213,20 @@ export const TutorDetailScreen: React.FC = () => {
   >(null);
   const [deletingExperienceId, setDeletingExperienceId] = useState<number | null>(null);
   const [experienceSaveError, setExperienceSaveError] = useState<string | null>(null);
+  const [qualificationModal, setQualificationModal] = useState<
+    { mode: 'edit' | 'add'; qualificationType: EducationalQualification } | null
+  >(null);
+  const [qualificationTypePickerOpen, setQualificationTypePickerOpen] = useState(false);
+  const [deletingQualificationType, setDeletingQualificationType] =
+    useState<EducationalQualification | null>(null);
+  const [qualificationSaveError, setQualificationSaveError] = useState<string | null>(null);
 
   const [saveBankDetails, { loading: savingBankDetails }] = useMutation(SAVE_MY_BANK_DETAILS);
   const [saveRateCard, { loading: savingRateCard }] = useMutation(SAVE_MY_TUTOR_OFFERING_RATE_CARD);
   const [saveExperiences, { loading: savingExperiences }] = useMutation(SAVE_TUTOR_EXPERIENCES);
+  const [saveQualifications, { loading: savingQualifications }] = useMutation(
+    SAVE_TUTOR_QUALIFICATIONS,
+  );
   const { width: windowWidth } = useWindowDimensions();
   const stackProfileSections = windowWidth < 768;
   const offeringFieldsInRow = windowWidth >= 400;
@@ -256,6 +276,19 @@ export const TutorDetailScreen: React.FC = () => {
   const experiencesAsFormRows = useMemo(
     () => (tutor?.experiences ?? []).map((exp) => mapExperienceToFormRow(exp)),
     [tutor?.experiences],
+  );
+
+  const qualificationsAsFormRows = useMemo(
+    () => (tutor?.qualifications ?? []).map((qual) => mapQualificationToFormRow(qual)),
+    [tutor?.qualifications],
+  );
+
+  const availableQualificationTypes = useMemo(
+    () =>
+      getAvailableQualificationTypes(
+        qualificationsAsFormRows.map((row) => row.qualificationType),
+      ),
+    [qualificationsAsFormRows],
   );
 
   const handleSaveExperiences = useCallback(
@@ -344,6 +377,110 @@ export const TutorDetailScreen: React.FC = () => {
     }
     return emptyExperienceRow();
   }, [experienceModal, experiencesAsFormRows]);
+
+  const handleSaveQualifications = useCallback(
+    async (rows: QualificationFormRow[]) => {
+      setQualificationSaveError(null);
+      try {
+        await saveQualifications({
+          variables: {
+            input: {
+              qualifications: buildQualificationMutationInput(rows),
+              advanceToNextStep: false,
+            },
+          },
+        });
+        await refetch();
+      } catch (err) {
+        setQualificationSaveError(
+          err instanceof Error ? err.message : 'Could not save qualifications.',
+        );
+        throw err;
+      }
+    },
+    [saveQualifications, refetch],
+  );
+
+  const handleQualificationModalSubmit = useCallback(
+    async (row: QualificationFormRow) => {
+      if (!qualificationModal) return;
+      const nextRows =
+        qualificationModal.mode === 'edit'
+          ? qualificationsAsFormRows.map((existing) =>
+              existing.qualificationType === row.qualificationType ? row : existing,
+            )
+          : [...qualificationsAsFormRows, row];
+      try {
+        await handleSaveQualifications(nextRows);
+        setQualificationModal(null);
+        setQualificationTypePickerOpen(false);
+      } catch {
+        /* error surfaced via qualificationSaveError */
+      }
+    },
+    [qualificationModal, qualificationsAsFormRows, handleSaveQualifications],
+  );
+
+  const handleDeleteQualification = useCallback(
+    (qualificationType: EducationalQualification) => {
+      if (!canDeleteQualificationType(qualificationType)) return;
+      Alert.alert(
+        'Delete qualification',
+        'Delete this qualification? This cannot be undone.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => {
+              void (async () => {
+                setDeletingQualificationType(qualificationType);
+                try {
+                  const nextRows = qualificationsAsFormRows.filter(
+                    (row) => row.qualificationType !== qualificationType,
+                  );
+                  await handleSaveQualifications(nextRows);
+                } finally {
+                  setDeletingQualificationType(null);
+                }
+              })();
+            },
+          },
+        ],
+      );
+    },
+    [qualificationsAsFormRows, handleSaveQualifications],
+  );
+
+  const handleAddQualification = useCallback(() => {
+    if (availableQualificationTypes.length === 1) {
+      setQualificationModal({
+        mode: 'add',
+        qualificationType: availableQualificationTypes[0],
+      });
+      return;
+    }
+    setQualificationTypePickerOpen(true);
+  }, [availableQualificationTypes]);
+
+  const handlePickQualificationType = useCallback((type: EducationalQualification) => {
+    setQualificationTypePickerOpen(false);
+    setQualificationModal({ mode: 'add', qualificationType: type });
+  }, []);
+
+  const qualificationModalInitialRow = useMemo(() => {
+    if (!qualificationModal) {
+      return emptyQualificationRow(EducationalQualification.HIGHER_SECONDARY);
+    }
+    if (qualificationModal.mode === 'edit') {
+      return (
+        qualificationsAsFormRows.find(
+          (row) => row.qualificationType === qualificationModal.qualificationType,
+        ) ?? emptyQualificationRow(qualificationModal.qualificationType)
+      );
+    }
+    return emptyQualificationRow(qualificationModal.qualificationType);
+  }, [qualificationModal, qualificationsAsFormRows]);
 
   const handleSaveRateCard = async (tutorOfferingId: number, values: RateCardFormValues) => {
     setRateCardSaveError(null);
@@ -703,19 +840,105 @@ export const TutorDetailScreen: React.FC = () => {
             </Text>
           </View>
           {sortedQualifications.length === 0 ? (
-            <Text style={styles.muted}>No qualifications on file.</Text>
+            <View>
+              <Text style={styles.muted}>No qualifications on file.</Text>
+              {availableQualificationTypes.length > 0 ? (
+                <TouchableOpacity
+                  style={styles.addEducationButton}
+                  onPress={handleAddQualification}
+                  disabled={savingQualifications}
+                >
+                  <Text style={styles.addEducationButtonText}>Add qualification</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
           ) : (
-            sortedQualifications.map((q, index) => (
-              <View key={q.id} style={styles.educationItem}>
-                <Text style={styles.rowBold}>
-                  {index + 1}. {formatQualificationTitle(q.qualificationType, q.degreeName)}
-                </Text>
-                <Text style={styles.row}>
-                  {q.boardOrUniversity} · {q.gradeType}: {q.gradeValue} · {q.yearObtained}
-                </Text>
-                {q.fieldOfStudy ? <Text style={styles.muted}>{q.fieldOfStudy}</Text> : null}
-              </View>
-            ))
+            <>
+              {sortedQualifications.map((q) => {
+                const qualType = q.qualificationType as EducationalQualification;
+                const isDeleting = deletingQualificationType === qualType;
+                const showDelete = canDeleteQualificationType(qualType);
+
+                return (
+                  <View key={q.id} style={styles.educationItem}>
+                    <View style={styles.experienceTitleRow}>
+                      <Text style={[styles.rowBold, styles.experienceJobTitle]}>
+                        {formatQualificationTitle(q.qualificationType, q.degreeName)}
+                      </Text>
+                      <View style={styles.experienceActions}>
+                        <TouchableOpacity
+                          style={styles.experienceIconButton}
+                          onPress={() =>
+                            setQualificationModal({ mode: 'edit', qualificationType: qualType })
+                          }
+                          disabled={savingQualifications}
+                          accessibilityLabel="Edit qualification"
+                        >
+                          <PenIcon />
+                        </TouchableOpacity>
+                        {showDelete ? (
+                          <TouchableOpacity
+                            style={styles.experienceIconButton}
+                            onPress={() => handleDeleteQualification(qualType)}
+                            disabled={savingQualifications}
+                            accessibilityLabel={
+                              isDeleting ? 'Deleting qualification' : 'Delete qualification'
+                            }
+                          >
+                            {isDeleting ? (
+                              <ActivityIndicator size="small" color="#dc2626" />
+                            ) : (
+                              <TrashIcon />
+                            )}
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
+                    </View>
+                    <Text style={styles.row}>
+                      {q.boardOrUniversity} · {q.gradeType}: {q.gradeValue} · {q.yearObtained}
+                    </Text>
+                    {q.fieldOfStudy ? <Text style={styles.muted}>{q.fieldOfStudy}</Text> : null}
+                  </View>
+                );
+              })}
+              {availableQualificationTypes.length > 0 ? (
+                <View style={styles.addEducationWrap}>
+                  <TouchableOpacity
+                    style={styles.addEducationButton}
+                    onPress={handleAddQualification}
+                    disabled={savingQualifications || qualificationTypePickerOpen}
+                  >
+                    <Text style={styles.addEducationButtonText}>Add qualification</Text>
+                  </TouchableOpacity>
+                  {qualificationTypePickerOpen ? (
+                    <View style={styles.typePickerPanel}>
+                      <Text style={styles.typePickerTitle}>Choose qualification type</Text>
+                      <View style={styles.typePickerChips}>
+                        {availableQualificationTypes.map((type) => (
+                          <TouchableOpacity
+                            key={type}
+                            style={styles.typePickerChip}
+                            onPress={() => handlePickQualificationType(type)}
+                            disabled={savingQualifications}
+                          >
+                            <Text style={styles.typePickerChipText}>
+                              {EDUCATIONAL_QUALIFICATION_LABELS[type]}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                        <TouchableOpacity
+                          style={styles.typePickerCancel}
+                          onPress={() => setQualificationTypePickerOpen(false)}
+                          disabled={savingQualifications}
+                        >
+                          <Text style={styles.typePickerCancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+            </>
           )}
         </View>
       </View>
@@ -872,6 +1095,20 @@ export const TutorDetailScreen: React.FC = () => {
           setExperienceSaveError(null);
         }}
         onSubmit={(row) => void handleExperienceModalSubmit(row)}
+      />
+
+      <QualificationModal
+        visible={qualificationModal != null}
+        mode={qualificationModal?.mode ?? 'add'}
+        initialRow={qualificationModalInitialRow}
+        saving={savingQualifications}
+        error={qualificationSaveError}
+        onClose={() => {
+          setQualificationModal(null);
+          setQualificationTypePickerOpen(false);
+          setQualificationSaveError(null);
+        }}
+        onSubmit={(row) => void handleQualificationModalSubmit(row)}
       />
     </ScrollView>
   );
@@ -1148,6 +1385,62 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e7ff',
     backgroundColor: '#eef2ff',
+  },
+  addEducationWrap: { marginTop: 8 },
+  addEducationButton: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+  },
+  addEducationButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4338ca',
+  },
+  typePickerPanel: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e0e7ff',
+    backgroundColor: '#f5f7ff',
+  },
+  typePickerTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#312e81',
+    marginBottom: 10,
+  },
+  typePickerChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  typePickerChip: {
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+  },
+  typePickerChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4338ca',
+  },
+  typePickerCancel: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  typePickerCancelText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
   },
   row: { fontSize: 14, color: '#0f172a', lineHeight: 20, marginBottom: 6 },
   rowBold: { fontSize: 14, fontWeight: '600', color: '#0f172a', marginBottom: 4 },
