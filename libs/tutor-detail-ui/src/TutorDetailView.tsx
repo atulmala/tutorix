@@ -3,10 +3,12 @@ import {
   buildOnboardingTimeline,
   documentStatusBadgeClass,
   documentStatusLabel,
+  emptyExperienceRow,
   experienceDurationMonths,
   formatDate,
   formatExperienceDuration,
   formatQualificationTitle,
+  mapExperienceToFormRow,
   monthsToExperienceDuration,
   ptStatusBadgeClass,
   ptStatusLabel,
@@ -21,11 +23,13 @@ import { AdminDocumentViewerModal } from './AdminDocumentViewerModal';
 import { TutorDocumentViewerModal } from './TutorDocumentViewerModal';
 import { BankDetailsSection } from './BankDetailsSection';
 import { BankDetailsModal, type BankDetailsFormValues } from './BankDetailsModal';
+import { ExperienceModal, type ExperienceFormRow } from './ExperienceModal';
 import { RateCardModal, type RateCardFormValuesExport } from './RateCardModal';
 import { TutorAvailabilitySection } from '@tutorix/tutor-availability-ui';
 import type { TutorDetailRecord, TutorDocumentDetail } from './types';
 
 export type { BankDetailsFormValues } from './BankDetailsModal';
+export type { ExperienceFormRow } from './ExperienceModal';
 export type { RateCardFormValuesExport as RateCardFormValues } from './RateCardModal';
 
 export type TutorDetailViewMode = 'admin' | 'tutor';
@@ -50,6 +54,9 @@ export type TutorDetailViewProps = {
   onStartProficiencyTest?: (
     offering: TutorDetailRecord['offerings'][number],
   ) => void;
+  onSaveExperiences?: (experiences: ExperienceFormRow[]) => void | Promise<void>;
+  savingExperiences?: boolean;
+  experienceSaveError?: string | null;
 };
 
 type SectionStyle = {
@@ -368,10 +375,10 @@ function OfferingsSection({
                           </div>
                         ) : (
                           <div className="flex flex-wrap items-center gap-2">
-                            {canStartPt ? (
+                            {canStartPt && onStartProficiencyTest ? (
                               <button
                                 type="button"
-                                onClick={() => onStartProficiencyTest!(offering)}
+                                onClick={() => onStartProficiencyTest(offering)}
                                 className="rounded-lg border border-purple-200 bg-white px-3 py-1.5 text-xs font-semibold text-purple-800 transition hover:bg-purple-50"
                               >
                                 Take proficiency test
@@ -383,10 +390,10 @@ function OfferingsSection({
                                 Configured
                               </span>
                             ) : null}
-                            {canEditRateCard ? (
+                            {canEditRateCard && onOpenRateCard ? (
                               <button
                                 type="button"
-                                onClick={() => onOpenRateCard!(offering)}
+                                onClick={() => onOpenRateCard(offering)}
                                 className="rounded-lg border border-purple-200 bg-white px-3 py-1.5 text-xs font-semibold text-purple-800 transition hover:bg-purple-50"
                               >
                                 {hasRateCard ? 'Edit rate card' : 'Rate card'}
@@ -477,8 +484,20 @@ function EducationSection({
 
 function ExperienceSection({
   experiences,
+  editable = false,
+  savingExperiences = false,
+  deletingExperienceId = null,
+  onEditExperience,
+  onDeleteExperience,
+  onAddExperience,
 }: {
   experiences: TutorDetailRecord['experiences'];
+  editable?: boolean;
+  savingExperiences?: boolean;
+  deletingExperienceId?: number | null;
+  onEditExperience?: (experienceId: number) => void;
+  onDeleteExperience?: (experienceId: number) => void;
+  onAddExperience?: () => void;
 }) {
   const totalExperience = sumExperienceDurations(experiences);
 
@@ -500,48 +519,134 @@ function ExperienceSection({
       }
     >
       {experiences.length === 0 ? (
-        <p className="text-sm text-violet-800/70">No experience entries on file.</p>
+        <div className="space-y-3">
+          <p className="text-sm text-violet-800/70">No experience entries on file.</p>
+          {editable && onAddExperience ? (
+            <button
+              type="button"
+              onClick={onAddExperience}
+              disabled={savingExperiences}
+              className="rounded-lg border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-800 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Add new Experience
+            </button>
+          ) : null}
+        </div>
       ) : (
-        <ul className="space-y-3">
-          {experiences.map((exp, index) => {
-            const durationMonths = experienceDurationMonths(exp);
-            const durationLabel =
-              durationMonths != null
-                ? formatExperienceDuration(monthsToExperienceDuration(durationMonths))
-                : null;
+        <>
+          <ul className="space-y-3">
+            {experiences.map((exp, index) => {
+              const durationMonths = experienceDurationMonths(exp);
+              const durationLabel =
+                durationMonths != null
+                  ? formatExperienceDuration(monthsToExperienceDuration(durationMonths))
+                  : null;
+              const isDeleting = deletingExperienceId === exp.id;
 
-            return (
-              <li
-                key={exp.id}
-                className={`rounded-xl border px-4 py-3 text-sm ${SECTION_STYLES.experience.item}`}
-              >
-                <div className="flex items-start gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold text-white">
-                    {index + 1}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <p className="font-semibold text-violet-950">{exp.jobTitle}</p>
-                      {durationLabel ? (
-                        <span className="rounded-full bg-violet-200/80 px-2.5 py-0.5 text-xs font-bold text-violet-900">
-                          {durationLabel}
-                        </span>
-                      ) : null}
+              return (
+                <li
+                  key={exp.id}
+                  className={`rounded-xl border px-4 py-3 text-sm ${SECTION_STYLES.experience.item}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold text-white">
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <p className="font-semibold text-violet-950">{exp.jobTitle}</p>
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          {durationLabel ? (
+                            <span className="rounded-full bg-violet-200/80 px-2.5 py-0.5 text-xs font-bold text-violet-900">
+                              {durationLabel}
+                            </span>
+                          ) : null}
+                          {editable && onEditExperience ? (
+                            <button
+                              type="button"
+                              onClick={() => onEditExperience(exp.id)}
+                              disabled={savingExperiences}
+                              aria-label="Edit experience"
+                              title="Edit experience"
+                              className="rounded-lg p-1.5 text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                className="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden
+                              >
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                              </svg>
+                            </button>
+                          ) : null}
+                          {editable && onDeleteExperience ? (
+                            <button
+                              type="button"
+                              onClick={() => onDeleteExperience(exp.id)}
+                              disabled={savingExperiences}
+                              aria-label={isDeleting ? 'Deleting experience' : 'Delete experience'}
+                              title={isDeleting ? 'Deleting…' : 'Delete experience'}
+                              className="rounded-lg p-1.5 text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {isDeleting ? (
+                                <span className="block h-4 w-4 animate-pulse rounded bg-red-200" />
+                              ) : (
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  viewBox="0 0 24 24"
+                                  className="h-4 w-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  aria-hidden
+                                >
+                                  <path d="M3 6h18" />
+                                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                  <line x1="10" x2="10" y1="11" y2="17" />
+                                  <line x1="14" x2="14" y1="11" y2="17" />
+                                </svg>
+                              )}
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                      <p className="mt-1 text-violet-900/70">
+                        {exp.employerName ?? 'Self-employed'}
+                        {exp.employerAddress ? ` · ${exp.employerAddress}` : ''}
+                      </p>
+                      <p className="mt-1 text-violet-800/60">
+                        {formatDate(exp.startDate)} –{' '}
+                        {exp.isCurrent ? 'Present' : formatDate(exp.endDate)}
+                      </p>
                     </div>
-                    <p className="mt-1 text-violet-900/70">
-                      {exp.employerName ?? 'Self-employed'}
-                      {exp.employerAddress ? ` · ${exp.employerAddress}` : ''}
-                    </p>
-                    <p className="mt-1 text-violet-800/60">
-                      {formatDate(exp.startDate)} –{' '}
-                      {exp.isCurrent ? 'Present' : formatDate(exp.endDate)}
-                    </p>
                   </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                </li>
+              );
+            })}
+          </ul>
+          {editable && onAddExperience ? (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={onAddExperience}
+                disabled={savingExperiences}
+                className="rounded-lg border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-800 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Add new Experience
+              </button>
+            </div>
+          ) : null}
+        </>
       )}
     </SectionCard>
   );
@@ -562,13 +667,75 @@ export function TutorDetailView({
   rateCardSaveError = null,
   onAddOffering,
   onStartProficiencyTest,
+  onSaveExperiences,
+  savingExperiences = false,
+  experienceSaveError = null,
 }: TutorDetailViewProps) {
   const [selectedDocument, setSelectedDocument] = useState<TutorDocumentDetail | null>(null);
   const [bankDetailsModalOpen, setBankDetailsModalOpen] = useState(false);
   const [rateCardOffering, setRateCardOffering] = useState<
     TutorDetailRecord['offerings'][number] | null
   >(null);
+  const [experienceModal, setExperienceModal] = useState<
+    { mode: 'edit' | 'add'; experienceId?: number } | null
+  >(null);
+  const [deletingExperienceId, setDeletingExperienceId] = useState<number | null>(null);
   const isAdmin = mode === 'admin';
+  const canEditExperiences = !isAdmin && Boolean(onSaveExperiences);
+
+  const experiencesAsFormRows = useMemo(
+    () => tutor.experiences.map((exp) => mapExperienceToFormRow(exp)),
+    [tutor.experiences],
+  );
+
+  const handleSaveExperiences = async (rows: ExperienceFormRow[]) => {
+    if (!onSaveExperiences) return;
+    await onSaveExperiences(rows);
+  };
+
+  const handleExperienceModalSubmit = async (row: ExperienceFormRow) => {
+    if (!experienceModal || !onSaveExperiences) return;
+    const nextRows =
+      experienceModal.mode === 'edit' && experienceModal.experienceId != null
+        ? experiencesAsFormRows.map((existing) =>
+            existing.id === experienceModal.experienceId
+              ? { ...row, id: existing.id }
+              : existing,
+          )
+        : [...experiencesAsFormRows, row];
+    try {
+      await handleSaveExperiences(nextRows);
+      setExperienceModal(null);
+    } catch {
+      /* error surfaced via experienceSaveError */
+    }
+  };
+
+  const handleDeleteExperience = async (experienceId: number) => {
+    if (!onSaveExperiences) return;
+    const confirmed = window.confirm(
+      'Delete this experience? This cannot be undone.',
+    );
+    if (!confirmed) return;
+    setDeletingExperienceId(experienceId);
+    try {
+      const nextRows = experiencesAsFormRows.filter((row) => row.id !== experienceId);
+      await handleSaveExperiences(nextRows);
+    } finally {
+      setDeletingExperienceId(null);
+    }
+  };
+
+  const experienceModalInitialRow = useMemo(() => {
+    if (!experienceModal) return emptyExperienceRow();
+    if (experienceModal.mode === 'edit' && experienceModal.experienceId != null) {
+      return (
+        experiencesAsFormRows.find((row) => row.id === experienceModal.experienceId) ??
+        emptyExperienceRow()
+      );
+    }
+    return emptyExperienceRow();
+  }, [experienceModal, experiencesAsFormRows]);
 
   const timelineEntries = useMemo(
     () =>
@@ -686,11 +853,39 @@ export function TutorDetailView({
             }
           />
           <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2">
-            <ExperienceSection experiences={tutor.experiences} />
+            <ExperienceSection
+              experiences={tutor.experiences}
+              editable={canEditExperiences}
+              savingExperiences={savingExperiences}
+              deletingExperienceId={deletingExperienceId}
+              onEditExperience={
+                canEditExperiences
+                  ? (experienceId) =>
+                      setExperienceModal({ mode: 'edit', experienceId })
+                  : undefined
+              }
+              onDeleteExperience={
+                canEditExperiences ? handleDeleteExperience : undefined
+              }
+              onAddExperience={
+                canEditExperiences ? () => setExperienceModal({ mode: 'add' }) : undefined
+              }
+            />
             <div className="h-full min-h-0">
               <EducationSection qualifications={tutor.qualifications} />
             </div>
           </div>
+          {canEditExperiences ? (
+            <ExperienceModal
+              open={Boolean(experienceModal)}
+              mode={experienceModal?.mode ?? 'add'}
+              initialRow={experienceModalInitialRow}
+              saving={savingExperiences}
+              error={experienceSaveError}
+              onClose={() => setExperienceModal(null)}
+              onSubmit={(row) => void handleExperienceModalSubmit(row)}
+            />
+          ) : null}
           <BankDetailsSection
             mode={mode}
             bankDetails={tutor.user?.bankDetails}

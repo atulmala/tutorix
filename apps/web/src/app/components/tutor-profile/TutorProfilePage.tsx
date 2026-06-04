@@ -4,7 +4,13 @@ import {
   GET_MY_TUTOR_DETAIL,
   SAVE_MY_BANK_DETAILS,
   SAVE_MY_TUTOR_OFFERING_RATE_CARD,
+  SAVE_TUTOR_EXPERIENCES,
 } from '@tutorix/shared-graphql';
+import {
+  buildExperienceMutationInput,
+  normalizeYearsOfExperience,
+  type ExperienceFormRow,
+} from '@tutorix/shared-utils';
 import {
   TutorDetailView,
   type BankDetailsFormValues,
@@ -24,6 +30,7 @@ export const TutorProfilePage: React.FC = () => {
   });
   const [bankDetailsSaveError, setBankDetailsSaveError] = useState<string | null>(null);
   const [rateCardSaveError, setRateCardSaveError] = useState<string | null>(null);
+  const [experienceSaveError, setExperienceSaveError] = useState<string | null>(null);
   const [showAddOffering, setShowAddOffering] = useState(false);
   const [ptOffering, setPtOffering] = useState<
     TutorDetailRecord['offerings'][number] | null
@@ -31,6 +38,7 @@ export const TutorProfilePage: React.FC = () => {
 
   const [saveBankDetails, { loading: savingBankDetails }] = useMutation(SAVE_MY_BANK_DETAILS);
   const [saveRateCard, { loading: savingRateCard }] = useMutation(SAVE_MY_TUTOR_OFFERING_RATE_CARD);
+  const [saveExperiences, { loading: savingExperiences }] = useMutation(SAVE_TUTOR_EXPERIENCES);
 
   const tutor = data?.myTutorDetail;
 
@@ -99,6 +107,28 @@ export const TutorProfilePage: React.FC = () => {
       await refetch();
     } catch (err) {
       setRateCardSaveError(err instanceof Error ? err.message : 'Could not save rate card.');
+      throw err;
+    }
+  };
+
+  const handleSaveExperiences = async (rows: ExperienceFormRow[]) => {
+    if (!tutor) return;
+    setExperienceSaveError(null);
+    try {
+      await saveExperiences({
+        variables: {
+          input: {
+            experiences: buildExperienceMutationInput(rows),
+            yearsOfExperience: normalizeYearsOfExperience(tutor.yearsOfExperience),
+            advanceToNextStep: false,
+          },
+        },
+      });
+      await refetch();
+    } catch (err) {
+      setExperienceSaveError(
+        err instanceof Error ? err.message : 'Could not save experience.',
+      );
       throw err;
     }
   };
@@ -178,6 +208,9 @@ export const TutorProfilePage: React.FC = () => {
         onSaveRateCard={handleSaveRateCard}
         savingRateCard={savingRateCard}
         rateCardSaveError={rateCardSaveError}
+        onSaveExperiences={handleSaveExperiences}
+        savingExperiences={savingExperiences}
+        experienceSaveError={experienceSaveError}
       />
     </div>
   );
