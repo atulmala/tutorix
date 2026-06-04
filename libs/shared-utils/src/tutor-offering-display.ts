@@ -109,9 +109,33 @@ export function getOfferingAncestors(
   return ancestors;
 }
 
+const DEFAULT_MEDIUM_OF_INSTRUCTION = 1;
+
 function mediumLabel(medium?: number | null): string {
   if (medium == null) return MEDIUM_LABELS[1];
   return MEDIUM_LABELS[medium] ?? MEDIUM_LABELS[1];
+}
+
+/** Omit default English medium in labels so it is not confused with the English subject. */
+function formatMediumSegmentForLabel(medium?: number | null): string | null {
+  const moi = medium ?? DEFAULT_MEDIUM_OF_INSTRUCTION;
+  if (moi === DEFAULT_MEDIUM_OF_INSTRUCTION) {
+    return null;
+  }
+  return mediumLabel(moi);
+}
+
+function buildSchoolEducationLabel(
+  board: string,
+  subject: string,
+  classSegment: string,
+  medium?: number | null,
+): string {
+  const mediumSegment = formatMediumSegmentForLabel(medium);
+  if (mediumSegment) {
+    return joinLabelSegments(board, mediumSegment, subject, classSegment);
+  }
+  return joinLabelSegments(board, subject, classSegment);
 }
 
 /** Extract class number from labels like "Class 4", "class 11". */
@@ -183,7 +207,7 @@ function formatNonSchoolEducationLabel(
 
 /**
  * Build a full offering label for tutor profile tables.
- * School Education: "{board} | {medium} | {subject} | Classes {low} - {high}" from PT-linked offerings when available.
+ * School Education: "{board} | {subject} | Classes {low} - {high}" (non-English medium shown before subject).
  * Other study areas: space-separated path without the root study area name.
  */
 export function formatTutorOfferingFullLabel(
@@ -224,16 +248,16 @@ function formatSchoolEducationLabelWithCatalog(
   offeringsById: Map<number, OfferingNodeForLabel>,
   options?: TutorOfferingLabelOptions,
 ): string {
-  const medium = mediumLabel(leaf.mediumOfInstruction);
+  const subject = leaf.displayName?.trim() || 'Offering';
   const board = ancestors[1]?.displayName;
   const grade = ancestors[2]?.displayName;
 
   if (!board) {
-    return leaf.displayName;
+    return subject;
   }
 
   if (!grade) {
-    return joinLabelSegments(board, medium, leaf.displayName);
+    return buildSchoolEducationLabel(board, subject, subject, leaf.mediumOfInstruction);
   }
 
   const groupKey = schoolEducationGroupKey(leaf, ancestors);
@@ -247,19 +271,24 @@ function formatSchoolEducationLabelWithCatalog(
     );
     const rangeLabel = formatClassRangeLabel(classNumbers);
     if (rangeLabel) {
-      return joinLabelSegments(board, medium, leaf.displayName, rangeLabel);
+      return buildSchoolEducationLabel(
+        board,
+        subject,
+        rangeLabel,
+        leaf.mediumOfInstruction,
+      );
     }
   }
 
   const classNum = parseClassNumber(grade);
   if (classNum != null) {
-    return joinLabelSegments(
+    return buildSchoolEducationLabel(
       board,
-      medium,
-      leaf.displayName,
+      subject,
       `Classes ${classNum}`,
+      leaf.mediumOfInstruction,
     );
   }
 
-  return joinLabelSegments(board, medium, leaf.displayName, grade);
+  return buildSchoolEducationLabel(board, subject, grade, leaf.mediumOfInstruction);
 }
