@@ -195,19 +195,28 @@ export class TutorDetailService {
     offeringsById: Map<number, OfferingNodeForLabel>,
     proficiencyTestOfferingIds?: number[],
   ): AdminTutorOfferingDetail {
+    const catalogNode = offeringsById.get(offering.offeringId);
     const leaf = offering.offering
-      ? offeringsById.get(offering.offering.id) ??
-        this.toOfferingNodeForLabel(offering.offering)
-      : undefined;
+      ? {
+          ...(catalogNode ?? this.toOfferingNodeForLabel(offering.offering)),
+          displayName:
+            catalogNode?.displayName ??
+            offering.offering.displayName ??
+            offering.offering.name ??
+            'Offering',
+        }
+      : catalogNode;
+
+    const offeringFullLabel = formatTutorOfferingFullLabel(leaf, offeringsById, {
+      proficiencyTestOfferingIds,
+    });
 
     return {
       id: offering.id,
       offeringId: offering.offeringId,
       offeringName: offering.offering?.name,
       offeringDisplayName: offering.offering?.displayName,
-      offeringFullLabel: formatTutorOfferingFullLabel(leaf, offeringsById, {
-        proficiencyTestOfferingIds,
-      }),
+      offeringFullLabel,
       status: offering.status,
       attemptsUsed: offering.attemptsUsed,
       attemptsRemaining: Math.max(0, PT_MAX_ATTEMPTS - offering.attemptsUsed),

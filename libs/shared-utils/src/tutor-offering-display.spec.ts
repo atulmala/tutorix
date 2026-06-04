@@ -129,7 +129,7 @@ describe('formatTutorOfferingFullLabel', () => {
       formatTutorOfferingFullLabel(leaf, byId, {
         proficiencyTestOfferingIds: [1001, 1000, 1005],
       }),
-    ).toBe('CBSE | English | Mathematics | Classes 1 - 5');
+    ).toBe('CBSE | Mathematics | Classes 1 - 5');
   });
 
   it('formats a single class when no PT offering list is provided', () => {
@@ -137,7 +137,7 @@ describe('formatTutorOfferingFullLabel', () => {
     const leaf = offeringFrom(byId, 1000);
 
     expect(formatTutorOfferingFullLabel(leaf, byId)).toBe(
-      'CBSE | English | Mathematics | Classes 4',
+      'CBSE | Mathematics | Classes 4',
     );
   });
 
@@ -148,6 +148,24 @@ describe('formatTutorOfferingFullLabel', () => {
     expect(formatTutorOfferingFullLabel(leaf, byId)).toBe(
       'CBSE | Hindi | Mathematics | Kindergarten',
     );
+  });
+
+  it('shows English as subject without duplicating English medium', () => {
+    const byId = buildSchoolEducationTree();
+    const englishLeaf = offering({
+      id: 3001,
+      displayName: 'English',
+      level: 3,
+      parentOffering: { id: 101 },
+      mediumOfInstruction: 1,
+    });
+    byId.set(englishLeaf.id, englishLeaf);
+
+    expect(
+      formatTutorOfferingFullLabel(englishLeaf, byId, {
+        proficiencyTestOfferingIds: [3001],
+      }),
+    ).toBe('CBSE | English | Classes 1');
   });
 
   it('formats non-school study areas with full path segments', () => {
