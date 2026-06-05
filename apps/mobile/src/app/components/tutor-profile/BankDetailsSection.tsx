@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { formatGstDisplay } from '@tutorix/shared-utils';
 import type { TutorDetailRecord } from '@tutorix/tutor-detail-ui';
 
@@ -14,14 +14,14 @@ function DetailField({ label, value }: { label: string; value: React.ReactNode }
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
-      <Text style={styles.fieldValue}>{value ?? '—'}</Text>
+      <Text style={styles.fieldValue} numberOfLines={1}>
+        {value ?? '—'}
+      </Text>
     </View>
   );
 }
 
 export function BankDetailsSection({ bankDetails, onEnterOrEdit }: BankDetailsSectionProps) {
-  const { width } = useWindowDimensions();
-  const useThreeColumns = width >= 400;
   const isComplete = Boolean(bankDetails?.isComplete);
   const gstDisplay = formatGstDisplay(bankDetails?.gstNumber) ?? 'Not Applicable';
 
@@ -41,15 +41,16 @@ export function BankDetailsSection({ bankDetails, onEnterOrEdit }: BankDetailsSe
       ) : (
         <View style={styles.completeBlock}>
           <View style={styles.gridCard}>
-            <View style={[styles.gridRow, !useThreeColumns && styles.gridRowStacked]}>
+            <View style={styles.gridRow}>
               <DetailField label="Bank name" value={bankDetails?.bankName} />
               <DetailField label="Account no" value={bankDetails?.accountNumberMasked} />
-              <DetailField label="IFSC code" value={bankDetails?.ifscCode} />
             </View>
-            <View style={[styles.gridRow, styles.gridRowSecond, !useThreeColumns && styles.gridRowStacked]}>
+            <View style={styles.gridRow}>
+              <DetailField label="IFSC code" value={bankDetails?.ifscCode} />
               <DetailField label="PAN" value={bankDetails?.panNumber} />
+            </View>
+            <View style={styles.gridRow}>
               <DetailField label="GST" value={gstDisplay} />
-              {useThreeColumns ? <View style={styles.field} /> : null}
             </View>
           </View>
           {onEnterOrEdit ? (
@@ -97,19 +98,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#ccfbf1',
-    padding: 12,
-    gap: 12,
+    padding: 10,
+    gap: 10,
   },
   gridRow: {
     flexDirection: 'row',
-    gap: 16,
-  },
-  gridRowStacked: {
-    flexDirection: 'column',
-    gap: 10,
-  },
-  gridRowSecond: {
-    marginTop: 0,
+    gap: 12,
   },
   field: {
     flex: 1,
@@ -123,7 +117,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   fieldValue: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#134e4a',
     marginTop: 2,

@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import {
+  CREATE_TUTOR_ADDRESS,
   GET_MY_TUTOR_DETAIL,
   SAVE_MY_BANK_DETAILS,
   SAVE_MY_TUTOR_OFFERING_RATE_CARD,
@@ -16,12 +17,15 @@ import {
 } from '@tutorix/shared-utils';
 import {
   TutorDetailView,
+  type AddressFormValues,
+  type AddressLocationSuggestion,
   type BankDetailsFormValues,
   type RateCardFormValues,
   type TutorDetailRecord,
 } from '@tutorix/tutor-detail-ui';
 import { AddOfferingFlow } from './AddOfferingFlow';
 import { TutorPT } from '../tutor-onboarding/tutor-pt/TutorPT';
+import { useGooglePlacesAutocomplete } from '../../../hooks/useGooglePlacesAutocomplete';
 
 type MyTutorDetailData = {
   myTutorDetail: TutorDetailRecord;
@@ -32,6 +36,7 @@ export const TutorProfilePage: React.FC = () => {
     fetchPolicy: 'cache-and-network',
   });
   const [bankDetailsSaveError, setBankDetailsSaveError] = useState<string | null>(null);
+  const [addressSaveError, setAddressSaveError] = useState<string | null>(null);
   const [rateCardSaveError, setRateCardSaveError] = useState<string | null>(null);
   const [experienceSaveError, setExperienceSaveError] = useState<string | null>(null);
   const [qualificationSaveError, setQualificationSaveError] = useState<string | null>(null);
@@ -40,12 +45,20 @@ export const TutorProfilePage: React.FC = () => {
     TutorDetailRecord['offerings'][number] | null
   >(null);
 
+  const [saveAddress, { loading: savingAddress }] = useMutation(CREATE_TUTOR_ADDRESS);
   const [saveBankDetails, { loading: savingBankDetails }] = useMutation(SAVE_MY_BANK_DETAILS);
   const [saveRateCard, { loading: savingRateCard }] = useMutation(SAVE_MY_TUTOR_OFFERING_RATE_CARD);
   const [saveExperiences, { loading: savingExperiences }] = useMutation(SAVE_TUTOR_EXPERIENCES);
   const [saveQualifications, { loading: savingQualifications }] = useMutation(
     SAVE_TUTOR_QUALIFICATIONS,
   );
+  const places = useGooglePlacesAutocomplete();
+  const {
+    ready: placesReady,
+    error: placesError,
+    getPredictions,
+    getPlaceDetails,
+  } = places;
 
   const tutor = data?.myTutorDetail;
 
@@ -55,6 +68,58 @@ export const TutorProfilePage: React.FC = () => {
         .map((o) => o.offeringId)
         .filter((id): id is number => id != null),
     [tutor?.offerings],
+  );
+
+  const mapPlaceToLocation = useCallback((place: unknown): AddressLocationSuggestion => {
+    const p = place as {
+      formatted_address?: string;
+      geometry?: { location?: { lat: () => number; lng: () => number } };
+      address_components?: Array<{
+        long_name: string;
+        short_name: string;
+        types: string[];
+      }>;
+    };
+
+    const components = p.address_components ?? [];
+    const getComponent = (type: string, useShort = false): string | undefined => {
+      const comp = components.find((c) => c.types.includes(type));
+      return comp ? (useShort ? comp.short_name : comp.long_name) : undefined;
+    };
+
+    const city =
+      getComponent('locality') ||
+      getComponent('administrative_area_level_2') ||
+      getComponent('sublocality') ||
+      getComponent('postal_town');
+    const state = getComponent('administrative_area_level_1');
+    const country = getComponent('country');
+    const postalCode =
+      getComponent('postal_code') ||
+      getComponent('postal_code', true) ||
+      getComponent('postal_code_prefix') ||
+      getComponent('postal_code_prefix', true);
+    const location = p.geometry?.location;
+
+    return {
+      displayName: p.formatted_address ?? '',
+      latitude: location ? location.lat() : 0,
+      longitude: location ? location.lng() : 0,
+      city: city || undefined,
+      state: state || undefined,
+      country: country || undefined,
+      postalCode: postalCode || undefined,
+    };
+  }, []);
+
+  const addressAutocomplete = useMemo(
+    () => ({
+      ready: placesReady,
+      error: placesError,
+      getPredictions,
+      getPlaceDetails: async (placeId: string) => mapPlaceToLocation(await getPlaceDetails(placeId)),
+    }),
+    [getPlaceDetails, getPredictions, mapPlaceToLocation, placesError, placesReady],
   );
 
   const handleSaveBankDetails = async (values: BankDetailsFormValues) => {
@@ -76,6 +141,43 @@ export const TutorProfilePage: React.FC = () => {
       setBankDetailsSaveError(
         err instanceof Error ? err.message : 'Could not save bank details.',
       );
+      throw err;
+    }
+  };
+
+  const handleSaveAddress = async (values: AddressFormValues) => {
+    setAddressSaveError(null);
+    const fullAddress = [
+      values.street,
+      values.subArea,
+      values.city,
+      values.state,
+      values.postalCode,
+      values.country,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    try {
+      await saveAddress({
+        variables: {
+          input: {
+            type: 'HOME',
+            street: values.street,
+            subArea: values.subArea,
+            city: values.city,
+            state: values.state,
+            country: values.country,
+            postalCode: Number.parseInt(values.postalCode, 10),
+            fullAddress,
+            latitude: values.latitude,
+            longitude: values.longitude,
+          },
+        },
+      });
+      await refetch();
+    } catch (err) {
+      setAddressSaveError(err instanceof Error ? err.message : 'Could not save address.');
       throw err;
     }
   };
@@ -232,6 +334,10 @@ export const TutorProfilePage: React.FC = () => {
         onSaveBankDetails={handleSaveBankDetails}
         savingBankDetails={savingBankDetails}
         bankDetailsSaveError={bankDetailsSaveError}
+        onSaveAddress={handleSaveAddress}
+        savingAddress={savingAddress}
+        addressSaveError={addressSaveError}
+        addressAutocomplete={addressAutocomplete}
         onSaveRateCard={handleSaveRateCard}
         savingRateCard={savingRateCard}
         rateCardSaveError={rateCardSaveError}
