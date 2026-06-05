@@ -48,6 +48,7 @@ export type TutorDetailRecord = {
   } | null;
   addresses: Array<{
     id: number;
+    type?: string | null;
     street?: string | null;
     subArea?: string | null;
     city?: string | null;

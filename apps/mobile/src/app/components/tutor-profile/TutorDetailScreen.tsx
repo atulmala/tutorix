@@ -16,6 +16,7 @@ import Svg, { Line, Path, Text as SvgText } from 'react-native-svg';
 import { useMutation, useQuery } from '@apollo/client';
 import { GET_MY_TUTOR_DETAIL } from '@tutorix/shared-graphql/queries';
 import {
+  CREATE_TUTOR_ADDRESS,
   SAVE_MY_BANK_DETAILS,
   SAVE_MY_TUTOR_OFFERING_RATE_CARD,
   SAVE_TUTOR_EXPERIENCES,
@@ -63,6 +64,7 @@ import { QualificationModal } from './QualificationModal';
 import { TutorAvailabilitySection } from './TutorAvailabilitySection';
 import { AddOfferingFlow } from './AddOfferingFlow';
 import { TutorPT } from '../tutor-onboarding/tutor-pt/TutorPT';
+import { AddressModal, type AddressFormValues } from './AddressModal';
 
 type TutorOffering = TutorDetailRecord['offerings'][number];
 
@@ -222,6 +224,8 @@ export const TutorDetailScreen: React.FC = () => {
     fetchPolicy: 'cache-and-network',
   });
   const [selectedDocument, setSelectedDocument] = useState<TutorDocumentDetail | null>(null);
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [addressSaveError, setAddressSaveError] = useState<string | null>(null);
   const [bankModalVisible, setBankModalVisible] = useState(false);
   const [bankDetailsSaveError, setBankDetailsSaveError] = useState<string | null>(null);
   const [rateCardOffering, setRateCardOffering] = useState<TutorOffering | null>(null);
@@ -242,6 +246,7 @@ export const TutorDetailScreen: React.FC = () => {
     useState<EducationalQualification | null>(null);
   const [qualificationSaveError, setQualificationSaveError] = useState<string | null>(null);
 
+  const [saveAddress, { loading: savingAddress }] = useMutation(CREATE_TUTOR_ADDRESS);
   const [saveBankDetails, { loading: savingBankDetails }] = useMutation(SAVE_MY_BANK_DETAILS);
   const [saveRateCard, { loading: savingRateCard }] = useMutation(SAVE_MY_TUTOR_OFFERING_RATE_CARD);
   const [saveExperiences, { loading: savingExperiences }] = useMutation(SAVE_TUTOR_EXPERIENCES);
@@ -265,6 +270,44 @@ export const TutorDetailScreen: React.FC = () => {
         .filter((id): id is number => id != null),
     [tutor?.offerings],
   );
+  const primaryAddress = tutor?.addresses[0] ?? null;
+
+  const handleSaveAddress = async (values: AddressFormValues) => {
+    setAddressSaveError(null);
+    const fullAddress = [
+      values.street,
+      values.subArea,
+      values.city,
+      values.state,
+      values.postalCode,
+      values.country,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    try {
+      await saveAddress({
+        variables: {
+          input: {
+            type: 'HOME',
+            street: values.street,
+            subArea: values.subArea,
+            city: values.city,
+            state: values.state,
+            country: values.country,
+            postalCode: Number.parseInt(values.postalCode, 10),
+            fullAddress,
+            latitude: values.latitude,
+            longitude: values.longitude,
+          },
+        },
+      });
+      await refetch();
+      setAddressModalVisible(false);
+    } catch (err) {
+      setAddressSaveError(err instanceof Error ? err.message : 'Could not save address.');
+    }
+  };
 
   const handleAddOfferingComplete = useCallback(async () => {
     setShowAddOffering(false);
@@ -801,9 +844,18 @@ export const TutorDetailScreen: React.FC = () => {
         >
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Experience</Text>
-            <Text style={styles.experienceCount}>
-              {formatEntryCount(tutor.experiences.length, 'experience', 'experiences')}
-            </Text>
+            <View style={styles.sectionHeaderActions}>
+              <Text style={styles.experienceCount}>
+                {formatEntryCount(tutor.experiences.length, 'experience', 'experiences')}
+              </Text>
+              <TouchableOpacity
+                style={styles.addExperienceButton}
+                onPress={() => setExperienceModal({ mode: 'add' })}
+                disabled={savingExperiences}
+              >
+                <Text style={styles.addExperienceButtonText}>Add experience</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           {tutor.experiences.length > 0 ? (
             <Text style={styles.badge}>
@@ -811,16 +863,7 @@ export const TutorDetailScreen: React.FC = () => {
             </Text>
           ) : null}
           {tutor.experiences.length === 0 ? (
-            <View>
-              <Text style={styles.muted}>No experience on file.</Text>
-              <TouchableOpacity
-                style={styles.addExperienceButton}
-                onPress={() => setExperienceModal({ mode: 'add' })}
-                disabled={savingExperiences}
-              >
-                <Text style={styles.addExperienceButtonText}>Add new Experience</Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.muted}>No experience on file.</Text>
           ) : (
             <>
               {tutor.experiences.map((exp) => {
@@ -878,13 +921,6 @@ export const TutorDetailScreen: React.FC = () => {
                   </View>
                 );
               })}
-              <TouchableOpacity
-                style={styles.addExperienceButton}
-                onPress={() => setExperienceModal({ mode: 'add' })}
-                disabled={savingExperiences}
-              >
-                <Text style={styles.addExperienceButtonText}>Add new Experience</Text>
-              </TouchableOpacity>
             </>
           )}
         </View>
@@ -899,23 +935,23 @@ export const TutorDetailScreen: React.FC = () => {
         >
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Education</Text>
-            <Text style={styles.educationCount}>
-              {formatEntryCount(sortedQualifications.length, 'qualification', 'qualifications')}
-            </Text>
-          </View>
-          {sortedQualifications.length === 0 ? (
-            <View>
-              <Text style={styles.muted}>No qualifications on file.</Text>
+            <View style={styles.sectionHeaderActions}>
+              <Text style={styles.educationCount}>
+                {formatEntryCount(sortedQualifications.length, 'qualification', 'qualifications')}
+              </Text>
               {availableQualificationTypes.length > 0 ? (
                 <TouchableOpacity
                   style={styles.addEducationButton}
                   onPress={handleAddQualification}
-                  disabled={savingQualifications}
+                  disabled={savingQualifications || qualificationTypePickerOpen}
                 >
                   <Text style={styles.addEducationButtonText}>Add qualification</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
+          </View>
+          {sortedQualifications.length === 0 ? (
+            <Text style={styles.muted}>No qualifications on file.</Text>
           ) : (
             <>
               {sortedQualifications.map((q) => {
@@ -965,45 +1001,34 @@ export const TutorDetailScreen: React.FC = () => {
                   </View>
                 );
               })}
-              {availableQualificationTypes.length > 0 ? (
-                <View style={styles.addEducationWrap}>
-                  <TouchableOpacity
-                    style={styles.addEducationButton}
-                    onPress={handleAddQualification}
-                    disabled={savingQualifications || qualificationTypePickerOpen}
-                  >
-                    <Text style={styles.addEducationButtonText}>Add qualification</Text>
-                  </TouchableOpacity>
-                  {qualificationTypePickerOpen ? (
-                    <View style={styles.typePickerPanel}>
-                      <Text style={styles.typePickerTitle}>Choose qualification type</Text>
-                      <View style={styles.typePickerChips}>
-                        {availableQualificationTypes.map((type) => (
-                          <TouchableOpacity
-                            key={type}
-                            style={styles.typePickerChip}
-                            onPress={() => handlePickQualificationType(type)}
-                            disabled={savingQualifications}
-                          >
-                            <Text style={styles.typePickerChipText}>
-                              {EDUCATIONAL_QUALIFICATION_LABELS[type]}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                        <TouchableOpacity
-                          style={styles.typePickerCancel}
-                          onPress={() => setQualificationTypePickerOpen(false)}
-                          disabled={savingQualifications}
-                        >
-                          <Text style={styles.typePickerCancelText}>Cancel</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ) : null}
-                </View>
-              ) : null}
             </>
           )}
+          {qualificationTypePickerOpen ? (
+            <View style={styles.typePickerPanel}>
+              <Text style={styles.typePickerTitle}>Choose qualification type</Text>
+              <View style={styles.typePickerChips}>
+                {availableQualificationTypes.map((type) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={styles.typePickerChip}
+                    onPress={() => handlePickQualificationType(type)}
+                    disabled={savingQualifications}
+                  >
+                    <Text style={styles.typePickerChipText}>
+                      {EDUCATIONAL_QUALIFICATION_LABELS[type]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  style={styles.typePickerCancel}
+                  onPress={() => setQualificationTypePickerOpen(false)}
+                  disabled={savingQualifications}
+                >
+                  <Text style={styles.typePickerCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
         </View>
       </View>
 
@@ -1018,18 +1043,30 @@ export const TutorDetailScreen: React.FC = () => {
       <View style={styles.section}>
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Address</Text>
-          <Text style={styles.addressCount}>
-            {formatEntryCount(tutor.addresses.length, 'address', 'addresses')}
-          </Text>
+          <View style={styles.sectionHeaderActions}>
+            <Text style={styles.addressCount}>
+              {primaryAddress ? '1 address' : 'No address'}
+            </Text>
+            <TouchableOpacity
+              style={styles.addAddressButton}
+              onPress={() => {
+                setAddressSaveError(null);
+                setAddressModalVisible(true);
+              }}
+              disabled={savingAddress}
+            >
+              <Text style={styles.addAddressButtonText}>
+                {primaryAddress ? 'Edit address' : 'Enter address'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-        {tutor.addresses.length === 0 ? (
+        {!primaryAddress ? (
           <Text style={styles.muted}>No address on file.</Text>
         ) : (
-          tutor.addresses.map((addr) => (
-            <View key={addr.id} style={styles.addressItem}>
-              <Text style={styles.row}>{formatAddress(addr)}</Text>
-            </View>
-          ))
+          <View style={styles.addressItem}>
+            <Text style={styles.row}>{formatAddress(primaryAddress)}</Text>
+          </View>
         )}
       </View>
 
@@ -1148,6 +1185,18 @@ export const TutorDetailScreen: React.FC = () => {
         onSubmit={handleSaveBankDetails}
       />
 
+      <AddressModal
+        visible={addressModalVisible}
+        initialValues={primaryAddress}
+        saving={savingAddress}
+        error={addressSaveError}
+        onClose={() => {
+          setAddressModalVisible(false);
+          setAddressSaveError(null);
+        }}
+        onSubmit={(values) => void handleSaveAddress(values)}
+      />
+
       <ExperienceModal
         visible={experienceModal != null}
         mode={experienceModal?.mode ?? 'add'}
@@ -1237,6 +1286,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 0,
+  },
+  sectionHeaderActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
   },
   experienceCount: {
     fontSize: 11,
@@ -1402,6 +1458,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#0e7490',
   },
+  addAddressButton: {
+    backgroundColor: '#0891b2',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  addAddressButtonText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
+  },
   addressItem: {
     marginBottom: 10,
     padding: 12,
@@ -1451,19 +1518,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   addExperienceButton: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: '#ddd6fe',
+    backgroundColor: '#7c3aed',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: '#fff',
   },
   addExperienceButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6d28d9',
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
   },
   educationItem: {
     marginBottom: 10,
@@ -1473,20 +1536,16 @@ const styles = StyleSheet.create({
     borderColor: '#e0e7ff',
     backgroundColor: '#eef2ff',
   },
-  addEducationWrap: { marginTop: 8 },
   addEducationButton: {
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: '#c7d2fe',
+    backgroundColor: '#4f46e5',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: '#fff',
   },
   addEducationButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4338ca',
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
   },
   typePickerPanel: {
     marginTop: 12,

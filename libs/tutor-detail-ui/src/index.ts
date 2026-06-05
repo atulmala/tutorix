@@ -9,6 +9,12 @@ export {
 } from './AdminDocumentViewerModal';
 export { BankDetailsSection } from './BankDetailsSection';
 export { BankDetailsModal, type BankDetailsFormValues } from './BankDetailsModal';
+export {
+  AddressModal,
+  type AddressFormValues,
+  type AddressLocationSuggestion,
+  type AddressPlacePrediction,
+} from './AddressModal';
 export { ExperienceModal, type ExperienceFormRow } from './ExperienceModal';
 export { QualificationModal, type QualificationFormRow } from './QualificationModal';
 export { RateCardModal, type RateCardFormValuesExport as RateCardFormValues } from './RateCardModal';

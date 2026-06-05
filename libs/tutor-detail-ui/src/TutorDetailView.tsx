@@ -29,6 +29,12 @@ import { AdminDocumentViewerModal } from './AdminDocumentViewerModal';
 import { TutorDocumentViewerModal } from './TutorDocumentViewerModal';
 import { BankDetailsSection } from './BankDetailsSection';
 import { BankDetailsModal, type BankDetailsFormValues } from './BankDetailsModal';
+import {
+  AddressModal,
+  type AddressFormValues,
+  type AddressLocationSuggestion,
+  type AddressPlacePrediction,
+} from './AddressModal';
 import { ExperienceModal, type ExperienceFormRow } from './ExperienceModal';
 import { QualificationModal, type QualificationFormRow } from './QualificationModal';
 import { RateCardModal, type RateCardFormValuesExport } from './RateCardModal';
@@ -36,6 +42,7 @@ import { TutorAvailabilitySection } from '@tutorix/tutor-availability-ui';
 import type { TutorDetailRecord, TutorDocumentDetail } from './types';
 
 export type { BankDetailsFormValues } from './BankDetailsModal';
+export type { AddressFormValues } from './AddressModal';
 export type { ExperienceFormRow } from './ExperienceModal';
 export type { QualificationFormRow } from './QualificationModal';
 export type { RateCardFormValuesExport as RateCardFormValues } from './RateCardModal';
@@ -52,6 +59,15 @@ export type TutorDetailViewProps = {
   onSaveBankDetails?: (values: BankDetailsFormValues) => void | Promise<void>;
   savingBankDetails?: boolean;
   bankDetailsSaveError?: string | null;
+  onSaveAddress?: (values: AddressFormValues) => void | Promise<void>;
+  savingAddress?: boolean;
+  addressSaveError?: string | null;
+  addressAutocomplete?: {
+    ready: boolean;
+    error?: string | null;
+    getPredictions: (input: string) => Promise<AddressPlacePrediction[]>;
+    getPlaceDetails: (placeId: string) => Promise<AddressLocationSuggestion | null>;
+  };
   onSaveRateCard?: (
     tutorOfferingId: number,
     values: RateCardFormValuesExport,
@@ -425,22 +441,45 @@ function OfferingsSection({
   );
 }
 
-function AddressSection({ addresses }: { addresses: TutorDetailRecord['addresses'] }) {
+function AddressSection({
+  addresses,
+  editable = false,
+  onEdit,
+}: {
+  addresses: TutorDetailRecord['addresses'];
+  editable?: boolean;
+  onEdit?: () => void;
+}) {
+  const address = addresses[0] ?? null;
+
   return (
-    <SectionCard title="Address" styleKey="address">
-      {addresses.length === 0 ? (
+    <SectionCard
+      title="Address"
+      styleKey="address"
+      headerMeta={
+        editable && onEdit ? (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-cyan-700"
+          >
+            {address ? 'Edit address' : 'Enter address'}
+          </button>
+        ) : address ? (
+          '1 address'
+        ) : (
+          'No address'
+        )
+      }
+    >
+      {!address ? (
         <p className="text-sm text-cyan-800/70">No address on file.</p>
       ) : (
-        <ul className="space-y-3">
-          {addresses.map((address) => (
-            <li
-              key={address.id}
-              className={`rounded-xl border px-4 py-3 text-sm font-medium text-primary ${SECTION_STYLES.address.item}`}
-            >
-              {formatAddress(address)}
-            </li>
-          ))}
-        </ul>
+        <div
+          className={`rounded-xl border px-4 py-3 text-sm font-medium text-primary ${SECTION_STYLES.address.item}`}
+        >
+          {formatAddress(address)}
+        </div>
       )}
     </SectionCard>
   );
@@ -814,6 +853,10 @@ export function TutorDetailView({
   onSaveBankDetails,
   savingBankDetails = false,
   bankDetailsSaveError = null,
+  onSaveAddress,
+  savingAddress = false,
+  addressSaveError = null,
+  addressAutocomplete,
   onSaveRateCard,
   savingRateCard = false,
   rateCardSaveError = null,
@@ -828,6 +871,7 @@ export function TutorDetailView({
 }: TutorDetailViewProps) {
   const [selectedDocument, setSelectedDocument] = useState<TutorDocumentDetail | null>(null);
   const [bankDetailsModalOpen, setBankDetailsModalOpen] = useState(false);
+  const [addressModalOpen, setAddressModalOpen] = useState(false);
   const [rateCardOffering, setRateCardOffering] = useState<
     TutorDetailRecord['offerings'][number] | null
   >(null);
@@ -844,6 +888,8 @@ export function TutorDetailView({
   const isAdmin = mode === 'admin';
   const canEditExperiences = !isAdmin && Boolean(onSaveExperiences);
   const canEditQualifications = !isAdmin && Boolean(onSaveQualifications);
+  const canEditAddress = !isAdmin && Boolean(onSaveAddress);
+  const primaryAddress = tutor.addresses[0] ?? null;
 
   const experiencesAsFormRows = useMemo(
     () => tutor.experiences.map((exp) => mapExperienceToFormRow(exp)),
@@ -866,6 +912,16 @@ export function TutorDetailView({
   const handleSaveExperiences = async (rows: ExperienceFormRow[]) => {
     if (!onSaveExperiences) return;
     await onSaveExperiences(rows);
+  };
+
+  const handleSaveAddress = async (values: AddressFormValues) => {
+    if (!onSaveAddress) return;
+    try {
+      await onSaveAddress(values);
+      setAddressModalOpen(false);
+    } catch {
+      /* error surfaced via addressSaveError */
+    }
   };
 
   const handleExperienceModalSubmit = async (row: ExperienceFormRow) => {
@@ -1191,7 +1247,22 @@ export function TutorDetailView({
               }}
             />
           ) : null}
-          <AddressSection addresses={tutor.addresses} />
+          <AddressSection
+            addresses={tutor.addresses}
+            editable={canEditAddress}
+            onEdit={() => setAddressModalOpen(true)}
+          />
+          {onSaveAddress ? (
+            <AddressModal
+              open={addressModalOpen}
+              initialValues={primaryAddress}
+              saving={savingAddress}
+              error={addressSaveError}
+              autocomplete={addressAutocomplete}
+              onClose={() => setAddressModalOpen(false)}
+              onSubmit={(values) => void handleSaveAddress(values)}
+            />
+          ) : null}
         </>
       )}
 
