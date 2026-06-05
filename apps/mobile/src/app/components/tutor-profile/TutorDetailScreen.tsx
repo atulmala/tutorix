@@ -12,7 +12,7 @@ import {
   useWindowDimensions,
   Alert,
 } from 'react-native';
-import Svg, { Line, Path } from 'react-native-svg';
+import Svg, { Line, Path, Text as SvgText } from 'react-native-svg';
 import { useMutation, useQuery } from '@apollo/client';
 import { GET_MY_TUTOR_DETAIL } from '@tutorix/shared-graphql/queries';
 import {
@@ -128,6 +128,26 @@ function TrashIcon() {
   );
 }
 
+function RateCardIcon() {
+  return (
+    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#047857" strokeWidth={2}>
+      <Path d="M6 2h9l5 5v15H6z" strokeLinejoin="round" />
+      <Path d="M15 2v5h5" strokeLinejoin="round" />
+      <SvgText
+        x="12"
+        y="17"
+        textAnchor="middle"
+        fontSize="11"
+        fontWeight="700"
+        fill="#047857"
+        stroke="none"
+      >
+        ₹
+      </SvgText>
+    </Svg>
+  );
+}
+
 function OfferingDetailField({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <View style={styles.offeringField}>
@@ -208,6 +228,7 @@ export const TutorDetailScreen: React.FC = () => {
   const [rateCardSaveError, setRateCardSaveError] = useState<string | null>(null);
   const [showAddOffering, setShowAddOffering] = useState(false);
   const [ptOffering, setPtOffering] = useState<TutorOffering | null>(null);
+  const [expandedOfferingId, setExpandedOfferingId] = useState<number | null>(null);
   const [experienceModal, setExperienceModal] = useState<
     { mode: 'edit' | 'add'; experienceId?: number } | null
   >(null);
@@ -230,6 +251,10 @@ export const TutorDetailScreen: React.FC = () => {
   const { width: windowWidth } = useWindowDimensions();
   const stackProfileSections = windowWidth < 768;
   const offeringFieldsInRow = windowWidth >= 400;
+
+  const toggleOfferingPtDetails = useCallback((offeringId: number) => {
+    setExpandedOfferingId((current) => (current === offeringId ? null : offeringId));
+  }, []);
 
   const tutor = data?.myTutorDetail;
 
@@ -650,38 +675,66 @@ export const TutorDetailScreen: React.FC = () => {
               const hasRateCard = Boolean(o.rateCard?.isComplete);
               const ptPassed = o.status === 'pt_passed';
               const ptPending = o.status === 'pending_pt';
+              const isExpanded = expandedOfferingId === o.id;
+              const offeringLabel = formatOfferingLabelForDisplay(
+                o.offeringFullLabel ??
+                  o.offeringDisplayName ??
+                  o.offeringName ??
+                  'Offering',
+              );
+
               return (
                 <View key={o.id} style={styles.offeringGridCard}>
-                  <Text style={styles.offeringName} numberOfLines={2}>
-                    {formatOfferingLabelForDisplay(
-                      o.offeringFullLabel ??
-                        o.offeringDisplayName ??
-                        o.offeringName ??
-                        'Offering',
-                    )}
-                  </Text>
-                  <Text style={styles.ptStatusText}>
-                    PT: {ptStatusLabel(o.status)}
-                  </Text>
-                  <View
-                    style={[
-                      styles.offeringGridRow,
-                      !offeringFieldsInRow && styles.offeringGridRowStacked,
-                    ]}
-                  >
-                    <OfferingDetailField
-                      label="Date"
-                      value={formatDate(o.passedAt ?? o.lastAttemptAt)}
-                    />
-                    <OfferingDetailField
-                      label="Score"
-                      value={
-                        o.lastScore != null && o.lastMaxScore != null
-                          ? `${o.lastScore}/${o.lastMaxScore}`
-                          : '—'
+                  <View style={styles.offeringHeaderRow}>
+                    <Text style={styles.offeringName} numberOfLines={1}>
+                      {offeringLabel}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.offeringChevronBtn}
+                      onPress={() => toggleOfferingPtDetails(o.id)}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        isExpanded
+                          ? 'Hide proficiency test details'
+                          : 'Show proficiency test details'
                       }
-                    />
+                      accessibilityState={{ expanded: isExpanded }}
+                    >
+                      <Text style={styles.offeringChevron}>
+                        {isExpanded ? '▲' : '▼'}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
+
+                  {isExpanded ? (
+                    <View style={styles.ptDetailsPanel}>
+                      <OfferingDetailField
+                        label="PT status"
+                        value={ptStatusLabel(o.status)}
+                      />
+                      <View
+                        style={[
+                          styles.offeringGridRow,
+                          !offeringFieldsInRow && styles.offeringGridRowStacked,
+                        ]}
+                      >
+                        <OfferingDetailField
+                          label="Date"
+                          value={formatDate(o.passedAt ?? o.lastAttemptAt)}
+                        />
+                        <OfferingDetailField
+                          label="Score"
+                          value={
+                            o.lastScore != null && o.lastMaxScore != null
+                              ? `${o.lastScore}/${o.lastMaxScore}`
+                              : '—'
+                          }
+                        />
+                      </View>
+                    </View>
+                  ) : null}
+
                   <View style={styles.rateCardRow}>
                     {ptPending ? (
                       <TouchableOpacity
@@ -697,10 +750,10 @@ export const TutorDetailScreen: React.FC = () => {
                       <Text style={styles.ptRequiredHint}>—</Text>
                     ) : hasRateCard ? (
                       <View style={styles.configuredBadge}>
+                        <RateCardIcon />
                         <Text style={styles.configuredBadgeText}>Configured</Text>
                       </View>
-                    ) : null}
-                    {ptPassed ? (
+                    ) : (
                       <TouchableOpacity
                         style={styles.rateCardButton}
                         onPress={() => {
@@ -709,9 +762,20 @@ export const TutorDetailScreen: React.FC = () => {
                         }}
                         activeOpacity={0.7}
                       >
-                        <Text style={styles.rateCardButtonText}>
-                          {hasRateCard ? 'Edit rate card' : 'Rate card'}
-                        </Text>
+                        <Text style={styles.rateCardButtonText}>Rate card</Text>
+                      </TouchableOpacity>
+                    )}
+                    {ptPassed && hasRateCard ? (
+                      <TouchableOpacity
+                        style={styles.offeringEditBtn}
+                        onPress={() => {
+                          setRateCardSaveError(null);
+                          setRateCardOffering(o);
+                        }}
+                        activeOpacity={0.7}
+                        accessibilityLabel="Edit rate card"
+                      >
+                        <PenIcon />
                       </TouchableOpacity>
                     ) : null}
                   </View>
@@ -1206,11 +1270,30 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
-  ptStatusText: {
+  offeringHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  offeringChevronBtn: {
+    padding: 4,
+    borderRadius: 6,
+  },
+  offeringChevron: {
     fontSize: 12,
+    color: '#0f766e',
     fontWeight: '600',
-    color: '#6d28d9',
-    marginBottom: 4,
+  },
+  ptDetailsPanel: {
+    borderTopWidth: 1,
+    borderTopColor: '#ccfbf1',
+    paddingTop: 8,
+    gap: 8,
+  },
+  offeringEditBtn: {
+    padding: 6,
+    borderRadius: 8,
+    marginLeft: 'auto',
   },
   ptRequiredHint: {
     fontSize: 12,
@@ -1246,10 +1329,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#ccfbf1',
-    padding: 12,
-    gap: 10,
+    padding: 10,
+    gap: 6,
   },
   offeringName: {
+    flex: 1,
+    minWidth: 0,
     fontSize: 14,
     fontWeight: '600',
     color: '#134e4a',
@@ -1284,9 +1369,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: 8,
-    marginTop: 4,
   },
   configuredBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: '#d1fae5',
     paddingHorizontal: 10,
     paddingVertical: 4,
