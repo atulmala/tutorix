@@ -36,6 +36,7 @@
     "generate:jwt-secret": "node apps/api/src/app/common/scripts/generate-jwt-secret.js",
     "create:admin": "ts-node --project apps/api/tsconfig.app.json apps/api/src/app/common/scripts/create-admin-user.ts",
     "test:auth": "bash apps/api/src/app/common/scripts/test-auth.sh",
+    "jira:create-from-plan": "node scripts/jira/create-ticket-from-plan.mjs",
     "git:list-untracked": "bash scripts/list-untracked-files.sh",
     "git:add-untracked": "bash scripts/add-untracked-files.sh"
   },
