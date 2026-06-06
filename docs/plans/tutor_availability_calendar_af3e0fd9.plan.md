@@ -15,6 +15,10 @@ todos:
     content: API unit tests for save/range validation and rate-card gate; smoke test week/month toggle and locked vs unlocked profile states
     status: completed
 isProject: false
+jira: TUTORIX-51
+status: done
+created: 2026-06-05
+title: Tutor availability calendar
 ---
 
 # Tutor availability calendar

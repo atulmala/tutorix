@@ -18,6 +18,10 @@ todos:
     content: Add AdminService.listProficiencyTests test coverage
     status: completed
 isProject: false
+jira: TUTORIX-41
+status: done
+created: 2026-06-05
+title: Proficiency Test Admin List
 ---
 
 # Proficiency Test Management — Admin List

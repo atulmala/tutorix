@@ -27,6 +27,10 @@ todos:
     content: there has to be a separate directory to store all the batch jobs
     status: completed
 isProject: false
+jira: TUTORIX-23
+status: done
+created: 2026-06-05
+title: Document AI Batch Job
 ---
 
 # Document AI Screening Batch Job

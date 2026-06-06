@@ -18,6 +18,10 @@ todos:
     content: Export mutations (and myTutorProfile documents query) in libs/shared-graphql
     status: completed
 isProject: false
+jira: TUTORIX-15
+status: done
+created: 2026-06-05
+title: Backend document upload S3
 ---
 
 # Backend: tutor document upload (S3 + GraphQL)

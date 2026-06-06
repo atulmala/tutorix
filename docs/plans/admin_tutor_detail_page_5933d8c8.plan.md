@@ -18,6 +18,10 @@ todos:
     content: Unit tests for getTutorDetail, reviewByAdmin, and admin document URL access
     status: completed
 isProject: false
+jira: TUTORIX-11
+status: done
+created: 2026-06-05
+title: Admin Tutor Detail Page
 ---
 
 # Admin tutor detail page

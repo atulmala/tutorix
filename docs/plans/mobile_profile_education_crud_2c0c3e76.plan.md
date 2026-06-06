@@ -12,6 +12,10 @@ todos:
     content: Run mobile/web typecheck or nx build mobile and fix any lint/type issues
     status: completed
 isProject: false
+jira: TUTORIX-35
+status: done
+created: 2026-06-05
+title: Mobile Profile Education CRUD
 ---
 
 # Mobile Tutor Profile Education Edit/Add/Delete

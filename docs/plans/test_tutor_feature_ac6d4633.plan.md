@@ -24,6 +24,10 @@ todos:
     content: Unit tests for test tutor flag, PT answer resolver, and doc auto-approve
     status: completed
 isProject: false
+jira: TUTORIX-48
+status: done
+created: 2026-06-05
+title: Test Tutor Feature
 ---
 
 # Test Tutor Implementation Plan

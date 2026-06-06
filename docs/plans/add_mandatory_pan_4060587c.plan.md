@@ -18,6 +18,10 @@ todos:
     content: Update user-bank-details.service.spec and tutor-detail.service.spec for PAN/isComplete
     status: completed
 isProject: false
+jira: TUTORIX-6
+status: done
+created: 2026-06-05
+title: Add mandatory PAN
 ---
 
 # Add mandatory PAN to bank details

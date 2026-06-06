@@ -12,6 +12,10 @@ todos:
     content: Verify stamp shows only on PASSED_AUTOMATED/APPROVED_HUMAN with preview visible
     status: completed
 isProject: false
+jira: TUTORIX-57
+status: done
+created: 2026-06-05
+title: Verified stamp overlay
 ---
 
 # Verified Stamp on Document Thumbnail

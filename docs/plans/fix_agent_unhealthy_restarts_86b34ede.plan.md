@@ -15,6 +15,10 @@ todos:
     content: pytest agent + optional docker restart smoke
     status: pending
 isProject: false
+jira: TUTORIX-28
+status: done
+created: 2026-06-05
+title: Fix agent unhealthy restarts
 ---
 
 # Fix `bridge-agent` unhealthy (dependency failed to start)

@@ -12,6 +12,10 @@ todos:
     content: "index.html: First vs Next fetches; disable Next when !has_more; render from /api/results or append batches"
     status: completed
 isProject: false
+jira: TUTORIX-39
+status: done
+created: 2026-06-05
+title: Pagination Next 20
 ---
 
 # Paginated processing (20 per page + Next)

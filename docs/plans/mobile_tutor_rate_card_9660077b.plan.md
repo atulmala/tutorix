@@ -12,6 +12,10 @@ todos:
     content: Verify create/edit rate card on mobile profile for onboarded tutor
     status: completed
 isProject: false
+jira: TUTORIX-37
+status: done
+created: 2026-06-05
+title: Mobile tutor rate card
 ---
 
 # Mobile tutor rate card

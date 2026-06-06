@@ -3,6 +3,10 @@ name: Local Nx vs Docker
 overview: Yes — you can develop entirely with Node/Nx on the Mac and reserve Docker/Compose for servers. The repo already documents that path; Colima is optional for local dev unless you choose to run Postgres (or the stack) in containers.
 todos: []
 isProject: false
+jira: TUTORIX-30
+status: done
+created: 2026-06-05
+title: Local Nx vs Docker
 ---
 
 # Local Nx development without Colima

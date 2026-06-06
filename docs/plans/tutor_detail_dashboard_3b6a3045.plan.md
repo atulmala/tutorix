@@ -24,6 +24,10 @@ todos:
     content: Manual smoke + run API/unit tests for admin and tutor detail paths
     status: completed
 isProject: false
+jira: TUTORIX-53
+status: done
+created: 2026-06-05
+title: Tutor detail dashboard
 ---
 
 # Tutor detail page (admin parity) for certified tutors

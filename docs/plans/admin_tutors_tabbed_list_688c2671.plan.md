@@ -21,6 +21,10 @@ todos:
     content: Add unit tests for list/filter/pagination, daysInStage, and stage counts
     status: completed
 isProject: false
+jira: TUTORIX-12
+status: done
+created: 2026-06-05
+title: Admin Tutors Tabbed List
 ---
 
 # Admin Tutors List by Onboarding Stage

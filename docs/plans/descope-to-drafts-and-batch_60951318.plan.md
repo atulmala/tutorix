@@ -27,6 +27,10 @@ todos:
     content: Run full ruff/mypy/pytest + eslint/tsc/vitest; manual make up click-through of all 7 pages
     status: completed
 isProject: false
+jira: TUTORIX-20
+status: done
+created: 2026-06-05
+title: descope-to-drafts-and-batch
 ---
 
 ## Why

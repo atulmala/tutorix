@@ -18,6 +18,10 @@ todos:
     content: Add admin.service unit tests for pending flag and docs-tab ordering
     status: completed
 isProject: false
+jira: TUTORIX-22
+status: done
+created: 2026-06-05
+title: Docs Tab Review Highlight
 ---
 
 # Highlight tutors pending admin document review

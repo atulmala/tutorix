@@ -18,6 +18,10 @@ todos:
     content: Update mobile OnboardingStepper label and payment icon for parity
     status: completed
 isProject: false
+jira: TUTORIX-43
+status: done
+created: 2026-06-05
+title: Registration fee waiver UI
 ---
 
 # Registration Fee Waiver — Onboarding UI

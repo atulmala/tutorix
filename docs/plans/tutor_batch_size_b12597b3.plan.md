@@ -18,6 +18,10 @@ todos:
     content: Scaffold tutor_class_session + enrollment entities/migration and capacity rules (no booking API yet)
     status: completed
 isProject: false
+jira: TUTORIX-52
+status: done
+created: 2026-06-05
+title: Tutor batch size
 ---
 
 # Tutor batch size on rate card

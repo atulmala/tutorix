@@ -18,6 +18,10 @@ todos:
     content: "Short README or ops note: EC2 SG, IAM role for S3, env secrets, compose up order"
     status: completed
 isProject: false
+jira: TUTORIX-26
+status: done
+created: 2026-06-05
+title: EC2 Docker deployment
 ---
 
 # Deploy Tutorix on EC2 with Docker

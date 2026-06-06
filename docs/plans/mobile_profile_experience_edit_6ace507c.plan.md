@@ -12,6 +12,10 @@ todos:
     content: Refactor mobile TutorExperience.tsx to use shared tutor-experience-form helpers
     status: completed
 isProject: false
+jira: TUTORIX-36
+status: done
+created: 2026-06-05
+title: Mobile Profile Experience Edit
 ---
 
 # Mobile Tutor Profile Experience Edit/Add/Delete

@@ -27,6 +27,10 @@ todos:
     content: Run against real Claude; compare counts to docs/expected_outcomes.md; apply fallback mitigation only if counts regress
     status: completed
 isProject: false
+jira: TUTORIX-16
+status: done
+created: 2026-06-05
+title: Batch extract and parallel decide
 ---
 
 # Batch extract + client-parallel decide

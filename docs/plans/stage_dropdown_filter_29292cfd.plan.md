@@ -12,6 +12,10 @@ todos:
     content: Remove tab-only styles/JSX and fix table panel rounding
     status: completed
 isProject: false
+jira: TUTORIX-46
+status: done
+created: 2026-06-05
+title: Stage Dropdown Filter
 ---
 
 # Replace Tutor Stage Tabs with Dropdown

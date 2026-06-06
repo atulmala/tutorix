@@ -12,6 +12,10 @@ todos:
     content: Remove NavHeader/step onBack and Back buttons from mobile TutorOnboarding, App.tsx, and all mobile step components + PT failure UX
     status: completed
 isProject: false
+jira: TUTORIX-45
+status: done
+created: 2026-06-05
+title: Remove onboarding Back
 ---
 
 # Remove Back buttons from tutor onboarding

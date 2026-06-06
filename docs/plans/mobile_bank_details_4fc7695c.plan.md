@@ -15,6 +15,10 @@ todos:
     content: "Optional: extract validateBankDetailsForm in shared-utils for web+mobile"
     status: completed
 isProject: false
+jira: TUTORIX-32
+status: done
+created: 2026-06-05
+title: Mobile bank details
 ---
 
 # Mobile bank details implementation
