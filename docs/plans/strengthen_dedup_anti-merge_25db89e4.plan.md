@@ -18,6 +18,10 @@ todos:
     content: Add pytest cases for non-merge, merge, and ambiguity scenarios
     status: completed
 isProject: false
+jira: TUTORIX-47
+status: done
+created: 2026-06-05
+title: Strengthen dedup anti-merge
 ---
 
 # Strengthen deduplication (reduce false merges)

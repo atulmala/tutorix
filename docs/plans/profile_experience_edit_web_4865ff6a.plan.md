@@ -18,6 +18,10 @@ todos:
     content: Refactor TutorExperience.tsx to use shared form helpers
     status: completed
 isProject: false
+jira: TUTORIX-42
+status: done
+created: 2026-06-05
+title: Profile Experience Edit Web
 ---
 
 # Tutor Profile Experience Edit/Add (Web)

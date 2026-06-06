@@ -18,6 +18,10 @@ todos:
     content: shared-graphql mutations/queries; API unit tests for add-offering and fee waiver
     status: completed
 isProject: false
+jira: TUTORIX-7
+status: done
+created: 2026-06-05
+title: Add tutor offering flow
 ---
 
 # Add offering after onboarding

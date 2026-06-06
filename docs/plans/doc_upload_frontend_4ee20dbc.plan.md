@@ -9,6 +9,10 @@ todos:
     content: "Implement TutorDocsUpload.tsx: 5 document cards, per-slot upload state machine, presigned URL → PUT → confirm flow, pre-population from profile query, Continue gated on all 5 done"
     status: completed
 isProject: false
+jira: TUTORIX-21
+status: done
+created: 2026-06-05
+title: Doc Upload Frontend
 ---
 
 # Document Upload Frontend — Web

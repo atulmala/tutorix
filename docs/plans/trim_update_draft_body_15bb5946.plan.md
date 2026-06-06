@@ -15,6 +15,10 @@ todos:
     content: Run pytest (drafter + full agent tests)
     status: completed
 isProject: false
+jira: TUTORIX-49
+status: done
+created: 2026-06-05
+title: Trim UPDATE draft body
 ---
 
 # Trim redundant UPDATE draft comment content

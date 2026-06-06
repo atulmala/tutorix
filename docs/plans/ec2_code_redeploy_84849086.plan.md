@@ -15,6 +15,10 @@ todos:
     content: Check compose ps, local curls on :8080/:81, and public HTTPS URLs + GraphQL
     status: pending
 isProject: false
+jira: TUTORIX-25
+status: done
+created: 2026-06-05
+title: EC2 Code Redeploy
 ---
 
 # EC2 Dev — Deploy Updated Code

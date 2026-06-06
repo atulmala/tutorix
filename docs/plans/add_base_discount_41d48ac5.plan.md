@@ -1,5 +1,9 @@
 ---
+title: Add Base Discount
 name: Add Base Discount
+status: done
+jira: TUTORIX-5
+created: 2026-06-05
 overview: Add per-mode "base discount" (% off base rate for 1–4 classes, default 0) to the tutor offering rate card, wired through database, API, shared validation, GraphQL, and the rate card modal UI.
 todos:
   - id: migration-entity

@@ -18,6 +18,10 @@ todos:
     content: Implement balanced guardrails for low-confidence or invalid Claude decisions and fall back to deterministic behavior when needed
     status: completed
 isProject: false
+jira: TUTORIX-18
+status: done
+created: 2026-06-05
+title: Claude Driven Workflow
 ---
 
 # Claude-Driven Bridge Plan

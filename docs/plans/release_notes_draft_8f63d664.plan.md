@@ -9,6 +9,10 @@ todos:
     content: Adjust 90-minute scope bullets to match your actual timeline if needed
     status: completed
 isProject: false
+jira: TUTORIX-44
+status: done
+created: 2026-06-05
+title: Release notes draft
 ---
 
 # Release notes (draft)

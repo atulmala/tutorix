@@ -18,6 +18,10 @@ todos:
     content: Add unit tests for PDF enrich and preview URL resolution
     status: completed
 isProject: false
+jira: TUTORIX-24
+status: done
+created: 2026-06-05
+title: Document Upload Thumbnails UI
 ---
 
 # Document Upload Thumbnails + 2x2 Grid

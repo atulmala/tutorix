@@ -18,6 +18,10 @@ todos:
     content: Refactor web TutorQualification.tsx to use shared qualification form helpers
     status: completed
 isProject: false
+jira: TUTORIX-58
+status: done
+created: 2026-06-05
+title: Web Profile Education Edit
 ---
 
 # Web Tutor Profile Education Edit/Add/Delete

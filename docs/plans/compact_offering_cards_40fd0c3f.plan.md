@@ -15,6 +15,10 @@ todos:
     content: "Verify on iOS simulator: collapsed default, expand/collapse, rate card and PT flows unchanged"
     status: completed
 isProject: false
+jira: TUTORIX-19
+status: done
+created: 2026-06-05
+title: Compact offering cards
 ---
 
 # Compact mobile offering cards

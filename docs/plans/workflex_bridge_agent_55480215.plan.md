@@ -33,6 +33,10 @@ todos:
     content: "Write README: env setup, running mock + backend + frontend, Claude model name, known limitations"
     status: completed
 isProject: false
+jira: TUTORIX-60
+status: done
+created: 2026-06-05
+title: WorkFlex Bridge Agent
 ---
 
 ## Repo layout

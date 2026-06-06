@@ -12,6 +12,10 @@ todos:
     content: Verify queries only run on Search click/Enter, not while typing
     status: completed
 isProject: false
+jira: TUTORIX-55
+status: done
+created: 2026-06-05
+title: Tutor Search Button
 ---
 
 # Tutor Search Button and Label

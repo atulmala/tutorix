@@ -36,6 +36,10 @@ todos:
     content: README/ARCHITECTURE/DECISIONS rewrite + smoke.sh update
     status: pending
 isProject: false
+jira: TUTORIX-40
+status: done
+created: 2026-06-05
+title: Per-card Submit with real key
 ---
 
 ## Goal

@@ -12,6 +12,10 @@ todos:
     content: Remove NavHeader/step onBack in mobile TutorOnboarding/App.tsx and strip Back buttons from mobile step components + PT failure UX
     status: completed
 isProject: false
+jira: TUTORIX-38
+status: done
+created: 2026-06-05
+title: Onboarding UX updates
 ---
 
 # Onboarding: remove Back, rename Interview to Evaluation

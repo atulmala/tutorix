@@ -18,6 +18,10 @@ todos:
     content: "Test full flow on iOS/Android: pick, upload, screening states, Continue gating"
     status: completed
 isProject: false
+jira: TUTORIX-34
+status: done
+created: 2026-06-05
+title: Mobile docs upload
 ---
 
 # Mobile tutor document upload (onboarding `docs` step)

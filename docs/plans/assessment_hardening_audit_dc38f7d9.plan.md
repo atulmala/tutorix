@@ -18,6 +18,10 @@ todos:
     content: Keep CORS absent or add explicit safe origins config if required
     status: completed
 isProject: false
+jira: TUTORIX-14
+status: done
+created: 2026-06-05
+title: Assessment Hardening Audit
 ---
 
 # Assessment hardening refactor plan

@@ -12,6 +12,10 @@ todos:
     content: Add unit tests for `build_query_variants` and an integration test for widened candidate fetch
     status: completed
 isProject: false
+jira: TUTORIX-17
+status: done
+created: 2026-06-05
+title: Broaden Jira search variants
 ---
 
 # Broaden Jira search with query variants (Option 2)

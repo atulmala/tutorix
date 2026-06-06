@@ -9,6 +9,10 @@ todos:
     content: Render RateCardModal for admin; add View rate card button and onOpenRateCard in admin OfferingsSection
     status: completed
 isProject: false
+jira: TUTORIX-9
+status: done
+created: 2026-06-05
+title: Admin read-only rate card
 ---
 
 # Admin read-only rate card modal

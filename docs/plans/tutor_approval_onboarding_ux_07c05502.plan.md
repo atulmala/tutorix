@@ -21,6 +21,10 @@ todos:
     content: "Optional: completeDocsStep GraphQL + wire docs Continue on web/mobile"
     status: completed
 isProject: false
+jira: TUTORIX-50
+status: done
+created: 2026-06-05
+title: Tutor approval onboarding UX
 ---
 
 # Tutor onboarding approval and one-time celebration UX

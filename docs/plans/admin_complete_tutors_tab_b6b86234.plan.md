@@ -12,6 +12,10 @@ todos:
     content: Manually verify tab count, list, search, pagination, and tutor detail link work
     status: completed
 isProject: false
+jira: TUTORIX-8
+status: done
+created: 2026-06-05
+title: Admin Complete Tutors Tab
 ---
 
 # Admin "Onboarding Complete" Tutors Tab

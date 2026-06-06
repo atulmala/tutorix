@@ -21,6 +21,10 @@ todos:
     content: Wire TutorProfilePage mutation, error state, and refetch following BankDetails pattern
     status: completed
 isProject: false
+jira: TUTORIX-54
+status: done
+created: 2026-06-05
+title: Tutor Rate Card Web
 ---
 
 # Tutor Rate Card Feature (Web First)

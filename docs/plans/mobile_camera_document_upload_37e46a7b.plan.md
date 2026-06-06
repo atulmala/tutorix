@@ -18,6 +18,10 @@ todos:
     content: Manual test camera + file picker on iOS/Android after native rebuild
     status: completed
 isProject: false
+jira: TUTORIX-33
+status: done
+created: 2026-06-05
+title: Mobile camera document upload
 ---
 
 # Mobile camera document capture

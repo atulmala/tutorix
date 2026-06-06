@@ -66,6 +66,10 @@ todos:
     content: Initialize local git repo with coherent per-concern commits; user will create private GitHub remote and add coding-challenge@getworkflex.com
     status: pending
 isProject: false
+jira: TUTORIX-59
+status: done
+created: 2026-06-05
+title: workflex-bridge-agent
 ---
 
 ## Goals vs. grading rubric

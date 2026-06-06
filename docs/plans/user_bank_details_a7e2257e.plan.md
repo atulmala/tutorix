@@ -24,6 +24,10 @@ todos:
     content: Add service unit tests and tutor-detail service spec coverage
     status: completed
 isProject: false
+jira: TUTORIX-56
+status: done
+created: 2026-06-05
+title: User Bank Details
 ---
 
 # User Bank Details for Tutor Payments

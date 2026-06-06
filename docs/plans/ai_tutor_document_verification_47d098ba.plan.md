@@ -21,6 +21,10 @@ todos:
     content: Admin review mutation + UI to APPROVE/REJECT education documents
     status: completed
 isProject: false
+jira: TUTORIX-13
+status: done
+created: 2026-06-05
+title: AI tutor document verification
 ---
 
 # AI verification for tutor onboarding documents
