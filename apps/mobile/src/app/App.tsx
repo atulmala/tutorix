@@ -19,6 +19,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { createApolloClient } from '@tutorix/shared-graphql/client/mobile';
 import { removeAuthToken } from '@tutorix/shared-graphql/client/mobile/token-storage';
 import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
+import { AnalyticsViewTracker } from '../components/AnalyticsViewTracker';
 
 let apolloClient: ApolloClient<NormalizedCacheObject> | null = null;
 let apolloClientError: Error | null = null;
@@ -123,48 +124,51 @@ function AppContent() {
     setCurrentView('tutorProfile');
   };
 
+  let screen: React.ReactNode;
   if (currentView === 'splash') {
-    return <SplashScreen onFinish={handleSplashFinish} />;
-  }
-  if (currentView === 'signup') {
-    return (
+    screen = <SplashScreen onFinish={handleSplashFinish} />;
+  } else if (currentView === 'signup') {
+    screen = (
       <SignUpScreen
         resumeUserId={signupResume?.userId}
         resumeVerificationStatus={signupResume?.verificationStatus}
         onContinueToOnboarding={() => setCurrentView('login')}
       />
     );
-  }
-  if (currentView === 'forgotPassword') {
-    return <ForgotPasswordScreen onBackToLogin={handleBackToLogin} />;
-  }
-  if (currentView === 'tutorOnboarding') {
-    return (
+  } else if (currentView === 'forgotPassword') {
+    screen = <ForgotPasswordScreen onBackToLogin={handleBackToLogin} />;
+  } else if (currentView === 'tutorOnboarding') {
+    screen = (
       <TutorOnboarding
         initialProfile={tutorProfileForOnboarding}
         onComplete={handleOnboardingComplete}
         onLogout={handleLogout}
       />
     );
-  }
-  if (currentView === 'tutorProfile') {
-    return (
+  } else if (currentView === 'tutorProfile') {
+    screen = (
       <View style={{ flex: 1 }}>
         <NavHeader title="My profile" onLogout={handleLogout} />
         <TutorDetailScreen />
       </View>
     );
-  }
-  if (currentView === 'home') {
-    return <HomeScreen onLogout={handleLogout} />;
+  } else if (currentView === 'home') {
+    screen = <HomeScreen onLogout={handleLogout} />;
+  } else {
+    screen = (
+      <LoginScreen
+        onLoginSuccess={handleLoginSuccess}
+        onForgotPassword={handleForgotPassword}
+        onSignUp={handleSignUp}
+      />
+    );
   }
 
   return (
-    <LoginScreen
-      onLoginSuccess={handleLoginSuccess}
-      onForgotPassword={handleForgotPassword}
-      onSignUp={handleSignUp}
-    />
+    <>
+      <AnalyticsViewTracker screenName={currentView} />
+      {screen}
+    </>
   );
 }
 

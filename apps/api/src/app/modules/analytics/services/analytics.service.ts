@@ -1,5 +1,4 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { FirebaseAdminAnalyticsProvider } from '@tutorix/analytics/firebase-admin.provider';
 import { AnalyticsEvent, UserProperties } from '@tutorix/analytics';
 
@@ -8,104 +7,26 @@ export class AnalyticsService implements OnModuleInit {
   private readonly logger = new Logger(AnalyticsService.name);
   private analyticsProvider: FirebaseAdminAnalyticsProvider | null = null;
   private isInitialized = false;
-  private configService: ConfigService | null = null;
-
-  constructor(private readonly configServiceInjected?: ConfigService) {
-    this.configService = configServiceInjected || null;
-    this.logger.log('AnalyticsService constructor called');
-  }
 
   async onModuleInit() {
-    this.logger.log('AnalyticsService onModuleInit called');
-    // If not initialized via factory, try to initialize here
-    if (!this.isInitialized && this.configService) {
-      this.logger.log('Initializing AnalyticsService in onModuleInit...');
-      await this.initialize(this.configService);
-    } else if (!this.isInitialized) {
-      this.logger.warn('AnalyticsService not initialized - ConfigService not available');
+    if (!this.isInitialized) {
+      await this.initialize();
     }
   }
 
-  async initialize(configService: ConfigService): Promise<void> {
+  async initialize(): Promise<void> {
     if (this.isInitialized) {
       this.logger.warn('Analytics already initialized');
       return;
     }
 
-    this.logger.log('🔄 Initializing Analytics...');
-
     try {
       this.analyticsProvider = new FirebaseAdminAnalyticsProvider();
-
-      // Get Firebase configuration from environment
-      const projectId = configService.get<string>('FIREBASE_PROJECT_ID');
-      this.logger.debug(`Firebase Project ID: ${projectId ? 'Found' : 'Missing'}`);
-
-      const config: Record<string, unknown> = {
-        projectId,
-      };
-
-      // Check for service account credentials
-      const serviceAccountPath = configService.get<string>('FIREBASE_SERVICE_ACCOUNT_PATH');
-      const serviceAccountJson = configService.get<string>('FIREBASE_SERVICE_ACCOUNT_JSON');
-
-      this.logger.debug(`Service Account Path: ${serviceAccountPath ? 'Found' : 'Not set'}`);
-      this.logger.debug(`Service Account JSON: ${serviceAccountJson ? 'Found' : 'Not set'}`);
-
-      if (serviceAccountPath) {
-        // Load service account from file path
-        const fs = await import('fs');
-        const serviceAccount = JSON.parse(
-          fs.readFileSync(serviceAccountPath, 'utf8')
-        );
-        config.serviceAccount = serviceAccount;
-        this.logger.debug('Loaded service account from file');
-      } else if (serviceAccountJson) {
-        // Parse service account from JSON string
-        try {
-          // Remove surrounding quotes if present
-          let jsonString = serviceAccountJson.trim();
-          
-          // Remove single quotes if the entire string is wrapped in them
-          if ((jsonString.startsWith("'") && jsonString.endsWith("'")) ||
-              (jsonString.startsWith('"') && jsonString.endsWith('"'))) {
-            jsonString = jsonString.slice(1, -1);
-          }
-          
-          // Log first 100 chars for debugging (without sensitive data)
-          this.logger.debug(`Parsing JSON (first 100 chars): ${jsonString.substring(0, 100)}...`);
-          
-          config.serviceAccount = JSON.parse(jsonString);
-          this.logger.debug('Parsed service account from JSON string');
-        } catch (parseError) {
-          this.logger.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON');
-          this.logger.error('JSON string length:', serviceAccountJson?.length);
-          this.logger.error('JSON string (first 200 chars):', serviceAccountJson?.substring(0, 200));
-          if (parseError instanceof Error) {
-            this.logger.error('Parse error:', parseError.message);
-            this.logger.error('Stack:', parseError.stack);
-          }
-          throw parseError;
-        }
-      } else {
-        this.logger.warn('No Firebase service account credentials found. Analytics will not be fully functional.');
-      }
-
-      if (!projectId) {
-        this.logger.warn('FIREBASE_PROJECT_ID not set. Analytics initialization may fail.');
-      }
-
-      // Initialize the provider
-      await this.analyticsProvider.initialize(config);
+      await this.analyticsProvider.initialize({});
       this.isInitialized = true;
-      this.logger.log('✅ Analytics initialized successfully');
+      this.logger.log('Analytics service ready (client-first; server events are no-op until Measurement Protocol)');
     } catch (error) {
       this.logger.error('Failed to initialize analytics:', error);
-      if (error instanceof Error) {
-        this.logger.error('Error details:', error.message);
-        this.logger.error('Stack trace:', error.stack);
-      }
-      // Don't throw - allow app to continue without analytics
       this.isInitialized = false;
     }
   }
@@ -235,4 +156,3 @@ export class AnalyticsService implements OnModuleInit {
     await this.reset();
   }
 }
-

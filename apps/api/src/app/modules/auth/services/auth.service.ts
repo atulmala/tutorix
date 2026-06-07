@@ -15,8 +15,6 @@ import { JwtService } from './jwt.service';
 import { LoginInput } from '../dto/login.dto';
 import { RegisterInput } from '../dto/register.dto';
 import { AuthResponse } from '../dto/auth-response.dto';
-import { AnalyticsService } from '../../analytics/services/analytics.service';
-import { AnalyticsEvent } from '@tutorix/analytics';
 import { UserSignupInput } from '../dto/user-signup.input';
 import { RegisterUserInput } from '../dto/register-user.input';
 import { SetPasswordInput } from '../dto/set-password.input';
@@ -36,7 +34,6 @@ export class AuthService {
     private readonly passwordResetTokenRepository: Repository<PasswordResetToken>,
     private readonly passwordService: PasswordService,
     private readonly jwtService: JwtService,
-    private readonly analyticsService: AnalyticsService,
     private readonly configService: ConfigService,
     private readonly tutorService: TutorService,
   ) {}
@@ -99,17 +96,6 @@ export class AuthService {
 
     const platform = input.platform || 'web';
     const tokens = await this.jwtService.generateTokens(savedUser, platform);
-
-    // Track registration event
-    const registrationMethod = input.role === UserRole.ADMIN ? 'email' : 'mobile';
-    this.analyticsService.trackUserRegistration({
-      userId: savedUser.id,
-      userRole: savedUser.role,
-      method: registrationMethod,
-    }).catch((error) => {
-      // Log but don't fail registration if analytics fails
-      console.error('Failed to track registration event:', error);
-    });
 
     return {
       ...tokens,
@@ -365,16 +351,6 @@ export class AuthService {
     const platform = input.platform || 'web';
     const tokens = await this.jwtService.generateTokens(savedUser, platform);
 
-    this.analyticsService
-      .trackUserRegistration({
-        userId: savedUser.id,
-        userRole: savedUser.role,
-        method: 'mobile',
-      })
-      .catch((error) =>
-        console.error('Failed to track registration event:', error),
-      );
-
     return {
       ...tokens,
       user: savedUser,
@@ -486,17 +462,6 @@ export class AuthService {
     const platform = input.platform || 'web';
     const tokens = await this.jwtService.generateTokens(user, platform);
 
-    // Track login event
-    const loginMethod = isEmail ? 'email' : 'mobile';
-    this.analyticsService.trackUserLogin({
-      userId: user.id,
-      userRole: user.role,
-      method: loginMethod,
-    }).catch((error) => {
-      // Log but don't fail login if analytics fails
-      console.error('Failed to track login event:', error);
-    });
-
     return {
       ...tokens,
       user,
@@ -553,38 +518,7 @@ export class AuthService {
    * Logout - revoke refresh token
    */
   async logout(refreshToken: string): Promise<void> {
-    // Get user ID from refresh token before revoking (for analytics)
-    let userId: number | null = null;
-    try {
-      const { RefreshToken } = await import('../entities/refresh-token.entity');
-      const crypto = await import('crypto');
-      const hashedToken = crypto
-        .createHash('sha256')
-        .update(refreshToken)
-        .digest('hex');
-      
-      const tokenEntity = await this.userRepository.manager
-        .getRepository(RefreshToken)
-        .findOne({
-          where: { token: hashedToken },
-          relations: ['user'],
-        });
-      
-      if (tokenEntity?.user) {
-        userId = tokenEntity.user.id;
-      }
-    } catch {
-      // If we can't get user ID, continue with logout anyway
-    }
-    
     await this.jwtService.revokeRefreshToken(refreshToken);
-    
-    // Track logout event if we have user ID
-    if (userId) {
-      this.analyticsService.trackUserLogout(userId).catch((error) => {
-        console.error('Failed to track logout event:', error);
-      });
-    }
   }
 
   /**
@@ -592,11 +526,6 @@ export class AuthService {
    */
   async logoutAll(userId: number): Promise<void> {
     await this.jwtService.revokeAllUserTokens(userId);
-    
-    // Track logout event
-    this.analyticsService.trackUserLogout(userId).catch((error) => {
-      console.error('Failed to track logout event:', error);
-    });
   }
 
   /**
@@ -721,19 +650,6 @@ export class AuthService {
     resetToken.isUsed = true;
     resetToken.usedAt = new Date();
     await this.passwordResetTokenRepository.save(resetToken);
-
-    // Track password reset event (if analytics is configured)
-    // Note: Using a generic event type since password reset is not in the enum yet
-    // TODO: Add PASSWORD_RESET_COMPLETED to AnalyticsEvent enum if needed
-    this.analyticsService
-      .trackEvent(AnalyticsEvent.USER_PROFILE_UPDATED, {
-        event_type: 'password_reset',
-        userId: user.id,
-        platform: 'web', // Could be determined from context
-      })
-      .catch((error) => {
-        console.error('Failed to track password reset event:', error);
-      });
 
     return true;
   }

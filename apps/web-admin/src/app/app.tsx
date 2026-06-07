@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { AnalyticsViewTracker } from '../components/AnalyticsViewTracker';
 import { AdminAuthProvider } from './auth/useAdminAuth';
 import { RequireAdmin } from './auth/RequireAdmin';
 import { AdminLayout } from './layouts/AdminLayout';
@@ -13,6 +14,7 @@ import { ProficiencyTestDetailPage } from './pages/ProficiencyTestDetailPage';
 export function App() {
   return (
     <AdminAuthProvider>
+      <AnalyticsViewTracker />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route

@@ -1,13 +1,12 @@
 /**
  * Analytics Service for Web Admin App
- * 
+ *
  * Wrapper around Firebase Analytics for React web applications (Admin)
  */
 
-import { AnalyticsEvent, UserProperties } from '@tutorix/analytics';
+import { AnalyticsEvent, UserProperties, withAnalyticsContext } from '@tutorix/analytics';
 import { FirebaseWebAnalytics } from '@tutorix/analytics/firebase-web.provider';
 
-// Firebase config - will be loaded from environment variables
 export interface FirebaseConfig {
   apiKey: string;
   authDomain: string;
@@ -18,11 +17,20 @@ export interface FirebaseConfig {
   measurementId?: string;
 }
 
+const APP_NAME = 'admin' as const;
+
 let analyticsInstance: FirebaseWebAnalytics | null = null;
 
-/**
- * Initialize Firebase Analytics
- */
+function getEnvironment(): string {
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    return import.meta.env.NODE_ENV || import.meta.env.MODE || 'development';
+  }
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env.NODE_ENV || 'development';
+  }
+  return 'development';
+}
+
 export async function initializeAnalytics(config: FirebaseConfig): Promise<void> {
   if (analyticsInstance) {
     console.warn('Analytics already initialized');
@@ -31,11 +39,10 @@ export async function initializeAnalytics(config: FirebaseConfig): Promise<void>
 
   analyticsInstance = new FirebaseWebAnalytics();
   await analyticsInstance.initialize(config);
+
+  setUserProperties({ app_name: APP_NAME });
 }
 
-/**
- * Get analytics instance
- */
 export function getAnalytics(): FirebaseWebAnalytics {
   if (!analyticsInstance) {
     throw new Error('Analytics not initialized. Call initializeAnalytics() first.');
@@ -43,77 +50,64 @@ export function getAnalytics(): FirebaseWebAnalytics {
   return analyticsInstance;
 }
 
-/**
- * Track an event
- */
 export function trackEvent(event: AnalyticsEvent, params?: Record<string, unknown>): void {
   if (!analyticsInstance) {
-    console.warn('Analytics not initialized');
     return;
   }
-  analyticsInstance.trackEvent(event, params);
+  analyticsInstance.trackEvent(
+    event,
+    withAnalyticsContext(params, {
+      appName: APP_NAME,
+      environment: getEnvironment(),
+      platform: 'web',
+    }),
+  );
 }
 
-/**
- * Track page view
- */
 export function trackPageView(pagePath: string, pageTitle?: string): void {
   if (!analyticsInstance) {
-    console.warn('Analytics not initialized');
     return;
   }
-  analyticsInstance.trackPageView(pagePath, pageTitle);
+  trackEvent(AnalyticsEvent.PAGE_VIEW, {
+    page_path: pagePath,
+    page_title: pageTitle ?? pagePath,
+    page_location: typeof window !== 'undefined' ? window.location.href : undefined,
+  });
 }
 
-/**
- * Set user properties
- */
 export function setUserProperties(properties: UserProperties): void {
   if (!analyticsInstance) {
-    console.warn('Analytics not initialized');
     return;
   }
   analyticsInstance.setUserProperties(properties);
 }
 
-/**
- * Set user ID
- */
 export function setUserId(userId: string | number | null): void {
   if (!analyticsInstance) {
-    console.warn('Analytics not initialized');
     return;
   }
   analyticsInstance.setUserId(userId);
 }
 
-/**
- * Reset analytics (on logout)
- */
 export function resetAnalytics(): void {
   if (!analyticsInstance) {
-    console.warn('Analytics not initialized');
     return;
   }
   analyticsInstance.reset();
 }
 
-/**
- * Track error
- */
-export function trackError(error: Error | string, fatal = false, additionalData?: Record<string, unknown>): void {
+export function trackError(
+  error: Error | string,
+  fatal = false,
+  additionalData?: Record<string, unknown>,
+): void {
   if (!analyticsInstance) {
-    console.warn('Analytics not initialized');
     return;
   }
   analyticsInstance.trackError(error, fatal, additionalData);
 }
 
-/**
- * Convenience functions for common events
- */
 export const analytics = {
-  // User events
   trackRegistration: (method: string, userRole: string) => {
     trackEvent(AnalyticsEvent.USER_REGISTERED, { method, user_role: userRole });
   },
@@ -122,35 +116,5 @@ export const analytics = {
   },
   trackLogout: () => {
     trackEvent(AnalyticsEvent.USER_LOGOUT);
-  },
-
-  // Navigation
-  trackNavigation: (from: string, to: string) => {
-    trackEvent(AnalyticsEvent.NAVIGATION, { from, to });
-  },
-
-  // Actions
-  trackButtonClick: (buttonName: string, location?: string) => {
-    trackEvent(AnalyticsEvent.BUTTON_CLICK, { button_name: buttonName, button_location: location });
-  },
-  trackLinkClick: (linkUrl: string, linkText?: string) => {
-    trackEvent(AnalyticsEvent.LINK_CLICK, { link_url: linkUrl, link_text: linkText });
-  },
-
-  // Business events
-  trackTutorSearch: (searchTerm?: string, filters?: Record<string, unknown>, resultsCount?: number) => {
-    trackEvent(AnalyticsEvent.TUTOR_SEARCH, { search_term: searchTerm, search_filters: filters, results_count: resultsCount });
-  },
-  trackTutorViewed: (tutorId: string | number) => {
-    trackEvent(AnalyticsEvent.TUTOR_VIEWED, { tutor_id: tutorId });
-  },
-  trackTutorBooked: (tutorId: string | number, value?: number, currency = 'USD') => {
-    trackEvent(AnalyticsEvent.TUTOR_BOOKED, { tutor_id: tutorId, value, currency });
-  },
-  trackPaymentInitiated: (amount: number, currency = 'USD', paymentMethod?: string) => {
-    trackEvent(AnalyticsEvent.PAYMENT_INITIATED, { amount, currency, payment_method: paymentMethod });
-  },
-  trackPaymentCompleted: (amount: number, currency = 'USD', transactionId?: string) => {
-    trackEvent(AnalyticsEvent.PAYMENT_COMPLETED, { amount, currency, transaction_id: transactionId });
   },
 };

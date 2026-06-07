@@ -74,7 +74,7 @@ This guide covers setting up analytics across all Tutorix applications (Web, Web
 1. **Web App**: Firebase Analytics (React)
 2. **Web Admin App**: Firebase Analytics (React)
 3. **Mobile App**: Firebase Analytics (React Native)
-4. **Backend API**: Ready for Firebase Admin SDK integration (optional)
+4. **Backend API**: No-op placeholder (client-first; see `docs/GA4_CUSTOM_DIMENSIONS.md`)
 
 This provides:
 - ✅ Consistent analytics across all platforms

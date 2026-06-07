@@ -4,10 +4,27 @@
  * Wrapper around Firebase Analytics for React Native mobile applications
  */
 
-import { AnalyticsEvent, UserProperties } from '@tutorix/analytics';
+import { AnalyticsEvent, UserProperties, withAnalyticsContext } from '@tutorix/analytics';
 import { FirebaseMobileAnalytics } from '@tutorix/analytics/firebase-mobile.provider';
+import { Platform } from 'react-native';
+
+const APP_NAME = 'mobile' as const;
 
 let analyticsInstance: FirebaseMobileAnalytics | null = null;
+
+function getEnvironment(): string {
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    return 'development';
+  }
+  if (typeof process !== 'undefined' && process.env?.NODE_ENV) {
+    return process.env.NODE_ENV;
+  }
+  return 'production';
+}
+
+function getPlatform(): 'ios' | 'android' {
+  return Platform.OS === 'ios' ? 'ios' : 'android';
+}
 
 /**
  * Initialize Firebase Analytics
@@ -38,7 +55,14 @@ export function trackEvent(event: AnalyticsEvent, params?: Record<string, unknow
   if (!analyticsInstance) {
     return;
   }
-  analyticsInstance.trackEvent(event, params);
+  analyticsInstance.trackEvent(
+    event,
+    withAnalyticsContext(params, {
+      appName: APP_NAME,
+      environment: getEnvironment(),
+      platform: getPlatform(),
+    }),
+  );
 }
 
 /**

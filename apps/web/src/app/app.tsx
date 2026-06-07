@@ -11,6 +11,7 @@ import { PasswordResetAcknowledgement } from './components/PasswordResetAcknowle
 import { TutorOnboarding } from './components/tutor-onboarding';
 import { TutorProfilePage } from './components/tutor-profile/TutorProfilePage';
 import { AppHeader } from './components/AppHeader';
+import { AnalyticsViewTracker } from '../components/AnalyticsViewTracker';
 
 type View =
   | 'home'
@@ -229,6 +230,7 @@ export function App() {
     setCurrentView('tutor-profile');
   };
 
+  const content = (() => {
   if (currentView === 'signup') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
@@ -340,6 +342,14 @@ export function App() {
       signupSuccessMessage={signupSuccessMessage}
       onDismissSignupMessage={() => setSignupSuccessMessage(null)}
     />
+  );
+  })();
+
+  return (
+    <>
+      <AnalyticsViewTracker viewName={currentView} />
+      {content}
+    </>
   );
 }
 

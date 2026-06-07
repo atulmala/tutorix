@@ -4,8 +4,10 @@
  * Wrapper around Firebase Analytics for React web applications
  */
 
-import { AnalyticsEvent, UserProperties } from '@tutorix/analytics';
+import { AnalyticsEvent, UserProperties, withAnalyticsContext } from '@tutorix/analytics';
 import { FirebaseWebAnalytics } from '@tutorix/analytics/firebase-web.provider';
+
+const APP_NAME = 'web' as const;
 
 // Firebase config - will be loaded from environment variables
 export interface FirebaseConfig {
@@ -36,23 +38,6 @@ function getEnvironment(): string {
   }
 
   return 'development';
-}
-
-/**
- * Normalize environment name (development -> dev, production -> prod, etc.)
- */
-function normalizeEnvironment(env: string): string {
-  const envLower = env.toLowerCase();
-  if (envLower.includes('production') || envLower === 'prod') {
-    return 'production';
-  }
-  if (envLower.includes('staging') || envLower === 'stage') {
-    return 'staging';
-  }
-  if (envLower.includes('development') || envLower === 'dev') {
-    return 'development';
-  }
-  return envLower;
 }
 
 /**
@@ -88,11 +73,11 @@ export function trackEvent(event: AnalyticsEvent, params?: Record<string, unknow
     return;
   }
 
-  // Automatically add environment to all events
-  const eventParams = {
-    ...params,
-    environment: normalizeEnvironment(getEnvironment()),
-  };
+  const eventParams = withAnalyticsContext(params, {
+    appName: APP_NAME,
+    environment: getEnvironment(),
+    platform: 'web',
+  });
 
   analyticsInstance.trackEvent(event, eventParams);
 }
@@ -105,7 +90,14 @@ export function trackPageView(pagePath: string, pageTitle?: string): void {
     console.warn('Analytics not initialized');
     return;
   }
-  analyticsInstance.trackPageView(pagePath, pageTitle);
+  analyticsInstance.trackEvent(AnalyticsEvent.PAGE_VIEW, withAnalyticsContext(
+    {
+      page_path: pagePath,
+      page_title: pageTitle ?? (typeof document !== 'undefined' ? document.title : pagePath),
+      page_location: typeof window !== 'undefined' ? window.location.href : undefined,
+    },
+    { appName: APP_NAME, environment: getEnvironment(), platform: 'web' },
+  ));
 }
 
 /**
