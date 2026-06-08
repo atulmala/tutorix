@@ -26,6 +26,8 @@ export type OfferingRateCardRef =
 
 export type OfferingWithRateCard = {
   rateCard?: OfferingRateCardRef | null;
+  /** PT / offering workflow status (e.g. `pt_passed`, `pending_pt`). */
+  status?: string;
 };
 
 function isRateCardSummaryComplete(

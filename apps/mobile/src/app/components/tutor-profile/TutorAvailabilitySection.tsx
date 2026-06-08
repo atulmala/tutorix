@@ -14,6 +14,7 @@ import {
 } from '@tutorix/shared-graphql/queries';
 import { SAVE_MY_TUTOR_CALENDAR } from '@tutorix/shared-graphql/mutations';
 import {
+  BANK_DETAILS_REQUIRED_FOR_RATE_CARD_MESSAGE,
   formatAvailabilityUpdatedTill,
   formatIstDayHeader,
   formatSlotTimeLabel,
@@ -30,6 +31,8 @@ type Offering = TutorDetailRecord['offerings'][number];
 
 type Props = {
   tutor: TutorDetailRecord;
+  bankDetailsComplete?: boolean;
+  onOpenBankDetails?: () => void;
   onOpenRateCard: (offering: Offering) => void;
 };
 
@@ -83,7 +86,12 @@ function CollapsibleHeader({
   );
 }
 
-export function TutorAvailabilitySection({ tutor, onOpenRateCard }: Props) {
+export function TutorAvailabilitySection({
+  tutor,
+  bankDetailsComplete = true,
+  onOpenBankDetails,
+  onOpenRateCard,
+}: Props) {
   const canSet = tutor.canSetAvailability === true;
   const hasRateCard = tutorHasAtLeastOneCompleteRateCard(tutor.offerings);
   const unlocked = canSet && hasRateCard;
@@ -175,7 +183,21 @@ export function TutorAvailabilitySection({ tutor, onOpenRateCard }: Props) {
         {open ? (
           <View style={styles.collapseBody}>
             <Text style={styles.lockedText}>{RATE_CARD_REQUIRED_MESSAGE}</Text>
-            {firstNeedingRate ? (
+            {!bankDetailsComplete ? (
+              <>
+                <Text style={[styles.lockedText, styles.lockedTextSpaced]}>
+                  {BANK_DETAILS_REQUIRED_FOR_RATE_CARD_MESSAGE}
+                </Text>
+                {onOpenBankDetails ? (
+                  <TouchableOpacity
+                    style={styles.ctaButtonSecondary}
+                    onPress={onOpenBankDetails}
+                  >
+                    <Text style={styles.ctaButtonSecondaryText}>Enter bank details</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </>
+            ) : firstNeedingRate ? (
               <TouchableOpacity
                 style={styles.ctaButton}
                 onPress={() => onOpenRateCard(firstNeedingRate)}
@@ -369,6 +391,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#92400e',
   },
+  lockedTextSpaced: {
+    marginTop: 8,
+  },
   ctaButton: {
     marginTop: 12,
     alignSelf: 'flex-start',
@@ -379,6 +404,21 @@ const styles = StyleSheet.create({
   },
   ctaButtonText: {
     color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  ctaButtonSecondary: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#fbbf24',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  ctaButtonSecondaryText: {
+    color: '#92400e',
     fontWeight: '600',
     fontSize: 14,
   },

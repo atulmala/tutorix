@@ -27,6 +27,7 @@ import {
   buildExperienceMutationInput,
   buildQualificationMutationInput,
   canDeleteQualificationType,
+  BANK_DETAILS_REQUIRED_FOR_RATE_CARD_MESSAGE,
   documentStatusLabel,
   EDUCATIONAL_QUALIFICATION_LABELS,
   EducationalQualification,
@@ -262,6 +263,12 @@ export const TutorDetailScreen: React.FC = () => {
   }, []);
 
   const tutor = data?.myTutorDetail;
+  const bankDetailsComplete = Boolean(tutor?.user?.bankDetails?.isComplete);
+
+  const openBankDetailsModal = useCallback(() => {
+    setBankDetailsSaveError(null);
+    setBankModalVisible(true);
+  }, []);
 
   const excludeOfferingIds = useMemo(
     () =>
@@ -687,8 +694,10 @@ export const TutorDetailScreen: React.FC = () => {
 
       <TutorAvailabilitySection
         tutor={tutor}
+        bankDetailsComplete={bankDetailsComplete}
+        onOpenBankDetails={openBankDetailsModal}
         onOpenRateCard={(offering) => {
-          if (offering.status !== 'pt_passed') return;
+          if (offering.status !== 'pt_passed' || !bankDetailsComplete) return;
           setRateCardSaveError(null);
           setRateCardOffering(offering);
         }}
@@ -796,30 +805,47 @@ export const TutorDetailScreen: React.FC = () => {
                         <RateCardIcon />
                         <Text style={styles.configuredBadgeText}>Configured</Text>
                       </View>
-                    ) : (
-                      <TouchableOpacity
-                        style={styles.rateCardButton}
-                        onPress={() => {
-                          setRateCardSaveError(null);
-                          setRateCardOffering(o);
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.rateCardButtonText}>Rate card</Text>
-                      </TouchableOpacity>
-                    )}
-                    {ptPassed && hasRateCard ? (
-                      <TouchableOpacity
-                        style={styles.offeringEditBtn}
-                        onPress={() => {
-                          setRateCardSaveError(null);
-                          setRateCardOffering(o);
-                        }}
-                        activeOpacity={0.7}
-                        accessibilityLabel="Edit rate card"
-                      >
-                        <PenIcon />
-                      </TouchableOpacity>
+                    ) : null}
+                    {ptPassed && !bankDetailsComplete ? (
+                      <View style={styles.bankDetailsGate}>
+                        <Text style={styles.bankDetailsGateText}>
+                          {BANK_DETAILS_REQUIRED_FOR_RATE_CARD_MESSAGE}
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.bankDetailsGateButton}
+                          onPress={openBankDetailsModal}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.bankDetailsGateButtonText}>
+                            Enter bank details
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : ptPassed && bankDetailsComplete ? (
+                      !hasRateCard ? (
+                        <TouchableOpacity
+                          style={styles.rateCardButton}
+                          onPress={() => {
+                            setRateCardSaveError(null);
+                            setRateCardOffering(o);
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.rateCardButtonText}>Rate card</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          style={styles.offeringEditBtn}
+                          onPress={() => {
+                            setRateCardSaveError(null);
+                            setRateCardOffering(o);
+                          }}
+                          activeOpacity={0.7}
+                          accessibilityLabel="Edit rate card"
+                        >
+                          <PenIcon />
+                        </TouchableOpacity>
+                      )
                     ) : null}
                   </View>
                 </View>
@@ -1354,6 +1380,29 @@ const styles = StyleSheet.create({
   ptRequiredHint: {
     fontSize: 12,
     color: '#64748b',
+  },
+  bankDetailsGate: {
+    flex: 1,
+    minWidth: 0,
+    gap: 6,
+  },
+  bankDetailsGateText: {
+    fontSize: 11,
+    color: '#92400e',
+  },
+  bankDetailsGateButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#fbbf24',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  bankDetailsGateButtonText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#92400e',
   },
   offeringsSection: {
     backgroundColor: '#fff',

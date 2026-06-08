@@ -6,7 +6,13 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { isRateCardComplete, validateRateCardForm } from '@tutorix/shared-utils';
+import {
+  BANK_DETAILS_REQUIRED_FOR_RATE_CARD_MESSAGE,
+  isBankDetailsComplete,
+  isRateCardComplete,
+  validateRateCardForm,
+} from '@tutorix/shared-utils';
+import { UserBankDetailsService } from '../../user-bank-details/services/user-bank-details.service';
 import { TutorOfferingEntity } from '../../tutor/entities/tutor-offering.entity';
 import { TutorOfferingStatusEnum } from '../../tutor/enums/tutor.enums';
 import { Tutor } from '../../tutor/entities/tutor.entity';
@@ -23,6 +29,7 @@ export class TutorRateCardService {
     private readonly tutorOfferingRepo: Repository<TutorOfferingEntity>,
     @InjectRepository(Tutor)
     private readonly tutorRepo: Repository<Tutor>,
+    private readonly userBankDetailsService: UserBankDetailsService,
   ) {}
 
   async findByTutorOfferingIds(
@@ -68,6 +75,11 @@ export class TutorRateCardService {
       );
     }
 
+    const bankDetails = await this.userBankDetailsService.findByUserId(userId);
+    if (!isBankDetailsComplete(bankDetails)) {
+      throw new BadRequestException(BANK_DETAILS_REQUIRED_FOR_RATE_CARD_MESSAGE);
+    }
+
     const validation = validateRateCardForm({
       freeDemoOffered: input.freeDemoOffered,
       offline: {
@@ -107,7 +119,7 @@ export class TutorRateCardService {
       },
     });
 
-    if (!validation.ok) {
+    if (validation.ok === false) {
       throw new BadRequestException(validation.message);
     }
 
