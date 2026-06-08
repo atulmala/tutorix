@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  BANK_DETAILS_REQUIRED_FOR_RATE_CARD_MESSAGE,
   RATE_CARD_REQUIRED_MESSAGE,
   tutorHasAtLeastOneCompleteRateCard,
 } from '@tutorix/shared-utils';
@@ -9,6 +10,8 @@ import type { TutorDetailOffering } from './types';
 export type TutorAvailabilitySectionProps = {
   canSetAvailability: boolean;
   offerings: TutorDetailOffering[];
+  bankDetailsComplete?: boolean;
+  onOpenBankDetails?: () => void;
   onOpenRateCard?: (offering: TutorDetailOffering) => void;
   /** Admin detail: load this tutor's calendar (read-only). */
   tutorId?: number;
@@ -105,6 +108,8 @@ function CollapsibleSectionCard({
 export function TutorAvailabilitySection({
   canSetAvailability,
   offerings,
+  bankDetailsComplete = true,
+  onOpenBankDetails,
   onOpenRateCard,
   tutorId,
   readOnly = false,
@@ -126,7 +131,8 @@ export function TutorAvailabilitySection({
     title ?? (readOnly ? 'Tutor calendar' : 'My Calendar');
 
   const firstOfferingNeedingRate = offerings.find(
-    (o) => o.status === 'pt_passed' && !tutorHasAtLeastOneCompleteRateCard([o]),
+    (o: TutorDetailOffering) =>
+      o.status === 'pt_passed' && !tutorHasAtLeastOneCompleteRateCard([o]),
   );
 
   if (!unlocked) {
@@ -136,7 +142,22 @@ export function TutorAvailabilitySection({
     return (
       <CollapsibleSectionCard title={sectionTitle} variant="locked">
         <p className="text-sm text-amber-900/90">{RATE_CARD_REQUIRED_MESSAGE}</p>
-        {firstOfferingNeedingRate && onOpenRateCard ? (
+        {!bankDetailsComplete ? (
+          <>
+            <p className="mt-2 text-sm text-amber-900/90">
+              {BANK_DETAILS_REQUIRED_FOR_RATE_CARD_MESSAGE}
+            </p>
+            {onOpenBankDetails ? (
+              <button
+                type="button"
+                className="mt-3 rounded-lg border border-amber-400 bg-white px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-50"
+                onClick={onOpenBankDetails}
+              >
+                Enter bank details
+              </button>
+            ) : null}
+          </>
+        ) : firstOfferingNeedingRate && onOpenRateCard ? (
           <button
             type="button"
             className="mt-3 rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700"

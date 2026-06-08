@@ -1,9 +1,9 @@
-import type { OfferingRateCardRef } from '@tutorix/shared-utils';
+import type { OfferingWithRateCard } from '@tutorix/shared-utils';
 
-export type TutorDetailOffering = {
+export type TutorDetailOffering = OfferingWithRateCard & {
   id: number;
   offeringName?: string | null;
   offeringDisplayName?: string | null;
   offeringFullLabel?: string | null;
-  rateCard?: OfferingRateCardRef | null;
+  status: string;
 };

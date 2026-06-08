@@ -9,6 +9,9 @@ type BankDetailsLike = {
 /** Indian PAN: 5 letters, 4 digits, 1 letter (e.g. ABCDE1234F). */
 export const PAN_PATTERN = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 
+export const BANK_DETAILS_REQUIRED_FOR_RATE_CARD_MESSAGE =
+  'Enter your bank details before setting up a rate card.';
+
 export function normalizePanNumber(panNumber: string): string {
   return panNumber.trim().toUpperCase();
 }

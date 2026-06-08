@@ -21,6 +21,7 @@ import {
   sortTutorOfferingsForDisplay,
   sortQualificationsHighestFirst,
   sumExperienceDurations,
+  BANK_DETAILS_REQUIRED_FOR_RATE_CARD_MESSAGE,
   tutorHasAtLeastOneCompleteRateCard,
 } from '@tutorix/shared-utils';
 import { OfferingLabel } from './OfferingLabel';
@@ -279,12 +280,16 @@ function OfferingsSection({
   onOpenRateCard,
   onAddOffering,
   onStartProficiencyTest,
+  bankDetailsComplete = true,
+  onOpenBankDetails,
 }: {
   offerings: TutorDetailRecord['offerings'];
   mode: TutorDetailViewMode;
   onOpenRateCard?: (offering: TutorDetailRecord['offerings'][number]) => void;
   onAddOffering?: () => void;
   onStartProficiencyTest?: (offering: TutorDetailRecord['offerings'][number]) => void;
+  bankDetailsComplete?: boolean;
+  onOpenBankDetails?: () => void;
 }) {
   const isAdmin = mode === 'admin';
   const showRateCardColumn = isAdmin || Boolean(onOpenRateCard);
@@ -417,7 +422,22 @@ function OfferingsSection({
                                 Configured
                               </span>
                             ) : null}
-                            {canEditRateCard && onOpenRateCard ? (
+                            {canEditRateCard && !bankDetailsComplete ? (
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs text-amber-800/90">
+                                  {BANK_DETAILS_REQUIRED_FOR_RATE_CARD_MESSAGE}
+                                </span>
+                                {onOpenBankDetails ? (
+                                  <button
+                                    type="button"
+                                    onClick={onOpenBankDetails}
+                                    className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 transition hover:bg-amber-50"
+                                  >
+                                    Enter bank details
+                                  </button>
+                                ) : null}
+                              </div>
+                            ) : canEditRateCard && onOpenRateCard ? (
                               <button
                                 type="button"
                                 onClick={() => onOpenRateCard(offering)}
@@ -1134,9 +1154,14 @@ export function TutorDetailView({
           <TutorAvailabilitySection
             canSetAvailability={tutor.canSetAvailability === true}
             offerings={tutor.offerings}
+            bankDetailsComplete={Boolean(tutor.user?.bankDetails?.isComplete)}
+            onOpenBankDetails={
+              onSaveBankDetails ? () => setBankDetailsModalOpen(true) : undefined
+            }
             onOpenRateCard={
               onSaveRateCard
                 ? (offering) => {
+                    if (!tutor.user?.bankDetails?.isComplete) return;
                     const full = tutor.offerings.find((o) => o.id === offering.id);
                     if (full) setRateCardOffering(full);
                   }
@@ -1148,6 +1173,10 @@ export function TutorDetailView({
             mode={mode}
             onAddOffering={onAddOffering}
             onStartProficiencyTest={onStartProficiencyTest}
+            bankDetailsComplete={Boolean(tutor.user?.bankDetails?.isComplete)}
+            onOpenBankDetails={
+              onSaveBankDetails ? () => setBankDetailsModalOpen(true) : undefined
+            }
             onOpenRateCard={
               onSaveRateCard ? (offering) => setRateCardOffering(offering) : undefined
             }
