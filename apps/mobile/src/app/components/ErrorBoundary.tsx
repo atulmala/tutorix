@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { recordError, setAttribute } from '../../lib/crashlytics';
 
 interface Props {
   children: ReactNode;
@@ -45,8 +46,10 @@ export class ErrorBoundary extends Component<Props, State> {
       errorInfo,
     });
 
-    // You can also log the error to an error reporting service here
-    // For example: crashlytics().recordError(error);
+    if (errorInfo.componentStack) {
+      setAttribute('component_stack', errorInfo.componentStack.slice(0, 1000));
+    }
+    recordError(error, 'ReactErrorBoundary');
   }
 
   render() {

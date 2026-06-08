@@ -184,9 +184,11 @@ export const App = () => {
   }
 
   return (
-    <ApolloProvider client={client}>
-      <AppContent />
-    </ApolloProvider>
+    <ErrorBoundary>
+      <ApolloProvider client={client}>
+        <AppContent />
+      </ApolloProvider>
+    </ErrorBoundary>
   );
 };
 

@@ -7,6 +7,7 @@
 import { AnalyticsEvent, UserProperties, withAnalyticsContext } from '@tutorix/analytics';
 import { FirebaseMobileAnalytics } from '@tutorix/analytics/firebase-mobile.provider';
 import { Platform } from 'react-native';
+import { recordError as recordCrashlyticsError } from './crashlytics';
 
 const APP_NAME = 'mobile' as const;
 
@@ -109,10 +110,13 @@ export function resetAnalytics(): void {
  * Track error
  */
 export function trackError(error: Error | string, fatal = false, additionalData?: Record<string, unknown>): void {
-  if (!analyticsInstance) {
-    return;
+  if (analyticsInstance) {
+    analyticsInstance.trackError(error, fatal, additionalData);
   }
-  analyticsInstance.trackError(error, fatal, additionalData);
+
+  const crashlyticsError =
+    error instanceof Error ? error : new Error(error);
+  recordCrashlyticsError(crashlyticsError, fatal ? 'FatalError' : 'NonFatalError');
 }
 
 /**
