@@ -20,6 +20,7 @@ import { setAuthToken, getAuthToken } from '@tutorix/shared-graphql/client/mobil
 import { BRAND_NAME } from '../config';
 import { AnalyticsEvent } from '@tutorix/analytics';
 import { trackEvent } from '../../lib/analytics';
+import { setUserId as setCrashlyticsUserId } from '../../lib/crashlytics';
 import {
   getBiometricToken,
   getSupportedBiometryType,
@@ -157,6 +158,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onForg
     refreshToken?: string,
     user?: LoginUser,
   ) => {
+    if (user?.id != null) {
+      setCrashlyticsUserId(String(user.id));
+    }
     setShowSuccessModal(true);
     if (successTimerRef.current) {
       clearTimeout(successTimerRef.current);

@@ -54,21 +54,25 @@ export class FirebaseMobileCrashlytics implements ICrashlyticsService {
 
   async initialize(config?: Record<string, unknown>): Promise<void> {
     try {
-      // Currently unused, but kept for API compatibility
       void config;
-      // React Native Firebase Crashlytics initializes automatically when the app starts
-      // The native modules are linked via autolinking
-      // We just need to ensure the crashlytics instance is ready
+      console.log('🔄 Initializing Firebase Crashlytics (Mobile)...');
       this.crashlyticsInstance = crashlytics();
-      
-      // Enable crashlytics collection (disabled in debug mode by default)
-      // For production, crashlytics collection is enabled by default
-      // You can enable it for testing in debug mode if needed
-      // await this.crashlyticsInstance.setCrashlyticsCollectionEnabled(true);
+
+      // Collection + custom keys are configured by the mobile wrapper after initialize().
+      const collectionEnabled = this.crashlyticsInstance.isCrashlyticsCollectionEnabled;
+      console.log(
+        collectionEnabled
+          ? '✅ Firebase Crashlytics initialized (Mobile) — collection enabled'
+          : '⚠️ Firebase Crashlytics initialized (Mobile) — collection still disabled',
+      );
     } catch (error) {
-      console.error('Failed to initialize Firebase Crashlytics:', error);
+      console.error('❌ Failed to initialize Firebase Crashlytics:', error);
       throw error;
     }
+  }
+
+  isCollectionEnabled(): boolean {
+    return this.crashlyticsInstance?.isCrashlyticsCollectionEnabled ?? false;
   }
 
   async log(message: string): Promise<void> {
