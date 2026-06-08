@@ -13,13 +13,23 @@ After changing `firebase.json`, **rebuild the native app** — Metro reload is n
 ## Rebuild commands
 
 ```bash
-# Android emulator
-npx react-native run-android --projectRoot apps/mobile
+# Android emulator (starts Metro if needed, then installs + launches)
+npm run mobile:android
 
 # iOS simulator
 cd apps/mobile/ios && pod install && cd ../../..
-npx react-native run-ios --projectRoot apps/mobile
+npm run mobile:ios
 ```
+
+### Android emulator looks blank or shows Quick Settings?
+
+If you see the **system notification/quick settings panel** (brightness slider, Battery Saver tiles), swipe **up** to dismiss — the app is usually running underneath. Confirm with:
+
+```bash
+adb logcat -s ReactNativeJS:* | grep -E "App imported|Running \"Mobile\""
+```
+
+You should see `App imported successfully` and `Running "Mobile"`. If Metro is not running, use `npm run mobile:android` (not `mobile:android:run` alone).
 
 ## Environment segregation (debug vs production)
 
