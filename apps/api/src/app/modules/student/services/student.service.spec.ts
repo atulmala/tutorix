@@ -47,7 +47,13 @@ describe('StudentService', () => {
 
     const result = await service.ensureStudentExists(10);
     expect(result.userId).toBe(10);
-    expect(mockRepo.create).toHaveBeenCalled();
+    expect(mockRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 10,
+        onboardingStage: StudentOnboardingStageEnum.parent,
+        onboardingStageEnteredAt: expect.any(Date),
+      }),
+    );
   });
 
   it('saveEducationStep requires class and board for school students', async () => {
@@ -102,5 +108,54 @@ describe('StudentService', () => {
 
     expect(result.onboardingStage).toBe(StudentOnboardingStageEnum.address);
     expect(result.parentName).toBe('Raj Kumar');
+    expect(result.onboardingStageEnteredAt).toBeInstanceOf(Date);
+  });
+
+  it('saveEducationStep sets onboardingStageEnteredAt when completing', async () => {
+    const student = {
+      id: 1,
+      userId: 10,
+      onboardingStage: StudentOnboardingStageEnum.education,
+    };
+    mockRepo.findOne.mockResolvedValue(student);
+    mockRepo.save.mockImplementation(async (s) => s);
+
+    const result = await service.saveEducationStep(10, {
+      studentType: StudentTypeEnum.COLLEGE,
+    });
+
+    expect(result.onBoardingComplete).toBe(true);
+    expect(result.onboardingStageEnteredAt).toBeInstanceOf(Date);
+  });
+
+  it('updateOnboardingStage sets onboardingStageEnteredAt when stage changes', async () => {
+    const student = {
+      id: 1,
+      userId: 10,
+      onboardingStage: StudentOnboardingStageEnum.address,
+    };
+    mockRepo.findOne.mockResolvedValue(student);
+    mockRepo.save.mockImplementation(async (s) => s);
+
+    await service.updateOnboardingStage(1, StudentOnboardingStageEnum.education);
+
+    expect(mockRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        onboardingStage: StudentOnboardingStageEnum.education,
+        onboardingStageEnteredAt: expect.any(Date),
+      }),
+    );
+  });
+
+  it('updateOnboardingStage skips save when stage is unchanged', async () => {
+    mockRepo.findOne.mockResolvedValue({
+      id: 1,
+      userId: 10,
+      onboardingStage: StudentOnboardingStageEnum.education,
+    });
+
+    await service.updateOnboardingStage(1, StudentOnboardingStageEnum.education);
+
+    expect(mockRepo.save).not.toHaveBeenCalled();
   });
 });

@@ -3,8 +3,10 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { AdminService } from './admin.service';
 import { User } from '../auth/entities/user.entity';
 import { Tutor } from '../tutor/entities/tutor.entity';
+import { Student } from '../student/entities/student.entity';
 import { UserRole } from '../auth/enums/user-role.enum';
 import { TutorCertificationStageEnum } from '../tutor/enums/tutor.enums';
+import { StudentOnboardingStageEnum } from '../student/enums/student.enums';
 import { SessionService } from '../auth/services/session.service';
 import { DocumentScreeningService } from '../document/services/document-screening.service';
 import { TutorService } from '../tutor/services/tutor.service';
@@ -43,6 +45,7 @@ describe('AdminService', () => {
   let service: AdminService;
   let userCount: jest.Mock;
   let tutorRepo: { createQueryBuilder: jest.Mock };
+  let studentRepo: { createQueryBuilder: jest.Mock; count: jest.Mock };
   let getActiveSessionStatsByRole: jest.Mock;
   let tutorService: {
     findOneWithProfile: jest.Mock;
@@ -64,6 +67,7 @@ describe('AdminService', () => {
   beforeEach(async () => {
     userCount = jest.fn();
     tutorRepo = { createQueryBuilder: jest.fn() };
+    studentRepo = { createQueryBuilder: jest.fn(), count: jest.fn() };
     getActiveSessionStatsByRole = jest.fn().mockResolvedValue({
       tutorOnlineUsers: 4,
       studentOnlineUsers: 9,
@@ -96,6 +100,10 @@ describe('AdminService', () => {
         {
           provide: getRepositoryToken(Tutor),
           useValue: tutorRepo,
+        },
+        {
+          provide: getRepositoryToken(Student),
+          useValue: studentRepo,
         },
         {
           provide: SessionService,
@@ -288,6 +296,126 @@ describe('AdminService', () => {
         id: 21,
         pendingAdminDocumentReview: false,
       });
+    });
+  });
+
+  describe('listStudents', () => {
+    it('filters education stage to in-progress students and maps daysInStage', async () => {
+      const qb = createQueryBuilderMock();
+      const enteredAt = new Date('2026-05-17T12:00:00.000Z');
+      qb.getManyAndCount.mockResolvedValue([
+        [
+          {
+            id: 3,
+            onboardingStage: StudentOnboardingStageEnum.education,
+            onBoardingComplete: false,
+            onboardingStageEnteredAt: enteredAt,
+            user: {
+              firstName: 'Sam',
+              lastName: 'Student',
+              email: 'sam@example.com',
+            },
+          },
+        ],
+        1,
+      ]);
+      studentRepo.createQueryBuilder.mockReturnValue(qb);
+
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-05-22T12:00:00.000Z'));
+
+      const result = await service.listStudents({
+        onboardingStage: StudentOnboardingStageEnum.education,
+        page: 1,
+        pageSize: 20,
+      });
+
+      jest.useRealTimers();
+
+      expect(studentRepo.createQueryBuilder).toHaveBeenCalledWith('student');
+      expect(qb.andWhere).toHaveBeenCalledWith('student.onboardingStage = :stage', {
+        stage: StudentOnboardingStageEnum.education,
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith('student.onBoardingComplete = :complete', {
+        complete: false,
+      });
+      expect(result.items[0]).toMatchObject({
+        id: 3,
+        firstName: 'Sam',
+        lastName: 'Student',
+        daysInStage: 5,
+        onBoardingComplete: false,
+      });
+    });
+
+    it('filters complete tab by onBoardingComplete', async () => {
+      const qb = createQueryBuilderMock();
+      qb.getManyAndCount.mockResolvedValue([[], 0]);
+      studentRepo.createQueryBuilder.mockReturnValue(qb);
+
+      await service.listStudents({
+        completedOnly: true,
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(qb.andWhere).toHaveBeenCalledWith('student.onBoardingComplete = :complete', {
+        complete: true,
+      });
+      expect(qb.andWhere).not.toHaveBeenCalledWith(
+        'student.onboardingStage = :stage',
+        expect.anything(),
+      );
+    });
+
+    it('searches across all stages when search is provided', async () => {
+      const qb = createQueryBuilderMock();
+      qb.getManyAndCount.mockResolvedValue([[], 0]);
+      studentRepo.createQueryBuilder.mockReturnValue(qb);
+
+      await service.listStudents({
+        page: 1,
+        pageSize: 20,
+        search: 'sam@example.com',
+      });
+
+      expect(qb.andWhere).not.toHaveBeenCalledWith(
+        'student.onboardingStage = :stage',
+        expect.anything(),
+      );
+      expect(qb.andWhere).not.toHaveBeenCalledWith(
+        'student.onBoardingComplete = :complete',
+        expect.anything(),
+      );
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('ILIKE :term'),
+        { term: '%sam@example.com%' },
+      );
+    });
+  });
+
+  describe('getStudentStageCounts', () => {
+    it('returns in-progress stage counts plus complete total', async () => {
+      const qb = createQueryBuilderMock();
+      qb.getRawMany.mockResolvedValue([
+        { stage: 'parent', count: '4' },
+        { stage: 'education', count: '2' },
+      ]);
+      studentRepo.createQueryBuilder.mockReturnValue(qb);
+      studentRepo.count.mockResolvedValue(7);
+
+      const counts = await service.getStudentStageCounts();
+
+      expect(qb.groupBy).toHaveBeenCalledWith('student.onboardingStage');
+      expect(studentRepo.count).toHaveBeenCalledWith({
+        where: { deleted: false, onBoardingComplete: true },
+      });
+      expect(counts).toEqual([
+        { stage: StudentOnboardingStageEnum.parent, count: 4 },
+        { stage: StudentOnboardingStageEnum.address, count: 0 },
+        { stage: StudentOnboardingStageEnum.education, count: 2 },
+        { stage: 'complete', count: 7 },
+      ]);
     });
   });
 

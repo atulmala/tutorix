@@ -9,6 +9,9 @@ import { UserRole } from '../auth/enums/user-role.enum';
 import { AdminReviewEducationDocumentInput } from '../document/dto/admin-review-education-document.input';
 import { AdminService } from './admin.service';
 import { AdminDashboardStats } from './dto/admin-dashboard-stats.dto';
+import { AdminStudentListInput } from './dto/admin-student-list.input';
+import { AdminStudentListResult } from './dto/admin-student-list-result.dto';
+import { AdminStudentStageCount } from './dto/admin-student-stage-count.dto';
 import { AdminTutorDetail } from './dto/admin-tutor-detail.dto';
 import { AdminTutorDocumentDetail } from './dto/admin-tutor-document-detail.dto';
 import { AdminTutorListInput } from './dto/admin-tutor-list.input';
@@ -55,6 +58,26 @@ export class AdminResolver {
     @Args('search', { nullable: true }) search?: string,
   ): Promise<AdminTutorStageCount[]> {
     return this.adminService.getTutorStageCounts(search);
+  }
+
+  @Query(() => AdminStudentListResult, {
+    description: 'Paginated students filtered by onboarding stage (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminStudents(
+    @Args('input') input: AdminStudentListInput,
+  ): Promise<AdminStudentListResult> {
+    return this.adminService.listStudents(input);
+  }
+
+  @Query(() => [AdminStudentStageCount], {
+    description: 'Student counts grouped by onboarding stage (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminStudentStageCounts(): Promise<AdminStudentStageCount[]> {
+    return this.adminService.getStudentStageCounts();
   }
 
   @Query(() => AdminTutorDetail, {
