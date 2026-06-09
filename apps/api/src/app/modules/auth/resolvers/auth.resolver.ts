@@ -1,6 +1,7 @@
 import { Resolver, Mutation, Query, Args, ID } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
+import { ProfilePictureService } from '../services/profile-picture.service';
 import { SessionService } from '../services/session.service';
 import { SessionStats } from '../dto/session-stats.dto';
 import { LoginInput } from '../dto/login.dto';
@@ -19,12 +20,18 @@ import { RolesGuard } from '../guards/roles.guard';
 import { Roles } from '../decorators/roles.decorator';
 import { UserRole } from '../enums/user-role.enum';
 import { CurrentUser } from '../decorators/current-user.decorator';
+import {
+  ConfirmProfilePictureUploadInput,
+  ProfilePictureUploadUrlResult,
+} from '../dto/profile-picture-upload.dto';
+import { RequestProfilePictureUploadUrlInput } from '../dto/request-profile-picture-upload-url.input';
 
 @Resolver(() => User)
 export class AuthResolver {
   constructor(
     private readonly authService: AuthService,
     private readonly sessionService: SessionService,
+    private readonly profilePictureService: ProfilePictureService,
   ) {}
 
   @Mutation(() => AuthResponse)
@@ -131,6 +138,28 @@ export class AuthResolver {
   @Query(() => Boolean)
   async validateResetToken(@Args('token') token: string): Promise<boolean> {
     return this.authService.validateResetToken(token);
+  }
+
+  @Mutation(() => ProfilePictureUploadUrlResult, {
+    description: 'Get a presigned S3 PUT URL for profile picture upload',
+  })
+  @UseGuards(JwtAuthGuard)
+  async requestProfilePictureUploadUrl(
+    @CurrentUser() user: User,
+    @Args('input') input: RequestProfilePictureUploadUrlInput,
+  ): Promise<ProfilePictureUploadUrlResult> {
+    return this.profilePictureService.requestUploadUrl(user, input);
+  }
+
+  @Mutation(() => User, {
+    description: 'Confirm profile picture upload after S3 PUT',
+  })
+  @UseGuards(JwtAuthGuard)
+  async confirmProfilePictureUpload(
+    @CurrentUser() user: User,
+    @Args('input') input: ConfirmProfilePictureUploadInput,
+  ): Promise<User> {
+    return this.profilePictureService.confirmUpload(user, input);
   }
 }
 

@@ -20,3 +20,5 @@ export * from './tutor-qualification-form';
 export * from './rate-card';
 export * from './tutor-offering-display';
 export * from './tutor-calendar';
+export * from './student-onboarding-types';
+export * from './school-class';

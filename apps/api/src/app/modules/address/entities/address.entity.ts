@@ -3,6 +3,7 @@ import { Field, ObjectType } from '@nestjs/graphql';
 import { QBaseEntity } from '../../../common/base-entities/base.entity';
 import { AddressType } from '../enums/address-type.enum';
 import { Tutor } from '../../tutor/entities/tutor.entity';
+import { Student } from '../../student/entities/student.entity';
 
 @ObjectType()
 @Entity('address')
@@ -75,4 +76,12 @@ export class AddressEntity extends QBaseEntity {
   })
   @JoinColumn({ name: 'tutor_id' })
   tutor?: Tutor;
+
+  @Field(() => Student, { nullable: true })
+  @ManyToOne(() => Student, (student) => student.addresses, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'student_id' })
+  student?: Student;
 }

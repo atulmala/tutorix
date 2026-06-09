@@ -17,7 +17,9 @@ import { Otp } from './entities/otp.entity';
 import { OtpService } from './services/otp.service';
 import { OtpResolver } from './resolvers/otp.resolver';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
+import { ProfilePictureService } from './services/profile-picture.service';
 import { TutorModule } from '../tutor/tutor.module';
+import { StudentModule } from '../student/student.module';
 
 @Module({
   imports: [
@@ -37,10 +39,12 @@ import { TutorModule } from '../tutor/tutor.module';
     }),
     ConfigModule,
     TutorModule,
+    StudentModule,
   ],
   providers: [
     AuthService,
     SessionService,
+    ProfilePictureService,
     RolesGuard,
     AuthResolver,
     OtpService,

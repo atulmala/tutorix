@@ -19,6 +19,10 @@ export const USER_FRAGMENT = gql`
     isMobileVerified
     createdDate
     updatedDate
+    profilePicture
+    profilePictureThumbnailMedium
+    profilePictureThumbnailLarge
+    profilePictureOriginalUrl
   }
 `;
 

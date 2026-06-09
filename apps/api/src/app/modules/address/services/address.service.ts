@@ -7,6 +7,9 @@ import { GeocodingService } from './geocoding.service';
 import { Tutor } from '../../tutor/entities/tutor.entity';
 import { TutorService } from '../../tutor/services/tutor.service';
 import { TutorCertificationStageEnum } from '../../tutor/enums/tutor.enums';
+import { StudentService } from '../../student/services/student.service';
+import { StudentOnboardingStageEnum } from '../../student/enums/student.enums';
+import { Student } from '../../student/entities/student.entity';
 
 @Injectable()
 export class AddressService {
@@ -15,6 +18,7 @@ export class AddressService {
     private readonly addressRepository: Repository<AddressEntity>,
     private readonly geocodingService: GeocodingService,
     private readonly tutorService: TutorService,
+    private readonly studentService: StudentService,
   ) {}
 
   /**
@@ -131,6 +135,117 @@ export class AddressService {
     await this.tutorService.updateCertificationStage(
       tutorId,
       TutorCertificationStageEnum.qualification,
+    );
+
+    return savedAddress;
+  }
+
+  /**
+   * Create or update a home address for a student.
+   */
+  async createAddressForStudent(
+    studentId: number,
+    addressData: {
+      type?: AddressType;
+      street?: string;
+      subArea?: string;
+      city?: string;
+      state?: string;
+      country?: string;
+      landmark?: string;
+      postalCode?: number;
+      fullAddress?: string;
+      latitude?: number;
+      longitude?: number;
+    },
+  ): Promise<AddressEntity> {
+    const addressType = addressData.type ?? AddressType.HOME;
+
+    await this.studentService.findOne(studentId);
+
+    let latitude = addressData.latitude;
+    let longitude = addressData.longitude;
+
+    if (!latitude || !longitude) {
+      const addressString =
+        addressData.fullAddress ||
+        [
+          addressData.street,
+          addressData.subArea,
+          addressData.city,
+          addressData.state,
+          addressData.postalCode?.toString(),
+          addressData.country,
+        ]
+          .filter(Boolean)
+          .join(', ');
+
+      if (addressString) {
+        const geocodeResult =
+          await this.geocodingService.geocodeAddress(addressString);
+        if (geocodeResult) {
+          latitude = geocodeResult.latitude;
+          longitude = geocodeResult.longitude;
+        }
+      }
+    }
+
+    const existingAddress = await this.addressRepository.findOne({
+      where: {
+        student: { id: studentId },
+        type: addressType,
+        deleted: false,
+      },
+    });
+
+    if (existingAddress) {
+      existingAddress.street = addressData.street ?? existingAddress.street;
+      existingAddress.subArea = addressData.subArea ?? existingAddress.subArea;
+      existingAddress.city = addressData.city ?? existingAddress.city;
+      existingAddress.state = addressData.state ?? existingAddress.state;
+      existingAddress.country = addressData.country ?? existingAddress.country;
+      existingAddress.landmark = addressData.landmark ?? existingAddress.landmark;
+      existingAddress.postalCode =
+        addressData.postalCode ?? existingAddress.postalCode;
+      existingAddress.fullAddress =
+        addressData.fullAddress ?? existingAddress.fullAddress;
+      existingAddress.latitude = latitude ?? existingAddress.latitude;
+      existingAddress.longitude = longitude ?? existingAddress.longitude;
+
+      const saved = await this.addressRepository.save(existingAddress);
+      await this.studentService.updateOnboardingStage(
+        studentId,
+        StudentOnboardingStageEnum.education,
+      );
+      return saved;
+    }
+
+    const isFirstAddress = !(await this.addressRepository.findOne({
+      where: { student: { id: studentId }, deleted: false },
+    }));
+
+    const address = this.addressRepository.create({
+      student: { id: studentId } as Student,
+      type: addressType,
+      street: addressData.street,
+      subArea: addressData.subArea,
+      city: addressData.city,
+      state: addressData.state,
+      country: addressData.country,
+      landmark: addressData.landmark,
+      postalCode: addressData.postalCode,
+      fullAddress: addressData.fullAddress,
+      latitude: latitude || 0,
+      longitude: longitude || 0,
+      verified: false,
+      primary: isFirstAddress,
+    });
+
+    const savedAddress = await this.addressRepository.save(address);
+
+    await this.studentService.updateOnboardingStage(
+      studentId,
+      StudentOnboardingStageEnum.education,
     );
 
     return savedAddress;

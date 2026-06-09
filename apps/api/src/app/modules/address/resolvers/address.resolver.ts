@@ -1,5 +1,5 @@
 import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
-import { UseGuards } from '@nestjs/common';
+import { BadRequestException, UseGuards } from '@nestjs/common';
 import { AddressEntity } from '../entities/address.entity';
 import { AddressService } from '../services/address.service';
 import { CreateAddressInput } from '../dto/create-address.input';
@@ -7,12 +7,14 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { User } from '../../auth/entities/user.entity';
 import { TutorService } from '../../tutor/services/tutor.service';
+import { StudentService } from '../../student/services/student.service';
 
 @Resolver(() => AddressEntity)
 export class AddressResolver {
   constructor(
     private readonly addressService: AddressService,
     private readonly tutorService: TutorService,
+    private readonly studentService: StudentService,
   ) {}
 
   /**
@@ -35,6 +37,23 @@ export class AddressResolver {
     }
 
     return this.addressService.createAddressForTutor(tutor.id, input);
+  }
+
+  @Mutation(() => AddressEntity, {
+    description: 'Create an address for the authenticated student',
+  })
+  @UseGuards(JwtAuthGuard)
+  async createStudentAddress(
+    @CurrentUser() user: User,
+    @Args('input') input: CreateAddressInput,
+  ): Promise<AddressEntity> {
+    const student = await this.studentService.findByUserId(user.id);
+
+    if (!student) {
+      throw new BadRequestException('Student profile not found for this user');
+    }
+
+    return this.addressService.createAddressForStudent(student.id, input);
   }
 
   /**
