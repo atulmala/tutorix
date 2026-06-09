@@ -4,6 +4,7 @@ import { QBaseEntity } from '../../../common/base-entities/base.entity';
 import { UserRole } from '../enums/user-role.enum';
 import { Gender } from '../enums/gender.enum';
 import { RefreshToken } from './refresh-token.entity';
+import { Student } from '../../student/entities/student.entity';
 import { Tutor } from '../../tutor/entities/tutor.entity';
 
 /**
@@ -71,6 +72,34 @@ export class User extends QBaseEntity {
   @Column({ nullable: true })
   profilePicture?: string;
 
+  @Field({ nullable: true })
+  @Column({ name: 'profile_picture_storage_key', nullable: true })
+  profilePictureStorageKey?: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'profile_picture_thumbnail_medium', nullable: true })
+  profilePictureThumbnailMedium?: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'profile_picture_thumbnail_large', nullable: true })
+  profilePictureThumbnailLarge?: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'profile_picture_original_url', nullable: true })
+  profilePictureOriginalUrl?: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'profile_picture_average_color', nullable: true })
+  profilePictureAverageColor?: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'profile_picture_width', type: 'int', nullable: true })
+  profilePictureWidth?: number;
+
+  @Field({ nullable: true })
+  @Column({ name: 'profile_picture_height', type: 'int', nullable: true })
+  profilePictureHeight?: number;
+
   @Field({ defaultValue: false })
   @Column({ default: false })
   isSignupComplete: boolean;
@@ -99,5 +128,12 @@ export class User extends QBaseEntity {
     nullable: true,
   })
   tutor?: Tutor;
+
+  @Field(() => Student, { nullable: true })
+  @OneToOne(() => Student, (student) => student.user, {
+    cascade: ['insert', 'update'],
+    nullable: true,
+  })
+  student?: Student;
 }
 

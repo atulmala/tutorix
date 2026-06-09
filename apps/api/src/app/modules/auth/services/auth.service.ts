@@ -24,6 +24,7 @@ import { ForgotPasswordInput } from '../dto/forgot-password.input';
 import { ResetPasswordInput } from '../dto/reset-password.input';
 import { ConfigService } from '@nestjs/config';
 import { TutorService } from '../../tutor/services/tutor.service';
+import { StudentService } from '../../student/services/student.service';
 
 @Injectable()
 export class AuthService {
@@ -36,6 +37,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly tutorService: TutorService,
+    private readonly studentService: StudentService,
   ) {}
 
   /**
@@ -168,6 +170,12 @@ export class AuthService {
           console.error('❌ Failed to create tutor for existing user:', error);
           // Don't fail registration if tutor creation fails
         }
+      } else if (savedUser.role === UserRole.STUDENT) {
+        try {
+          await this.studentService.ensureStudentExists(savedUser.id);
+        } catch (error) {
+          console.error('❌ Failed to create student for existing user:', error);
+        }
       }
       
       return savedUser;
@@ -219,6 +227,12 @@ export class AuthService {
           stack: error instanceof Error ? error.stack : undefined,
         });
         // Don't fail registration if tutor creation fails
+      }
+    } else if (savedUser.role === UserRole.STUDENT) {
+      try {
+        await this.studentService.ensureStudentExists(savedUser.id);
+      } catch (error) {
+        console.error('❌ Failed to create student for new user:', error);
       }
     } else {
       console.log(`ℹ️ User role is ${savedUser.role}, not TUTOR. Skipping tutor creation.`);

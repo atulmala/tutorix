@@ -1,0 +1,49 @@
+import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { UseGuards } from '@nestjs/common';
+import { Student } from '../entities/student.entity';
+import { StudentService } from '../services/student.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { User } from '../../auth/entities/user.entity';
+import { SaveStudentParentInput } from '../dto/save-student-parent.input';
+import { SaveStudentEducationInput } from '../dto/save-student-education.input';
+
+@Resolver(() => Student)
+export class StudentResolver {
+  constructor(private readonly studentService: StudentService) {}
+
+  @Query(() => Student, {
+    name: 'myStudentProfile',
+    nullable: true,
+    description: 'Get current student profile, creates if it does not exist',
+  })
+  @UseGuards(JwtAuthGuard)
+  async getMyStudentProfile(@CurrentUser() user: User): Promise<Student | null> {
+    if (String(user.role).toUpperCase() !== 'STUDENT') {
+      return null;
+    }
+    return this.studentService.ensureStudentExists(user.id);
+  }
+
+  @Mutation(() => Student, {
+    description: 'Save parent/guardian details (student onboarding step 1)',
+  })
+  @UseGuards(JwtAuthGuard)
+  async saveStudentParentStep(
+    @CurrentUser() user: User,
+    @Args('input') input: SaveStudentParentInput,
+  ): Promise<Student> {
+    return this.studentService.saveParentStep(user.id, input);
+  }
+
+  @Mutation(() => Student, {
+    description: 'Save education details and complete student onboarding',
+  })
+  @UseGuards(JwtAuthGuard)
+  async saveStudentEducation(
+    @CurrentUser() user: User,
+    @Args('input') input: SaveStudentEducationInput,
+  ): Promise<Student> {
+    return this.studentService.saveEducationStep(user.id, input);
+  }
+}

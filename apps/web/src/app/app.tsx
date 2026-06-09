@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLazyQuery, useApolloClient, useMutation } from '@apollo/client';
-import { GET_MY_TUTOR_PROFILE, HEARTBEAT } from '@tutorix/shared-graphql';
+import { GET_MY_STUDENT_PROFILE, GET_MY_TUTOR_PROFILE, HEARTBEAT } from '@tutorix/shared-graphql';
 import { removeAuthToken } from '@tutorix/shared-graphql/client/web/token-storage';
 import { HomeScreen } from './components/HomeScreen';
 import { SignUp } from './components/sign-up/SignUp';
@@ -10,6 +10,8 @@ import { ResetPassword } from './components/ResetPassword';
 import { PasswordResetAcknowledgement } from './components/PasswordResetAcknowledgement';
 import { TutorOnboarding } from './components/tutor-onboarding';
 import { TutorProfilePage } from './components/tutor-profile/TutorProfilePage';
+import { StudentOnboarding } from './components/student-onboarding';
+import { StudentHomePage } from './components/student-home';
 import { AppHeader } from './components/AppHeader';
 import { AnalyticsViewTracker } from '../components/AnalyticsViewTracker';
 
@@ -21,7 +23,9 @@ type View =
   | 'reset-password'
   | 'password-reset-ack'
   | 'tutor-onboarding'
-  | 'tutor-profile';
+  | 'tutor-profile'
+  | 'student-onboarding'
+  | 'student-home';
 
 type User = {
   id: number;
@@ -37,6 +41,7 @@ export function App() {
   const [resumeVerificationStatus, setResumeVerificationStatus] = useState<{ isMobileVerified: boolean; isEmailVerified: boolean } | undefined>(undefined);
   const [resetPasswordToken, setResetPasswordToken] = useState<string | undefined>(undefined);
   const [tutorProfileForOnboarding, setTutorProfileForOnboarding] = useState<{ certificationStage?: string } | null>(null);
+  const [studentProfileForOnboarding, setStudentProfileForOnboarding] = useState<{ onboardingStage?: string } | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [signupSuccessMessage, setSignupSuccessMessage] = useState<string | null>(null);
 
@@ -65,6 +70,10 @@ export function App() {
   };
 
   const [fetchMyTutorProfile] = useLazyQuery(GET_MY_TUTOR_PROFILE, {
+    fetchPolicy: 'network-only',
+  });
+
+  const [fetchMyStudentProfile] = useLazyQuery(GET_MY_STUDENT_PROFILE, {
     fetchPolicy: 'network-only',
   });
 
@@ -102,6 +111,28 @@ export function App() {
     } else {
       setTutorProfileForOnboarding(null);
       setCurrentView('tutor-profile');
+    }
+  };
+
+
+  const routeStudentAfterProfile = (student: {
+    onBoardingComplete?: boolean;
+    onboardingStage?: string | null;
+  } | null | undefined) => {
+    if (!student) {
+      setStudentProfileForOnboarding(null);
+      setCurrentView('home');
+      return;
+    }
+
+    if (!student.onBoardingComplete) {
+      setStudentProfileForOnboarding({
+        onboardingStage: student.onboardingStage ?? undefined,
+      });
+      setCurrentView('student-onboarding');
+    } else {
+      setStudentProfileForOnboarding(null);
+      setCurrentView('student-home');
     }
   };
 
@@ -168,6 +199,23 @@ export function App() {
 
     const role = user?.role != null ? String(user.role).toUpperCase() : '';
     const isTutor = role === 'TUTOR';
+    const isStudent = role === 'STUDENT';
+
+    if (isStudent) {
+      try {
+        const { data, error } = await fetchMyStudentProfile();
+        if (error) {
+          console.error('Error fetching student profile:', error);
+          setCurrentView('home');
+          return;
+        }
+        routeStudentAfterProfile(data?.myStudentProfile);
+      } catch (err) {
+        console.error('Error fetching student profile:', err);
+        setCurrentView('home');
+      }
+      return;
+    }
 
     if (!isTutor) {
       setCurrentView('home');
@@ -202,6 +250,7 @@ export function App() {
     
     // 4. Reset all app state
     setTutorProfileForOnboarding(null);
+    setStudentProfileForOnboarding(null);
     setResumeUserId(undefined);
     setResumeVerificationStatus(undefined);
     setResetPasswordToken(undefined);
@@ -230,7 +279,37 @@ export function App() {
     setCurrentView('tutor-profile');
   };
 
+  const handleStudentOnboardingComplete = () => {
+    setStudentProfileForOnboarding(null);
+    setCurrentView('student-home');
+  };
+
   const content = (() => {
+  if (currentView === 'student-onboarding') {
+    return (
+      <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
+        <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
+          <StudentOnboarding
+            initialProfile={studentProfileForOnboarding}
+            onComplete={handleStudentOnboardingComplete}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'student-home') {
+    return (
+      <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
+          <StudentHomePage currentUser={currentUser} />
+        </main>
+      </div>
+    );
+  }
+
   if (currentView === 'signup') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
