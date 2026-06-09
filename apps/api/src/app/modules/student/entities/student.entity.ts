@@ -34,6 +34,10 @@ export class Student extends QBaseEntity {
   })
   onboardingStage?: StudentOnboardingStageEnum;
 
+  @Field(() => Date, { nullable: true })
+  @Column('timestamp', { name: 'onboarding_stage_entered_at', nullable: true })
+  onboardingStageEnteredAt?: Date;
+
   @Field()
   @Column({ name: 'on_boarding_complete', default: false })
   onBoardingComplete: boolean;

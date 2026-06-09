@@ -47,6 +47,38 @@ export const GET_ADMIN_TUTOR_STAGE_COUNTS = gql`
   }
 `;
 
+export const GET_ADMIN_STUDENTS = gql`
+  query GetAdminStudents($input: AdminStudentListInput!) {
+    adminStudents(input: $input) {
+      totalCount
+      page
+      pageSize
+      totalPages
+      items {
+        id
+        firstName
+        lastName
+        email
+        mobile
+        mobileCountryCode
+        mobileNumber
+        onboardingStage
+        onBoardingComplete
+        daysInStage
+      }
+    }
+  }
+`;
+
+export const GET_ADMIN_STUDENT_STAGE_COUNTS = gql`
+  query GetAdminStudentStageCounts {
+    adminStudentStageCounts {
+      stage
+      count
+    }
+  }
+`;
+
 export const GET_ADMIN_TUTOR_DETAIL = gql`
   query GetAdminTutorDetail($tutorId: Int!) {
     adminTutorDetail(tutorId: $tutorId) {

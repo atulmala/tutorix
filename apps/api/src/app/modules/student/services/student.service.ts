@@ -43,6 +43,7 @@ export class StudentService {
         userId,
         onBoardingComplete: false,
         onboardingStage: StudentOnboardingStageEnum.parent,
+        onboardingStageEnteredAt: new Date(),
       });
       student = await this.studentRepository.save(student);
       student = (await this.studentRepository.findOne({
@@ -70,7 +71,12 @@ export class StudentService {
     studentId: number,
     stage: StudentOnboardingStageEnum,
   ): Promise<void> {
-    await this.studentRepository.update(studentId, { onboardingStage: stage });
+    const student = await this.findOne(studentId);
+    if (student.onboardingStage !== stage) {
+      student.onboardingStage = stage;
+      student.onboardingStageEnteredAt = new Date();
+      await this.studentRepository.save(student);
+    }
   }
 
   async saveParentStep(
@@ -86,6 +92,7 @@ export class StudentService {
     student.parentRelation = input.parentRelation;
     student.parentName = name;
     student.onboardingStage = StudentOnboardingStageEnum.address;
+    student.onboardingStageEnteredAt = new Date();
     return this.studentRepository.save(student);
   }
 
@@ -128,6 +135,7 @@ export class StudentService {
     }
 
     student.onBoardingComplete = true;
+    student.onboardingStageEnteredAt = new Date();
     return this.studentRepository.save(student);
   }
 }

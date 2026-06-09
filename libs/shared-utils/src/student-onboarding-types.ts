@@ -50,3 +50,15 @@ export const SCHOOL_BOARD_OPTIONS = [
   { value: 'IB', label: 'IB' },
   { value: 'OTHER', label: 'Other' },
 ] as const;
+
+export type AdminStudentListTabId = StudentOnboardingStepId | 'complete';
+
+export interface AdminStudentListTabConfig {
+  id: AdminStudentListTabId;
+  title: string;
+}
+
+export const ADMIN_STUDENT_LIST_TABS: AdminStudentListTabConfig[] = [
+  ...STUDENT_ONBOARDING_STEPS.map(({ id, title }) => ({ id, title })),
+  { id: 'complete', title: 'Onboarding Complete' },
+];
