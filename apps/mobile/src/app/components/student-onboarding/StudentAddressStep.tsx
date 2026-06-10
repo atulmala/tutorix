@@ -332,26 +332,26 @@ export const StudentAddressStep: React.FC = () => {
                 <ActivityIndicator size="small" color="#5fa8ff" />
               </View>
             )}
+            {showSuggestions && suggestions.length > 0 && (
+              <View style={styles.suggestions}>
+                {suggestions.map((item) => (
+                  <TouchableOpacity
+                    key={item.placeId}
+                    style={styles.suggestionItem}
+                    onPress={() => handleSelectSuggestion(item.placeId)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.suggestionMain}>{item.description}</Text>
+                    {item.secondaryText ? (
+                      <Text style={styles.suggestionSecondary}>
+                        {item.secondaryText}
+                      </Text>
+                    ) : null}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
-          {showSuggestions && suggestions.length > 0 && (
-            <View style={styles.suggestions}>
-              {suggestions.map((item) => (
-                <TouchableOpacity
-                  key={item.placeId}
-                  style={styles.suggestionItem}
-                  onPress={() => handleSelectSuggestion(item.placeId)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.suggestionMain}>{item.description}</Text>
-                  {item.secondaryText ? (
-                    <Text style={styles.suggestionSecondary}>
-                      {item.secondaryText}
-                    </Text>
-                  ) : null}
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
           {errors.locality && (
             <Text style={styles.fieldError}>{errors.locality}</Text>
           )}
@@ -498,6 +498,7 @@ const styles = StyleSheet.create({
   },
   localityGroup: {
     marginBottom: 16,
+    zIndex: 20,
   },
   label: {
     fontSize: 14,
@@ -515,6 +516,7 @@ const styles = StyleSheet.create({
   },
   localityWrap: {
     position: 'relative',
+    zIndex: 20,
   },
   localityInput: {
     height: 44,
@@ -533,12 +535,21 @@ const styles = StyleSheet.create({
     marginTop: -10,
   },
   suggestions: {
-    marginTop: 4,
+    position: 'absolute',
+    top: 44,
+    left: 0,
+    right: 0,
+    zIndex: 30,
     maxHeight: 200,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     borderRadius: 8,
     backgroundColor: '#fff',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
   suggestionItem: {
     paddingHorizontal: 16,
