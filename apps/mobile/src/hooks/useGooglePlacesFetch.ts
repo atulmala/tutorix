@@ -33,7 +33,8 @@ function getComponent(
 }
 
 export async function getPlacePredictions(
-  input: string
+  input: string,
+  options?: { countryCode?: string },
 ): Promise<PlacePrediction[]> {
   const trimmed = input.trim();
   if (!API_KEY) {
@@ -50,6 +51,9 @@ export async function getPlacePredictions(
     key: API_KEY,
     types: 'geocode',
   });
+  if (options?.countryCode) {
+    params.set('components', `country:${options.countryCode}`);
+  }
   const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?${params}`;
 
   try {
