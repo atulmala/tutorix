@@ -7,9 +7,13 @@ import {
   StyleSheet,
   Modal,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useMutation } from '@apollo/client';
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import { REGISTER_USER } from '@tutorix/shared-graphql/mutations';
 import { getPhoneCountryCode } from '@tutorix/shared-utils';
 
@@ -57,6 +61,37 @@ const COUNTRY_OPTIONS = [
   { code: 'AU', label: 'AUS (+61)' },
 ];
 
+const formatDobValue = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseDobValue = (value: string | null): Date | null => {
+  if (!value) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsedDate = new Date(year, month - 1, day);
+  if (
+    parsedDate.getFullYear() !== year ||
+    parsedDate.getMonth() !== month - 1 ||
+    parsedDate.getDate() !== day
+  ) {
+    return null;
+  }
+  return parsedDate;
+};
+
+const getDefaultDobDate = () => {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() - 18);
+  return date;
+};
+
 export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
   initialValue,
   onSubmit,
@@ -69,6 +104,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showCountryModal, setShowCountryModal] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [iosPickerDate, setIosPickerDate] = useState<Date>(getDefaultDobDate);
   const [hasError, setHasError] = useState(false);
 
   const [registerUser, { loading: isSubmitting }] = useMutation(REGISTER_USER, {
@@ -108,11 +144,10 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
 
   const validateDate = (value: string | null) => {
     if (!value || !value.trim()) return undefined; // DOB is optional
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(value)) return 'Format: YYYY-MM-DD';
-    const date = new Date(value);
+    const date = parseDobValue(value);
+    if (!date) return 'Invalid date';
     const today = new Date();
-    if (isNaN(date.getTime())) return 'Invalid date';
+    today.setHours(0, 0, 0, 0);
     if (date > today) return 'Date cannot be in the future';
     return undefined;
   };
@@ -226,6 +261,40 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
   const showPasswordError = (submitAttempted && errors.password) || errors.password;
   const showConfirmError = (submitAttempted && errors.confirmPassword) || errors.confirmPassword;
   const showDobError = (submitAttempted && errors.dob) || errors.dob;
+  const parsedDob = parseDobValue(form.dob);
+  const currentDobDate = parsedDob ?? getDefaultDobDate();
+
+  const handleOpenDatePicker = () => {
+    if (Platform.OS === 'ios') {
+      setIosPickerDate(parsedDob ?? getDefaultDobDate());
+    }
+    setShowDatePicker(true);
+  };
+
+  const handleAndroidDateChange = (
+    event: DateTimePickerEvent,
+    selectedDate?: Date
+  ) => {
+    if (event.type === 'set' && selectedDate) {
+      updateField('dob', formatDobValue(selectedDate));
+    }
+    setShowDatePicker(false);
+  };
+
+  const handleIosDateChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (selectedDate) {
+      setIosPickerDate(selectedDate);
+    }
+  };
+
+  const handleIosDateCancel = () => {
+    setShowDatePicker(false);
+  };
+
+  const handleIosDateDone = () => {
+    updateField('dob', formatDobValue(iosPickerDate));
+    setShowDatePicker(false);
+  };
 
   return (
     <View style={styles.container}>
@@ -259,11 +328,11 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
           <Text style={styles.label}>Date of Birth</Text>
           <TouchableOpacity
             style={[styles.input, styles.dateInput, showDobError && styles.inputError]}
-            onPress={() => setShowDatePicker(true)}
+            onPress={handleOpenDatePicker}
           >
             <Text style={form.dob ? styles.dateInputText : styles.dateInputPlaceholder}>
               {form.dob 
-                ? new Date(form.dob).toLocaleDateString('en-US', { 
+                ? currentDobDate.toLocaleDateString('en-US', {
                     year: 'numeric', 
                     month: 'long', 
                     day: 'numeric' 
@@ -508,39 +577,39 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
         </View>
       </Modal>
 
-      <Modal transparent visible={showDatePicker} animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Select Date of Birth</Text>
-            <TextInput
-              style={[styles.input, { marginBottom: 12 }]}
-              value={form.dob || ''}
-              onChangeText={(value) => {
-                // Format input as YYYY-MM-DD
-                let formatted = value.replace(/\D/g, ''); // Remove non-digits
-                if (formatted.length > 4) {
-                  formatted = formatted.slice(0, 4) + '-' + formatted.slice(4);
-                }
-                if (formatted.length > 7) {
-                  formatted = formatted.slice(0, 7) + '-' + formatted.slice(7, 9);
-                }
-                updateField('dob', formatted || null);
-              }}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#9ca3af"
-              keyboardType="numeric"
-              maxLength={10}
-            />
-            <Text style={styles.modalHint}>Format: YYYY-MM-DD (e.g., 1990-01-15)</Text>
-            <TouchableOpacity
-              style={styles.modalClose}
-              onPress={() => setShowDatePicker(false)}
-            >
-              <Text style={styles.modalCloseText}>Done</Text>
-            </TouchableOpacity>
+      {Platform.OS === 'ios' ? (
+        <Modal transparent visible={showDatePicker} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>Select Date of Birth</Text>
+              <DateTimePicker
+                value={iosPickerDate}
+                mode="date"
+                display="spinner"
+                maximumDate={new Date()}
+                onChange={handleIosDateChange}
+              />
+              <View style={styles.modalActionRow}>
+                <TouchableOpacity onPress={handleIosDateCancel}>
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleIosDateDone}>
+                  <Text style={styles.modalCloseText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      ) : null}
+      {Platform.OS === 'android' && showDatePicker ? (
+        <DateTimePicker
+          value={currentDobDate}
+          mode="date"
+          display="default"
+          maximumDate={new Date()}
+          onChange={handleAndroidDateChange}
+        />
+      ) : null}
     </View>
   );
 };
@@ -744,6 +813,15 @@ const styles = StyleSheet.create({
   },
   modalCloseText: {
     color: '#1d4ed8',
+    fontWeight: '600',
+  },
+  modalActionRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalCancelText: {
+    color: '#64748b',
     fontWeight: '600',
   },
 });

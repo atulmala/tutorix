@@ -39,7 +39,8 @@ module.exports = function (api) {
             if (
               varName === 'NX_GRAPHQL_ENDPOINT' ||
               varName === 'GRAPHQL_ENDPOINT' ||
-              varName === 'GOOGLE_MAPS_API_KEY'
+              varName === 'GOOGLE_MAPS_API_KEY' ||
+              varName === 'VITE_GOOGLE_MAPS_API_KEY'
             ) {
               const value = process.env[varName];
               if (value !== undefined) {

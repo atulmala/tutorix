@@ -32,6 +32,13 @@ function getComponent(
   return comp ? (useShort ? comp.short_name : comp.long_name) : undefined;
 }
 
+/** RN/Hermes-safe query builder without URLSearchParams. */
+function buildQueryString(entries: Array<[string, string]>): string {
+  return entries
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join('&');
+}
+
 export async function getPlacePredictions(
   input: string,
   options?: { countryCode?: string },
@@ -46,15 +53,15 @@ export async function getPlacePredictions(
     return [];
   }
 
-  const params = new URLSearchParams({
-    input: trimmed,
-    key: API_KEY,
-    types: 'geocode',
-  });
+  const queryEntries: Array<[string, string]> = [
+    ['input', trimmed],
+    ['key', API_KEY],
+    ['types', 'geocode'],
+  ];
   if (options?.countryCode) {
-    params.set('components', `country:${options.countryCode}`);
+    queryEntries.push(['components', `country:${options.countryCode}`]);
   }
-  const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?${params}`;
+  const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?${buildQueryString(queryEntries)}`;
 
   try {
     const res = await fetch(url);
@@ -96,12 +103,11 @@ export async function getPlaceDetails(
 ): Promise<LocationSuggestion | null> {
   if (!API_KEY) return null;
 
-  const params = new URLSearchParams({
-    place_id: placeId,
-    key: API_KEY,
-    fields: 'address_components,formatted_address,geometry',
-  });
-  const url = `https://maps.googleapis.com/maps/api/place/details/json?${params}`;
+  const url = `https://maps.googleapis.com/maps/api/place/details/json?${buildQueryString([
+    ['place_id', placeId],
+    ['key', API_KEY],
+    ['fields', 'address_components,formatted_address,geometry'],
+  ])}`;
 
   const res = await fetch(url);
   const json = (await res.json()) as {
