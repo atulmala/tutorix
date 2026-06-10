@@ -5,6 +5,7 @@ import {
   ApolloClient,
   NormalizedCacheObject,
   useLazyQuery,
+  useMutation,
   useApolloClient,
 } from '@apollo/client';
 import { SplashScreen } from './components/SplashScreen';
@@ -19,8 +20,12 @@ import { TutorDetailScreen } from './components/tutor-profile/TutorDetailScreen'
 import { NavHeader } from './components/NavHeader';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { createApolloClient } from '@tutorix/shared-graphql/client/mobile';
-import { removeAuthToken } from '@tutorix/shared-graphql/client/mobile/token-storage';
+import {
+  removeAuthToken,
+  setAuthToken,
+} from '@tutorix/shared-graphql/client/mobile/token-storage';
 import { GET_MY_STUDENT_PROFILE, GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
+import { LOGIN } from '@tutorix/shared-graphql/mutations';
 import { AnalyticsViewTracker } from '../components/AnalyticsViewTracker';
 
 let apolloClient: ApolloClient<NormalizedCacheObject> | null = null;
@@ -133,6 +138,8 @@ function AppContent() {
     fetchPolicy: 'network-only',
   });
 
+  const [loginMutation] = useMutation(LOGIN);
+
   const handleSplashFinish = () => setCurrentView('login');
 
   const handleLoginSuccess = (user?: { id: number; role?: string }) => {
@@ -155,6 +162,24 @@ function AppContent() {
     setSignupResume(userId ? { userId, verificationStatus } : null);
     setCurrentView('signup');
   };
+
+  const handleSignupComplete = useCallback(
+    async (email: string, password: string) => {
+      try {
+        const { data } = await loginMutation({
+          variables: { input: { loginId: email, password } },
+        });
+        const accessToken = data?.login?.accessToken;
+        if (accessToken) {
+          await setAuthToken(accessToken);
+        }
+        handleLoginSuccess(data?.login?.user);
+      } catch {
+        setCurrentView('login');
+      }
+    },
+    [loginMutation],
+  );
 
   const handleBackToLogin = () => {
     setCurrentView('login');
@@ -179,7 +204,8 @@ function AppContent() {
       <SignUpScreen
         resumeUserId={signupResume?.userId}
         resumeVerificationStatus={signupResume?.verificationStatus}
-        onContinueToOnboarding={() => setCurrentView('login')}
+        onVerificationComplete={handleSignupComplete}
+        onFallbackToLogin={() => setCurrentView('login')}
       />
     );
   } else if (currentView === 'forgotPassword') {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useQuery } from '@apollo/client';
 import { BRAND_NAME } from '../../config';
 import { BasicDetailsForm, BasicDetails, createEmptyDetails } from './BasicDetailsForm';
@@ -11,8 +11,10 @@ import { getIsoCountryCode } from '@tutorix/shared-utils';
 type SignUpProps = {
   resumeUserId?: number;
   resumeVerificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean };
-  /** Called when user taps "Continue to build your profile" after verification (e.g. go to login then onboarding). */
-  onContinueToOnboarding?: () => void;
+  /** Called automatically once both verifications are done; parent handles login + routing. */
+  onVerificationComplete?: (email: string, password: string) => Promise<void>;
+  /** Fallback shown if auto-login fails so the user can log in manually. */
+  onFallbackToLogin?: () => void;
 };
 
 type Step = 'basic' | 'phone' | 'email';
@@ -26,13 +28,16 @@ const steps: Array<{ id: Step; label: string }> = [
 export const SignUpScreen: React.FC<SignUpProps> = ({
   resumeUserId,
   resumeVerificationStatus,
-  onContinueToOnboarding,
+  onVerificationComplete,
+  onFallbackToLogin,
 }) => {
   const [step, setStep] = useState<Step>('basic');
   const [basicDetails, setBasicDetails] = useState<BasicDetails>(createEmptyDetails());
   const [userId, setUserId] = useState<number | null>(resumeUserId || null);
   const [mobileVerified, setMobileVerified] = useState(resumeVerificationStatus?.isMobileVerified || false);
   const [emailVerified, setEmailVerified] = useState(resumeVerificationStatus?.isEmailVerified || false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [autoLoginFailed, setAutoLoginFailed] = useState(false);
 
   const { data: userData } = useQuery(GET_USER_BY_ID, {
     variables: { id: resumeUserId?.toString() },
@@ -101,8 +106,18 @@ export const SignUpScreen: React.FC<SignUpProps> = ({
     setStep('email');
   };
 
-  const handleEmailVerified = () => {
+  const handleEmailVerified = async () => {
     setEmailVerified(true);
+    if (onVerificationComplete && basicDetails.email && basicDetails.password) {
+      setIsLoggingIn(true);
+      try {
+        await onVerificationComplete(basicDetails.email, basicDetails.password);
+      } catch {
+        setAutoLoginFailed(true);
+      } finally {
+        setIsLoggingIn(false);
+      }
+    }
   };
 
   return (
@@ -181,14 +196,18 @@ export const SignUpScreen: React.FC<SignUpProps> = ({
           {step === 'email' && emailVerified && (
             <View style={styles.successCard}>
               <Text style={styles.successTitle}>You are all set.</Text>
-              <Text style={styles.successText}>Phone and email verified. Continue to complete your profile.</Text>
-              <TouchableOpacity
-                style={styles.successButton}
-                onPress={onContinueToOnboarding}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.successButtonText}>Continue to build your profile</Text>
-              </TouchableOpacity>
+              <Text style={styles.successText}>Phone and email verified. Setting up your profile…</Text>
+              {isLoggingIn ? (
+                <ActivityIndicator color="#22c55e" style={{ marginTop: 4 }} />
+              ) : autoLoginFailed ? (
+                <TouchableOpacity
+                  style={styles.successButton}
+                  onPress={onFallbackToLogin}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.successButtonText}>Continue to build your profile</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           )}
         </View>
