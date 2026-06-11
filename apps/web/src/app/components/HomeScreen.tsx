@@ -48,21 +48,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-white via-[#eef3ff] to-[#e5e7eb] text-primary">
       {signupSuccessMessage && (
-        <div className="mx-auto w-full max-w-6xl px-6 pt-4 md:px-12">
-          <div
-            role="alert"
-            className="flex items-center justify-between gap-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 shadow-sm"
-          >
-            <p className="font-medium">{signupSuccessMessage}</p>
+        <div className="w-full bg-green-500 shadow-lg">
+          <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-4 md:px-12">
+            <div className="flex flex-1 items-center justify-center gap-3">
+              <span className="text-2xl" aria-hidden>🎉</span>
+              <p className="text-center text-lg font-bold tracking-wide text-white">
+                {signupSuccessMessage}
+              </p>
+              <span className="text-2xl" aria-hidden>🎉</span>
+            </div>
             {onDismissSignupMessage && (
               <button
                 type="button"
                 onClick={onDismissSignupMessage}
-                className="shrink-0 rounded-lg p-1.5 text-green-700 transition hover:bg-green-100"
+                className="shrink-0 rounded-lg p-1.5 text-white/80 transition hover:bg-white/20"
                 aria-label="Dismiss message"
               >
                 <span className="sr-only">Dismiss</span>
-                <span aria-hidden>×</span>
+                <span aria-hidden className="text-xl font-bold">×</span>
               </button>
             )}
           </div>
