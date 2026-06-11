@@ -1,16 +1,9 @@
 import React from 'react';
 import { BRAND_NAME } from '../config';
-
-type User = {
-  id: number;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  role?: string;
-};
+import type { WebUser } from '../types/web-user';
 
 type AppHeaderProps = {
-  currentUser: User | null;
+  currentUser: WebUser | null;
   onLogout: () => void;
 };
 

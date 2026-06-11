@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useLazyQuery, useApolloClient, useMutation } from '@apollo/client';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useLazyQuery, useMutation } from '@apollo/client';
 import { GET_MY_STUDENT_PROFILE, GET_MY_TUTOR_PROFILE, HEARTBEAT } from '@tutorix/shared-graphql';
-import { removeAuthToken } from '@tutorix/shared-graphql/client/web/token-storage';
 import { HomeScreen } from './components/HomeScreen';
 import { SignUp } from './components/sign-up/SignUp';
 import { Login } from './components/Login';
@@ -14,6 +13,9 @@ import { StudentOnboarding } from './components/student-onboarding';
 import { StudentHomePage } from './components/student-home';
 import { AppHeader } from './components/AppHeader';
 import { AnalyticsViewTracker } from '../components/AnalyticsViewTracker';
+import { WebAuthProvider, useWebAuth } from './auth/useWebAuth';
+import type { WebUser } from './types/web-user';
+import { SessionLoadingGate } from './auth/SessionLoadingGate';
 
 type View =
   | 'home'
@@ -27,25 +29,22 @@ type View =
   | 'student-onboarding'
   | 'student-home';
 
-type User = {
-  id: number;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  role?: string;
-};
-
-export function App() {
+function AppContent() {
+  const { user: currentUser, setUser, logout } = useWebAuth();
   const [currentView, setCurrentViewInternal] = useState<View>('home');
   const [resumeUserId, setResumeUserId] = useState<number | undefined>(undefined);
   const [resumeVerificationStatus, setResumeVerificationStatus] = useState<{ isMobileVerified: boolean; isEmailVerified: boolean } | undefined>(undefined);
   const [resetPasswordToken, setResetPasswordToken] = useState<string | undefined>(undefined);
   const [tutorProfileForOnboarding, setTutorProfileForOnboarding] = useState<{ certificationStage?: string } | null>(null);
   const [studentProfileForOnboarding, setStudentProfileForOnboarding] = useState<{ onboardingStage?: string } | null>(null);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [signupSuccessMessage, setSignupSuccessMessage] = useState<string | null>(null);
 
-  const apolloClient = useApolloClient();
+  const skipSessionRestoreRef = useRef(false);
+  const hasRoutedBootstrapRef = useRef(false);
+  const [sessionRestorePhase, setSessionRestorePhase] = useState<
+    'idle' | 'routing' | 'done'
+  >('idle');
+
   const [heartbeatMutation] = useMutation(HEARTBEAT);
 
   useEffect(() => {
@@ -63,11 +62,13 @@ export function App() {
     return () => clearInterval(id);
   }, [currentUser, heartbeatMutation]);
 
-  // Wrapper to log all view changes
-  const setCurrentView = (view: View) => {
-    console.log(`[App] View change: ${currentView} -> ${view}`);
+  const currentViewRef = useRef(currentView);
+  currentViewRef.current = currentView;
+
+  const setCurrentView = useCallback((view: View) => {
+    console.log(`[App] View change: ${currentViewRef.current} -> ${view}`);
     setCurrentViewInternal(view);
-  };
+  }, []);
 
   const [fetchMyTutorProfile] = useLazyQuery(GET_MY_TUTOR_PROFILE, {
     fetchPolicy: 'network-only',
@@ -77,7 +78,7 @@ export function App() {
     fetchPolicy: 'network-only',
   });
 
-  const routeTutorAfterProfile = (tutor: {
+  const routeTutorAfterProfile = useCallback((tutor: {
     onBoardingComplete?: boolean;
     onboardingCelebrationSeen?: boolean;
     certificationStage?: string | null;
@@ -112,10 +113,9 @@ export function App() {
       setTutorProfileForOnboarding(null);
       setCurrentView('tutor-profile');
     }
-  };
+  }, [setCurrentView]);
 
-
-  const routeStudentAfterProfile = (student: {
+  const routeStudentAfterProfile = useCallback((student: {
     onBoardingComplete?: boolean;
     onboardingStage?: string | null;
   } | null | undefined) => {
@@ -134,69 +134,9 @@ export function App() {
       setStudentProfileForOnboarding(null);
       setCurrentView('student-home');
     }
-  };
+  }, [setCurrentView]);
 
-
-  // Check for reset password token in URL on mount
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    if (token) {
-      // If token exists in URL, navigate to reset password view
-      setResetPasswordToken(token);
-      setCurrentViewInternal('reset-password');
-      // Clean up URL (remove token from query string) after a short delay to ensure state is set
-      setTimeout(() => {
-        window.history.replaceState({}, '', window.location.pathname);
-      }, 100);
-    }
-  }, []);
-
-  const handleBackHome = () => {
-    setCurrentView('home');
-    // Clear resume state when going back to home
-    setResumeUserId(undefined);
-    setResumeVerificationStatus(undefined);
-    setResetPasswordToken(undefined);
-  };
-
-  const handleSignUp = (userId?: number, verificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean }) => {
-    setSignupSuccessMessage(null);
-    if (userId && verificationStatus) {
-      setResumeUserId(userId);
-      setResumeVerificationStatus(verificationStatus);
-    } else {
-      setResumeUserId(undefined);
-      setResumeVerificationStatus(undefined);
-    }
-    setCurrentView('signup');
-  };
-
-  const handleSignUpSuccess = () => {
-    setSignupSuccessMessage(
-      'You have successfully signed up. Please login and start your onboarding process!'
-    );
-    setResumeUserId(undefined);
-    setResumeVerificationStatus(undefined);
-    setCurrentView('home');
-  };
-
-  const handleLogin = () => {
-    setSignupSuccessMessage(null);
-    setCurrentView('login');
-  };
-
-  const handleLoginSuccess = async (user?: { id: number; role?: string; firstName?: string; lastName?: string; email?: string }) => {
-    if (user) {
-      setCurrentUser({
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-      });
-    }
-
+  const routeAfterAuthenticatedUser = useCallback(async (user?: WebUser | null) => {
     const role = user?.role != null ? String(user.role).toUpperCase() : '';
     const isTutor = role === 'TUTOR';
     const isStudent = role === 'STUDENT';
@@ -234,30 +174,103 @@ export function App() {
       console.error('Error fetching tutor profile:', err);
       setCurrentView('home');
     }
+  }, [fetchMyStudentProfile, fetchMyTutorProfile, routeStudentAfterProfile, routeTutorAfterProfile, setCurrentView]);
+
+  // Check for reset password token in URL on mount (takes precedence over session restore)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token) {
+      skipSessionRestoreRef.current = true;
+      setResetPasswordToken(token);
+      setCurrentViewInternal('reset-password');
+      setTimeout(() => {
+        window.history.replaceState({}, '', window.location.pathname);
+      }, 100);
+    }
+  }, []);
+
+  // Restore post-login view after session bootstrap
+  useEffect(() => {
+    if (skipSessionRestoreRef.current) return;
+    if (!currentUser) {
+      setSessionRestorePhase('idle');
+      return;
+    }
+    if (hasRoutedBootstrapRef.current) return;
+
+    hasRoutedBootstrapRef.current = true;
+    setSessionRestorePhase('routing');
+    void routeAfterAuthenticatedUser(currentUser).finally(() => {
+      setSessionRestorePhase('done');
+    });
+  }, [currentUser, routeAfterAuthenticatedUser]);
+
+  const handleBackHome = () => {
+    setCurrentView('home');
+    setResumeUserId(undefined);
+    setResumeVerificationStatus(undefined);
+    setResetPasswordToken(undefined);
+  };
+
+  const handleSignUp = (userId?: number, verificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean }) => {
+    setSignupSuccessMessage(null);
+    if (userId && verificationStatus) {
+      setResumeUserId(userId);
+      setResumeVerificationStatus(verificationStatus);
+    } else {
+      setResumeUserId(undefined);
+      setResumeVerificationStatus(undefined);
+    }
+    setCurrentView('signup');
+  };
+
+  const handleSignUpSuccess = () => {
+    setSignupSuccessMessage(
+      'You have successfully signed up. Please login and start your onboarding process!'
+    );
+    setResumeUserId(undefined);
+    setResumeVerificationStatus(undefined);
+    setCurrentView('home');
+  };
+
+  const handleLogin = () => {
+    setSignupSuccessMessage(null);
+    setCurrentView('login');
+  };
+
+  const handleLoginSuccess = async (user?: { id: number; role?: string; firstName?: string; lastName?: string; email?: string }) => {
+    if (user) {
+      setUser({
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+      });
+    }
+
+    hasRoutedBootstrapRef.current = true;
+    setSessionRestorePhase('routing');
+    await routeAfterAuthenticatedUser(user);
+    setSessionRestorePhase('done');
   };
 
   const handleLogout = async () => {
     console.log('[App] Logout initiated');
-    
-    // 1. Clear auth tokens from localStorage
-    await removeAuthToken();
-    
-    // 2. Clear Apollo cache
-    await apolloClient.clearStore();
-    
-    // 3. Reset user state
-    setCurrentUser(null);
-    
-    // 4. Reset all app state
+
+    await logout();
+
     setTutorProfileForOnboarding(null);
     setStudentProfileForOnboarding(null);
     setResumeUserId(undefined);
     setResumeVerificationStatus(undefined);
     setResetPasswordToken(undefined);
-    
-    // 5. Redirect to home
+    hasRoutedBootstrapRef.current = false;
+    setSessionRestorePhase('idle');
+
     setCurrentView('home');
-    
+
     console.log('[App] Logout complete');
   };
 
@@ -283,6 +296,22 @@ export function App() {
     setStudentProfileForOnboarding(null);
     setCurrentView('student-home');
   };
+
+  const holdingForSessionRoute =
+    !skipSessionRestoreRef.current &&
+    currentUser != null &&
+    sessionRestorePhase !== 'done';
+
+  if (holdingForSessionRoute) {
+    return (
+      <>
+        <AnalyticsViewTracker viewName="session-restore" />
+        <div className="flex min-h-screen items-center justify-center bg-subtle text-primary">
+          <p className="text-sm text-muted">Loading…</p>
+        </div>
+      </>
+    );
+  }
 
   const content = (() => {
   if (currentView === 'student-onboarding') {
@@ -429,6 +458,16 @@ export function App() {
       <AnalyticsViewTracker viewName={currentView} />
       {content}
     </>
+  );
+}
+
+export function App() {
+  return (
+    <WebAuthProvider>
+      <SessionLoadingGate>
+        <AppContent />
+      </SessionLoadingGate>
+    </WebAuthProvider>
   );
 }
 
