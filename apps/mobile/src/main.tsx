@@ -3,7 +3,7 @@ import '@react-native-firebase/crashlytics';
 import { AppRegistry, View, Text } from 'react-native';
 import React from 'react';
 import { initializeAnalytics, verifyAnalytics } from './lib/analytics';
-import { crashlytics, initializeCrashlytics, verifyCrashlytics } from './lib/crashlytics';
+import { initializeCrashlytics, verifyCrashlytics } from './lib/crashlytics';
 
 // CRITICAL: Patch rehackt to use the same React instance as React Native
 // Apollo Client uses rehackt which does require('react') at runtime
@@ -83,12 +83,7 @@ initializeCrashlytics()
       );
     }
 
-    // Dev-only: expose on global so React Native DevTools console can call it
-    // (ES `import` is not supported in the debugger REPL)
-    if (typeof __DEV__ !== 'undefined' && __DEV__ && typeof global !== 'undefined') {
-      (global as typeof global & { crashlytics?: typeof crashlytics }).crashlytics = crashlytics;
-      console.log('[main.tsx] Dev: call crashlytics.triggerTestCrash() from the debugger console');
-    }
+
   })
   .catch((error) => {
     console.warn('[main.tsx] Crashlytics initialization failed:', error);

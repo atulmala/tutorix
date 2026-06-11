@@ -167,17 +167,6 @@ export async function verifyCrashlytics(): Promise<boolean> {
     const enabled = crashlyticsInstance.isCollectionEnabled();
     console.log(`[Crashlytics] collection enabled: ${enabled}`, getCrashlyticsContext());
 
-    if (isDevBuild()) {
-      await crashlyticsInstance.log(
-        'Crashlytics verification test - ' + new Date().toISOString(),
-      );
-      await crashlyticsInstance.recordError(
-        new Error('Crashlytics verification test'),
-        'VerificationTest',
-      );
-      console.log('[Crashlytics] verification non-fatal sent (dev only)');
-    }
-
     return enabled;
   } catch (error) {
     console.warn('[Crashlytics] verification failed:', error);
