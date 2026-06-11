@@ -5,12 +5,10 @@ import {
   GET_MY_STUDENT_PROFILE,
   REQUEST_PROFILE_PICTURE_UPLOAD_URL,
 } from '@tutorix/shared-graphql';
+import type { WebUser } from '../../types/web-user';
 
 type StudentHomePageProps = {
-  currentUser?: {
-    firstName?: string;
-    lastName?: string;
-  } | null;
+  currentUser?: WebUser | null;
 };
 
 function initialsFromName(first?: string, last?: string): string {

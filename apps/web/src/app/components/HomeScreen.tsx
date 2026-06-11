@@ -1,19 +1,11 @@
 import React from 'react';
 import { BRAND_NAME } from '../config';
-
-// User type for logged-in user display
-type User = {
-  id: number;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  role?: string;
-};
+import type { WebUser } from '../types/web-user';
 
 type HomeScreenProps = {
   onLogin: () => void;
   onSignUp: () => void;
-  currentUser: User | null;
+  currentUser: WebUser | null;
   onLogout: () => void;
   signupSuccessMessage?: string | null;
   onDismissSignupMessage?: () => void;
