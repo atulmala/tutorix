@@ -17,6 +17,7 @@ import { TutorCalendarService } from '../../tutor-calendar/services/tutor-calend
 import { OfferingService } from '../../offerings/services/offering.service';
 import { ProficiencyTestService } from '../../proficiency/services/proficiency-test.service';
 import { UserRole } from '../../auth/enums/user-role.enum';
+import { ProfilePictureService } from '../../auth/services/profile-picture.service';
 import { TutorCertificationStageEnum } from '../enums/tutor.enums';
 import { YearsOfExperienceEnum } from '../enums/years-of-experience.enum';
 import { TutorOfferingStatusEnum } from '../enums/tutor.enums';
@@ -49,6 +50,7 @@ describe('TutorDetailService', () => {
   let offeringService: { findAll: jest.Mock };
   let proficiencyTestService: { findByIdsWithOfferings: jest.Mock };
   let tutorCalendarService: { tutorHasCompleteRateCard: jest.Mock };
+  let profilePictureService: { resolveDisplayUrl: jest.Mock };
 
   beforeEach(async () => {
     tutorService = {
@@ -81,6 +83,11 @@ describe('TutorDetailService', () => {
     tutorCalendarService = {
       tutorHasCompleteRateCard: jest.fn().mockResolvedValue(false),
     };
+    profilePictureService = {
+      resolveDisplayUrl: jest.fn().mockImplementation(async (ref?: string | null) =>
+        ref ? `https://cdn.example.com/${ref}` : null,
+      ),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -96,6 +103,7 @@ describe('TutorDetailService', () => {
         { provide: OfferingService, useValue: offeringService },
         { provide: ProficiencyTestService, useValue: proficiencyTestService },
         { provide: TutorCalendarService, useValue: tutorCalendarService },
+        { provide: ProfilePictureService, useValue: profilePictureService },
       ],
     }).compile();
 
@@ -122,6 +130,7 @@ describe('TutorDetailService', () => {
           email: 'jane@example.com',
           mobile: '+91 9000000000',
           createdDate: registrationDate,
+          profilePicture: 'profile_pic/tutor/99/profile_pic_thumb_sm.webp',
         },
         addresses: [{ id: 1, fullAddress: '123 Main St' }],
       });
@@ -188,6 +197,8 @@ describe('TutorDetailService', () => {
           lastName: 'Tutor',
           email: 'jane@example.com',
           createdDate: registrationDate,
+          profilePicture:
+            'https://cdn.example.com/profile_pic/tutor/99/profile_pic_thumb_sm.webp',
           bankDetails: {
             bankName: 'HDFC Bank',
             ifscCode: 'HDFC0001234',
@@ -223,6 +234,9 @@ describe('TutorDetailService', () => {
         ],
       });
       expect(userBankDetailsService.findByUserId).toHaveBeenCalledWith(99);
+      expect(profilePictureService.resolveDisplayUrl).toHaveBeenCalledWith(
+        'profile_pic/tutor/99/profile_pic_thumb_sm.webp',
+      );
     });
   });
 

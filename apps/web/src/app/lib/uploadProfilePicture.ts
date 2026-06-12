@@ -1,8 +1,18 @@
-import type { ProfilePictureFields } from '../types/web-user';
+import {
+  initialsFromProfileName,
+  profilePictureAvatarUrl,
+  type ProfilePictureFields,
+} from '@tutorix/shared-utils';
 
 export type ProfilePictureUploadResult = ProfilePictureFields & {
   id: number;
 };
+
+export { profilePictureAvatarUrl };
+
+export function initialsFromName(first?: string | null, last?: string | null): string {
+  return initialsFromProfileName(first, last);
+}
 
 type RequestUploadUrlFn = (options: {
   variables: { input: { mimeType: string; byteSize: number } };
@@ -27,22 +37,6 @@ type ConfirmUploadFn = (options: {
 }) => Promise<{
   data?: { confirmProfilePictureUpload?: ProfilePictureUploadResult };
 }>;
-
-export function initialsFromName(first?: string | null, last?: string | null): string {
-  const f = first?.trim()?.[0] ?? '';
-  const l = last?.trim()?.[0] ?? '';
-  return (f + l).toUpperCase() || '?';
-}
-
-export function profilePictureAvatarUrl(user?: ProfilePictureFields | null): string | null {
-  if (!user) return null;
-  const candidate = user.profilePicture ?? user.profilePictureThumbnailMedium ?? null;
-  if (!candidate) return null;
-  if (candidate.startsWith('http://') || candidate.startsWith('https://')) {
-    return candidate;
-  }
-  return null;
-}
 
 export function validateProfilePictureFile(file: File): string | null {
   if (file.type !== 'image/jpeg' && file.type !== 'image/png') {

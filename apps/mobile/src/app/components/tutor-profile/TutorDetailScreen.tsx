@@ -16,7 +16,9 @@ import Svg, { Line, Path, Text as SvgText } from 'react-native-svg';
 import { useMutation, useQuery } from '@apollo/client';
 import { GET_MY_TUTOR_DETAIL } from '@tutorix/shared-graphql/queries';
 import {
+  CONFIRM_PROFILE_PICTURE_UPLOAD,
   CREATE_TUTOR_ADDRESS,
+  REQUEST_PROFILE_PICTURE_UPLOAD_URL,
   SAVE_MY_BANK_DETAILS,
   SAVE_MY_TUTOR_OFFERING_RATE_CARD,
   SAVE_TUTOR_EXPERIENCES,
@@ -48,6 +50,8 @@ import {
   formatOfferingLabelForDisplay,
   ptStatusLabel,
   sortTutorOfferingsForDisplay,
+  profilePictureAvatarUrl,
+  initialsFromProfileName,
   type ExperienceFormRow,
   type OnboardingTimelineEntry,
   type QualificationFormRow,
@@ -66,6 +70,13 @@ import { TutorAvailabilitySection } from './TutorAvailabilitySection';
 import { AddOfferingFlow } from './AddOfferingFlow';
 import { TutorPT } from '../tutor-onboarding/tutor-pt/TutorPT';
 import { AddressModal, type AddressFormValues } from './AddressModal';
+import {
+  uploadProfilePicture,
+} from '../student-home/uploadProfilePicture';
+import {
+  ProfilePicturePickCanceled,
+  promptProfilePictureSource,
+} from '../student-home/pickProfilePictureImage';
 
 type TutorOffering = TutorDetailRecord['offerings'][number];
 
@@ -224,6 +235,10 @@ export const TutorDetailScreen: React.FC = () => {
   const { data, loading, error, refetch } = useQuery<MyTutorDetailData>(GET_MY_TUTOR_DETAIL, {
     fetchPolicy: 'cache-and-network',
   });
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [requestUploadUrl] = useMutation(REQUEST_PROFILE_PICTURE_UPLOAD_URL);
+  const [confirmUpload] = useMutation(CONFIRM_PROFILE_PICTURE_UPLOAD);
   const [selectedDocument, setSelectedDocument] = useState<TutorDocumentDetail | null>(null);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
   const [addressSaveError, setAddressSaveError] = useState<string | null>(null);
@@ -264,6 +279,33 @@ export const TutorDetailScreen: React.FC = () => {
 
   const tutor = data?.myTutorDetail;
   const bankDetailsComplete = Boolean(tutor?.user?.bankDetails?.isComplete);
+  const avatarUrl = profilePictureAvatarUrl(tutor?.user);
+
+  const handlePickProfilePhoto = async () => {
+    setUploadError(null);
+    try {
+      const file = await promptProfilePictureSource();
+      if (!file.size) {
+        setUploadError('Could not read image size. Please try another photo.');
+        return;
+      }
+      setUploadingPhoto(true);
+      await uploadProfilePicture(file, requestUploadUrl, confirmUpload);
+      await refetch();
+    } catch (err) {
+      if (err instanceof ProfilePicturePickCanceled) return;
+      setUploadError(
+        err instanceof Error ? err.message : 'Failed to upload profile picture',
+      );
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const onAvatarPress = () => {
+    if (uploadingPhoto) return;
+    void handlePickProfilePhoto();
+  };
 
   const openBankDetailsModal = useCallback(() => {
     setBankDetailsSaveError(null);
@@ -681,16 +723,65 @@ export const TutorDetailScreen: React.FC = () => {
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>{displayName || 'Your profile'}</Text>
-      <Text style={styles.subtitle}>
-        Tutor #{tutor.id}
-        {tutor.certificationStage ? ` · ${tutor.certificationStage}` : ''}
-      </Text>
-      <Text style={styles.meta}>
-        {formatMobile(tutor.user)}
-        {tutor.user?.email ? ` · ${tutor.user.email}` : ''}
-        {tutor.user?.createdDate ? ` · Registered ${formatDate(tutor.user.createdDate)}` : ''}
-      </Text>
+      <View style={styles.profileHero}>
+        <View style={styles.avatarColumn}>
+          <TouchableOpacity
+            style={styles.avatarButton}
+            onPress={onAvatarPress}
+            disabled={uploadingPhoto}
+            activeOpacity={0.8}
+            accessibilityLabel="Upload profile picture"
+          >
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarInitials}>
+                  {initialsFromProfileName(tutor.user?.firstName, tutor.user?.lastName)}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          {avatarUrl ? (
+            <TouchableOpacity
+              onPress={onAvatarPress}
+              disabled={uploadingPhoto}
+              activeOpacity={0.7}
+            >
+              {uploadingPhoto ? (
+                <ActivityIndicator color="#2563eb" size="small" />
+              ) : (
+                <Text style={styles.changePhotoLink}>Change</Text>
+              )}
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        <View style={styles.profileHeroText}>
+          <Text style={styles.title}>{displayName || 'Your profile'}</Text>
+          <Text style={styles.subtitle}>
+            Tutor #{tutor.id}
+            {tutor.certificationStage ? ` · ${tutor.certificationStage}` : ''}
+          </Text>
+          <Text style={styles.meta}>
+            {formatMobile(tutor.user)}
+            {tutor.user?.email ? ` · ${tutor.user.email}` : ''}
+            {tutor.user?.createdDate ? ` · Registered ${formatDate(tutor.user.createdDate)}` : ''}
+          </Text>
+          {!avatarUrl ? (
+            <TouchableOpacity
+              onPress={onAvatarPress}
+              disabled={uploadingPhoto}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.addPhotoLink}>
+                {uploadingPhoto ? 'Uploading…' : 'Add profile photo'}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+          {uploadError ? <Text style={styles.uploadErrorText}>{uploadError}</Text> : null}
+        </View>
+      </View>
 
       <TutorAvailabilitySection
         tutor={tutor}
@@ -1264,7 +1355,60 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 22, fontWeight: '700', color: '#0f172a' },
   subtitle: { fontSize: 14, color: '#64748b', marginTop: 4 },
-  meta: { fontSize: 13, color: '#64748b', marginTop: 8, marginBottom: 16, lineHeight: 18 },
+  meta: { fontSize: 13, color: '#64748b', marginTop: 8, lineHeight: 18 },
+  profileHero: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 20,
+    marginBottom: 16,
+  },
+  profileHeroText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  avatarColumn: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  avatarButton: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#f3f4f6',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitials: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  changePhotoLink: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2563eb',
+  },
+  addPhotoLink: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2563eb',
+  },
+  uploadErrorText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#dc2626',
+  },
   sideBySideRow: {
     flexDirection: 'row',
     gap: 12,

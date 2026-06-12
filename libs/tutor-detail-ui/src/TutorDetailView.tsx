@@ -23,6 +23,7 @@ import {
   sumExperienceDurations,
   BANK_DETAILS_REQUIRED_FOR_RATE_CARD_MESSAGE,
   tutorHasAtLeastOneCompleteRateCard,
+  profilePictureAvatarUrl,
 } from '@tutorix/shared-utils';
 import { OfferingLabel } from './OfferingLabel';
 import { OnboardingTimeline } from './OnboardingTimeline';
@@ -259,6 +260,20 @@ function formatMobile(user?: TutorDetailRecord['user']): string {
     return `${code} ${user.mobileNumber.trim()}`;
   }
   return '—';
+}
+
+function ReadOnlyProfileAvatar({ avatarUrl }: { avatarUrl: string | null }) {
+  return (
+    <div className="h-24 w-24 overflow-hidden rounded-full border-2 border-subtle bg-gray-100">
+      {avatarUrl ? (
+        <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <span className="flex h-full w-full items-center justify-center px-2 text-center text-sm font-semibold text-primary/60">
+          no photo
+        </span>
+      )}
+    </div>
+  );
 }
 
 function formatAddress(address: TutorDetailRecord['addresses'][0]): string {
@@ -1083,12 +1098,18 @@ export function TutorDetailView({
     [tutor.offerings],
   );
 
+  const headerAvatar =
+    profileAvatar ??
+    (isAdmin ? (
+      <ReadOnlyProfileAvatar avatarUrl={profilePictureAvatarUrl(tutor.user)} />
+    ) : null);
+
   return (
     <div className="space-y-6">
       <div className="overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-r from-sky-100/80 via-white to-violet-100/80 px-6 py-5 shadow-md shadow-sky-100/30">
-        <div className={profileAvatar ? 'flex items-center gap-5' : undefined}>
-          {profileAvatar ? <div className="shrink-0">{profileAvatar}</div> : null}
-          <div className={profileAvatar ? 'min-w-0 flex-1' : undefined}>
+        <div className={headerAvatar ? 'flex items-center gap-5' : undefined}>
+          {headerAvatar ? <div className="shrink-0">{headerAvatar}</div> : null}
+          <div className={headerAvatar ? 'min-w-0 flex-1' : undefined}>
             {headerAddon}
             <div className={`flex flex-wrap items-center gap-3 ${headerAddon ? 'mt-4' : ''}`}>
               <h1 className="text-2xl font-bold text-primary">

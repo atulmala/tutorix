@@ -38,7 +38,7 @@ import { StudentModule } from '../student/student.module';
       inject: [ConfigService],
     }),
     ConfigModule,
-    TutorModule,
+    forwardRef(() => TutorModule),
     forwardRef(() => StudentModule),
   ],
   providers: [

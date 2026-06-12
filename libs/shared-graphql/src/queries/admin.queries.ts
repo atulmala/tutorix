@@ -100,6 +100,10 @@ export const GET_ADMIN_TUTOR_DETAIL = gql`
         mobileCountryCode
         mobileNumber
         createdDate
+        profilePicture
+        profilePictureThumbnailMedium
+        profilePictureThumbnailLarge
+        profilePictureOriginalUrl
         bankDetails {
           bankName
           ifscCode
