@@ -324,9 +324,9 @@ function AppContent() {
   if (currentView === 'student-home') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
-        <AppHeader onLogout={handleLogout} />
+        <AppHeader onLogout={handleLogout} showProfileAvatar={false} />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
-          <StudentHomePage currentUser={currentUser} />
+          <StudentHomePage />
         </main>
       </div>
     );

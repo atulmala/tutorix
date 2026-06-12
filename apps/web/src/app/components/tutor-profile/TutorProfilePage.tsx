@@ -41,7 +41,7 @@ type CurrentUserData = {
 
 export const TutorProfilePage: React.FC = () => {
   const { user: currentUser, refreshUser } = useWebAuth();
-  const { data: meData } = useQuery<CurrentUserData>(GET_CURRENT_USER, {
+  const { data: meData, loading: meLoading } = useQuery<CurrentUserData>(GET_CURRENT_USER, {
     fetchPolicy: 'network-only',
     skip: !currentUser,
   });
@@ -351,6 +351,7 @@ export const TutorProfilePage: React.FC = () => {
           avatarUser ? (
             <HeaderProfileAvatar
               user={avatarUser}
+              userLoading={meLoading && !meData?.me}
               onUploadComplete={handleProfilePictureUpload}
               size="xl"
               errorAlign="left"

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import {
   CONFIRM_PROFILE_PICTURE_UPLOAD,
@@ -22,6 +22,8 @@ type HeaderProfileAvatarProps = {
   onUploadComplete?: (updated: ProfilePictureUploadResult) => void;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   errorAlign?: 'left' | 'right';
+  /** While true and no URL yet, shows loading inside the circle */
+  userLoading?: boolean;
   /** Shown below the circle when no profile picture is set */
   emptyHint?: string;
 };
@@ -40,16 +42,20 @@ const emptyLabelClasses = {
   xl: 'px-2 text-sm leading-snug',
 } as const;
 
+type ImageStatus = 'idle' | 'loading' | 'loaded' | 'error';
+
 export const HeaderProfileAvatar: React.FC<HeaderProfileAvatarProps> = ({
   user,
   onUploadComplete,
   size = 'sm',
   errorAlign = 'right',
+  userLoading = false,
   emptyHint,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [imageStatus, setImageStatus] = useState<ImageStatus>('idle');
 
   const [requestUploadUrl] = useMutation(REQUEST_PROFILE_PICTURE_UPLOAD_URL);
   const [confirmUpload] = useMutation(CONFIRM_PROFILE_PICTURE_UPLOAD, {
@@ -63,6 +69,23 @@ export const HeaderProfileAvatar: React.FC<HeaderProfileAvatarProps> = ({
   const avatarUrl = profilePictureAvatarUrl(user);
   const dimensionClass = sizeClasses[size];
   const emptyLabelClass = emptyLabelClasses[size];
+
+  useEffect(() => {
+    if (!avatarUrl) {
+      setImageStatus('idle');
+      return;
+    }
+    setImageStatus('loading');
+  }, [avatarUrl]);
+
+  const hasAvatarUrl = Boolean(avatarUrl) && imageStatus !== 'error';
+  const showImageLoading = hasAvatarUrl && imageStatus === 'loading';
+  const showUserLoading = userLoading && !hasAvatarUrl;
+  const showLoadingLabel = uploading || showUserLoading || showImageLoading;
+  const showEmptyUpload = !hasAvatarUrl && !showLoadingLabel;
+  const showImage = hasAvatarUrl && imageStatus === 'loaded';
+
+  const circleLabel = showLoadingLabel ? 'loading...' : showEmptyUpload ? 'upload pic' : null;
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -105,20 +128,33 @@ export const HeaderProfileAvatar: React.FC<HeaderProfileAvatarProps> = ({
         className={`group relative shrink-0 overflow-hidden rounded-full border border-subtle bg-gray-100 focus:outline-none focus:ring-2 focus:ring-[#5fa8ff] disabled:opacity-60 ${dimensionClass}`}
         aria-label="Upload profile picture"
         aria-describedby={uploadError ? 'header-avatar-upload-error' : undefined}
-        title={avatarUrl ? 'Change profile picture' : 'Upload profile picture'}
+        title={
+          showLoadingLabel
+            ? 'Loading profile picture'
+            : hasAvatarUrl
+              ? 'Change profile picture'
+              : 'Upload profile picture'
+        }
       >
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
-        ) : (
+        {hasAvatarUrl && avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt=""
+            className={`h-full w-full object-cover ${showImage ? 'opacity-100' : 'opacity-0'}`}
+            onLoad={() => setImageStatus('loaded')}
+            onError={() => setImageStatus('error')}
+          />
+        ) : null}
+        {circleLabel ? (
           <span
-            className={`flex h-full w-full items-center justify-center text-center font-semibold text-primary/70 ${emptyLabelClass}`}
+            className={`absolute inset-0 flex items-center justify-center text-center font-semibold text-primary/70 ${emptyLabelClass}`}
           >
-            {uploading ? '…' : 'upload pic'}
+            {circleLabel}
           </span>
-        )}
-        {avatarUrl ? (
+        ) : null}
+        {showImage ? (
           <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-[10px] font-medium text-white opacity-0 transition group-hover:opacity-100 group-disabled:opacity-100">
-            {uploading ? '…' : 'Change'}
+            {uploading ? 'loading...' : 'Change'}
           </span>
         ) : null}
       </button>
@@ -129,7 +165,7 @@ export const HeaderProfileAvatar: React.FC<HeaderProfileAvatarProps> = ({
         className="hidden"
         onChange={handleFileChange}
       />
-      {!avatarUrl && emptyHint ? (
+      {!hasAvatarUrl && !showLoadingLabel && emptyHint ? (
         <p
           className={`text-center text-[10px] leading-snug text-muted ${
             size === 'xl' ? 'max-w-[9rem]' : 'max-w-[6.5rem]'

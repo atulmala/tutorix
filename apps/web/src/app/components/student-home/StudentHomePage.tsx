@@ -1,138 +1,123 @@
-import React, { useRef, useState } from 'react';
-import { useMutation, useQuery } from '@apollo/client';
-import {
-  CONFIRM_PROFILE_PICTURE_UPLOAD,
-  GET_MY_STUDENT_PROFILE,
-  REQUEST_PROFILE_PICTURE_UPLOAD_URL,
-} from '@tutorix/shared-graphql';
-import type { WebUser } from '../../types/web-user';
-import {
-  initialsFromName,
-  profilePictureAvatarUrl,
-  uploadProfilePictureFile,
-} from '../../lib/uploadProfilePicture';
+import React, { useCallback } from 'react';
+import { useQuery } from '@apollo/client';
+import { GET_CURRENT_USER, GET_MY_STUDENT_PROFILE } from '@tutorix/shared-graphql';
+import { formatDate } from '@tutorix/shared-utils';
 import { useWebAuth } from '../../auth/useWebAuth';
+import { HeaderProfileAvatar } from '../HeaderProfileAvatar';
+import type { WebUser } from '../../types/web-user';
 
-type StudentHomePageProps = {
-  currentUser?: WebUser | null;
+type CurrentUserData = {
+  me: WebUser & {
+    mobileCountryCode?: string | null;
+    mobileNumber?: string | null;
+    createdDate?: string | null;
+  };
 };
 
-export const StudentHomePage: React.FC<StudentHomePageProps> = ({
-  currentUser,
-}) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const { setUser } = useWebAuth();
+type StudentProfileData = {
+  myStudentProfile: {
+    id: number;
+    onboardingStage?: string | null;
+    onBoardingComplete?: boolean | null;
+    user?: {
+      firstName?: string | null;
+      lastName?: string | null;
+    } | null;
+  } | null;
+};
 
-  const { data, refetch } = useQuery(GET_MY_STUDENT_PROFILE, {
+function formatStudentName(first?: string | null, last?: string | null): string {
+  return [first, last].filter(Boolean).join(' ') || 'Student';
+}
+
+function formatContactLine(user?: CurrentUserData['me'] | null): string {
+  if (!user) return '';
+  const parts: string[] = [];
+  const mobile = [user.mobileCountryCode, user.mobileNumber].filter(Boolean).join('');
+  if (mobile) parts.push(mobile);
+  if (user.email) parts.push(user.email);
+  if (user.createdDate) parts.push(`Registered ${formatDate(user.createdDate)}`);
+  return parts.join(' · ');
+}
+
+export const StudentHomePage: React.FC = () => {
+  const { user: currentUser, refreshUser } = useWebAuth();
+  const { data: meData, loading: meLoading } = useQuery<CurrentUserData>(GET_CURRENT_USER, {
+    fetchPolicy: 'network-only',
+    skip: !currentUser,
+  });
+  const avatarUser = meData?.me ?? currentUser;
+  const profileUser = meData?.me ?? currentUser;
+
+  const { data, loading, error } = useQuery<StudentProfileData>(GET_MY_STUDENT_PROFILE, {
     fetchPolicy: 'cache-and-network',
   });
 
-  const [requestUploadUrl] = useMutation(REQUEST_PROFILE_PICTURE_UPLOAD_URL);
-  const [confirmUpload] = useMutation(CONFIRM_PROFILE_PICTURE_UPLOAD);
+  const student = data?.myStudentProfile;
 
-  const user = data?.myStudentProfile?.user;
-  const firstName = user?.firstName ?? currentUser?.firstName;
-  const lastName = user?.lastName ?? currentUser?.lastName;
-  const displayName = [firstName, lastName].filter(Boolean).join(' ') || 'Student';
-  const avatarUrl = profilePictureAvatarUrl(user ?? currentUser);
+  const handleProfilePictureUpload = useCallback(async () => {
+    await refreshUser();
+  }, [refreshUser]);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  if (loading && !student) {
+    return (
+      <div className="w-full max-w-5xl rounded-2xl border border-sky-200/80 bg-gradient-to-r from-sky-50 via-white to-violet-50 p-8 text-center">
+        <p className="text-sm font-medium text-sky-800">Loading your profile…</p>
+      </div>
+    );
+  }
 
-    setUploadError(null);
-    setUploading(true);
-    try {
-      const updated = await uploadProfilePictureFile(
-        file,
-        async (options) => {
-          const result = await requestUploadUrl(options);
-          return { data: result.data };
-        },
-        async (options) => {
-          const result = await confirmUpload(options);
-          return { data: result.data };
-        },
-      );
-      setUser((prev) =>
-        prev
-          ? {
-              ...prev,
-              profilePicture: updated.profilePicture,
-              profilePictureThumbnailMedium: updated.profilePictureThumbnailMedium,
-              profilePictureThumbnailLarge: updated.profilePictureThumbnailLarge,
-              profilePictureOriginalUrl: updated.profilePictureOriginalUrl,
-            }
-          : prev,
-      );
-      await refetch();
-    } catch (err) {
-      setUploadError(
-        err instanceof Error ? err.message : 'Failed to upload profile picture',
-      );
-    } finally {
-      setUploading(false);
-    }
-  };
+  if (error || !student) {
+    return (
+      <div className="w-full max-w-5xl rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
+        <p className="text-sm text-red-700">Could not load your student profile.</p>
+      </div>
+    );
+  }
+
+  const displayName = formatStudentName(
+    student.user?.firstName ?? profileUser?.firstName,
+    student.user?.lastName ?? profileUser?.lastName,
+  );
 
   return (
-    <div className="w-full max-w-3xl rounded-2xl border border-subtle bg-white p-8 shadow-lg">
-      <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="group relative h-24 w-24 shrink-0 overflow-hidden rounded-full border-2 border-subtle bg-gray-100 focus:outline-none focus:ring-2 focus:ring-[#5fa8ff]"
-          aria-label="Upload profile picture"
-        >
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <span className="flex h-full w-full items-center justify-center text-2xl font-semibold text-primary/60">
-              {initialsFromName(firstName, lastName)}
-            </span>
-          )}
-          <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-xs font-medium text-white opacity-0 transition group-hover:opacity-100">
-            {uploading ? 'Uploading…' : 'Change'}
-          </span>
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png"
-          className="hidden"
-          onChange={handleFileChange}
-        />
+    <div className="w-full max-w-5xl space-y-6">
+      <p className="text-sm text-muted">Your student profile</p>
 
-        <div className="flex-1 text-center sm:text-left">
-          <h1 className="text-2xl font-bold text-primary">Welcome, {displayName}</h1>
-          <p className="mt-2 text-sm text-muted">
-            Your student profile is ready. Add a profile photo so tutors can recognize you.
-          </p>
-          {!avatarUrl && (
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="mt-4 text-sm font-medium text-[#5fa8ff] hover:underline disabled:opacity-50"
-            >
-              {uploading ? 'Uploading…' : 'Add profile photo'}
-            </button>
-          )}
-          {uploadError && (
-            <p className="mt-2 text-sm text-danger">{uploadError}</p>
-          )}
+      <div className="overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-r from-sky-100/80 via-white to-violet-100/80 px-6 py-5 shadow-md shadow-sky-100/30">
+        <div className="flex items-center gap-5">
+          {avatarUser ? (
+            <div className="shrink-0">
+              <HeaderProfileAvatar
+                user={avatarUser}
+                userLoading={meLoading && !meData?.me}
+                onUploadComplete={handleProfilePictureUpload}
+                size="xl"
+                errorAlign="left"
+                emptyHint="students with profile pic are easier for tutors to recognize!"
+              />
+            </div>
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-bold text-primary">{displayName}</h1>
+              <span className="rounded-full bg-sky-500 px-3 py-0.5 text-sm font-bold text-white shadow-sm">
+                #{student.id}
+              </span>
+              {student.onboardingStage ? (
+                <span className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-3 py-0.5 text-xs font-bold text-white shadow-sm">
+                  {student.onboardingStage}
+                </span>
+              ) : null}
+            </div>
+            {profileUser ? (
+              <p className="mt-2 text-sm text-muted">{formatContactLine(profileUser)}</p>
+            ) : null}
+          </div>
         </div>
       </div>
 
-      <div className="mt-10 rounded-lg border border-dashed border-subtle bg-gray-50/50 p-6 text-center">
+      <div className="rounded-lg border border-dashed border-subtle bg-gray-50/50 p-6 text-center">
         <p className="text-sm text-muted">
           Find tutors, book sessions, and track your learning — coming soon.
         </p>
