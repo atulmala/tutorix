@@ -201,6 +201,49 @@ export const GET_ADMIN_TUTOR_DETAIL = gql`
   }
 `;
 
+export const GET_ADMIN_STUDENT_DETAIL = gql`
+  query GetAdminStudentDetail($studentId: Int!) {
+    adminStudentDetail(studentId: $studentId) {
+      id
+      onboardingStage
+      onboardingStageEnteredAt
+      onBoardingComplete
+      parentRelation
+      parentName
+      studentType
+      schoolClass
+      board
+      boardOther
+      user {
+        firstName
+        lastName
+        email
+        mobile
+        mobileCountryCode
+        mobileNumber
+        createdDate
+        profilePicture
+        profilePictureThumbnailMedium
+        profilePictureThumbnailLarge
+        profilePictureOriginalUrl
+      }
+      addresses {
+        id
+        street
+        subArea
+        city
+        state
+        country
+        postalCode
+        fullAddress
+        primary
+        createdDate
+        updatedDate
+      }
+    }
+  }
+`;
+
 export const GET_ADMIN_PROFICIENCY_TESTS = gql`
   query GetAdminProficiencyTests {
     adminProficiencyTests {

@@ -8,6 +8,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { TutorsPage } from './pages/TutorsPage';
 import { TutorDetailPage } from './pages/TutorDetailPage';
 import { StudentsPage } from './pages/StudentsPage';
+import { StudentDetailPage } from './pages/StudentDetailPage';
 import { ProficiencyTestsPage } from './pages/ProficiencyTestsPage';
 import { ProficiencyTestDetailPage } from './pages/ProficiencyTestDetailPage';
 
@@ -29,6 +30,7 @@ export function App() {
           <Route path="tutors" element={<TutorsPage />} />
           <Route path="tutors/:tutorId" element={<TutorDetailPage />} />
           <Route path="students" element={<StudentsPage />} />
+          <Route path="students/:studentId" element={<StudentDetailPage />} />
           <Route path="proficiency-tests" element={<ProficiencyTestsPage />} />
           <Route path="proficiency-tests/:testId" element={<ProficiencyTestDetailPage />} />
         </Route>

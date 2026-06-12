@@ -16,7 +16,7 @@ export type OnboardingTimelineStatus =
   | 'skipped';
 
 export type OnboardingTimelineEntry = {
-  id: OnboardingStepId;
+  id: OnboardingStepId | string;
   title: string;
   completedAt: string | null;
   status: OnboardingTimelineStatus;

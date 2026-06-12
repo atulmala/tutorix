@@ -21,4 +21,5 @@ export * from './rate-card';
 export * from './tutor-offering-display';
 export * from './tutor-calendar';
 export * from './student-onboarding-types';
+export * from './student-onboarding-timeline';
 export * from './school-class';
