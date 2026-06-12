@@ -24,6 +24,18 @@ export class AdminTutorDetailUser {
   @Field({ nullable: true, description: 'Account signup / registration date' })
   createdDate?: Date;
 
+  @Field({ nullable: true })
+  profilePicture?: string;
+
+  @Field({ nullable: true })
+  profilePictureThumbnailMedium?: string;
+
+  @Field({ nullable: true })
+  profilePictureThumbnailLarge?: string;
+
+  @Field({ nullable: true })
+  profilePictureOriginalUrl?: string;
+
   @Field(() => UserBankDetails, { nullable: true })
   bankDetails?: UserBankDetails | null;
 }

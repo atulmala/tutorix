@@ -113,6 +113,10 @@ export const GET_MY_TUTOR_DETAIL = gql`
         mobileCountryCode
         mobileNumber
         createdDate
+        profilePicture
+        profilePictureThumbnailMedium
+        profilePictureThumbnailLarge
+        profilePictureOriginalUrl
         bankDetails {
           bankName
           ifscCode

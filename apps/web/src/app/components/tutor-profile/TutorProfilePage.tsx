@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import {
   CREATE_TUTOR_ADDRESS,
+  GET_CURRENT_USER,
   GET_MY_TUTOR_DETAIL,
   SAVE_MY_BANK_DETAILS,
   SAVE_MY_TUTOR_OFFERING_RATE_CARD,
@@ -26,12 +27,25 @@ import {
 import { AddOfferingFlow } from './AddOfferingFlow';
 import { TutorPT } from '../tutor-onboarding/tutor-pt/TutorPT';
 import { useGooglePlacesAutocomplete } from '../../../hooks/useGooglePlacesAutocomplete';
+import { useWebAuth } from '../../auth/useWebAuth';
+import { HeaderProfileAvatar } from '../HeaderProfileAvatar';
+import type { WebUser } from '../../types/web-user';
 
 type MyTutorDetailData = {
   myTutorDetail: TutorDetailRecord;
 };
 
+type CurrentUserData = {
+  me: WebUser;
+};
+
 export const TutorProfilePage: React.FC = () => {
+  const { user: currentUser, refreshUser } = useWebAuth();
+  const { data: meData } = useQuery<CurrentUserData>(GET_CURRENT_USER, {
+    fetchPolicy: 'network-only',
+    skip: !currentUser,
+  });
+  const avatarUser = meData?.me ?? currentUser;
   const { data, loading, error, refetch } = useQuery<MyTutorDetailData>(GET_MY_TUTOR_DETAIL, {
     fetchPolicy: 'cache-and-network',
   });
@@ -262,6 +276,10 @@ export const TutorProfilePage: React.FC = () => {
     }
   };
 
+  const handleProfilePictureUpload = useCallback(async () => {
+    await refreshUser();
+  }, [refreshUser]);
+
   if (loading && !tutor) {
     return (
       <div className="w-full max-w-5xl rounded-2xl border border-sky-200/80 bg-gradient-to-r from-sky-50 via-white to-violet-50 p-8 text-center">
@@ -329,6 +347,17 @@ export const TutorProfilePage: React.FC = () => {
       <TutorDetailView
         mode="tutor"
         tutor={tutor}
+        profileAvatar={
+          avatarUser ? (
+            <HeaderProfileAvatar
+              user={avatarUser}
+              onUploadComplete={handleProfilePictureUpload}
+              size="xl"
+              errorAlign="left"
+              emptyHint="tutors with Profile pic have higher chances of classes bookings!"
+            />
+          ) : null
+        }
         onAddOffering={() => setShowAddOffering(true)}
         onStartProficiencyTest={(offering) => setPtOffering(offering)}
         onSaveBankDetails={handleSaveBankDetails}

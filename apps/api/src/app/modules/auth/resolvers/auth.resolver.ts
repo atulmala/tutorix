@@ -1,4 +1,4 @@
-import { Resolver, Mutation, Query, Args, ID } from '@nestjs/graphql';
+import { Resolver, Mutation, Query, Args, ID, Parent, ResolveField } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
 import { ProfilePictureService } from '../services/profile-picture.service';
@@ -98,7 +98,8 @@ export class AuthResolver {
   @Query(() => User)
   @UseGuards(JwtAuthGuard)
   async me(@CurrentUser() user: User): Promise<User> {
-    return user;
+    const fresh = await this.authService.findById(user.id);
+    return fresh ?? user;
   }
 
   /** Heartbeat: keeps session marked as active. Call periodically (e.g. every 2 min) when app is in foreground. */
@@ -160,6 +161,42 @@ export class AuthResolver {
     @Args('input') input: ConfirmProfilePictureUploadInput,
   ): Promise<User> {
     return this.profilePictureService.confirmUpload(user, input);
+  }
+
+  @ResolveField('profilePicture', () => String, {
+    nullable: true,
+    description: 'HTTPS URL for small profile picture thumbnail',
+  })
+  async profilePicture(@Parent() user: User): Promise<string | null> {
+    return this.profilePictureService.resolveDisplayUrl(user.profilePicture);
+  }
+
+  @ResolveField('profilePictureThumbnailMedium', () => String, {
+    nullable: true,
+    description: 'HTTPS URL for medium profile picture thumbnail',
+  })
+  async profilePictureThumbnailMedium(@Parent() user: User): Promise<string | null> {
+    return this.profilePictureService.resolveDisplayUrl(
+      user.profilePictureThumbnailMedium,
+    );
+  }
+
+  @ResolveField('profilePictureThumbnailLarge', () => String, {
+    nullable: true,
+    description: 'HTTPS URL for large profile picture thumbnail',
+  })
+  async profilePictureThumbnailLarge(@Parent() user: User): Promise<string | null> {
+    return this.profilePictureService.resolveDisplayUrl(
+      user.profilePictureThumbnailLarge,
+    );
+  }
+
+  @ResolveField('profilePictureOriginalUrl', () => String, {
+    nullable: true,
+    description: 'HTTPS URL for original profile picture',
+  })
+  async profilePictureOriginalUrl(@Parent() user: User): Promise<string | null> {
+    return this.profilePictureService.resolveDisplayUrl(user.profilePictureOriginalUrl);
   }
 }
 

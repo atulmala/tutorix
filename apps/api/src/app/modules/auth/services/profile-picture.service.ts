@@ -84,6 +84,37 @@ export class ProfilePictureService {
     return v || undefined;
   }
 
+  /**
+   * Returns an HTTPS URL suitable for <img src> — public CDN URL or presigned S3 GET.
+   * Stored values may be bare S3 keys or s3:// URIs when DOCUMENT_PUBLIC_BASE_URL is unset.
+   */
+  async resolveDisplayUrl(ref: string | null | undefined): Promise<string | null> {
+    const trimmed = ref?.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+
+    this.ensureBucketConfigured();
+
+    let key = trimmed;
+    if (trimmed.startsWith('s3://')) {
+      const withoutScheme = trimmed.slice('s3://'.length);
+      const slash = withoutScheme.indexOf('/');
+      if (slash === -1) return null;
+      key = withoutScheme.slice(slash + 1);
+    }
+
+    return getSignedUrl(
+      this.s3,
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      }),
+      { expiresIn: PRESIGN_EXPIRES_SEC },
+    );
+  }
+
   private assertAllowedMime(mime: string): void {
     if (!ALLOWED_MIME.has(mime)) {
       throw new BadRequestException('Only JPEG and PNG images are allowed');
