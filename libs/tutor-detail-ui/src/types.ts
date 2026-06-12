@@ -36,6 +36,10 @@ export type TutorDetailRecord = {
     mobileCountryCode?: string | null;
     mobileNumber?: string | null;
     createdDate?: string | null;
+    profilePicture?: string | null;
+    profilePictureThumbnailMedium?: string | null;
+    profilePictureThumbnailLarge?: string | null;
+    profilePictureOriginalUrl?: string | null;
     bankDetails?: {
       bankName?: string | null;
       ifscCode?: string | null;

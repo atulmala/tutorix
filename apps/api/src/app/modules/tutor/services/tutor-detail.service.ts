@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { User } from '../../auth/entities/user.entity';
 import { UserRole } from '../../auth/enums/user-role.enum';
+import { ProfilePictureService } from '../../auth/services/profile-picture.service';
 import { AdminTutorDetail } from '../../admin/dto/admin-tutor-detail.dto';
 import { AdminTutorDocumentDetail } from '../../admin/dto/admin-tutor-document-detail.dto';
 import { AdminTutorDocumentScreeningDetail } from '../../admin/dto/admin-tutor-document-screening-detail.dto';
@@ -46,6 +47,7 @@ export class TutorDetailService {
     private readonly tutorCalendarService: TutorCalendarService,
     private readonly offeringService: OfferingService,
     private readonly proficiencyTestService: ProficiencyTestService,
+    private readonly profilePictureService: ProfilePictureService,
   ) {}
 
   async getTutorDetail(tutorId: number): Promise<AdminTutorDetail> {
@@ -95,6 +97,10 @@ export class TutorDetailService {
     const canSetAvailability =
       await this.tutorCalendarService.tutorHasCompleteRateCard(tutor.id);
 
+    const resolvedUser = user
+      ? await this.mapUserWithProfilePictures(user, bankDetails)
+      : undefined;
+
     return {
       id: tutor.id,
       certificationStage: tutor.certificationStage,
@@ -106,22 +112,7 @@ export class TutorDetailService {
       regFeeAmount: tutor.regFeeAmount,
       regFeeAmountToBePaid: tutor.regFeeAmountToBePaid,
       regFeeDate: tutor.regFeeDate,
-      user: user
-        ? {
-            firstName: user.firstName,
-            lastName: user.lastName,
-            email: user.email,
-            mobile: user.mobile,
-            mobileCountryCode: user.mobileCountryCode,
-            mobileNumber: user.mobileNumber,
-            createdDate: user.createdDate,
-            profilePicture: user.profilePicture,
-            profilePictureThumbnailMedium: user.profilePictureThumbnailMedium,
-            profilePictureThumbnailLarge: user.profilePictureThumbnailLarge,
-            profilePictureOriginalUrl: user.profilePictureOriginalUrl,
-            bankDetails,
-          }
-        : undefined,
+      user: resolvedUser,
       addresses: tutor.addresses ?? [],
       qualifications,
       experiences,
@@ -134,6 +125,38 @@ export class TutorDetailService {
         ),
       ),
       documents: documentDetails,
+    };
+  }
+
+  private async mapUserWithProfilePictures(
+    user: User,
+    bankDetails: ReturnType<UserBankDetailsService['mapToGraphql']>,
+  ) {
+    const [
+      profilePicture,
+      profilePictureThumbnailMedium,
+      profilePictureThumbnailLarge,
+      profilePictureOriginalUrl,
+    ] = await Promise.all([
+      this.profilePictureService.resolveDisplayUrl(user.profilePicture),
+      this.profilePictureService.resolveDisplayUrl(user.profilePictureThumbnailMedium),
+      this.profilePictureService.resolveDisplayUrl(user.profilePictureThumbnailLarge),
+      this.profilePictureService.resolveDisplayUrl(user.profilePictureOriginalUrl),
+    ]);
+
+    return {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      mobile: user.mobile,
+      mobileCountryCode: user.mobileCountryCode,
+      mobileNumber: user.mobileNumber,
+      createdDate: user.createdDate,
+      profilePicture: profilePicture ?? undefined,
+      profilePictureThumbnailMedium: profilePictureThumbnailMedium ?? undefined,
+      profilePictureThumbnailLarge: profilePictureThumbnailLarge ?? undefined,
+      profilePictureOriginalUrl: profilePictureOriginalUrl ?? undefined,
+      bankDetails,
     };
   }
 

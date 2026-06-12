@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useMutation, useQuery } from '@apollo/client';
-import { launchImageLibrary } from 'react-native-image-picker';
 import { GET_MY_STUDENT_PROFILE } from '@tutorix/shared-graphql/queries';
 import {
   CONFIRM_PROFILE_PICTURE_UPLOAD,
@@ -17,8 +16,11 @@ import {
 } from '@tutorix/shared-graphql/mutations';
 import {
   uploadProfilePicture,
-  type PickedProfileImage,
 } from './uploadProfilePicture';
+import {
+  ProfilePicturePickCanceled,
+  promptProfilePictureSource,
+} from './pickProfilePictureImage';
 
 type StudentHomeScreenProps = {
   currentUser?: {
@@ -56,38 +58,17 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
 
   const handlePickImage = async () => {
     setUploadError(null);
-
-    const result = await launchImageLibrary({
-      mediaType: 'photo',
-      selectionLimit: 1,
-      quality: 1,
-    });
-
-    if (result.didCancel) return;
-
-    const asset = result.assets?.[0];
-    if (!asset?.uri) {
-      setUploadError('No image was selected. Please try again.');
-      return;
-    }
-
-    const file: PickedProfileImage = {
-      uri: asset.uri,
-      name: asset.fileName ?? 'profile.jpg',
-      size: asset.fileSize ?? 0,
-      type: asset.type ?? 'image/jpeg',
-    };
-
-    if (!file.size) {
-      setUploadError('Could not read image size. Please try another photo.');
-      return;
-    }
-
-    setUploading(true);
     try {
+      const file = await promptProfilePictureSource();
+      if (!file.size) {
+        setUploadError('Could not read image size. Please try another photo.');
+        return;
+      }
+      setUploading(true);
       await uploadProfilePicture(file, requestUploadUrl, confirmUpload);
       await refetch();
     } catch (err) {
+      if (err instanceof ProfilePicturePickCanceled) return;
       setUploadError(
         err instanceof Error ? err.message : 'Failed to upload profile picture',
       );
@@ -109,48 +90,58 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
     >
       <View style={styles.card}>
         <View style={styles.hero}>
-          <TouchableOpacity
-            style={styles.avatarButton}
-            onPress={onAvatarPress}
-            disabled={uploading}
-            activeOpacity={0.8}
-            accessibilityLabel="Upload profile picture"
-          >
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
-            ) : (
-              <View style={styles.avatarFallback}>
-                <Text style={styles.avatarInitials}>
-                  {initialsFromName(firstName, lastName)}
-                </Text>
-              </View>
-            )}
-            <View style={styles.avatarOverlay}>
-              {uploading ? (
-                <ActivityIndicator color="#fff" size="small" />
+          <View style={styles.avatarColumn}>
+            <TouchableOpacity
+              style={styles.avatarButton}
+              onPress={onAvatarPress}
+              disabled={uploading}
+              activeOpacity={0.8}
+              accessibilityLabel="Upload profile picture"
+            >
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
               ) : (
-                <Text style={styles.avatarOverlayText}>Change</Text>
+                <View style={styles.avatarFallback}>
+                  <Text style={styles.avatarInitials}>
+                    {initialsFromName(firstName, lastName)}
+                  </Text>
+                </View>
               )}
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.heroText}>
-            <Text style={styles.welcomeTitle}>Welcome, {displayName}</Text>
-            <Text style={styles.welcomeSubtitle}>
-              Your student profile is ready. Add a profile photo so tutors can
-              recognize you.
-            </Text>
-            {!avatarUrl && (
+            </TouchableOpacity>
+            {avatarUrl ? (
               <TouchableOpacity
                 onPress={onAvatarPress}
                 disabled={uploading}
                 activeOpacity={0.7}
               >
-                <Text style={styles.addPhotoLink}>
-                  {uploading ? 'Uploading…' : 'Add profile photo'}
-                </Text>
+                {uploading ? (
+                  <ActivityIndicator color="#2563eb" size="small" />
+                ) : (
+                  <Text style={styles.changePhotoLink}>Change</Text>
+                )}
               </TouchableOpacity>
-            )}
+            ) : null}
+          </View>
+
+          <View style={styles.heroText}>
+            <Text style={styles.welcomeTitle}>Welcome, {displayName}</Text>
+            {!avatarUrl ? (
+              <>
+                <Text style={styles.welcomeSubtitle}>
+                  Your student profile is ready. Add a profile photo so tutors can
+                  recognize you.
+                </Text>
+                <TouchableOpacity
+                  onPress={onAvatarPress}
+                  disabled={uploading}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.addPhotoLink}>
+                    {uploading ? 'Uploading…' : 'Add profile photo'}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : null}
             {uploadError && (
               <Text style={styles.errorText}>{uploadError}</Text>
             )}
@@ -192,6 +183,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 24,
   },
+  avatarColumn: {
+    alignItems: 'center',
+    gap: 8,
+  },
   avatarButton: {
     width: 96,
     height: 96,
@@ -215,17 +210,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'rgba(20, 48, 85, 0.6)',
   },
-  avatarOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    opacity: 0.85,
-  },
-  avatarOverlayText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#fff',
+  changePhotoLink: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2563eb',
   },
   heroText: {
     flex: 1,

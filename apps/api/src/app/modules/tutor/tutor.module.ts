@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BatchJobAuditModule } from '../../batch-jobs/batch-job-audit.module';
+import { AuthModule } from '../auth/auth.module';
 import { DocumentModule } from '../document/document.module';
 import { Tutor } from './entities/tutor.entity';
 import { TutorQualificationEntity } from './entities/tutor-qualification.entity';
@@ -28,6 +29,7 @@ import { OfferingsModule } from '../offerings/offerings.module';
   imports: [
     ConfigModule,
     BatchJobAuditModule,
+    forwardRef(() => AuthModule),
     TypeOrmModule.forFeature([
       Tutor,
       TutorQualificationEntity,
