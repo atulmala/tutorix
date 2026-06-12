@@ -25,6 +25,8 @@
       "@tutorix/shared-utils/*": ["libs/shared-utils/src/*"],
       "@tutorix/tutor-detail-ui": ["libs/tutor-detail-ui/src/index.ts"],
       "@tutorix/tutor-detail-ui/*": ["libs/tutor-detail-ui/src/*"],
+      "@tutorix/student-detail-ui": ["libs/student-detail-ui/src/index.ts"],
+      "@tutorix/student-detail-ui/*": ["libs/student-detail-ui/src/*"],
       "@tutorix/tutor-availability-ui": ["libs/tutor-availability-ui/src/index.ts"],
       "@tutorix/tutor-availability-ui/*": ["libs/tutor-availability-ui/src/*"]
     }

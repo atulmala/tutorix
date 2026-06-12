@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -39,7 +39,7 @@ import { StudentModule } from '../student/student.module';
     }),
     ConfigModule,
     TutorModule,
-    StudentModule,
+    forwardRef(() => StudentModule),
   ],
   providers: [
     AuthService,
@@ -53,7 +53,7 @@ import { StudentModule } from '../student/student.module';
     JwtService,
     JwtStrategy,
   ],
-  exports: [AuthService, JwtService, SessionService],
+  exports: [AuthService, JwtService, SessionService, ProfilePictureService],
 })
 export class AuthModule {}
 

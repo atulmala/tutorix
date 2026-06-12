@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 import {
   GET_ADMIN_STUDENTS,
@@ -315,8 +316,13 @@ export function StudentsPage() {
                     <td className="px-4 py-3">
                       <span className="font-semibold text-primary">#{student.id}</span>
                     </td>
-                    <td className="px-4 py-3 font-medium text-primary">
-                      {formatStudentName(student.firstName, student.lastName)}
+                    <td className="px-4 py-3">
+                      <Link
+                        to={`/students/${student.id}`}
+                        className="font-medium text-sky-800 underline-offset-2 hover:underline"
+                      >
+                        {formatStudentName(student.firstName, student.lastName)}
+                      </Link>
                     </td>
                     <td className="px-4 py-3 text-muted">{student.email ?? '—'}</td>
                     <td className="px-4 py-3 text-muted">

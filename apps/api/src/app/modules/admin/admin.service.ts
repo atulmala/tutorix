@@ -16,6 +16,7 @@ import { Student } from '../student/entities/student.entity';
 import { StudentOnboardingStageEnum } from '../student/enums/student.enums';
 import { TutorService } from '../tutor/services/tutor.service';
 import { TutorDetailService } from '../tutor/services/tutor-detail.service';
+import { StudentDetailService } from '../student/services/student-detail.service';
 import {
   applyAdminTutorSearchFilter,
   computeDaysInStage,
@@ -30,6 +31,7 @@ import { AdminStudentListInput } from './dto/admin-student-list.input';
 import { AdminStudentListItem } from './dto/admin-student-list-item.dto';
 import { AdminStudentListResult } from './dto/admin-student-list-result.dto';
 import { AdminStudentStageCount } from './dto/admin-student-stage-count.dto';
+import { AdminStudentDetail } from './dto/admin-student-detail.dto';
 import { AdminTutorDetail } from './dto/admin-tutor-detail.dto';
 import { AdminTutorDocumentDetail } from './dto/admin-tutor-document-detail.dto';
 import { AdminTutorListInput } from './dto/admin-tutor-list.input';
@@ -53,6 +55,7 @@ export class AdminService {
     private readonly sessionService: SessionService,
     private readonly tutorService: TutorService,
     private readonly tutorDetailService: TutorDetailService,
+    private readonly studentDetailService: StudentDetailService,
     private readonly documentScreeningService: DocumentScreeningService,
     private readonly proficiencyTestService: ProficiencyTestService,
     private readonly offeringService: OfferingService,
@@ -81,6 +84,10 @@ export class AdminService {
 
   async getTutorDetail(tutorId: number): Promise<AdminTutorDetail> {
     return this.tutorDetailService.getTutorDetail(tutorId);
+  }
+
+  async getStudentDetail(studentId: number): Promise<AdminStudentDetail> {
+    return this.studentDetailService.getStudentDetail(studentId);
   }
 
   async reviewDocument(

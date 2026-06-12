@@ -12,6 +12,7 @@ import { AdminDashboardStats } from './dto/admin-dashboard-stats.dto';
 import { AdminStudentListInput } from './dto/admin-student-list.input';
 import { AdminStudentListResult } from './dto/admin-student-list-result.dto';
 import { AdminStudentStageCount } from './dto/admin-student-stage-count.dto';
+import { AdminStudentDetail } from './dto/admin-student-detail.dto';
 import { AdminTutorDetail } from './dto/admin-tutor-detail.dto';
 import { AdminTutorDocumentDetail } from './dto/admin-tutor-document-detail.dto';
 import { AdminTutorListInput } from './dto/admin-tutor-list.input';
@@ -89,6 +90,17 @@ export class AdminResolver {
     @Args('tutorId', { type: () => Int }) tutorId: number,
   ): Promise<AdminTutorDetail> {
     return this.adminService.getTutorDetail(tutorId);
+  }
+
+  @Query(() => AdminStudentDetail, {
+    description: 'Full student onboarding profile for admin review (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminStudentDetail(
+    @Args('studentId', { type: () => Int }) studentId: number,
+  ): Promise<AdminStudentDetail> {
+    return this.adminService.getStudentDetail(studentId);
   }
 
   @Query(() => [TutorCalendar], {
