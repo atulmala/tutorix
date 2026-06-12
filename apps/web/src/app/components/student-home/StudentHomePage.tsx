@@ -6,16 +6,16 @@ import {
   REQUEST_PROFILE_PICTURE_UPLOAD_URL,
 } from '@tutorix/shared-graphql';
 import type { WebUser } from '../../types/web-user';
+import {
+  initialsFromName,
+  profilePictureAvatarUrl,
+  uploadProfilePictureFile,
+} from '../../lib/uploadProfilePicture';
+import { useWebAuth } from '../../auth/useWebAuth';
 
 type StudentHomePageProps = {
   currentUser?: WebUser | null;
 };
-
-function initialsFromName(first?: string, last?: string): string {
-  const f = first?.trim()?.[0] ?? '';
-  const l = last?.trim()?.[0] ?? '';
-  return (f + l).toUpperCase() || '?';
-}
 
 export const StudentHomePage: React.FC<StudentHomePageProps> = ({
   currentUser,
@@ -23,6 +23,7 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const { setUser } = useWebAuth();
 
   const { data, refetch } = useQuery(GET_MY_STUDENT_PROFILE, {
     fetchPolicy: 'cache-and-network',
@@ -35,7 +36,7 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
   const firstName = user?.firstName ?? currentUser?.firstName;
   const lastName = user?.lastName ?? currentUser?.lastName;
   const displayName = [firstName, lastName].filter(Boolean).join(' ') || 'Student';
-  const avatarUrl = user?.profilePicture ?? user?.profilePictureThumbnailMedium;
+  const avatarUrl = profilePictureAvatarUrl(user ?? currentUser);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -43,47 +44,30 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
     if (!file) return;
 
     setUploadError(null);
-
-    const mimeType = file.type;
-    if (mimeType !== 'image/jpeg' && mimeType !== 'image/png') {
-      setUploadError('Please choose a JPEG or PNG image');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setUploadError('Image must be 5 MB or smaller');
-      return;
-    }
-
     setUploading(true);
     try {
-      const { data: urlData } = await requestUploadUrl({
-        variables: {
-          input: { mimeType, byteSize: file.size },
+      const updated = await uploadProfilePictureFile(
+        file,
+        async (options) => {
+          const result = await requestUploadUrl(options);
+          return { data: result.data };
         },
-      });
-      const payload = urlData?.requestProfilePictureUploadUrl;
-      if (!payload?.uploadUrl || !payload.storageKey) {
-        throw new Error('Could not get upload URL');
-      }
-
-      const putRes = await fetch(payload.uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': payload.contentType },
-        body: file,
-      });
-      if (!putRes.ok) {
-        throw new Error('Upload to storage failed');
-      }
-
-      await confirmUpload({
-        variables: {
-          input: {
-            storageKey: payload.storageKey,
-            mimeType,
-            sizeBytes: file.size,
-          },
+        async (options) => {
+          const result = await confirmUpload(options);
+          return { data: result.data };
         },
-      });
+      );
+      setUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              profilePicture: updated.profilePicture,
+              profilePictureThumbnailMedium: updated.profilePictureThumbnailMedium,
+              profilePictureThumbnailLarge: updated.profilePictureThumbnailLarge,
+              profilePictureOriginalUrl: updated.profilePictureOriginalUrl,
+            }
+          : prev,
+      );
       await refetch();
     } catch (err) {
       setUploadError(

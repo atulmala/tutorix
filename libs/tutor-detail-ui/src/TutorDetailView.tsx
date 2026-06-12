@@ -54,6 +54,7 @@ export type TutorDetailViewProps = {
   mode: TutorDetailViewMode;
   tutor: TutorDetailRecord;
   headerAddon?: React.ReactNode;
+  profileAvatar?: React.ReactNode;
   onTestTutorChange?: (testTutor: boolean) => void;
   savingTestTutor?: boolean;
   onDocumentReviewComplete?: () => void;
@@ -867,6 +868,7 @@ export function TutorDetailView({
   mode,
   tutor,
   headerAddon,
+  profileAvatar,
   onTestTutorChange,
   savingTestTutor = false,
   onDocumentReviewComplete,
@@ -1084,44 +1086,49 @@ export function TutorDetailView({
   return (
     <div className="space-y-6">
       <div className="overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-r from-sky-100/80 via-white to-violet-100/80 px-6 py-5 shadow-md shadow-sky-100/30">
-        {headerAddon}
-        <div className={`flex flex-wrap items-center gap-3 ${headerAddon ? 'mt-4' : ''}`}>
-          <h1 className="text-2xl font-bold text-primary">
-            {formatTutorName(tutor.user?.firstName, tutor.user?.lastName)}
-          </h1>
-          <span className="rounded-full bg-sky-500 px-3 py-0.5 text-sm font-bold text-white shadow-sm">
-            #{tutor.id}
-          </span>
-          {tutor.certificationStage && (
-            <span className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-3 py-0.5 text-xs font-bold text-white shadow-sm">
-              {tutor.certificationStage}
-            </span>
-          )}
-          {isAdmin && tutor.testTutor && (
-            <span className="rounded-full bg-amber-500 px-3 py-0.5 text-xs font-bold text-white shadow-sm">
-              Test Tutor
-            </span>
-          )}
-          {isAdmin && onTestTutorChange && (
-            <label className="ml-auto flex cursor-pointer items-center gap-2 rounded-lg border border-amber-200 bg-white/80 px-3 py-1.5 text-sm font-medium text-amber-900 shadow-sm">
-              <input
-                type="checkbox"
-                checked={tutor.testTutor}
-                disabled={savingTestTutor}
-                onChange={(e) => onTestTutorChange(e.target.checked)}
-                className="h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
-              />
-              Test tutor
-            </label>
-          )}
+        <div className={profileAvatar ? 'flex items-center gap-5' : undefined}>
+          {profileAvatar ? <div className="shrink-0">{profileAvatar}</div> : null}
+          <div className={profileAvatar ? 'min-w-0 flex-1' : undefined}>
+            {headerAddon}
+            <div className={`flex flex-wrap items-center gap-3 ${headerAddon ? 'mt-4' : ''}`}>
+              <h1 className="text-2xl font-bold text-primary">
+                {formatTutorName(tutor.user?.firstName, tutor.user?.lastName)}
+              </h1>
+              <span className="rounded-full bg-sky-500 px-3 py-0.5 text-sm font-bold text-white shadow-sm">
+                #{tutor.id}
+              </span>
+              {tutor.certificationStage && (
+                <span className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-3 py-0.5 text-xs font-bold text-white shadow-sm">
+                  {tutor.certificationStage}
+                </span>
+              )}
+              {isAdmin && tutor.testTutor && (
+                <span className="rounded-full bg-amber-500 px-3 py-0.5 text-xs font-bold text-white shadow-sm">
+                  Test Tutor
+                </span>
+              )}
+              {isAdmin && onTestTutorChange && (
+                <label className="ml-auto flex cursor-pointer items-center gap-2 rounded-lg border border-amber-200 bg-white/80 px-3 py-1.5 text-sm font-medium text-amber-900 shadow-sm">
+                  <input
+                    type="checkbox"
+                    checked={tutor.testTutor}
+                    disabled={savingTestTutor}
+                    onChange={(e) => onTestTutorChange(e.target.checked)}
+                    className="h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  Test tutor
+                </label>
+              )}
+            </div>
+            <p className="mt-2 text-sm text-muted">
+              {formatMobile(tutor.user)}
+              {tutor.user?.email ? ` · ${tutor.user.email}` : ''}
+              {tutor.user?.createdDate
+                ? ` · Registered ${formatDate(tutor.user.createdDate)}`
+                : ''}
+            </p>
+          </div>
         </div>
-        <p className="mt-2 text-sm text-muted">
-          {formatMobile(tutor.user)}
-          {tutor.user?.email ? ` · ${tutor.user.email}` : ''}
-          {tutor.user?.createdDate
-            ? ` · Registered ${formatDate(tutor.user.createdDate)}`
-            : ''}
-        </p>
       </div>
 
       {rateCardOffering ? (

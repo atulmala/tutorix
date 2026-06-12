@@ -19,6 +19,10 @@ export const GET_CURRENT_USER = gql`
       isMobileVerified
       createdDate
       updatedDate
+      profilePicture
+      profilePictureThumbnailMedium
+      profilePictureThumbnailLarge
+      profilePictureOriginalUrl
     }
   }
 `;

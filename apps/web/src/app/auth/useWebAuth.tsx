@@ -20,6 +20,7 @@ type WebAuthContextValue = {
   user: WebUser | null;
   loading: boolean;
   setUser: React.Dispatch<React.SetStateAction<WebUser | null>>;
+  refreshUser: () => Promise<WebUser | null>;
   logout: () => Promise<void>;
   clearSession: () => Promise<void>;
 };
@@ -46,6 +47,23 @@ export function WebAuthProvider({ children }: { children: React.ReactNode }) {
     await apolloClient.clearStore();
   }, [apolloClient]);
 
+  const refreshUser = useCallback(async (): Promise<WebUser | null> => {
+    const token = await getAuthToken();
+    if (!token) {
+      setUser(null);
+      return null;
+    }
+    const { data } = await fetchMe();
+    const me = data?.me;
+    if (!me || !isWebRole(me.role)) {
+      await clearSession();
+      return null;
+    }
+    const nextUser = me as WebUser;
+    setUser(nextUser);
+    return nextUser;
+  }, [clearSession, fetchMe]);
+
   const bootstrap = useCallback(async () => {
     setLoading(true);
     try {
@@ -54,19 +72,13 @@ export function WebAuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         return;
       }
-      const { data } = await fetchMe();
-      const me = data?.me;
-      if (!me || !isWebRole(me.role)) {
-        await clearSession();
-        return;
-      }
-      setUser(me as WebUser);
+      await refreshUser();
     } catch {
       await clearSession();
     } finally {
       setLoading(false);
     }
-  }, [clearSession, fetchMe]);
+  }, [clearSession, refreshUser]);
 
   useEffect(() => {
     void bootstrap();
@@ -79,8 +91,8 @@ export function WebAuthProvider({ children }: { children: React.ReactNode }) {
   }, [clearSession]);
 
   const value = useMemo(
-    () => ({ user, loading, setUser, logout, clearSession }),
-    [user, loading, logout, clearSession],
+    () => ({ user, loading, setUser, refreshUser, logout, clearSession }),
+    [user, loading, refreshUser, logout, clearSession],
   );
 
   return (

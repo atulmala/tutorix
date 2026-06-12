@@ -115,6 +115,10 @@ export class TutorDetailService {
             mobileCountryCode: user.mobileCountryCode,
             mobileNumber: user.mobileNumber,
             createdDate: user.createdDate,
+            profilePicture: user.profilePicture,
+            profilePictureThumbnailMedium: user.profilePictureThumbnailMedium,
+            profilePictureThumbnailLarge: user.profilePictureThumbnailLarge,
+            profilePictureOriginalUrl: user.profilePictureOriginalUrl,
             bankDetails,
           }
         : undefined,

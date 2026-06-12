@@ -30,7 +30,7 @@ type View =
   | 'student-home';
 
 function AppContent() {
-  const { user: currentUser, setUser, logout } = useWebAuth();
+  const { user: currentUser, refreshUser, logout } = useWebAuth();
   const [currentView, setCurrentViewInternal] = useState<View>('home');
   const [resumeUserId, setResumeUserId] = useState<number | undefined>(undefined);
   const [resumeVerificationStatus, setResumeVerificationStatus] = useState<{ isMobileVerified: boolean; isEmailVerified: boolean } | undefined>(undefined);
@@ -240,19 +240,12 @@ function AppContent() {
   };
 
   const handleLoginSuccess = async (user?: { id: number; role?: string; firstName?: string; lastName?: string; email?: string }) => {
-    if (user) {
-      setUser({
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-      });
-    }
+    const refreshed = await refreshUser();
+    const routeUser = refreshed ?? user;
 
     hasRoutedBootstrapRef.current = true;
     setSessionRestorePhase('routing');
-    await routeAfterAuthenticatedUser(user);
+    await routeAfterAuthenticatedUser(routeUser);
     setSessionRestorePhase('done');
   };
 
@@ -317,7 +310,7 @@ function AppContent() {
   if (currentView === 'student-onboarding') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
-        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
+        <AppHeader onLogout={handleLogout} />
         <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
           <StudentOnboarding
             initialProfile={studentProfileForOnboarding}
@@ -331,7 +324,7 @@ function AppContent() {
   if (currentView === 'student-home') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
-        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
+        <AppHeader onLogout={handleLogout} />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
           <StudentHomePage currentUser={currentUser} />
         </main>
@@ -342,7 +335,7 @@ function AppContent() {
   if (currentView === 'signup') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
-        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
+        <AppHeader onLogout={handleLogout} />
         <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
           <SignUp 
             onBackHome={handleBackHome} 
@@ -360,7 +353,7 @@ function AppContent() {
   if (currentView === 'tutor-onboarding') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
-        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
+        <AppHeader onLogout={handleLogout} />
         <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
           <TutorOnboarding 
             initialProfile={tutorProfileForOnboarding}
@@ -374,7 +367,7 @@ function AppContent() {
   if (currentView === 'tutor-profile') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
-        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
+        <AppHeader onLogout={handleLogout} showProfileAvatar={false} />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
           <TutorProfilePage />
         </main>
@@ -385,7 +378,7 @@ function AppContent() {
   if (currentView === 'login') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
-        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
+        <AppHeader onLogout={handleLogout} />
         <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
           <Login 
             onBackHome={handleBackHome} 
@@ -401,7 +394,7 @@ function AppContent() {
   if (currentView === 'forgot-password') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
-        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
+        <AppHeader onLogout={handleLogout} />
         <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
           <ForgotPassword 
             onBackHome={handleBackHome} 
@@ -415,7 +408,7 @@ function AppContent() {
   if (currentView === 'reset-password') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
-        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
+        <AppHeader onLogout={handleLogout} />
         <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
           <ResetPassword 
             token={resetPasswordToken}
@@ -430,7 +423,7 @@ function AppContent() {
   if (currentView === 'password-reset-ack') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
-        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
+        <AppHeader onLogout={handleLogout} />
         <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
           <PasswordResetAcknowledgement 
             onBackHome={handleBackHome}
