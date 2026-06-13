@@ -213,10 +213,13 @@ export class AddressService {
       existingAddress.longitude = longitude ?? existingAddress.longitude;
 
       const saved = await this.addressRepository.save(existingAddress);
-      await this.studentService.updateOnboardingStage(
-        studentId,
-        StudentOnboardingStageEnum.education,
-      );
+      const student = await this.studentService.findOne(studentId);
+      if (!student.onBoardingComplete) {
+        await this.studentService.updateOnboardingStage(
+          studentId,
+          StudentOnboardingStageEnum.education,
+        );
+      }
       return saved;
     }
 
@@ -243,10 +246,13 @@ export class AddressService {
 
     const savedAddress = await this.addressRepository.save(address);
 
-    await this.studentService.updateOnboardingStage(
-      studentId,
-      StudentOnboardingStageEnum.education,
-    );
+    const student = await this.studentService.findOne(studentId);
+    if (!student.onBoardingComplete) {
+      await this.studentService.updateOnboardingStage(
+        studentId,
+        StudentOnboardingStageEnum.education,
+      );
+    }
 
     return savedAddress;
   }

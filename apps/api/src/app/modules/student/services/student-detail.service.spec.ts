@@ -1,5 +1,6 @@
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { UserRole } from '../../auth/enums/user-role.enum';
 import { ProfilePictureService } from '../../auth/services/profile-picture.service';
 import {
   ParentRelationEnum,
@@ -12,11 +13,14 @@ import { StudentService } from './student.service';
 
 describe('StudentDetailService', () => {
   let service: StudentDetailService;
-  let studentService: { findOne: jest.Mock };
+  let studentService: {
+    findOne: jest.Mock;
+    findByUserId: jest.Mock;
+  };
   let profilePictureService: { resolveDisplayUrl: jest.Mock };
 
   beforeEach(async () => {
-    studentService = { findOne: jest.fn() };
+    studentService = { findOne: jest.fn(), findByUserId: jest.fn() };
     profilePictureService = {
       resolveDisplayUrl: jest.fn().mockImplementation(async (ref?: string | null) =>
         ref ? `https://cdn.example.com/${ref}` : null,
@@ -87,5 +91,56 @@ describe('StudentDetailService', () => {
     );
 
     await expect(service.getStudentDetail(99)).rejects.toThrow(NotFoundException);
+  });
+
+  describe('getMyStudentDetail', () => {
+    const studentUser = {
+      id: 10,
+      role: UserRole.STUDENT,
+    };
+
+    it('throws when user is not a student', async () => {
+      await expect(
+        service.getMyStudentDetail({ id: 1, role: UserRole.TUTOR } as never),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws when student profile is missing', async () => {
+      studentService.findByUserId.mockResolvedValue(null);
+
+      await expect(service.getMyStudentDetail(studentUser as never)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('throws when onboarding is not complete', async () => {
+      studentService.findByUserId.mockResolvedValue({
+        id: 3,
+        onBoardingComplete: false,
+      });
+
+      await expect(service.getMyStudentDetail(studentUser as never)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('returns detail when onboarding is complete', async () => {
+      studentService.findByUserId.mockResolvedValue({
+        id: 3,
+        onBoardingComplete: true,
+      });
+      studentService.findOne.mockResolvedValue({
+        id: 3,
+        onBoardingComplete: true,
+        parentName: 'Jane Doe',
+        user: { firstName: 'Kim', lastName: 'Shina' },
+        addresses: [],
+      });
+
+      const result = await service.getMyStudentDetail(studentUser as never);
+
+      expect(result.id).toBe(3);
+      expect(studentService.findOne).toHaveBeenCalledWith(3);
+    });
   });
 });

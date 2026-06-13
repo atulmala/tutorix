@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   buildStudentOnboardingTimeline,
   formatDate,
@@ -7,12 +7,44 @@ import {
   STUDENT_ONBOARDING_STEPS,
   STUDENT_TYPE_OPTIONS,
 } from '@tutorix/shared-utils';
-import { OnboardingTimeline } from '@tutorix/tutor-detail-ui';
-import type { StudentDetailAddress, StudentDetailRecord } from './types';
+import {
+  AddressModal,
+  OnboardingTimeline,
+  type AddressFormValues,
+  type AddressLocationSuggestion,
+  type AddressPlacePrediction,
+} from '@tutorix/tutor-detail-ui';
+import { EducationModal } from './EducationModal';
+import { ParentModal } from './ParentModal';
+import type {
+  EducationFormValues,
+  ParentFormValues,
+  StudentDetailAddress,
+  StudentDetailRecord,
+} from './types';
+
+export type StudentDetailViewMode = 'admin' | 'student';
 
 export type StudentDetailViewProps = {
   student: StudentDetailRecord;
+  mode?: StudentDetailViewMode;
   headerAddon?: React.ReactNode;
+  profileAvatar?: React.ReactNode;
+  onSaveParent?: (values: ParentFormValues) => void | Promise<void>;
+  savingParent?: boolean;
+  parentSaveError?: string | null;
+  onSaveAddress?: (values: AddressFormValues) => void | Promise<void>;
+  savingAddress?: boolean;
+  addressSaveError?: string | null;
+  addressAutocomplete?: {
+    ready: boolean;
+    error?: string | null;
+    getPredictions: (input: string) => Promise<AddressPlacePrediction[]>;
+    getPlaceDetails: (placeId: string) => Promise<AddressLocationSuggestion | null>;
+  };
+  onSaveEducation?: (values: EducationFormValues) => void | Promise<void>;
+  savingEducation?: boolean;
+  educationSaveError?: string | null;
 };
 
 const SECTION_STYLES = {
@@ -157,7 +189,51 @@ function formatBoard(student: StudentDetailRecord): string {
   return SCHOOL_BOARD_OPTIONS.find((o) => o.value === student.board)?.label ?? student.board;
 }
 
-export function StudentDetailView({ student, headerAddon }: StudentDetailViewProps) {
+function EditSectionButton({
+  label,
+  onClick,
+  colorClass,
+}: {
+  label: string;
+  onClick: () => void;
+  colorClass: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition ${colorClass}`}
+    >
+      {label}
+    </button>
+  );
+}
+
+export function StudentDetailView({
+  student,
+  mode = 'admin',
+  headerAddon,
+  profileAvatar,
+  onSaveParent,
+  savingParent = false,
+  parentSaveError = null,
+  onSaveAddress,
+  savingAddress = false,
+  addressSaveError = null,
+  addressAutocomplete,
+  onSaveEducation,
+  savingEducation = false,
+  educationSaveError = null,
+}: StudentDetailViewProps) {
+  const isAdmin = mode === 'admin';
+  const canEditParent = !isAdmin && Boolean(onSaveParent);
+  const canEditAddress = !isAdmin && Boolean(onSaveAddress);
+  const canEditEducation = !isAdmin && Boolean(onSaveEducation);
+
+  const [parentModalOpen, setParentModalOpen] = useState(false);
+  const [addressModalOpen, setAddressModalOpen] = useState(false);
+  const [educationModalOpen, setEducationModalOpen] = useState(false);
+
   const avatarUrl = profilePictureAvatarUrl(student.user);
   const primaryAddress =
     student.addresses.find((a) => a.primary) ?? student.addresses[0] ?? null;
@@ -176,14 +252,34 @@ export function StudentDetailView({ student, headerAddon }: StudentDetailViewPro
 
   const hasParent = Boolean(student.parentRelation && student.parentName?.trim());
 
+  const headerAvatar =
+    profileAvatar ??
+    (isAdmin ? <ReadOnlyProfileAvatar avatarUrl={avatarUrl} /> : null);
+
+  const handleSaveParent = async (values: ParentFormValues) => {
+    if (!onSaveParent) return;
+    await onSaveParent(values);
+    setParentModalOpen(false);
+  };
+
+  const handleSaveAddress = async (values: AddressFormValues) => {
+    if (!onSaveAddress) return;
+    await onSaveAddress(values);
+    setAddressModalOpen(false);
+  };
+
+  const handleSaveEducation = async (values: EducationFormValues) => {
+    if (!onSaveEducation) return;
+    await onSaveEducation(values);
+    setEducationModalOpen(false);
+  };
+
   return (
     <div className="space-y-6">
       <div className="overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-r from-sky-100/80 via-white to-violet-100/80 px-6 py-5 shadow-md shadow-sky-100/30">
-        <div className="flex items-center gap-5">
-          <div className="shrink-0">
-            <ReadOnlyProfileAvatar avatarUrl={avatarUrl} />
-          </div>
-          <div className="min-w-0 flex-1">
+        <div className={headerAvatar ? 'flex items-center gap-5' : undefined}>
+          {headerAvatar ? <div className="shrink-0">{headerAvatar}</div> : null}
+          <div className={headerAvatar ? 'min-w-0 flex-1' : undefined}>
             {headerAddon}
             <div className={`flex flex-wrap items-center gap-3 ${headerAddon ? 'mt-4' : ''}`}>
               <h1 className="text-2xl font-bold text-primary">
@@ -210,7 +306,19 @@ export function StudentDetailView({ student, headerAddon }: StudentDetailViewPro
       <SectionCard
         title="Parent / Guardian"
         styleKey="parent"
-        headerMeta={hasParent ? 'Entered' : 'Not entered'}
+        headerMeta={
+          canEditParent ? (
+            <EditSectionButton
+              label={hasParent ? 'Edit parent' : 'Enter parent'}
+              onClick={() => setParentModalOpen(true)}
+              colorClass="bg-violet-600 hover:bg-violet-700"
+            />
+          ) : hasParent ? (
+            'Entered'
+          ) : (
+            'Not entered'
+          )
+        }
       >
         {!hasParent ? (
           <p className="text-sm text-rose-800/70">No parent or guardian details on file.</p>
@@ -225,7 +333,19 @@ export function StudentDetailView({ student, headerAddon }: StudentDetailViewPro
       <SectionCard
         title="Address"
         styleKey="address"
-        headerMeta={primaryAddress ? '1 address' : 'No address'}
+        headerMeta={
+          canEditAddress ? (
+            <EditSectionButton
+              label={primaryAddress ? 'Edit address' : 'Enter address'}
+              onClick={() => setAddressModalOpen(true)}
+              colorClass="bg-cyan-600 hover:bg-cyan-700"
+            />
+          ) : primaryAddress ? (
+            '1 address'
+          ) : (
+            'No address'
+          )
+        }
       >
         {!primaryAddress ? (
           <p className="text-sm text-cyan-800/70">No address on file.</p>
@@ -241,7 +361,19 @@ export function StudentDetailView({ student, headerAddon }: StudentDetailViewPro
       <SectionCard
         title="Education"
         styleKey="education"
-        headerMeta={student.onBoardingComplete ? 'Complete' : 'In progress'}
+        headerMeta={
+          canEditEducation ? (
+            <EditSectionButton
+              label="Edit education"
+              onClick={() => setEducationModalOpen(true)}
+              colorClass="bg-amber-600 hover:bg-amber-700"
+            />
+          ) : student.onBoardingComplete ? (
+            'Complete'
+          ) : (
+            'In progress'
+          )
+        }
       >
         <div className="space-y-2">
           <DetailRow label="Student type" value={formatStudentType(student.studentType)} />
@@ -254,6 +386,40 @@ export function StudentDetailView({ student, headerAddon }: StudentDetailViewPro
       </SectionCard>
 
       <OnboardingTimeline entries={timelineEntries} />
+
+      {onSaveParent ? (
+        <ParentModal
+          open={parentModalOpen}
+          initialValues={student}
+          saving={savingParent}
+          error={parentSaveError}
+          onClose={() => setParentModalOpen(false)}
+          onSubmit={(values: ParentFormValues) => void handleSaveParent(values)}
+        />
+      ) : null}
+
+      {onSaveAddress ? (
+        <AddressModal
+          open={addressModalOpen}
+          initialValues={primaryAddress}
+          saving={savingAddress}
+          error={addressSaveError}
+          autocomplete={addressAutocomplete}
+          onClose={() => setAddressModalOpen(false)}
+          onSubmit={(values) => void handleSaveAddress(values)}
+        />
+      ) : null}
+
+      {onSaveEducation ? (
+        <EducationModal
+          open={educationModalOpen}
+          initialValues={student}
+          saving={savingEducation}
+          error={educationSaveError}
+          onClose={() => setEducationModalOpen(false)}
+          onSubmit={(values) => void handleSaveEducation(values)}
+        />
+      ) : null}
     </div>
   );
 }

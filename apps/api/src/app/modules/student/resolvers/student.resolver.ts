@@ -2,6 +2,8 @@ import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { Student } from '../entities/student.entity';
 import { StudentService } from '../services/student.service';
+import { StudentDetailService } from '../services/student-detail.service';
+import { AdminStudentDetail } from '../../admin/dto/admin-student-detail.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { User } from '../../auth/entities/user.entity';
@@ -10,7 +12,19 @@ import { SaveStudentEducationInput } from '../dto/save-student-education.input';
 
 @Resolver(() => Student)
 export class StudentResolver {
-  constructor(private readonly studentService: StudentService) {}
+  constructor(
+    private readonly studentService: StudentService,
+    private readonly studentDetailService: StudentDetailService,
+  ) {}
+
+  @Query(() => AdminStudentDetail, {
+    name: 'myStudentDetail',
+    description: 'Full student profile after onboarding is complete',
+  })
+  @UseGuards(JwtAuthGuard)
+  async myStudentDetail(@CurrentUser() user: User): Promise<AdminStudentDetail> {
+    return this.studentDetailService.getMyStudentDetail(user);
+  }
 
   @Query(() => Student, {
     name: 'myStudentProfile',

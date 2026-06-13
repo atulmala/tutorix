@@ -10,7 +10,7 @@ import { PasswordResetAcknowledgement } from './components/PasswordResetAcknowle
 import { TutorOnboarding } from './components/tutor-onboarding';
 import { TutorProfilePage } from './components/tutor-profile/TutorProfilePage';
 import { StudentOnboarding } from './components/student-onboarding';
-import { StudentHomePage } from './components/student-home';
+import { StudentProfilePage } from './components/student-profile';
 import { AppHeader } from './components/AppHeader';
 import { AnalyticsViewTracker } from '../components/AnalyticsViewTracker';
 import { WebAuthProvider, useWebAuth } from './auth/useWebAuth';
@@ -27,7 +27,7 @@ type View =
   | 'tutor-onboarding'
   | 'tutor-profile'
   | 'student-onboarding'
-  | 'student-home';
+  | 'student-profile';
 
 function AppContent() {
   const { user: currentUser, refreshUser, logout } = useWebAuth();
@@ -132,7 +132,7 @@ function AppContent() {
       setCurrentView('student-onboarding');
     } else {
       setStudentProfileForOnboarding(null);
-      setCurrentView('student-home');
+      setCurrentView('student-profile');
     }
   }, [setCurrentView]);
 
@@ -287,7 +287,7 @@ function AppContent() {
 
   const handleStudentOnboardingComplete = () => {
     setStudentProfileForOnboarding(null);
-    setCurrentView('student-home');
+    setCurrentView('student-profile');
   };
 
   const holdingForSessionRoute =
@@ -321,12 +321,12 @@ function AppContent() {
     );
   }
 
-  if (currentView === 'student-home') {
+  if (currentView === 'student-profile') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
         <AppHeader onLogout={handleLogout} showProfileAvatar={false} />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
-          <StudentHomePage />
+          <StudentProfilePage />
         </main>
       </div>
     );

@@ -92,10 +92,11 @@ describe('StudentService', () => {
     expect(result.boardOther).toBeUndefined();
   });
 
-  it('saveParentStep advances to address stage', async () => {
+  it('saveParentStep advances to address stage during onboarding', async () => {
     mockRepo.findOne.mockResolvedValue({
       id: 1,
       userId: 10,
+      onBoardingComplete: false,
       onboardingStage: StudentOnboardingStageEnum.parent,
       addresses: [],
     });
@@ -109,6 +110,49 @@ describe('StudentService', () => {
     expect(result.onboardingStage).toBe(StudentOnboardingStageEnum.address);
     expect(result.parentName).toBe('Raj Kumar');
     expect(result.onboardingStageEnteredAt).toBeInstanceOf(Date);
+  });
+
+  it('saveParentStep does not change stage when onboarding is complete', async () => {
+    mockRepo.findOne.mockResolvedValue({
+      id: 1,
+      userId: 10,
+      onBoardingComplete: true,
+      onboardingStage: StudentOnboardingStageEnum.education,
+      addresses: [],
+    });
+    mockRepo.save.mockImplementation(async (s) => s);
+
+    const result = await service.saveParentStep(10, {
+      parentRelation: ParentRelationEnum.MOTHER,
+      parentName: 'Updated Parent',
+    });
+
+    expect(result.onboardingStage).toBe(StudentOnboardingStageEnum.education);
+    expect(result.parentName).toBe('Updated Parent');
+    expect(result.onboardingStageEnteredAt).toBeUndefined();
+  });
+
+  it('saveEducationStep updates fields when onboarding is already complete', async () => {
+    const student = {
+      id: 1,
+      userId: 10,
+      onBoardingComplete: true,
+      onboardingStage: StudentOnboardingStageEnum.education,
+      studentType: StudentTypeEnum.SCHOOL,
+      schoolClass: 8,
+      board: SchoolBoardEnum.CBSE,
+    };
+    mockRepo.findOne.mockResolvedValue(student);
+    mockRepo.save.mockImplementation(async (s) => s);
+
+    const result = await service.saveEducationStep(10, {
+      studentType: StudentTypeEnum.COLLEGE,
+    });
+
+    expect(result.studentType).toBe(StudentTypeEnum.COLLEGE);
+    expect(result.onBoardingComplete).toBe(true);
+    expect(result.schoolClass).toBeUndefined();
+    expect(result.board).toBeUndefined();
   });
 
   it('saveEducationStep sets onboardingStageEnteredAt when completing', async () => {
