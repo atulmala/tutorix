@@ -91,8 +91,10 @@ export class StudentService {
 
     student.parentRelation = input.parentRelation;
     student.parentName = name;
-    student.onboardingStage = StudentOnboardingStageEnum.address;
-    student.onboardingStageEnteredAt = new Date();
+    if (!student.onBoardingComplete) {
+      student.onboardingStage = StudentOnboardingStageEnum.address;
+      student.onboardingStageEnteredAt = new Date();
+    }
     return this.studentRepository.save(student);
   }
 
@@ -102,7 +104,10 @@ export class StudentService {
   ): Promise<Student> {
     const student = await this.ensureStudentExists(userId);
 
-    if (student.onboardingStage !== StudentOnboardingStageEnum.education) {
+    if (
+      !student.onBoardingComplete &&
+      student.onboardingStage !== StudentOnboardingStageEnum.education
+    ) {
       throw new BadRequestException(
         'Complete the address step before education details',
       );
@@ -134,8 +139,10 @@ export class StudentService {
       student.boardOther = undefined;
     }
 
-    student.onBoardingComplete = true;
-    student.onboardingStageEnteredAt = new Date();
+    if (!student.onBoardingComplete) {
+      student.onBoardingComplete = true;
+      student.onboardingStageEnteredAt = new Date();
+    }
     return this.studentRepository.save(student);
   }
 }

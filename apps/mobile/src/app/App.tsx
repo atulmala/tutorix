@@ -15,7 +15,7 @@ import { ForgotPasswordScreen } from './components/ForgotPasswordScreen';
 import { SignUpScreen } from './components/sign-up/SignUpScreen';
 import { TutorOnboarding } from './components/tutor-onboarding';
 import { StudentOnboarding } from './components/student-onboarding';
-import { StudentHomeScreen } from './components/student-home';
+import { StudentDetailScreen } from './components/student-profile/StudentDetailScreen';
 import { TutorDetailScreen } from './components/tutor-profile/TutorDetailScreen';
 import { NavHeader } from './components/NavHeader';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -52,7 +52,7 @@ type AppView =
   | 'tutorOnboarding'
   | 'tutorProfile'
   | 'studentOnboarding'
-  | 'studentHome'
+  | 'studentProfile'
   | 'home';
 
 function AppContent() {
@@ -95,7 +95,7 @@ function AppContent() {
         setCurrentView('studentOnboarding');
       } else {
         setStudentProfileForOnboarding(null);
-        setCurrentView('studentHome');
+        setCurrentView('studentProfile');
       }
     },
     [],
@@ -193,7 +193,7 @@ function AppContent() {
 
   const handleStudentOnboardingComplete = () => {
     setStudentProfileForOnboarding(null);
-    setCurrentView('studentHome');
+    setCurrentView('studentProfile');
   };
 
   let screen: React.ReactNode;
@@ -226,11 +226,11 @@ function AppContent() {
         onLogout={handleLogout}
       />
     );
-  } else if (currentView === 'studentHome') {
+  } else if (currentView === 'studentProfile') {
     screen = (
       <View style={{ flex: 1 }}>
-        <NavHeader title="Home" onLogout={handleLogout} />
-        <StudentHomeScreen />
+        <NavHeader title="My profile" onLogout={handleLogout} />
+        <StudentDetailScreen />
       </View>
     );
   } else if (currentView === 'tutorProfile') {

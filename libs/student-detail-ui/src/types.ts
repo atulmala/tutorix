@@ -5,7 +5,7 @@ export type StudentDetailAddress = {
   city?: string | null;
   state?: string | null;
   country?: string | null;
-  postalCode?: string | null;
+  postalCode?: number | null;
   fullAddress?: string | null;
   primary?: boolean | null;
   createdDate?: string | null;
@@ -39,4 +39,16 @@ export type StudentDetailRecord = {
   boardOther?: string | null;
   user?: StudentDetailUser | null;
   addresses: StudentDetailAddress[];
+};
+
+export type ParentFormValues = {
+  parentRelation: 'FATHER' | 'MOTHER';
+  parentName: string;
+};
+
+export type EducationFormValues = {
+  studentType: 'SCHOOL' | 'COLLEGE' | 'NOT_STUDYING' | 'COMPLETED';
+  schoolClass?: number;
+  board?: 'CBSE' | 'ICSE' | 'IB' | 'OTHER';
+  boardOther?: string;
 };

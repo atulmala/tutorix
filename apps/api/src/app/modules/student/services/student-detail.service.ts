@@ -1,5 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { AdminStudentDetail } from '../../admin/dto/admin-student-detail.dto';
+import { User } from '../../auth/entities/user.entity';
+import { UserRole } from '../../auth/enums/user-role.enum';
 import { ProfilePictureService } from '../../auth/services/profile-picture.service';
 import { StudentService } from './student.service';
 
@@ -62,4 +68,22 @@ export class StudentDetailService {
     };
   }
 
+  async getMyStudentDetail(user: User): Promise<AdminStudentDetail> {
+    if (user.role !== UserRole.STUDENT) {
+      throw new ForbiddenException('Only students can access student detail');
+    }
+
+    const student = await this.studentService.findByUserId(user.id);
+    if (!student) {
+      throw new NotFoundException('Student profile not found for this user');
+    }
+
+    if (!student.onBoardingComplete) {
+      throw new ForbiddenException(
+        'Student detail is available after onboarding is complete',
+      );
+    }
+
+    return this.getStudentDetail(student.id);
+  }
 }

@@ -38,3 +38,46 @@ export const GET_MY_STUDENT_PROFILE = gql`
     }
   }
 `;
+
+export const GET_MY_STUDENT_DETAIL = gql`
+  query GetMyStudentDetail {
+    myStudentDetail {
+      id
+      onboardingStage
+      onboardingStageEnteredAt
+      onBoardingComplete
+      parentRelation
+      parentName
+      studentType
+      schoolClass
+      board
+      boardOther
+      user {
+        firstName
+        lastName
+        email
+        mobile
+        mobileCountryCode
+        mobileNumber
+        createdDate
+        profilePicture
+        profilePictureThumbnailMedium
+        profilePictureThumbnailLarge
+        profilePictureOriginalUrl
+      }
+      addresses {
+        id
+        street
+        subArea
+        city
+        state
+        country
+        postalCode
+        fullAddress
+        primary
+        createdDate
+        updatedDate
+      }
+    }
+  }
+`;
