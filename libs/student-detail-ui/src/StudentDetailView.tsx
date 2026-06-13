@@ -377,11 +377,15 @@ export function StudentDetailView({
       >
         <div className="space-y-2">
           <DetailRow label="Student type" value={formatStudentType(student.studentType)} />
-          <DetailRow
-            label="Class"
-            value={student.schoolClass != null ? String(student.schoolClass) : '—'}
-          />
-          <DetailRow label="Board" value={formatBoard(student)} />
+          {student.studentType === 'SCHOOL' ? (
+            <>
+              <DetailRow
+                label="Class"
+                value={student.schoolClass != null ? String(student.schoolClass) : '—'}
+              />
+              <DetailRow label="Board" value={formatBoard(student)} />
+            </>
+          ) : null}
         </div>
       </SectionCard>
 
