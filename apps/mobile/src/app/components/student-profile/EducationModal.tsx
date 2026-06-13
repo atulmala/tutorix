@@ -93,12 +93,14 @@ export function EducationModal({
 
   const displayError = validationError ?? error;
 
+  const closePicker = () => setPickerModal(null);
+
   return (
-    <>
-      <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={styles.overlay}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.overlay}
+          style={styles.keyboardAvoid}
         >
           <View style={styles.sheet}>
             <View style={styles.header}>
@@ -108,7 +110,10 @@ export function EducationModal({
               </TouchableOpacity>
             </View>
 
-            <ScrollView keyboardShouldPersistTaps="handled">
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.scrollContent}
+            >
               <Text style={styles.label}>
                 I am a <Text style={styles.required}>*</Text>
               </Text>
@@ -224,55 +229,52 @@ export function EducationModal({
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
-      </Modal>
 
-      <Modal
-        visible={pickerModal !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setPickerModal(null)}
-      >
-        <TouchableOpacity
-          style={styles.pickerOverlay}
-          activeOpacity={1}
-          onPress={() => setPickerModal(null)}
-        >
-          <View style={styles.pickerContent}>
-            <Text style={styles.pickerTitle}>
-              {pickerModal === 'class' ? 'Select class' : 'Select board'}
-            </Text>
-            <ScrollView>
-              {pickerModal === 'class' &&
-                SCHOOL_CLASS_OPTIONS.map((opt) => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={styles.pickerOption}
-                    onPress={() => {
-                      setSchoolClass(opt.value);
-                      setPickerModal(null);
-                    }}
-                  >
-                    <Text style={styles.pickerOptionText}>{opt.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              {pickerModal === 'board' &&
-                SCHOOL_BOARD_OPTIONS.map((opt) => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={styles.pickerOption}
-                    onPress={() => {
-                      setBoard(opt.value as Board);
-                      setPickerModal(null);
-                    }}
-                  >
-                    <Text style={styles.pickerOptionText}>{opt.label}</Text>
-                  </TouchableOpacity>
-                ))}
-            </ScrollView>
+        {pickerModal !== null ? (
+          <View style={styles.pickerOverlay}>
+            <TouchableOpacity
+              style={styles.pickerBackdropTap}
+              activeOpacity={1}
+              onPress={closePicker}
+              accessibilityLabel="Close picker"
+            />
+            <View style={styles.pickerContent}>
+              <Text style={styles.pickerTitle}>
+                {pickerModal === 'class' ? 'Select class' : 'Select board'}
+              </Text>
+              <ScrollView keyboardShouldPersistTaps="handled">
+                {pickerModal === 'class' &&
+                  SCHOOL_CLASS_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={styles.pickerOption}
+                      onPress={() => {
+                        setSchoolClass(opt.value);
+                        closePicker();
+                      }}
+                    >
+                      <Text style={styles.pickerOptionText}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                {pickerModal === 'board' &&
+                  SCHOOL_BOARD_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={styles.pickerOption}
+                      onPress={() => {
+                        setBoard(opt.value as Board);
+                        closePicker();
+                      }}
+                    >
+                      <Text style={styles.pickerOptionText}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+              </ScrollView>
+            </View>
           </View>
-        </TouchableOpacity>
-      </Modal>
-    </>
+        ) : null}
+      </View>
+    </Modal>
   );
 }
 
@@ -282,12 +284,19 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
+  keyboardAvoid: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
   sheet: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 20,
     maxHeight: '90%',
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   header: {
     flexDirection: 'row',
@@ -359,16 +368,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginBottom: 8,
+    width: '100%',
   },
   half: {
     flex: 1,
+    minWidth: 0,
   },
   pickerButton: {
+    height: 44,
     borderWidth: 1,
     borderColor: '#e5e7eb',
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    justifyContent: 'center',
+    backgroundColor: '#fff',
     marginBottom: 8,
   },
   pickerButtonText: {
@@ -429,8 +442,11 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   pickerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+  },
+  pickerBackdropTap: {
     flex: 1,
-    justifyContent: 'flex-end',
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   pickerContent: {

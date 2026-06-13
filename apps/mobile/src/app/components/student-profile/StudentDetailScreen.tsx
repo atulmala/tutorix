@@ -392,10 +392,14 @@ export const StudentDetailScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
         <Text style={styles.row}>Student type: {formatStudentType(student.studentType)}</Text>
-        <Text style={styles.row}>
-          Class: {student.schoolClass != null ? String(student.schoolClass) : '—'}
-        </Text>
-        <Text style={styles.row}>Board: {formatBoard(student)}</Text>
+        {student.studentType === 'SCHOOL' ? (
+          <>
+            <Text style={styles.row}>
+              Class: {student.schoolClass != null ? String(student.schoolClass) : '—'}
+            </Text>
+            <Text style={styles.row}>Board: {formatBoard(student)}</Text>
+          </>
+        ) : null}
       </View>
 
       <View style={styles.section}>
