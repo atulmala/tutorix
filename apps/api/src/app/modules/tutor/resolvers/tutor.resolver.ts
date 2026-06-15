@@ -22,6 +22,9 @@ import { AddTutorOfferingResult } from '../dto/add-tutor-offering.result';
 import { ProficiencyTestFeeInfo } from '../dto/proficiency-test-fee-info.dto';
 import { TutorAddOfferingService } from '../services/tutor-add-offering.service';
 import { TutorOfferingPtFeeService } from '../services/tutor-offering-pt-fee.service';
+import { PlatformFeePaymentService } from '../../payment/services/platform-fee-payment.service';
+import { PaymentOrderSessionDto } from '../../payment/dto/payment-order-session.dto';
+import { ConfirmPtFeePaymentInput } from '../../payment/dto/confirm-pt-fee-payment.input';
 @Resolver(() => Tutor)
 export class TutorResolver {
   constructor(
@@ -32,6 +35,7 @@ export class TutorResolver {
     private readonly tutorDetailService: TutorDetailService,
     private readonly tutorAddOfferingService: TutorAddOfferingService,
     private readonly ptFeeService: TutorOfferingPtFeeService,
+    private readonly platformFeePaymentService: PlatformFeePaymentService,
   ) {}
 
   /**
@@ -182,6 +186,31 @@ export class TutorResolver {
     return this.ptFeeService.getFeeInfoForTutorOffering(tutorOfferingId);
   }
 
+  @Mutation(() => PaymentOrderSessionDto, {
+    description: 'Initiate proficiency test fee payment for a tutor offering',
+  })
+  @UseGuards(JwtAuthGuard)
+  async initiatePtFeePayment(
+    @CurrentUser() user: User,
+    @Args('tutorOfferingId', { type: () => ID }) tutorOfferingId: number,
+  ): Promise<PaymentOrderSessionDto> {
+    return this.platformFeePaymentService.initiatePtFeePayment(
+      user,
+      tutorOfferingId,
+    );
+  }
+
+  @Mutation(() => PaymentOrderSessionDto, {
+    description: 'Confirm proficiency test fee payment after gateway checkout',
+  })
+  @UseGuards(JwtAuthGuard)
+  async confirmPtFeePayment(
+    @CurrentUser() user: User,
+    @Args('input') input: ConfirmPtFeePaymentInput,
+  ): Promise<PaymentOrderSessionDto> {
+    return this.platformFeePaymentService.confirmPtFeePayment(input, user);
+  }
+
   @Mutation(() => [TutorOfferingEntity], {
     description: 'Save offerings for the authenticated tutor and advance to PT stage',
   })
@@ -263,21 +292,7 @@ export class TutorResolver {
   })
   @UseGuards(JwtAuthGuard)
   async completeRegistrationPaymentStep(@CurrentUser() user: User): Promise<Tutor> {
-    const tutor = await this.tutorService.findByUserId(user.id);
-    if (!tutor) {
-      throw new BadRequestException('Tutor profile not found for this user');
-    }
-    if (
-      tutor.certificationStage !== TutorCertificationStageEnum.registrationPayment
-    ) {
-      throw new BadRequestException(
-        'Can only complete registration payment step when at registrationPayment stage',
-      );
-    }
-    return this.tutorService.updateCertificationStage(
-      tutor.id,
-      TutorCertificationStageEnum.docs,
-    );
+    return this.platformFeePaymentService.completeRegistrationPaymentStep(user);
   }
 
   /**

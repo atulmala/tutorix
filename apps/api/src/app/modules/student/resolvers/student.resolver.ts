@@ -9,12 +9,14 @@ import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { User } from '../../auth/entities/user.entity';
 import { SaveStudentParentInput } from '../dto/save-student-parent.input';
 import { SaveStudentEducationInput } from '../dto/save-student-education.input';
+import { PlatformFeePaymentService } from '../../payment/services/platform-fee-payment.service';
 
 @Resolver(() => Student)
 export class StudentResolver {
   constructor(
     private readonly studentService: StudentService,
     private readonly studentDetailService: StudentDetailService,
+    private readonly platformFeePaymentService: PlatformFeePaymentService,
   ) {}
 
   @Query(() => AdminStudentDetail, {
@@ -51,7 +53,7 @@ export class StudentResolver {
   }
 
   @Mutation(() => Student, {
-    description: 'Save education details and complete student onboarding',
+    description: 'Save education details and advance to registration payment',
   })
   @UseGuards(JwtAuthGuard)
   async saveStudentEducation(
@@ -59,5 +61,17 @@ export class StudentResolver {
     @Args('input') input: SaveStudentEducationInput,
   ): Promise<Student> {
     return this.studentService.saveEducationStep(user.id, input);
+  }
+
+  @Mutation(() => Student, {
+    description: 'Complete student registration payment step and finish onboarding',
+  })
+  @UseGuards(JwtAuthGuard)
+  async completeStudentRegistrationPaymentStep(
+    @CurrentUser() user: User,
+  ): Promise<Student> {
+    return this.platformFeePaymentService.completeStudentRegistrationPaymentStep(
+      user,
+    );
   }
 }

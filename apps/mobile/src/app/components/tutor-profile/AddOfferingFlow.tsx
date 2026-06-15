@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useMutation, useQuery } from '@apollo/client';
-import { GET_OFFERINGS, GET_MY_TUTOR_DETAIL } from '@tutorix/shared-graphql/queries';
+import { GET_OFFERINGS, GET_MY_TUTOR_DETAIL, GET_PLATFORM_FEE } from '@tutorix/shared-graphql/queries';
 import { ADD_MY_TUTOR_OFFERING } from '@tutorix/shared-graphql/mutations';
 import { STUDY_AREAS, STUDY_AREAS_OPTIONS } from '@tutorix/shared-utils';
 import { TutorPT } from '../tutor-onboarding/tutor-pt/TutorPT';
@@ -59,6 +59,10 @@ export const AddOfferingFlow: React.FC<Props> = ({
   const { data, loading, error } = useQuery<{ offerings: OfferingNode[] }>(GET_OFFERINGS, {
     fetchPolicy: 'cache-first',
   });
+  const { data: ptFeeConfigData } = useQuery(GET_PLATFORM_FEE, {
+    variables: { code: 'PROFICIENCY_TEST' },
+  });
+  const ptFeeConfig = ptFeeConfigData?.platformFee;
 
   const [addOffering, { loading: adding }] = useMutation(ADD_MY_TUTOR_OFFERING, {
     refetchQueries: [{ query: GET_MY_TUTOR_DETAIL }],
@@ -284,8 +288,15 @@ export const AddOfferingFlow: React.FC<Props> = ({
         <View style={styles.block}>
           <View style={styles.feeBox}>
             <Text style={styles.feeTitle}>Proficiency test fee</Text>
-            <Text style={styles.feeText}>List price: ₹99</Text>
-            <Text style={styles.feeHighlight}>Free for now — no payment required.</Text>
+            <Text style={styles.feeText}>
+              List price: ₹{ptFeeConfig?.amountInr ?? '…'}
+            </Text>
+            <Text style={styles.feeHighlight}>
+              {ptFeeConfig?.displayLabel ?? 'Loading fee details…'}
+            </Text>
+            {ptFeeConfig?.promoMessage ? (
+              <Text style={styles.feeHint}>{ptFeeConfig.promoMessage}</Text>
+            ) : null}
             <Text style={styles.feeHint}>You get up to 2 attempts to pass the test.</Text>
           </View>
           {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}

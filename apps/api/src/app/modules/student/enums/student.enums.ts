@@ -4,6 +4,7 @@ export enum StudentOnboardingStageEnum {
   parent = 'parent',
   address = 'address',
   education = 'education',
+  registrationPayment = 'registrationPayment',
 }
 
 export enum ParentRelationEnum {

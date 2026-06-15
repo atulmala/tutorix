@@ -41,3 +41,15 @@ export const SAVE_STUDENT_EDUCATION = gql`
     }
   }
 `;
+
+export const COMPLETE_STUDENT_REGISTRATION_PAYMENT_STEP = gql`
+  mutation CompleteStudentRegistrationPaymentStep {
+    completeStudentRegistrationPaymentStep {
+      id
+      onboardingStage
+      onBoardingComplete
+      regFeePaid
+      regFeeAmount
+    }
+  }
+`;

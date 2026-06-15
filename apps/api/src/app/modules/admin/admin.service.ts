@@ -39,6 +39,10 @@ import { AdminTutorListItem } from './dto/admin-tutor-list-item.dto';
 import { AdminTutorListResult } from './dto/admin-tutor-list-result.dto';
 import { AdminTutorStageCount } from './dto/admin-tutor-stage-count.dto';
 import { AdminProficiencyTestListItem } from './dto/admin-proficiency-test-list-item.dto';
+import { AdminPlatformFeeConfig } from './dto/admin-platform-fee-config.dto';
+import { PlatformFeeService } from '../platform-fee/services/platform-fee.service';
+import { AdminUpdatePlatformFeeInput } from '../platform-fee/dto/admin-update-platform-fee.input';
+import { PlatformFeeConfigEntity } from '../platform-fee/entities/platform-fee-config.entity';
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 20;
@@ -59,6 +63,7 @@ export class AdminService {
     private readonly documentScreeningService: DocumentScreeningService,
     private readonly proficiencyTestService: ProficiencyTestService,
     private readonly offeringService: OfferingService,
+    private readonly platformFeeService: PlatformFeeService,
   ) {}
 
   async getDashboardStats(): Promise<AdminDashboardStats> {
@@ -237,6 +242,7 @@ export class AdminService {
       StudentOnboardingStageEnum.parent,
       StudentOnboardingStageEnum.address,
       StudentOnboardingStageEnum.education,
+      StudentOnboardingStageEnum.registrationPayment,
     ].map((stage) => ({
       stage,
       count: countByStage.get(stage) ?? 0,
@@ -291,6 +297,35 @@ export class AdminService {
 
   async getProficiencyTestDetail(testId: number): Promise<ProficiencyTestEntity> {
     return this.proficiencyTestService.getTestWithAllQuestionsForAdmin(testId);
+  }
+
+  async listPlatformFees(): Promise<AdminPlatformFeeConfig[]> {
+    const configs = await this.platformFeeService.findAll();
+    return configs.map((config) => this.toAdminPlatformFeeConfig(config));
+  }
+
+  async updatePlatformFee(
+    input: AdminUpdatePlatformFeeInput,
+  ): Promise<AdminPlatformFeeConfig> {
+    const updated = await this.platformFeeService.updateConfig(input);
+    return this.toAdminPlatformFeeConfig(updated);
+  }
+
+  private toAdminPlatformFeeConfig(
+    config: PlatformFeeConfigEntity,
+  ): AdminPlatformFeeConfig {
+    return {
+      id: config.id,
+      code: config.code,
+      displayName: config.displayName,
+      amountInr: config.amountInr,
+      discountType: config.discountType,
+      discountValue: config.discountValue,
+      discountAmountInr: this.platformFeeService.getDiscountAmountInr(config),
+      effectiveAmountInr: this.platformFeeService.getEffectiveAmountInr(config),
+      waived: config.waived,
+      promoMessage: config.promoMessage,
+    };
   }
 
   private toAdminTutorListItem(

@@ -27,6 +27,8 @@ import { TutorCalendar } from '../modules/tutor-calendar/entities/tutor-calendar
 import { TutorClassSessionEntity } from '../modules/tutor-class-session/entities/tutor-class-session.entity';
 import { TutorClassSessionEnrollmentEntity } from '../modules/tutor-class-session/entities/tutor-class-session-enrollment.entity';
 import { Student } from '../modules/student/entities/student.entity';
+import { PlatformFeeConfigEntity } from '../modules/platform-fee/entities/platform-fee-config.entity';
+import { PlatformFeePaymentEntity } from '../modules/payment/entities/platform-fee-payment.entity';
 // Add other entities as they are created
 
 /**
@@ -71,6 +73,8 @@ export function createDatabaseOptions(
       TutorClassSessionEntity,
       TutorClassSessionEnrollmentEntity,
       Student,
+      PlatformFeeConfigEntity,
+      PlatformFeePaymentEntity,
       // Add other entities here as they are created
       // Class,
     ],

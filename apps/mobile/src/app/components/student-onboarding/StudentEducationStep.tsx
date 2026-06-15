@@ -26,9 +26,7 @@ type Board = 'CBSE' | 'ICSE' | 'IB' | 'OTHER';
 
 type PickerModal = 'class' | 'board' | null;
 
-export const StudentEducationStep: React.FC<StudentStepComponentProps> = ({
-  onComplete,
-}) => {
+export const StudentEducationStep: React.FC<StudentStepComponentProps> = () => {
   const [studentType, setStudentType] = useState<StudentType>('SCHOOL');
   const [schoolClass, setSchoolClass] = useState<number | ''>('');
   const [board, setBoard] = useState<Board | ''>('');
@@ -39,7 +37,6 @@ export const StudentEducationStep: React.FC<StudentStepComponentProps> = ({
   const [saveEducation, { loading }] = useMutation(SAVE_STUDENT_EDUCATION, {
     refetchQueries: [{ query: GET_MY_STUDENT_PROFILE }],
     awaitRefetchQueries: true,
-    onCompleted: () => onComplete(),
     onError: (err) => {
       setError(
         err.graphQLErrors?.[0]?.message ||

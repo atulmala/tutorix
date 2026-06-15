@@ -4,6 +4,7 @@ import {
   ADD_MY_TUTOR_OFFERING,
   GET_MY_TUTOR_DETAIL,
   GET_OFFERINGS,
+  GET_PLATFORM_FEE,
 } from '@tutorix/shared-graphql';
 import { OfferingCascadePicker } from '@tutorix/tutor-detail-ui';
 import { TutorPT } from '../tutor-onboarding/tutor-pt/TutorPT';
@@ -41,6 +42,10 @@ export const AddOfferingFlow: React.FC<AddOfferingFlowProps> = ({
   const { data, loading, error } = useQuery(GET_OFFERINGS, {
     fetchPolicy: 'cache-first',
   });
+  const { data: ptFeeConfigData } = useQuery(GET_PLATFORM_FEE, {
+    variables: { code: 'PROFICIENCY_TEST' },
+  });
+  const ptFeeConfig = ptFeeConfigData?.platformFee;
 
   const [addOffering, { loading: adding }] = useMutation(ADD_MY_TUTOR_OFFERING, {
     refetchQueries: [{ query: GET_MY_TUTOR_DETAIL }],
@@ -111,11 +116,16 @@ export const AddOfferingFlow: React.FC<AddOfferingFlowProps> = ({
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm font-semibold text-amber-950">Proficiency test fee</p>
             <p className="mt-1 text-sm text-amber-900">
-              List price: <span className="font-bold">₹99</span>
+              List price:{' '}
+              <span className="font-bold">₹{ptFeeConfig?.amountInr ?? '…'}</span>
             </p>
             <p className="mt-1 text-sm font-medium text-amber-900">
-              Free for now — no payment required.
+              {ptFeeConfig?.displayLabel ??
+                'Fee details will appear after configuration loads.'}
             </p>
+            {ptFeeConfig?.promoMessage ? (
+              <p className="mt-1 text-sm text-amber-900">{ptFeeConfig.promoMessage}</p>
+            ) : null}
             <p className="mt-2 text-xs text-amber-800/90">
               You get up to 2 attempts to pass the test for this offering.
             </p>
