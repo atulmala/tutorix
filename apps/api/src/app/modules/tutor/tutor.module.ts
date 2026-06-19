@@ -22,8 +22,9 @@ import { TutorCalendarModule } from '../tutor-calendar/tutor-calendar.module';
 import { TutorDetailService } from './services/tutor-detail.service';
 import { TutorAddOfferingService } from './services/tutor-add-offering.service';
 import { TutorOfferingPtFeeService } from './services/tutor-offering-pt-fee.service';
-import { NoOpPtPaymentService } from './services/pt-payment.service';
 import { OfferingsModule } from '../offerings/offerings.module';
+import { PlatformFeeModule } from '../platform-fee/platform-fee.module';
+import { PaymentModule } from '../payment';
 
 @Module({
   imports: [
@@ -43,6 +44,8 @@ import { OfferingsModule } from '../offerings/offerings.module';
     TutorRateCardModule,
     TutorCalendarModule,
     OfferingsModule,
+    PlatformFeeModule,
+    forwardRef(() => PaymentModule),
   ],
   providers: [
     TutorResolver,
@@ -54,7 +57,6 @@ import { OfferingsModule } from '../offerings/offerings.module';
     TutorDetailService,
     TutorAddOfferingService,
     TutorOfferingPtFeeService,
-    NoOpPtPaymentService,
   ],
   exports: [
     TutorService,
@@ -63,6 +65,8 @@ import { OfferingsModule } from '../offerings/offerings.module';
     TutorOnboardingService,
     TutorOnboardingApprovalBatchService,
     TutorDetailService,
+    TutorOfferingPtFeeService,
+    TutorOfferingService,
   ],
 })
 export class TutorModule {}

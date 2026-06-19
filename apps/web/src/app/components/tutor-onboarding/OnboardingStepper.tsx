@@ -1,6 +1,6 @@
 import React from 'react';
 import type { OnboardingStepId } from './types';
-import { ONBOARDING_STEPS, REGISTRATION_FEE_WAIVED } from './types';
+import { ONBOARDING_STEPS } from './types';
 
 const STEP_SHORT_LABELS: Record<OnboardingStepId, string> = {
   address: 'Address',
@@ -8,7 +8,7 @@ const STEP_SHORT_LABELS: Record<OnboardingStepId, string> = {
   experience: 'Experience',
   offerings: 'Offerings',
   pt: 'Proficiency Test',
-  registrationPayment: REGISTRATION_FEE_WAIVED ? 'Payment - Free' : 'Payment',
+  registrationPayment: 'Payment',
   docs: 'Document upload',
   interview: 'Application Review',
   complete: 'Onboarding Complete!',
@@ -19,11 +19,6 @@ const PaymentStepIcon = () => (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
     </svg>
-    {REGISTRATION_FEE_WAIVED ? (
-      <svg className="absolute inset-0 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4l16 16" />
-      </svg>
-    ) : null}
   </span>
 );
 

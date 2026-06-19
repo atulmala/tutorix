@@ -5,9 +5,20 @@ import {
   GET_MY_TUTOR_DETAIL,
   GET_MY_TUTOR_PROFILE,
   GET_PROFICIENCY_TEST_FOR_TAKER,
+  GET_PT_FEE_INFO,
 } from '@tutorix/shared-graphql/queries';
-import { SUBMIT_PROFICIENCY_TEST } from '@tutorix/shared-graphql/mutations';
+import {
+  CONFIRM_PT_FEE_PAYMENT,
+  INITIATE_PT_FEE_PAYMENT,
+  SUBMIT_PROFICIENCY_TEST,
+} from '@tutorix/shared-graphql/mutations';
 import type { StepComponentProps } from '@tutorix/shared-utils';
+import {
+  isPtFeePaymentRequired,
+  runPtFeePaymentCheckout,
+  type PaymentOrderSession,
+  type PtFeeInfo,
+} from '@tutorix/shared-utils';
 import { PTIntroScreen } from './PTIntroScreen';
 import { PTTestScreen } from './PTTestScreen';
 
@@ -43,6 +54,8 @@ export const TutorPT: React.FC<TutorPTProps> = ({
     attemptsUsed: number;
     passPercentage?: number;
   } | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [payLoading, setPayLoading] = useState(false);
 
   const isPostOnboardingPt =
     (context === 'addOffering' || context === 'profile') && tutorOfferingIdProp != null;
@@ -75,6 +88,20 @@ export const TutorPT: React.FC<TutorPTProps> = ({
 
   const resolvedOfferingId = pendingOffering?.id ?? tutorOfferingIdProp;
 
+  const { data: ptFeeData, refetch: refetchPtFee } = useQuery(GET_PT_FEE_INFO, {
+    variables: { tutorOfferingId: resolvedOfferingId },
+    skip: !resolvedOfferingId,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const ptFeeInfo = ptFeeData?.ptFeeInfo as PtFeeInfo | undefined;
+  const paymentRequired = ptFeeInfo ? isPtFeePaymentRequired(ptFeeInfo) : false;
+  const ptFeeDisplayLabelResolved =
+    ptFeeInfo?.displayLabel ?? ptFeeDisplayLabel ?? null;
+
+  const [initiatePtFeePayment] = useMutation(INITIATE_PT_FEE_PAYMENT);
+  const [confirmPtFeePayment] = useMutation(CONFIRM_PT_FEE_PAYMENT);
+
   const { data: testData, loading: testLoading } = useQuery(
     GET_PROFICIENCY_TEST_FOR_TAKER,
     {
@@ -95,6 +122,35 @@ export const TutorPT: React.FC<TutorPTProps> = ({
   const timeMinutes = testMeta?.time ?? 30;
   const maxMarks = testMeta?.score ?? 30;
   const passPercentage = testMeta?.passPercentage ?? 65;
+
+  const handlePayFee = async () => {
+    if (!resolvedOfferingId) return;
+    setPaymentError(null);
+    setPayLoading(true);
+    try {
+      await runPtFeePaymentCheckout(
+        resolvedOfferingId,
+        async (offeringId) => {
+          const result = await initiatePtFeePayment({
+            variables: { tutorOfferingId: offeringId },
+          });
+          return result.data?.initiatePtFeePayment as PaymentOrderSession;
+        },
+        async (input) => {
+          await confirmPtFeePayment({ variables: { input } });
+        },
+      );
+      await refetchPtFee();
+    } catch (error) {
+      setPaymentError(
+        error instanceof Error
+          ? error.message
+          : 'Could not complete payment. Try again or contact support.',
+      );
+    } finally {
+      setPayLoading(false);
+    }
+  };
 
   const handleStart = () => {
     if (resolvedOfferingId) {
@@ -299,7 +355,12 @@ export const TutorPT: React.FC<TutorPTProps> = ({
       maxMarks={maxMarks}
       passPercentage={passPercentage}
       attemptsLeft={attemptsLeft}
-      ptFeeDisplayLabel={ptFeeDisplayLabel}
+      ptFeeDisplayLabel={ptFeeDisplayLabelResolved}
+      paymentRequired={paymentRequired}
+      amountDueInr={ptFeeInfo?.amountDueInr}
+      payLoading={payLoading}
+      paymentError={paymentError}
+      onPayFee={() => void handlePayFee()}
       context={context}
       onStart={handleStart}
       onTakeLater={isPostOnboardingPt ? onComplete : undefined}

@@ -7,10 +7,6 @@
  */
 
 export const REGISTRATION_FEE_AMOUNT = 999;
-export const REGISTRATION_FEE_WAIVED = true;
-
-export const REGISTRATION_FEE_WAIVED_MESSAGE =
-  'The one-time registration fee of ₹999 is not being charged for a limited time. Tap Continue to proceed.';
 
 export const APPLICATION_REVIEW_MESSAGE =
   'Your application is undergoing review. You will be soon notified when the process is completed. Thanks for your patience.';
@@ -63,10 +59,8 @@ export const ONBOARDING_STEPS: OnboardingStepConfig[] = [
   },
   {
     id: 'registrationPayment',
-    title: REGISTRATION_FEE_WAIVED ? 'Registration Fee (Free)' : 'Registration Fee',
-    description: REGISTRATION_FEE_WAIVED
-      ? REGISTRATION_FEE_WAIVED_MESSAGE
-      : 'Pay your registration fee',
+    title: 'Registration Fee',
+    description: 'Pay your registration fee',
   },
   {
     id: 'docs',

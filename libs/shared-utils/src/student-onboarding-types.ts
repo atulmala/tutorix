@@ -3,7 +3,11 @@
  * Used by web and mobile apps.
  */
 
-export type StudentOnboardingStepId = 'parent' | 'address' | 'education';
+export type StudentOnboardingStepId =
+  | 'parent'
+  | 'address'
+  | 'education'
+  | 'registrationPayment';
 
 export interface StudentOnboardingStepConfig {
   id: StudentOnboardingStepId;
@@ -26,6 +30,11 @@ export const STUDENT_ONBOARDING_STEPS: StudentOnboardingStepConfig[] = [
     id: 'education',
     title: 'Education',
     description: 'Tell us about your studies',
+  },
+  {
+    id: 'registrationPayment',
+    title: 'Registration Fee',
+    description: 'Pay your registration fee',
   },
 ];
 

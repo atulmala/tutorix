@@ -24,3 +24,5 @@ export * from './student-onboarding-types';
 export * from './student-onboarding-timeline';
 export * from './school-class';
 export * from './profile-picture';
+export * from './payment-checkout';
+export * from './pt-fee-payment';

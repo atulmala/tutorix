@@ -67,6 +67,10 @@ export class StudentService {
     return student;
   }
 
+  async saveStudent(student: Student): Promise<Student> {
+    return this.studentRepository.save(student);
+  }
+
   async updateOnboardingStage(
     studentId: number,
     stage: StudentOnboardingStageEnum,
@@ -140,7 +144,7 @@ export class StudentService {
     }
 
     if (!student.onBoardingComplete) {
-      student.onBoardingComplete = true;
+      student.onboardingStage = StudentOnboardingStageEnum.registrationPayment;
       student.onboardingStageEnteredAt = new Date();
     }
     return this.studentRepository.save(student);

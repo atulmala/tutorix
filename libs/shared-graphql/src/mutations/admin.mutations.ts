@@ -30,3 +30,20 @@ export const ADMIN_SET_TEST_TUTOR = gql`
     }
   }
 `;
+
+export const ADMIN_UPDATE_PLATFORM_FEE = gql`
+  mutation AdminUpdatePlatformFee($input: AdminUpdatePlatformFeeInput!) {
+    adminUpdatePlatformFee(input: $input) {
+      id
+      code
+      displayName
+      amountInr
+      discountType
+      discountValue
+      discountAmountInr
+      effectiveAmountInr
+      waived
+      promoMessage
+    }
+  }
+`;

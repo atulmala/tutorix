@@ -86,7 +86,10 @@ describe('StudentService', () => {
       studentType: StudentTypeEnum.COLLEGE,
     });
 
-    expect(result.onBoardingComplete).toBe(true);
+    expect(result.onBoardingComplete).not.toBe(true);
+    expect(result.onboardingStage).toBe(
+      StudentOnboardingStageEnum.registrationPayment,
+    );
     expect(result.schoolClass).toBeUndefined();
     expect(result.board).toBeUndefined();
     expect(result.boardOther).toBeUndefined();
@@ -168,7 +171,10 @@ describe('StudentService', () => {
       studentType: StudentTypeEnum.COLLEGE,
     });
 
-    expect(result.onBoardingComplete).toBe(true);
+    expect(result.onBoardingComplete).not.toBe(true);
+    expect(result.onboardingStage).toBe(
+      StudentOnboardingStageEnum.registrationPayment,
+    );
     expect(result.onboardingStageEnteredAt).toBeInstanceOf(Date);
   });
 

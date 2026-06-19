@@ -143,6 +143,10 @@ export class TutorService {
   /**
    * Update tutor certification stage (current onboarding step)
    */
+  async saveTutor(tutor: Tutor): Promise<Tutor> {
+    return this.tutorRepository.save(tutor);
+  }
+
   async updateCertificationStage(
     tutorId: number,
     stage: TutorCertificationStageEnum,

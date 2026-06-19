@@ -12,6 +12,7 @@ import { StudentOnboardingStepper } from './StudentOnboardingStepper';
 import { StudentParentStep } from './StudentParentStep';
 import { StudentAddressStep } from './StudentAddressStep';
 import { StudentEducationStep } from './StudentEducationStep';
+import { StudentRegistrationPayment } from './StudentRegistrationPayment';
 import { NavHeader } from '../NavHeader';
 
 function getInitials(name: string): string {
@@ -35,6 +36,7 @@ const STEP_COMPONENTS: Record<
   parent: StudentParentStep,
   address: StudentAddressStep,
   education: StudentEducationStep,
+  registrationPayment: StudentRegistrationPayment,
 };
 
 type StudentOnboardingProps = {

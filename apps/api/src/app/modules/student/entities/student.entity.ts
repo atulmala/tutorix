@@ -42,6 +42,22 @@ export class Student extends QBaseEntity {
   @Column({ name: 'on_boarding_complete', default: false })
   onBoardingComplete: boolean;
 
+  @Field({ nullable: true })
+  @Column({ name: 'reg_fee_paid', default: false })
+  regFeePaid?: boolean;
+
+  @Field({ nullable: true })
+  @Column({ type: 'decimal', precision: 8, scale: 2, default: 0 })
+  regFeeAmount?: number;
+
+  @Field({ nullable: true })
+  @Column({ type: 'decimal', precision: 8, scale: 2, default: 499 })
+  regFeeAmountToBePaid?: number;
+
+  @Field(() => Date, { nullable: true })
+  @Column('timestamp', { name: 'reg_fee_date', nullable: true })
+  regFeeDate?: Date;
+
   @Field(() => ParentRelationEnum, { nullable: true })
   @Column({
     type: 'enum',

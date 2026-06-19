@@ -25,4 +25,5 @@ export * from './tutor-calendar.mutations';
 export * from './tutor-add-offering.mutations';
 export * from './student.mutations';
 export * from './user.mutations';
+export * from './payment.mutations';
 // export * from './class.mutations';

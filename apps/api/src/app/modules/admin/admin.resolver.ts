@@ -22,6 +22,8 @@ import { AdminProficiencyTestListItem } from './dto/admin-proficiency-test-list-
 import { ProficiencyTestEntity } from '../proficiency/entities/proficiency-test.entity';
 import { TutorCalendar } from '../tutor-calendar/entities/tutor-calendar.entity';
 import { TutorCalendarService } from '../tutor-calendar/services/tutor-calendar.service';
+import { AdminPlatformFeeConfig } from './dto/admin-platform-fee-config.dto';
+import { AdminUpdatePlatformFeeInput } from '../platform-fee/dto/admin-update-platform-fee.input';
 
 @Resolver()
 export class AdminResolver {
@@ -178,5 +180,25 @@ export class AdminResolver {
     @Args('testId', { type: () => Int }) testId: number,
   ): Promise<ProficiencyTestEntity> {
     return this.adminService.getProficiencyTestDetail(testId);
+  }
+
+  @Query(() => [AdminPlatformFeeConfig], {
+    description: 'Platform fee configuration rows (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminPlatformFees(): Promise<AdminPlatformFeeConfig[]> {
+    return this.adminService.listPlatformFees();
+  }
+
+  @Mutation(() => AdminPlatformFeeConfig, {
+    description: 'Update a platform fee configuration row (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminUpdatePlatformFee(
+    @Args('input') input: AdminUpdatePlatformFeeInput,
+  ): Promise<AdminPlatformFeeConfig> {
+    return this.adminService.updatePlatformFee(input);
   }
 }
