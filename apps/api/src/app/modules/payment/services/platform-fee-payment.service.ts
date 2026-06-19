@@ -27,6 +27,8 @@ import { TutorOfferingPtFeeService } from '../../tutor/services/tutor-offering-p
 import { TutorOfferingService } from '../../tutor/services/tutor-offering.service';
 import { TutorOfferingPtFeeStatusEnum } from '../../tutor/enums/tutor-offering-pt-fee-status.enum';
 import { ConfirmPtFeePaymentInput } from '../dto/confirm-pt-fee-payment.input';
+import { AuthService } from '../../auth/services/auth.service';
+import { buildRazorpayReceipt } from '../utils/payment-receipt.util';
 
 export interface FeePaymentContext {
   user: User;
@@ -63,6 +65,10 @@ export class PlatformFeePaymentService {
 
   private get ptFeeService(): TutorOfferingPtFeeService {
     return this.moduleRef.get(TutorOfferingPtFeeService, { strict: false });
+  }
+
+  private get authService(): AuthService {
+    return this.moduleRef.get(AuthService, { strict: false });
   }
 
   private async getCompletedPayment(
@@ -251,7 +257,7 @@ export class PlatformFeePaymentService {
     }
 
     const gateway = this.paymentGatewayFactory.getActiveGateway();
-    const receipt = `${feeCode}-${ctx.contextType}-${ctx.contextId}-${Date.now()}`;
+    const receipt = buildRazorpayReceipt(feeCode, ctx.contextId);
     const session = await gateway.createOrder({
       amountInr: effectiveAmountInr,
       receipt,
@@ -436,7 +442,10 @@ export class PlatformFeePaymentService {
     }
 
     const gateway = this.paymentGatewayFactory.getActiveGateway();
-    const receipt = `PT-${tutorOfferingId}-${Date.now()}`;
+    const receipt = buildRazorpayReceipt(
+      PlatformFeeCodeEnum.PROFICIENCY_TEST,
+      tutorOfferingId,
+    );
     const session = await gateway.createOrder({
       amountInr: effectiveAmountInr,
       receipt,
@@ -526,5 +535,59 @@ export class PlatformFeePaymentService {
     );
 
     return { skipped: true };
+  }
+
+  async fulfillPaymentFromGateway(
+    orderId: string,
+    paymentId: string,
+  ): Promise<void> {
+    const pending = await this.paymentRepo.findOne({
+      where: {
+        gatewayOrderId: orderId,
+        status: PlatformFeePaymentStatusEnum.pending,
+        deleted: false,
+      },
+    });
+    if (!pending) {
+      return;
+    }
+
+    pending.status = PlatformFeePaymentStatusEnum.paid;
+    pending.gatewayPaymentId = paymentId;
+    pending.paidAt = new Date();
+    await this.paymentRepo.save(pending);
+
+    const config = await this.platformFeeService.findByCode(pending.feeCode);
+
+    if (pending.feeCode === PlatformFeeCodeEnum.PROFICIENCY_TEST) {
+      await this.ptFeeService.markPaid(
+        pending.contextId,
+        orderId,
+        pending.amountPaidInr,
+      );
+      return;
+    }
+
+    const user = await this.authService.findById(pending.userId);
+    if (!user) {
+      return;
+    }
+    const ctx = await this.buildContext(pending.feeCode, user);
+    await ctx.onPaymentComplete(config, pending.amountPaidInr);
+  }
+
+  async markPendingPaymentFailed(orderId: string): Promise<void> {
+    const pending = await this.paymentRepo.findOne({
+      where: {
+        gatewayOrderId: orderId,
+        status: PlatformFeePaymentStatusEnum.pending,
+        deleted: false,
+      },
+    });
+    if (!pending) {
+      return;
+    }
+    pending.status = PlatformFeePaymentStatusEnum.failed;
+    await this.paymentRepo.save(pending);
   }
 }

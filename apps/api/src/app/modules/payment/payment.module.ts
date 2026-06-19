@@ -11,6 +11,7 @@ import {
 import { CashfreeGateway, RazorpayGateway } from './services/payment-gateways';
 import { PlatformFeePaymentService } from './services/platform-fee-payment.service';
 import { PaymentResolver } from './resolvers/payment.resolver';
+import { RazorpayWebhookController } from './controllers/razorpay-webhook.controller';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { PaymentResolver } from './resolvers/payment.resolver';
     PlatformFeeModule,
     TypeOrmModule.forFeature([PlatformFeePaymentEntity]),
   ],
+  controllers: [RazorpayWebhookController],
   providers: [
     NoOpPaymentGateway,
     RazorpayGateway,

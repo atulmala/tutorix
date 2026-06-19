@@ -10,7 +10,7 @@ config({ path: join(__dirname, '../../../.env') });
 
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { json } from 'express';
+import { json, raw } from 'express';
 import { AppModule } from './app/app.module';
 
 function buildCorsOrigins(): string[] {
@@ -49,6 +49,9 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
   
+  // Razorpay webhooks require the raw body for signature verification.
+  app.use(`/${globalPrefix}/webhooks/razorpay`, raw({ type: 'application/json' }));
+
   // Ensure JSON body parser is set up for Apollo Server
   app.use(json({ limit: '10mb' }));
   

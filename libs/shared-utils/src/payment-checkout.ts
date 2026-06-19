@@ -90,6 +90,11 @@ export async function openPaymentCheckout(
         throw new Error('Razorpay checkout script failed to load');
       }
       const razorpay = new window.Razorpay(options);
+      razorpay.on('payment.failed', (response: { error?: { description?: string } }) => {
+        reject(
+          new Error(response.error?.description ?? 'Payment failed. Please try again.'),
+        );
+      });
       razorpay.open();
     });
   }

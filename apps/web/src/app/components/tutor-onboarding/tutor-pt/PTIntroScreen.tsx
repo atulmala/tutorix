@@ -11,6 +11,11 @@ type PTIntroScreenProps = {
   passPercentage?: number;
   attemptsLeft?: number;
   ptFeeDisplayLabel?: string | null;
+  paymentRequired?: boolean;
+  amountDueInr?: number;
+  payLoading?: boolean;
+  paymentError?: string | null;
+  onPayFee?: () => void;
   context?: 'onboarding' | 'addOffering' | 'profile';
   onStart: () => void;
   onTakeLater?: () => void;
@@ -23,6 +28,11 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
   passPercentage = DEFAULT_PASS_PERCENTAGE,
   attemptsLeft = 2,
   ptFeeDisplayLabel,
+  paymentRequired = false,
+  amountDueInr,
+  payLoading = false,
+  paymentError,
+  onPayFee,
   context = 'onboarding',
   onStart,
   onTakeLater,
@@ -77,11 +87,22 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
         </div>
 
         {ptFeeDisplayLabel ? (
-          <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-4">
+          <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-4 space-y-2">
             <p className="text-sm font-medium text-amber-950">
               Test fee: {ptFeeDisplayLabel}
             </p>
+            {paymentRequired ? (
+              <p className="text-sm text-amber-900">
+                Pay the test fee before you can start the proficiency test.
+              </p>
+            ) : null}
           </div>
+        ) : null}
+
+        {paymentError ? (
+          <p className="text-sm text-red-700" role="alert">
+            {paymentError}
+          </p>
         ) : null}
 
         {context === 'onboarding' ? (
@@ -112,10 +133,21 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
             Take later
           </button>
         ) : null}
+        {paymentRequired && onPayFee ? (
+          <button
+            type="button"
+            onClick={onPayFee}
+            disabled={payLoading}
+            className="h-11 rounded-lg bg-[#5fa8ff] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5] disabled:opacity-50"
+          >
+            {payLoading ? 'Processing…' : `Pay ₹${amountDueInr ?? ''}`}
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={onStart}
-          className="h-11 rounded-lg bg-[#5fa8ff] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5]"
+          disabled={paymentRequired || payLoading}
+          className="h-11 rounded-lg bg-[#5fa8ff] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5] disabled:opacity-50"
         >
           Start Test
         </button>

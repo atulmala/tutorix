@@ -12,6 +12,11 @@ type PTIntroScreenProps = {
   passPercentage?: number;
   attemptsLeft?: number;
   ptFeeDisplayLabel?: string | null;
+  paymentRequired?: boolean;
+  amountDueInr?: number;
+  payLoading?: boolean;
+  paymentError?: string | null;
+  onPayFee?: () => void;
   context?: 'onboarding' | 'addOffering' | 'profile';
   onStart: () => void;
   onTakeLater?: () => void;
@@ -24,6 +29,11 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
   passPercentage = DEFAULT_PASS_PERCENTAGE,
   attemptsLeft = 2,
   ptFeeDisplayLabel,
+  paymentRequired = false,
+  amountDueInr,
+  payLoading = false,
+  paymentError,
+  onPayFee,
   context = 'onboarding',
   onStart,
   onTakeLater,
@@ -75,7 +85,16 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
       {ptFeeDisplayLabel ? (
         <View style={styles.feeCard}>
           <Text style={styles.feeText}>Test fee: {ptFeeDisplayLabel}</Text>
+          {paymentRequired ? (
+            <Text style={styles.feeHint}>
+              Pay the test fee before you can start the proficiency test.
+            </Text>
+          ) : null}
         </View>
+      ) : null}
+
+      {paymentError ? (
+        <Text style={styles.paymentError}>{paymentError}</Text>
       ) : null}
 
       <View style={styles.noteCard}>
@@ -96,9 +115,25 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
             <Text style={styles.secondaryButtonText}>Take later</Text>
           </TouchableOpacity>
         ) : null}
+        {paymentRequired && onPayFee ? (
+          <TouchableOpacity
+            style={[styles.primaryButton, payLoading && styles.buttonDisabled]}
+            onPress={onPayFee}
+            disabled={payLoading}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.primaryButtonText}>
+              {payLoading ? 'Processing…' : `Pay ₹${amountDueInr ?? ''}`}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity
-          style={styles.primaryButton}
+          style={[
+            styles.primaryButton,
+            (paymentRequired || payLoading) && styles.buttonDisabled,
+          ]}
           onPress={onStart}
+          disabled={paymentRequired || payLoading}
           activeOpacity={0.7}
         >
           <Text style={styles.primaryButtonText}>Start Test</Text>
@@ -168,6 +203,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#78350f',
+  },
+  feeHint: {
+    marginTop: 8,
+    fontSize: 13,
+    color: '#92400e',
+  },
+  paymentError: {
+    fontSize: 14,
+    color: '#b91c1c',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   noteCard: {
     backgroundColor: '#f8fafc',
