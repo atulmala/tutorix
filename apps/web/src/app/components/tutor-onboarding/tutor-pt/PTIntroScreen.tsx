@@ -10,7 +10,7 @@ type PTIntroScreenProps = {
   maxMarks?: number;
   passPercentage?: number;
   attemptsLeft?: number;
-  ptFeeDisplayLabel?: string | null;
+  ptFeeMessage?: string | null;
   paymentRequired?: boolean;
   amountDueInr?: number;
   payLoading?: boolean;
@@ -27,7 +27,7 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
   maxMarks = DEFAULT_MAX_MARKS,
   passPercentage = DEFAULT_PASS_PERCENTAGE,
   attemptsLeft = 2,
-  ptFeeDisplayLabel,
+  ptFeeMessage,
   paymentRequired = false,
   amountDueInr,
   payLoading = false,
@@ -86,11 +86,9 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
           </p>
         </div>
 
-        {ptFeeDisplayLabel ? (
+        {ptFeeMessage ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-4 space-y-2">
-            <p className="text-sm font-medium text-amber-950">
-              Test fee: {ptFeeDisplayLabel}
-            </p>
+            <p className="text-sm text-amber-950">{ptFeeMessage}</p>
             {paymentRequired ? (
               <p className="text-sm text-amber-900">
                 Pay the test fee before you can start the proficiency test.

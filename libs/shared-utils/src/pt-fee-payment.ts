@@ -4,9 +4,12 @@ import {
   type PaymentOrderSession,
 } from './payment-checkout';
 
+export { formatProficiencyTestFeeMessage } from './payment-checkout';
+
 export type PtFeePaymentStatus = 'waived' | 'pending' | 'paid';
 
 export type PtFeeInfo = {
+  listPriceInr: number;
   collectionEnabled: boolean;
   amountDueInr: number;
   paymentStatus: PtFeePaymentStatus;

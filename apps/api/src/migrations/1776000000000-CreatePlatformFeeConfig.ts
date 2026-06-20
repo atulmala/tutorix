@@ -56,7 +56,7 @@ export class CreatePlatformFeeConfig1776000000000 implements MigrationInterface 
         'NONE',
         0,
         true,
-        'The one-time registration fee of ₹999 is not being charged for a limited time. Tap Continue to proceed.'
+        'Registration fee is not being charged for a limited time. Tap Continue to proceed.'
       ),
       (
         'PROFICIENCY_TEST',

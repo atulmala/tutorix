@@ -82,15 +82,8 @@ export const TutorRegistrationPayment: React.FC<Props> = () => {
     <View style={styles.placeholder}>
       {fee ? (
         <View style={styles.infoBanner}>
-          <Text style={styles.infoBannerTitle}>{summary?.title}</Text>
-          <Text style={styles.infoBannerText}>
-            List price: ₹{fee.amountInr}
-            {fee.discountAmountInr > 0
-              ? ` · Discount: ₹${fee.discountAmountInr}`
-              : ''}
-            {fee.effectiveAmountInr <= 0
-              ? ' · No payment required'
-              : ` · Amount due: ₹${fee.effectiveAmountInr}`}
+          <Text style={styles.infoBannerTitle}>
+            {summary?.title ?? fee.displayName}
           </Text>
           {summary?.message ? (
             <Text style={styles.infoBannerSubtext}>{summary.message}</Text>

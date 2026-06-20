@@ -78,16 +78,7 @@ export const StudentRegistrationPayment: React.FC<StudentStepComponentProps> = (
           className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
           role="status"
         >
-          <p className="font-medium">{summary?.title}</p>
-          <p className="mt-2">
-            List price: ₹{fee.amountInr}
-            {fee.discountAmountInr > 0
-              ? ` · Discount: ₹${fee.discountAmountInr}`
-              : null}
-            {fee.effectiveAmountInr <= 0
-              ? ' · No payment required'
-              : ` · Amount due: ₹${fee.effectiveAmountInr}`}
-          </p>
+          <p className="font-medium">{summary?.title ?? fee.displayName}</p>
           {summary?.message ? (
             <p className="mt-2 text-amber-900">{summary.message}</p>
           ) : null}

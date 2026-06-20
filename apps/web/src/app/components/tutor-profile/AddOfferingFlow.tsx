@@ -7,6 +7,7 @@ import {
   GET_PLATFORM_FEE,
 } from '@tutorix/shared-graphql';
 import { OfferingCascadePicker } from '@tutorix/tutor-detail-ui';
+import { formatProficiencyTestFeeMessage } from '@tutorix/shared-utils';
 import { TutorPT } from '../tutor-onboarding/tutor-pt/TutorPT';
 
 type PtFeeInfo = {
@@ -46,6 +47,15 @@ export const AddOfferingFlow: React.FC<AddOfferingFlowProps> = ({
     variables: { code: 'PROFICIENCY_TEST' },
   });
   const ptFeeConfig = ptFeeConfigData?.platformFee;
+  const ptFeeConfirmMessage = ptFeeConfig
+    ? formatProficiencyTestFeeMessage({
+        listPriceInr: ptFeeConfig.amountInr,
+        amountDueInr: ptFeeConfig.effectiveAmountInr,
+        effectiveAmountInr: ptFeeConfig.effectiveAmountInr,
+        displayName: ptFeeConfig.displayName,
+        promoMessage: ptFeeConfig.promoMessage,
+      })
+    : undefined;
 
   const [addOffering, { loading: adding }] = useMutation(ADD_MY_TUTOR_OFFERING, {
     refetchQueries: [{ query: GET_MY_TUTOR_DETAIL }],
@@ -115,17 +125,11 @@ export const AddOfferingFlow: React.FC<AddOfferingFlowProps> = ({
         <div className="space-y-6">
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm font-semibold text-amber-950">Proficiency test fee</p>
-            <p className="mt-1 text-sm text-amber-900">
-              List price:{' '}
-              <span className="font-bold">₹{ptFeeConfig?.amountInr ?? '…'}</span>
-            </p>
-            <p className="mt-1 text-sm font-medium text-amber-900">
-              {ptFeeConfig?.displayLabel ??
-                'Fee details will appear after configuration loads.'}
-            </p>
-            {ptFeeConfig?.promoMessage ? (
-              <p className="mt-1 text-sm text-amber-900">{ptFeeConfig.promoMessage}</p>
-            ) : null}
+            {ptFeeConfirmMessage ? (
+              <p className="mt-2 text-sm text-amber-900">{ptFeeConfirmMessage}</p>
+            ) : (
+              <p className="mt-2 text-sm text-amber-900">Loading fee details…</p>
+            )}
             <p className="mt-2 text-xs text-amber-800/90">
               You get up to 2 attempts to pass the test for this offering.
             </p>
@@ -156,7 +160,6 @@ export const AddOfferingFlow: React.FC<AddOfferingFlowProps> = ({
           context="addOffering"
           tutorOfferingId={addResult.tutorOfferingId}
           offeringDisplayName={addResult.offeringName}
-          ptFeeDisplayLabel={addResult.ptFee.displayLabel}
           testTutor={testTutor}
           onComplete={() => {
             onComplete();

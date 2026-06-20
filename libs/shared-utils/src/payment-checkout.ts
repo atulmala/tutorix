@@ -124,7 +124,12 @@ export async function openPaymentCheckout(
   throw new Error(`Unsupported payment provider: ${session.provider}`);
 }
 
+export function buildWaivedFeeMessage(feeLabel: string, amountInr: number): string {
+  return `The regular ${feeLabel.toLowerCase()} is ₹${amountInr}, but it is waived for a limited time.`;
+}
+
 export function formatPlatformFeeSummary(fee: {
+  displayName?: string;
   amountInr: number;
   discountAmountInr: number;
   effectiveAmountInr: number;
@@ -132,13 +137,48 @@ export function formatPlatformFeeSummary(fee: {
   displayLabel: string;
   promoMessage?: string | null;
 }): { title: string; message?: string; requiresPayment: boolean } {
+  const feeName = fee.displayName ?? 'registration fee';
   const title =
     fee.effectiveAmountInr <= 0
-      ? 'Registration Fee (Free)'
-      : `Registration Fee — ₹${fee.effectiveAmountInr}`;
+      ? `${feeName} (Free)`
+      : `${feeName} — ₹${fee.effectiveAmountInr}`;
+
+  let message: string | undefined;
+  if (fee.effectiveAmountInr <= 0) {
+    message = buildWaivedFeeMessage(feeName, fee.amountInr);
+  } else if (fee.promoMessage?.trim()) {
+    message = fee.promoMessage.trim();
+  } else if (fee.discountAmountInr > 0) {
+    message = `List price ₹${fee.amountInr}, discount ₹${fee.discountAmountInr}. Amount due: ₹${fee.effectiveAmountInr}.`;
+  } else {
+    message = `Amount due: ₹${fee.effectiveAmountInr}.`;
+  }
+
   return {
     title,
-    message: fee.promoMessage ?? undefined,
+    message,
     requiresPayment: fee.effectiveAmountInr > 0,
   };
+}
+
+export function formatProficiencyTestFeeMessage(fee: {
+  listPriceInr: number;
+  amountDueInr: number;
+  displayName?: string;
+  effectiveAmountInr?: number;
+  promoMessage?: string | null;
+}): string | undefined {
+  const feeName = fee.displayName ?? 'proficiency test fee';
+  const effectiveAmountInr = fee.effectiveAmountInr ?? fee.amountDueInr;
+
+  if (effectiveAmountInr <= 0 && fee.listPriceInr > 0) {
+    return buildWaivedFeeMessage(feeName, fee.listPriceInr);
+  }
+  if (effectiveAmountInr > 0) {
+    if (fee.promoMessage?.trim()) {
+      return fee.promoMessage.trim();
+    }
+    return `Amount due before the test: ₹${effectiveAmountInr}.`;
+  }
+  return undefined;
 }

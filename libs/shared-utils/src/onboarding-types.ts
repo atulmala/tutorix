@@ -6,8 +6,6 @@
  * apps/api/.../tutor/enums/tutor.enums.ts
  */
 
-export const REGISTRATION_FEE_AMOUNT = 999;
-
 export const APPLICATION_REVIEW_MESSAGE =
   'Your application is undergoing review. You will be soon notified when the process is completed. Thanks for your patience.';
 

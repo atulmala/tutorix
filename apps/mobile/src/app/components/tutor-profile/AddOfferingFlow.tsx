@@ -11,7 +11,7 @@ import {
 import { useMutation, useQuery } from '@apollo/client';
 import { GET_OFFERINGS, GET_MY_TUTOR_DETAIL, GET_PLATFORM_FEE } from '@tutorix/shared-graphql/queries';
 import { ADD_MY_TUTOR_OFFERING } from '@tutorix/shared-graphql/mutations';
-import { STUDY_AREAS, STUDY_AREAS_OPTIONS } from '@tutorix/shared-utils';
+import { STUDY_AREAS, STUDY_AREAS_OPTIONS, formatProficiencyTestFeeMessage } from '@tutorix/shared-utils';
 import { TutorPT } from '../tutor-onboarding/tutor-pt/TutorPT';
 
 type OfferingNode = {
@@ -63,6 +63,15 @@ export const AddOfferingFlow: React.FC<Props> = ({
     variables: { code: 'PROFICIENCY_TEST' },
   });
   const ptFeeConfig = ptFeeConfigData?.platformFee;
+  const ptFeeConfirmMessage = ptFeeConfig
+    ? formatProficiencyTestFeeMessage({
+        listPriceInr: ptFeeConfig.amountInr,
+        amountDueInr: ptFeeConfig.effectiveAmountInr,
+        effectiveAmountInr: ptFeeConfig.effectiveAmountInr,
+        displayName: ptFeeConfig.displayName,
+        promoMessage: ptFeeConfig.promoMessage,
+      })
+    : undefined;
 
   const [addOffering, { loading: adding }] = useMutation(ADD_MY_TUTOR_OFFERING, {
     refetchQueries: [{ query: GET_MY_TUTOR_DETAIL }],
@@ -176,7 +185,6 @@ export const AddOfferingFlow: React.FC<Props> = ({
           context="addOffering"
           tutorOfferingId={addResult.tutorOfferingId}
           offeringDisplayName={addResult.offeringName}
-          ptFeeDisplayLabel={addResult.ptFeeLabel}
           testTutor={testTutor}
           onComplete={() => {
             onComplete();
@@ -289,14 +297,8 @@ export const AddOfferingFlow: React.FC<Props> = ({
           <View style={styles.feeBox}>
             <Text style={styles.feeTitle}>Proficiency test fee</Text>
             <Text style={styles.feeText}>
-              List price: ₹{ptFeeConfig?.amountInr ?? '…'}
+              {ptFeeConfirmMessage ?? 'Loading fee details…'}
             </Text>
-            <Text style={styles.feeHighlight}>
-              {ptFeeConfig?.displayLabel ?? 'Loading fee details…'}
-            </Text>
-            {ptFeeConfig?.promoMessage ? (
-              <Text style={styles.feeHint}>{ptFeeConfig.promoMessage}</Text>
-            ) : null}
             <Text style={styles.feeHint}>You get up to 2 attempts to pass the test.</Text>
           </View>
           {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}

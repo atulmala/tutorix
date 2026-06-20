@@ -14,6 +14,7 @@ import {
 } from '@tutorix/shared-graphql/mutations';
 import type { StepComponentProps } from '@tutorix/shared-utils';
 import {
+  formatProficiencyTestFeeMessage,
   isPtFeePaymentRequired,
   runPtFeePaymentCheckout,
   type PaymentOrderSession,
@@ -96,8 +97,16 @@ export const TutorPT: React.FC<TutorPTProps> = ({
 
   const ptFeeInfo = ptFeeData?.ptFeeInfo as PtFeeInfo | undefined;
   const paymentRequired = ptFeeInfo ? isPtFeePaymentRequired(ptFeeInfo) : false;
-  const ptFeeDisplayLabelResolved =
-    ptFeeInfo?.displayLabel ?? ptFeeDisplayLabel ?? null;
+  const ptFeeMessage = useMemo(() => {
+    if (ptFeeInfo) {
+      return formatProficiencyTestFeeMessage({
+        listPriceInr: ptFeeInfo.listPriceInr,
+        amountDueInr: ptFeeInfo.amountDueInr,
+        displayName: 'proficiency test fee',
+      });
+    }
+    return ptFeeDisplayLabel ?? null;
+  }, [ptFeeInfo, ptFeeDisplayLabel]);
 
   const [initiatePtFeePayment] = useMutation(INITIATE_PT_FEE_PAYMENT);
   const [confirmPtFeePayment] = useMutation(CONFIRM_PT_FEE_PAYMENT);
@@ -355,7 +364,7 @@ export const TutorPT: React.FC<TutorPTProps> = ({
       maxMarks={maxMarks}
       passPercentage={passPercentage}
       attemptsLeft={attemptsLeft}
-      ptFeeDisplayLabel={ptFeeDisplayLabelResolved}
+      ptFeeMessage={ptFeeMessage}
       paymentRequired={paymentRequired}
       amountDueInr={ptFeeInfo?.amountDueInr}
       payLoading={payLoading}
