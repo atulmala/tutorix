@@ -10,12 +10,14 @@ import {
 import {
   formatPlatformFeeSummary,
   openPaymentCheckout,
-  type PaymentOrderSession,
+  checkoutSession,
+  type CheckoutResult,
 } from '@tutorix/shared-utils';
 import type { StepComponentProps } from '../types';
 
 export const TutorRegistrationPayment: React.FC<StepComponentProps> = () => {
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const { data: feeData, loading: feeLoading } = useQuery(GET_PLATFORM_FEE, {
     variables: { code: 'TUTOR_REGISTRATION' },
   });
@@ -38,10 +40,12 @@ export const TutorRegistrationPayment: React.FC<StepComponentProps> = () => {
       const initiateResult = await initiatePayment({
         variables: { feeCode: 'TUTOR_REGISTRATION' },
       });
-      const session = initiateResult.data
-        ?.initiatePlatformFeePayment as PaymentOrderSession;
+      const checkout = initiateResult.data
+        ?.initiatePlatformFeePayment as CheckoutResult;
+      setOrderNumber(checkout?.order?.orderNumber ?? null);
+      const session = checkoutSession(checkout);
 
-      if (session && !session.skipped) {
+      if (!session.skipped) {
         const confirmation = await openPaymentCheckout(session);
         await confirmPayment({
           variables: {
@@ -78,6 +82,9 @@ export const TutorRegistrationPayment: React.FC<StepComponentProps> = () => {
           <p className="font-medium">{summary?.title ?? fee.displayName}</p>
           {summary?.message ? (
             <p className="mt-2 text-amber-900">{summary.message}</p>
+          ) : null}
+          {orderNumber ? (
+            <p className="mt-2 text-amber-900">Order {orderNumber}</p>
           ) : null}
         </div>
       ) : null}

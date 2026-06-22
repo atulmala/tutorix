@@ -19,3 +19,8 @@ export function buildRazorpayReceipt(
     ? receipt.slice(0, RAZORPAY_RECEIPT_MAX_LENGTH)
     : receipt;
 }
+
+export function buildRazorpayReceiptFromOrderNumber(orderNumber: string): string {
+  const receipt = orderNumber.replace(/[^A-Za-z0-9-]/g, '').slice(0, RAZORPAY_RECEIPT_MAX_LENGTH);
+  return receipt || `ord-${Date.now().toString(36)}`.slice(0, RAZORPAY_RECEIPT_MAX_LENGTH);
+}

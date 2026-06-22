@@ -22,13 +22,18 @@ import { StudentService } from '../../student/services/student.service';
 import { TutorCertificationStageEnum } from '../../tutor/enums/tutor.enums';
 import { StudentOnboardingStageEnum } from '../../student/enums/student.enums';
 import { User } from '../../auth/entities/user.entity';
-import { PaymentOrderSession } from '../interfaces/payment-gateway.interface';
+import {
+  OrderItemReferenceTypeEnum,
+  OrderPayerRoleEnum,
+} from '../../commerce/enums/commerce.enums';
 import { TutorOfferingPtFeeService } from '../../tutor/services/tutor-offering-pt-fee.service';
 import { TutorOfferingService } from '../../tutor/services/tutor-offering.service';
 import { TutorOfferingPtFeeStatusEnum } from '../../tutor/enums/tutor-offering-pt-fee-status.enum';
 import { ConfirmPtFeePaymentInput } from '../dto/confirm-pt-fee-payment.input';
 import { AuthService } from '../../auth/services/auth.service';
-import { buildRazorpayReceipt } from '../utils/payment-receipt.util';
+import { CheckoutService } from '../../commerce/services/checkout.service';
+import { CheckoutResultDto } from '../../commerce/dto/checkout-result.dto';
+import { OrderService } from '../../commerce/services/order.service';
 
 export interface FeePaymentContext {
   user: User;
@@ -48,6 +53,8 @@ export class PlatformFeePaymentService {
     private readonly paymentRepo: Repository<PlatformFeePaymentEntity>,
     private readonly platformFeeService: PlatformFeeService,
     private readonly paymentGatewayFactory: PaymentGatewayFactory,
+    private readonly checkoutService: CheckoutService,
+    private readonly orderService: OrderService,
     private readonly moduleRef: ModuleRef,
   ) {}
 
@@ -182,6 +189,7 @@ export class PlatformFeePaymentService {
     ctx: FeePaymentContext,
     status: PlatformFeePaymentStatusEnum,
     amountPaidInr: number,
+    commerceOrderId?: number,
     gatewayProvider?: PlatformFeePaymentEntity['gatewayProvider'],
     gatewayOrderId?: string,
     gatewayPaymentId?: string,
@@ -197,6 +205,7 @@ export class PlatformFeePaymentService {
       discountValue: config.discountValue,
       discountAmountInr,
       amountPaidInr,
+      commerceOrderId,
       gatewayProvider,
       gatewayOrderId,
       gatewayPaymentId,
@@ -210,24 +219,63 @@ export class PlatformFeePaymentService {
     return this.paymentRepo.save(entity);
   }
 
-  private toDto(session: PaymentOrderSession | null): PaymentOrderSessionDto {
-    if (!session) {
-      return { skipped: true };
+  private skippedSession(): PaymentOrderSessionDto {
+    return { skipped: true };
+  }
+
+  private async checkoutResultFromExistingPayment(
+    existing: PlatformFeePaymentEntity,
+  ): Promise<CheckoutResultDto> {
+    if (existing.commerceOrderId) {
+      const order = await this.orderService.findById(existing.commerceOrderId);
+      if (order) {
+        return {
+          order: this.orderService.toDto(order),
+          session: this.skippedSession(),
+        };
+      }
     }
-    return {
-      skipped: false,
-      provider: session.provider,
-      orderId: session.orderId,
-      amountInr: session.amountInr,
-      currency: session.currency,
-      checkoutPayloadJson: JSON.stringify(session.checkoutPayload),
-    };
+    const referenceType = CheckoutService.mapContextTypeToReferenceType(
+      existing.contextType,
+    );
+    const order = await this.orderService.findPaidOrderByItemReference(
+      existing.userId,
+      {
+        itemType: CheckoutService.mapFeeCodeToItemType(existing.feeCode),
+        referenceType,
+        referenceId: existing.contextId,
+      },
+    );
+    if (order) {
+      if (!existing.commerceOrderId) {
+        existing.commerceOrderId = order.id;
+        await this.paymentRepo.save(existing);
+      }
+      return {
+        order: this.orderService.toDto(order),
+        session: this.skippedSession(),
+      };
+    }
+    const user = await this.authService.findById(existing.userId);
+    if (!user) {
+      throw new NotFoundException('User not found for existing payment');
+    }
+    const result = await this.checkoutService.initiatePlatformFeeCheckout({
+      feeCode: existing.feeCode,
+      user,
+      payerRole: CheckoutService.mapFeeCodeToPayerRole(existing.feeCode),
+      referenceType,
+      referenceId: existing.contextId,
+    });
+    existing.commerceOrderId = result.order.id;
+    await this.paymentRepo.save(existing);
+    return result;
   }
 
   async initiatePlatformFeePayment(
     feeCode: PlatformFeeCodeEnum,
     user: User,
-  ): Promise<PaymentOrderSessionDto> {
+  ): Promise<CheckoutResultDto> {
     const ctx = await this.buildContext(feeCode, user);
     await ctx.validateStage();
 
@@ -238,54 +286,46 @@ export class PlatformFeePaymentService {
       ctx.contextId,
     );
     if (existing) {
-      return { skipped: true };
+      return this.checkoutResultFromExistingPayment(existing);
     }
 
     const config = await this.platformFeeService.findByCode(feeCode);
-    const effectiveAmountInr =
-      this.platformFeeService.getEffectiveAmountInr(config);
+    const checkoutResult = await this.checkoutService.initiatePlatformFeeCheckout({
+      feeCode,
+      user,
+      payerRole: CheckoutService.mapFeeCodeToPayerRole(feeCode),
+      referenceType: CheckoutService.mapContextTypeToReferenceType(ctx.contextType),
+      referenceId: ctx.contextId,
+    });
 
+    const effectiveAmountInr = checkoutResult.order.amountDueInr;
     if (effectiveAmountInr <= 0) {
       await this.recordPayment(
         config,
         ctx,
         PlatformFeePaymentStatusEnum.waived,
         0,
+        checkoutResult.order.id,
       );
-      await ctx.onPaymentComplete(config, 0);
-      return { skipped: true };
+    } else {
+      await this.recordPayment(
+        config,
+        ctx,
+        PlatformFeePaymentStatusEnum.pending,
+        effectiveAmountInr,
+        checkoutResult.order.id,
+        checkoutResult.session?.provider,
+        checkoutResult.session?.orderId,
+      );
     }
 
-    const gateway = this.paymentGatewayFactory.getActiveGateway();
-    const receipt = buildRazorpayReceipt(feeCode, ctx.contextId);
-    const session = await gateway.createOrder({
-      amountInr: effectiveAmountInr,
-      receipt,
-      notes: { description: config.displayName, feeCode },
-      customer: {
-        id: String(user.id),
-        email: user.email ?? undefined,
-        phone: user.mobile ?? undefined,
-        name: [user.firstName, user.lastName].filter(Boolean).join(' ') || undefined,
-      },
-    });
-
-    await this.recordPayment(
-      config,
-      ctx,
-      PlatformFeePaymentStatusEnum.pending,
-      effectiveAmountInr,
-      session.provider,
-      session.orderId,
-    );
-
-    return this.toDto(session);
+    return checkoutResult;
   }
 
   async confirmPlatformFeePayment(
     input: ConfirmPlatformFeePaymentInput,
     user: User,
-  ): Promise<PaymentOrderSessionDto> {
+  ): Promise<CheckoutResultDto> {
     const ctx = await this.buildContext(input.feeCode, user);
     await ctx.validateStage();
 
@@ -317,6 +357,7 @@ export class PlatformFeePaymentService {
     if (!verified) {
       pending.status = PlatformFeePaymentStatusEnum.failed;
       await this.paymentRepo.save(pending);
+      await this.checkoutService.markPaymentAttemptFailed(input.orderId);
       throw new BadRequestException('Payment verification failed');
     }
 
@@ -326,9 +367,24 @@ export class PlatformFeePaymentService {
     await this.paymentRepo.save(pending);
 
     const config = await this.platformFeeService.findByCode(input.feeCode);
-    await ctx.onPaymentComplete(config, pending.amountPaidInr);
+    await this.checkoutService.completePaidOrderFromGateway(
+      input.orderId,
+      input.paymentId,
+      config,
+      user.id,
+      pending.amountPaidInr,
+    );
 
-    return { skipped: true };
+    const order = pending.commerceOrderId
+      ? await this.orderService.findById(pending.commerceOrderId)
+      : null;
+    if (!order) {
+      throw new BadRequestException('Commerce order not found after payment');
+    }
+    return {
+      order: this.orderService.toDto(order),
+      session: this.skippedSession(),
+    };
   }
 
   async completeRegistrationPaymentStep(user: User) {
@@ -347,7 +403,7 @@ export class PlatformFeePaymentService {
         PlatformFeeCodeEnum.TUTOR_REGISTRATION,
         user,
       );
-      if (!result.skipped) {
+      if (result.session && !result.session.skipped) {
         throw new BadRequestException(
           'Payment is required before completing this step',
         );
@@ -387,7 +443,7 @@ export class PlatformFeePaymentService {
         PlatformFeeCodeEnum.STUDENT_REGISTRATION,
         user,
       );
-      if (!result.skipped) {
+      if (result.session && !result.session.skipped) {
         throw new BadRequestException(
           'Payment is required before completing this step',
         );
@@ -403,7 +459,7 @@ export class PlatformFeePaymentService {
   async initiatePtFeePayment(
     user: User,
     tutorOfferingId: number,
-  ): Promise<PaymentOrderSessionDto> {
+  ): Promise<CheckoutResultDto> {
     const tutor = await this.tutorService.findByUserId(user.id);
     if (!tutor) {
       throw new NotFoundException('Tutor profile not found');
@@ -414,13 +470,6 @@ export class PlatformFeePaymentService {
     if (!fee) {
       throw new NotFoundException('Proficiency test fee record not found');
     }
-    if (
-      fee.paymentStatus === TutorOfferingPtFeeStatusEnum.paid ||
-      fee.paymentStatus === TutorOfferingPtFeeStatusEnum.waived ||
-      fee.amountDueInr <= 0
-    ) {
-      return { skipped: true };
-    }
 
     const existing = await this.getCompletedPayment(
       PlatformFeeCodeEnum.PROFICIENCY_TEST,
@@ -429,61 +478,60 @@ export class PlatformFeePaymentService {
       tutorOfferingId,
     );
     if (existing) {
-      return { skipped: true };
+      return this.checkoutResultFromExistingPayment(existing);
+    }
+
+    if (fee.paymentStatus === TutorOfferingPtFeeStatusEnum.paid) {
+      throw new BadRequestException('Proficiency test fee is already paid');
     }
 
     const config = await this.platformFeeService.findByCode(
       PlatformFeeCodeEnum.PROFICIENCY_TEST,
     );
-    const effectiveAmountInr = fee.amountDueInr;
-    if (effectiveAmountInr <= 0) {
-      await this.ptFeeService.markPaid(tutorOfferingId, 'waived', 0);
-      return { skipped: true };
-    }
+    const ctx: FeePaymentContext = {
+      user,
+      contextType: PlatformFeePaymentContextTypeEnum.tutor_offering,
+      contextId: tutorOfferingId,
+      validateStage: async () => undefined,
+      onPaymentComplete: async () => undefined,
+    };
 
-    const gateway = this.paymentGatewayFactory.getActiveGateway();
-    const receipt = buildRazorpayReceipt(
-      PlatformFeeCodeEnum.PROFICIENCY_TEST,
-      tutorOfferingId,
-    );
-    const session = await gateway.createOrder({
-      amountInr: effectiveAmountInr,
-      receipt,
-      notes: {
-        description: config.displayName,
-        feeCode: PlatformFeeCodeEnum.PROFICIENCY_TEST,
-        tutorOfferingId: String(tutorOfferingId),
-      },
-      customer: {
-        id: String(user.id),
-        email: user.email ?? undefined,
-        phone: user.mobile ?? undefined,
-        name: [user.firstName, user.lastName].filter(Boolean).join(' ') || undefined,
-      },
+    const checkoutResult = await this.checkoutService.initiatePlatformFeeCheckout({
+      feeCode: PlatformFeeCodeEnum.PROFICIENCY_TEST,
+      user,
+      payerRole: OrderPayerRoleEnum.tutor,
+      referenceType: OrderItemReferenceTypeEnum.tutor_offering,
+      referenceId: tutorOfferingId,
+      overrideAmountDueInr: fee.amountDueInr,
     });
 
-    await this.recordPayment(
-      config,
-      {
-        user,
-        contextType: PlatformFeePaymentContextTypeEnum.tutor_offering,
-        contextId: tutorOfferingId,
-        validateStage: async () => undefined,
-        onPaymentComplete: async () => undefined,
-      },
-      PlatformFeePaymentStatusEnum.pending,
-      effectiveAmountInr,
-      session.provider,
-      session.orderId,
-    );
+    if (checkoutResult.order.amountDueInr <= 0) {
+      await this.recordPayment(
+        config,
+        ctx,
+        PlatformFeePaymentStatusEnum.waived,
+        0,
+        checkoutResult.order.id,
+      );
+    } else {
+      await this.recordPayment(
+        config,
+        ctx,
+        PlatformFeePaymentStatusEnum.pending,
+        checkoutResult.order.amountDueInr,
+        checkoutResult.order.id,
+        checkoutResult.session?.provider,
+        checkoutResult.session?.orderId,
+      );
+    }
 
-    return this.toDto(session);
+    return checkoutResult;
   }
 
   async confirmPtFeePayment(
     input: ConfirmPtFeePaymentInput,
     user: User,
-  ): Promise<PaymentOrderSessionDto> {
+  ): Promise<CheckoutResultDto> {
     const tutor = await this.tutorService.findByUserId(user.id);
     if (!tutor) {
       throw new NotFoundException('Tutor profile not found');
@@ -521,6 +569,7 @@ export class PlatformFeePaymentService {
     if (!verified) {
       pending.status = PlatformFeePaymentStatusEnum.failed;
       await this.paymentRepo.save(pending);
+      await this.checkoutService.markPaymentAttemptFailed(input.orderId);
       throw new BadRequestException('Payment verification failed');
     }
 
@@ -528,13 +577,28 @@ export class PlatformFeePaymentService {
     pending.gatewayPaymentId = input.paymentId;
     pending.paidAt = new Date();
     await this.paymentRepo.save(pending);
-    await this.ptFeeService.markPaid(
-      input.tutorOfferingId,
+
+    const config = await this.platformFeeService.findByCode(
+      PlatformFeeCodeEnum.PROFICIENCY_TEST,
+    );
+    await this.checkoutService.completePaidOrderFromGateway(
       input.orderId,
+      input.paymentId,
+      config,
+      user.id,
       pending.amountPaidInr,
     );
 
-    return { skipped: true };
+    const order = pending.commerceOrderId
+      ? await this.orderService.findById(pending.commerceOrderId)
+      : null;
+    if (!order) {
+      throw new BadRequestException('Commerce order not found after payment');
+    }
+    return {
+      order: this.orderService.toDto(order),
+      session: this.skippedSession(),
+    };
   }
 
   async fulfillPaymentFromGateway(
@@ -558,22 +622,13 @@ export class PlatformFeePaymentService {
     await this.paymentRepo.save(pending);
 
     const config = await this.platformFeeService.findByCode(pending.feeCode);
-
-    if (pending.feeCode === PlatformFeeCodeEnum.PROFICIENCY_TEST) {
-      await this.ptFeeService.markPaid(
-        pending.contextId,
-        orderId,
-        pending.amountPaidInr,
-      );
-      return;
-    }
-
-    const user = await this.authService.findById(pending.userId);
-    if (!user) {
-      return;
-    }
-    const ctx = await this.buildContext(pending.feeCode, user);
-    await ctx.onPaymentComplete(config, pending.amountPaidInr);
+    await this.checkoutService.completePaidOrderFromGateway(
+      orderId,
+      paymentId,
+      config,
+      pending.userId,
+      pending.amountPaidInr,
+    );
   }
 
   async markPendingPaymentFailed(orderId: string): Promise<void> {
@@ -585,9 +640,11 @@ export class PlatformFeePaymentService {
       },
     });
     if (!pending) {
+      await this.checkoutService.markPaymentAttemptFailed(orderId);
       return;
     }
     pending.status = PlatformFeePaymentStatusEnum.failed;
     await this.paymentRepo.save(pending);
+    await this.checkoutService.markPaymentAttemptFailed(orderId);
   }
 }

@@ -91,4 +91,8 @@ export class PlatformFeePaymentEntity extends QBaseEntity {
   @Field({ nullable: true })
   @Column({ name: 'paid_at', type: 'timestamp', nullable: true })
   paidAt?: Date;
+
+  @Field(() => Int, { nullable: true })
+  @Column({ name: 'commerce_order_id', type: 'integer', nullable: true })
+  commerceOrderId?: number;
 }

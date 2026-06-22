@@ -23,7 +23,7 @@ import { ProficiencyTestFeeInfo } from '../dto/proficiency-test-fee-info.dto';
 import { TutorAddOfferingService } from '../services/tutor-add-offering.service';
 import { TutorOfferingPtFeeService } from '../services/tutor-offering-pt-fee.service';
 import { PlatformFeePaymentService } from '../../payment/services/platform-fee-payment.service';
-import { PaymentOrderSessionDto } from '../../payment/dto/payment-order-session.dto';
+import { CheckoutResultDto } from '../../commerce/dto/checkout-result.dto';
 import { ConfirmPtFeePaymentInput } from '../../payment/dto/confirm-pt-fee-payment.input';
 @Resolver(() => Tutor)
 export class TutorResolver {
@@ -186,28 +186,28 @@ export class TutorResolver {
     return this.ptFeeService.getFeeInfoForTutorOffering(tutorOfferingId);
   }
 
-  @Mutation(() => PaymentOrderSessionDto, {
+  @Mutation(() => CheckoutResultDto, {
     description: 'Initiate proficiency test fee payment for a tutor offering',
   })
   @UseGuards(JwtAuthGuard)
   async initiatePtFeePayment(
     @CurrentUser() user: User,
     @Args('tutorOfferingId', { type: () => ID }) tutorOfferingId: number,
-  ): Promise<PaymentOrderSessionDto> {
+  ): Promise<CheckoutResultDto> {
     return this.platformFeePaymentService.initiatePtFeePayment(
       user,
       tutorOfferingId,
     );
   }
 
-  @Mutation(() => PaymentOrderSessionDto, {
+  @Mutation(() => CheckoutResultDto, {
     description: 'Confirm proficiency test fee payment after gateway checkout',
   })
   @UseGuards(JwtAuthGuard)
   async confirmPtFeePayment(
     @CurrentUser() user: User,
     @Args('input') input: ConfirmPtFeePaymentInput,
-  ): Promise<PaymentOrderSessionDto> {
+  ): Promise<CheckoutResultDto> {
     return this.platformFeePaymentService.confirmPtFeePayment(input, user);
   }
 

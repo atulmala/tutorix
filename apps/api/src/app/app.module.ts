@@ -21,6 +21,7 @@ import { TutorClassSessionModule } from './modules/tutor-class-session/tutor-cla
 import { StudentModule } from './modules/student/student.module';
 import { PlatformFeeModule } from './modules/platform-fee/platform-fee.module';
 import { PaymentModule } from './modules/payment';
+import { CommerceModule } from './modules/commerce/commerce.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { PaymentModule } from './modules/payment';
     TutorClassSessionModule,
     StudentModule,
     PlatformFeeModule,
+    CommerceModule,
     PaymentModule,
     // Add other modules here as they are created:
     // ClassesModule,

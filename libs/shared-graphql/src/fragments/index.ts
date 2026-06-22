@@ -18,6 +18,7 @@
  */
 
 export * from './user.fragments';
+export * from './checkout.fragments';
 
 // Export other fragment modules here as they are created:
 // export * from './tutor.fragments';
