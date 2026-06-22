@@ -13,7 +13,7 @@ import {
   formatProficiencyTestFeeMessage,
   isPtFeePaymentRequired,
   runPtFeePaymentCheckout,
-  type PaymentOrderSession,
+  type CheckoutResult,
   type PtFeeInfo,
 } from '@tutorix/shared-utils';
 import type { StepComponentProps } from '../types';
@@ -143,7 +143,7 @@ export const TutorPT: React.FC<TutorPTProps> = ({
           const result = await initiatePtFeePayment({
             variables: { tutorOfferingId: offeringId },
           });
-          return result.data?.initiatePtFeePayment as PaymentOrderSession;
+          return result.data?.initiatePtFeePayment as CheckoutResult;
         },
         async (input) => {
           await confirmPtFeePayment({ variables: { input } });

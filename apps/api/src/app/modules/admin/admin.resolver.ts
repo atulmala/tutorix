@@ -24,12 +24,17 @@ import { TutorCalendar } from '../tutor-calendar/entities/tutor-calendar.entity'
 import { TutorCalendarService } from '../tutor-calendar/services/tutor-calendar.service';
 import { AdminPlatformFeeConfig } from './dto/admin-platform-fee-config.dto';
 import { AdminUpdatePlatformFeeInput } from '../platform-fee/dto/admin-update-platform-fee.input';
+import { CommerceAdminService } from '../commerce/services/commerce-admin.service';
+import { AdminOrderListInput } from '../commerce/dto/admin/admin-order-list.input';
+import { AdminOrderListResult } from '../commerce/dto/admin/admin-order-list-result.dto';
+import { AdminOrderDetail } from '../commerce/dto/admin/admin-order-detail.dto';
 
 @Resolver()
 export class AdminResolver {
   constructor(
     private readonly adminService: AdminService,
     private readonly tutorCalendarService: TutorCalendarService,
+    private readonly commerceAdminService: CommerceAdminService,
   ) {}
 
   @Query(() => AdminDashboardStats, {
@@ -200,5 +205,27 @@ export class AdminResolver {
     @Args('input') input: AdminUpdatePlatformFeeInput,
   ): Promise<AdminPlatformFeeConfig> {
     return this.adminService.updatePlatformFee(input);
+  }
+
+  @Query(() => AdminOrderListResult, {
+    description: 'Paginated commerce orders (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminOrders(
+    @Args('input') input: AdminOrderListInput,
+  ): Promise<AdminOrderListResult> {
+    return this.commerceAdminService.listOrders(input);
+  }
+
+  @Query(() => AdminOrderDetail, {
+    description: 'Commerce order detail with items, invoice, and payments (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminOrderDetail(
+    @Args('orderId', { type: () => Int }) orderId: number,
+  ): Promise<AdminOrderDetail> {
+    return this.commerceAdminService.getOrderDetail(orderId);
   }
 }

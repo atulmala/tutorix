@@ -1,5 +1,7 @@
 import {
   openPaymentCheckout,
+  checkoutSession,
+  type CheckoutResult,
   type ConfirmPaymentInput,
   type PaymentOrderSession,
 } from './payment-checkout';
@@ -28,14 +30,19 @@ export async function runPtFeePaymentCheckout(
   tutorOfferingId: number,
   initiatePtFeePayment: (
     offeringId: number,
-  ) => Promise<PaymentOrderSession | null | undefined>,
+  ) => Promise<CheckoutResult | null | undefined>,
   confirmPtFeePayment: (
     input: ConfirmPaymentInput & { tutorOfferingId: number },
   ) => Promise<unknown>,
-): Promise<void> {
-  const session = await initiatePtFeePayment(tutorOfferingId);
-  if (!session || session.skipped) {
-    return;
+): Promise<CheckoutResult> {
+  const checkout = await initiatePtFeePayment(tutorOfferingId);
+  if (!checkout) {
+    throw new Error('Could not initiate proficiency test fee payment');
+  }
+
+  const session = checkoutSession(checkout);
+  if (session.skipped) {
+    return checkout;
   }
 
   const confirmation = await openPaymentCheckout(session);
@@ -46,4 +53,7 @@ export async function runPtFeePaymentCheckout(
     paymentId: confirmation.paymentId,
     signature: confirmation.signature,
   });
+  return checkout;
 }
+
+export type { PaymentOrderSession, CheckoutResult };

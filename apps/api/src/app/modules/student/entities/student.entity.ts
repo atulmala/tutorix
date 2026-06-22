@@ -47,11 +47,23 @@ export class Student extends QBaseEntity {
   regFeePaid?: boolean;
 
   @Field({ nullable: true })
-  @Column({ type: 'decimal', precision: 8, scale: 2, default: 0 })
+  @Column({
+    type: 'decimal',
+    precision: 8,
+    scale: 2,
+    default: 0,
+    name: 'reg_fee_amount',
+  })
   regFeeAmount?: number;
 
   @Field({ nullable: true })
-  @Column({ type: 'decimal', precision: 8, scale: 2, default: 499 })
+  @Column({
+    type: 'decimal',
+    precision: 8,
+    scale: 2,
+    default: 499,
+    name: 'reg_fee_amount_to_be_paid',
+  })
   regFeeAmountToBePaid?: number;
 
   @Field(() => Date, { nullable: true })

@@ -9,6 +9,25 @@ export type PaymentOrderSession = {
   checkoutPayloadJson?: string | null;
 };
 
+export type CommerceOrderSummary = {
+  id: number;
+  orderNumber: string;
+  status: string;
+  amountDueInr: number;
+  amountPaidInr?: number;
+  paymentMethod?: string | null;
+  paidAt?: string | null;
+};
+
+export type CheckoutResult = {
+  order: CommerceOrderSummary;
+  session?: PaymentOrderSession | null;
+};
+
+export function checkoutSession(result: CheckoutResult): PaymentOrderSession {
+  return result.session ?? { skipped: true };
+}
+
 export type ConfirmPaymentInput = {
   provider?: PaymentGatewayProvider;
   orderId: string;

@@ -29,6 +29,11 @@ import { TutorClassSessionEnrollmentEntity } from '../modules/tutor-class-sessio
 import { Student } from '../modules/student/entities/student.entity';
 import { PlatformFeeConfigEntity } from '../modules/platform-fee/entities/platform-fee-config.entity';
 import { PlatformFeePaymentEntity } from '../modules/payment/entities/platform-fee-payment.entity';
+import { OrderEntity } from '../modules/commerce/entities/order.entity';
+import { OrderItemEntity } from '../modules/commerce/entities/order-item.entity';
+import { PaymentAttemptEntity } from '../modules/commerce/entities/payment-attempt.entity';
+import { InvoiceEntity } from '../modules/commerce/entities/invoice.entity';
+import { InvoiceLineEntity } from '../modules/commerce/entities/invoice-line.entity';
 // Add other entities as they are created
 
 /**
@@ -75,6 +80,11 @@ export function createDatabaseOptions(
       Student,
       PlatformFeeConfigEntity,
       PlatformFeePaymentEntity,
+      OrderEntity,
+      OrderItemEntity,
+      PaymentAttemptEntity,
+      InvoiceEntity,
+      InvoiceLineEntity,
       // Add other entities here as they are created
       // Class,
     ],

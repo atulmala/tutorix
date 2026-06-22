@@ -284,3 +284,98 @@ export const GET_ADMIN_PROFICIENCY_TEST_DETAIL = gql`
     }
   }
 `;
+
+export const GET_ADMIN_ORDERS = gql`
+  query GetAdminOrders($input: AdminOrderListInput!) {
+    adminOrders(input: $input) {
+      items {
+        id
+        orderNumber
+        status
+        paymentMethod
+        payerRole
+        source
+        userId
+        payerName
+        payerEmail
+        subtotalInr
+        discountInr
+        amountDueInr
+        amountPaidInr
+        paidAt
+        createdDate
+      }
+      totalCount
+      page
+      pageSize
+      totalPages
+    }
+  }
+`;
+
+export const GET_ADMIN_ORDER_DETAIL = gql`
+  query GetAdminOrderDetail($orderId: Int!) {
+    adminOrderDetail(orderId: $orderId) {
+      id
+      orderNumber
+      status
+      paymentMethod
+      payerRole
+      source
+      subtotalInr
+      discountInr
+      taxInr
+      pointsRedeemed
+      pointsValueInr
+      amountDueInr
+      amountPaidInr
+      billingName
+      billingEmail
+      billingPhone
+      billingStateCode
+      paidAt
+      createdDate
+      payer {
+        userId
+        name
+        email
+        mobile
+      }
+      items {
+        id
+        itemType
+        description
+        quantity
+        unitRateInr
+        lineSubtotalInr
+        discountInr
+        waiverApplied
+        cgstInr
+        sgstInr
+        igstInr
+        gstRatePercent
+        referenceType
+        referenceId
+        fulfillmentStatus
+      }
+      invoice {
+        id
+        invoiceNumber
+        orderNumber
+        amountDueInr
+        amountPaidInr
+        paymentMethod
+        issuedAt
+        pdfUrl
+      }
+      paymentAttempts {
+        id
+        provider
+        gatewayOrderId
+        gatewayPaymentId
+        amountInr
+        status
+      }
+    }
+  }
+`;

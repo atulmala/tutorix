@@ -12,6 +12,8 @@ import { StudentDetailPage } from './pages/StudentDetailPage';
 import { ProficiencyTestsPage } from './pages/ProficiencyTestsPage';
 import { ProficiencyTestDetailPage } from './pages/ProficiencyTestDetailPage';
 import { FeesAndChargesPage } from './pages/FeesAndChargesPage';
+import { OrdersPage } from './pages/OrdersPage';
+import { OrderDetailPage } from './pages/OrderDetailPage';
 
 export function App() {
   return (
@@ -35,6 +37,8 @@ export function App() {
           <Route path="proficiency-tests" element={<ProficiencyTestsPage />} />
           <Route path="proficiency-tests/:testId" element={<ProficiencyTestDetailPage />} />
           <Route path="fees-and-charges" element={<FeesAndChargesPage />} />
+          <Route path="orders" element={<OrdersPage />} />
+          <Route path="orders/:orderId" element={<OrderDetailPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
