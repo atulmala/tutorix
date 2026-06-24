@@ -7,7 +7,14 @@ import {
   PaymentOrderSession,
   VerifyPaymentInput,
 } from '../interfaces/payment-gateway.interface';
+import { PaymentSettlementDetails } from '../interfaces/payment-settlement.interface';
 import { PaymentGatewayProviderEnum } from '../enums/payment.enums';
+import {
+  buildRazorpayCheckoutDescription,
+  buildRazorpayCheckoutDisplayName,
+  buildRazorpayOrderLineItems,
+  resolveRazorpayCheckoutLogoUrl,
+} from '../utils/razorpay-checkout.util';
 
 @Injectable()
 export class RazorpayGateway implements PaymentGateway {
@@ -30,6 +37,27 @@ export class RazorpayGateway implements PaymentGateway {
     }
 
     const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+    const checkoutPurpose = buildRazorpayCheckoutDescription(input.notes);
+    const checkoutDisplayName = buildRazorpayCheckoutDisplayName(checkoutPurpose);
+    const logoUrl =
+      resolveRazorpayCheckoutLogoUrl(
+        this.configService.get<string>('RAZORPAY_CHECKOUT_LOGO_URL') ||
+          process.env.RAZORPAY_CHECKOUT_LOGO_URL,
+      );
+    const themeColor =
+      this.configService.get<string>('RAZORPAY_CHECKOUT_THEME_COLOR') ||
+      process.env.RAZORPAY_CHECKOUT_THEME_COLOR ||
+      '#5fa8ff';
+    const lineItems = buildRazorpayOrderLineItems({
+      amountInr: input.amountInr,
+      checkoutPurpose,
+      notes: input.notes,
+      imageUrl: logoUrl,
+    });
+    const orderNotes = {
+      ...(input.notes ?? {}),
+      purpose: checkoutPurpose,
+    };
     const response = await fetch('https://api.razorpay.com/v1/orders', {
       method: 'POST',
       headers: {
@@ -40,7 +68,10 @@ export class RazorpayGateway implements PaymentGateway {
         amount: input.amountInr * 100,
         currency: 'INR',
         receipt: input.receipt,
-        notes: input.notes ?? {},
+        description: checkoutPurpose,
+        line_items_total: lineItems.line_items_total,
+        line_items: lineItems.line_items,
+        notes: orderNotes,
       }),
     });
 
@@ -49,8 +80,14 @@ export class RazorpayGateway implements PaymentGateway {
       throw new Error(`Razorpay order creation failed: ${body}`);
     }
 
-    const order = (await response.json()) as { id: string; amount: number };
-    return {
+    const order = (await response.json()) as {
+      id: string;
+      amount: number;
+      description?: string | null;
+      line_items_total?: number;
+    };
+
+    const session: PaymentOrderSession = {
       provider: PaymentGatewayProviderEnum.razorpay,
       orderId: order.id,
       amountInr: input.amountInr,
@@ -60,8 +97,13 @@ export class RazorpayGateway implements PaymentGateway {
         order_id: order.id,
         amount: order.amount,
         currency: 'INR',
-        name: 'Tutorix',
-        description: input.notes?.description ?? 'Platform fee',
+        name: checkoutDisplayName,
+        description: checkoutPurpose,
+        image: logoUrl,
+        notes: {
+          purpose: checkoutPurpose,
+        },
+        theme: { color: themeColor },
         prefill: input.customer
           ? {
               name: input.customer.name,
@@ -71,6 +113,8 @@ export class RazorpayGateway implements PaymentGateway {
           : undefined,
       },
     };
+
+    return session;
   }
 
   async verifyPayment(input: VerifyPaymentInput): Promise<boolean> {
@@ -92,6 +136,96 @@ export class RazorpayGateway implements PaymentGateway {
       .update(rawBody)
       .digest('hex');
     return expected === signature;
+  }
+
+  private getAuthHeader(): string {
+    const keyId = this.configService.get<string>('RAZORPAY_KEY_ID');
+    const keySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET');
+    if (!keyId || !keySecret) {
+      throw new Error('Razorpay credentials are not configured');
+    }
+    return `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}`;
+  }
+
+  async fetchSettlementForPayment(
+    paymentId: string,
+  ): Promise<PaymentSettlementDetails | null> {
+    if (!this.isConfigured()) {
+      return null;
+    }
+
+    const paymentResponse = await fetch(
+      `https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: this.getAuthHeader(),
+        },
+      },
+    );
+
+    if (!paymentResponse.ok) {
+      const body = await paymentResponse.text();
+      throw new Error(`Razorpay payment fetch failed (${paymentResponse.status}): ${body}`);
+    }
+
+    const payment = (await paymentResponse.json()) as {
+      settlement_id?: string | null;
+    };
+
+    const settlementId = payment.settlement_id?.trim();
+    if (!settlementId) {
+      return null;
+    }
+
+    return this.fetchSettlementDetails(settlementId);
+  }
+
+  async fetchSettlementDetails(
+    settlementId: string,
+  ): Promise<PaymentSettlementDetails | null> {
+    if (!this.isConfigured()) {
+      return null;
+    }
+
+    const settlementResponse = await fetch(
+      `https://api.razorpay.com/v1/settlements/${encodeURIComponent(settlementId)}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: this.getAuthHeader(),
+        },
+      },
+    );
+
+    if (settlementResponse.status === 404) {
+      return null;
+    }
+
+    if (!settlementResponse.ok) {
+      const body = await settlementResponse.text();
+      throw new Error(
+        `Razorpay settlement fetch failed (${settlementResponse.status}): ${body}`,
+      );
+    }
+
+    const settlement = (await settlementResponse.json()) as {
+      id?: string;
+      utr?: string | null;
+      created_at?: number;
+    };
+
+    if (!settlement.id) {
+      return null;
+    }
+
+    return {
+      settlementId: settlement.id,
+      utr: settlement.utr?.trim() || undefined,
+      settledAt: settlement.created_at
+        ? new Date(settlement.created_at * 1000)
+        : undefined,
+    };
   }
 }
 

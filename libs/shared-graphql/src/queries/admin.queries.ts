@@ -375,6 +375,9 @@ export const GET_ADMIN_ORDER_DETAIL = gql`
         gatewayPaymentId
         amountInr
         status
+        gatewaySettlementId
+        settlementUtr
+        settledAt
       }
     }
   }

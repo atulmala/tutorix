@@ -87,12 +87,31 @@ export async function openPaymentCheckout(
   }
 
   const payload = JSON.parse(session.checkoutPayloadJson) as Record<string, unknown>;
+  const checkoutPurpose =
+    typeof payload.description === 'string' && payload.description.trim()
+      ? payload.description.trim()
+      : typeof payload.notes === 'object' &&
+          payload.notes !== null &&
+          typeof (payload.notes as Record<string, unknown>).purpose === 'string'
+        ? String((payload.notes as Record<string, unknown>).purpose).trim()
+        : undefined;
 
   if (session.provider === 'razorpay') {
     await loadRazorpayScript();
     return new Promise((resolve, reject) => {
-      const options = {
-        ...payload,
+      const description =
+        checkoutPurpose ??
+        (typeof payload.description === 'string' ? payload.description : undefined);
+      const razorpayOptions: Record<string, unknown> = {
+        key: payload.key,
+        order_id: payload.order_id,
+        currency: payload.currency ?? 'INR',
+        name: payload.name,
+        ...(description ? { description } : {}),
+        ...(payload.image ? { image: payload.image } : {}),
+        ...(payload.theme ? { theme: payload.theme } : {}),
+        ...(payload.prefill ? { prefill: payload.prefill } : {}),
+        ...(payload.notes ? { notes: payload.notes } : {}),
         handler: (response: Record<string, string>) => {
           resolve({
             provider: 'razorpay',
@@ -105,10 +124,13 @@ export async function openPaymentCheckout(
           ondismiss: () => reject(new Error('Payment cancelled')),
         },
       };
+      if (!payload.order_id && payload.amount != null) {
+        razorpayOptions.amount = payload.amount;
+      }
       if (!window.Razorpay) {
         throw new Error('Razorpay checkout script failed to load');
       }
-      const razorpay = new window.Razorpay(options);
+      const razorpay = new window.Razorpay(razorpayOptions);
       razorpay.on('payment.failed', (response: { error?: { description?: string } }) => {
         reject(
           new Error(response.error?.description ?? 'Payment failed. Please try again.'),
@@ -147,9 +169,46 @@ export function buildWaivedFeeMessage(feeLabel: string, amountInr: number): stri
   return `The regular ${feeLabel.toLowerCase()} is ₹${amountInr}, but it is waived for a limited time.`;
 }
 
+export type FeeDiscountPaymentMessageInput = {
+  feeName: string;
+  amountInr: number;
+  discountAmountInr: number;
+  discountType?: string;
+  discountValue?: number;
+  netAmountInr: number;
+};
+
+export function formatFeePaymentStageMessage(
+  input: FeeDiscountPaymentMessageInput,
+): string | undefined {
+  const {
+    feeName,
+    amountInr,
+    discountAmountInr,
+    discountType,
+    discountValue,
+    netAmountInr,
+  } = input;
+
+  if (discountAmountInr <= 0) {
+    return undefined;
+  }
+
+  const feeLabel = /\bfee$/i.test(feeName.trim()) ? feeName.trim() : `${feeName.trim()} fee`;
+
+  const discountPart =
+    discountType === 'PERCENT' && discountValue != null && discountValue > 0
+      ? `discount ${discountValue}%`
+      : `discount ₹${discountAmountInr}`;
+
+  return `${feeLabel} ₹${amountInr}, ${discountPart}, net amount payable: ₹${netAmountInr}`;
+}
+
 export function formatPlatformFeeSummary(fee: {
   displayName?: string;
   amountInr: number;
+  discountType?: string;
+  discountValue?: number;
   discountAmountInr: number;
   effectiveAmountInr: number;
   waived: boolean;
@@ -165,10 +224,16 @@ export function formatPlatformFeeSummary(fee: {
   let message: string | undefined;
   if (fee.effectiveAmountInr <= 0) {
     message = buildWaivedFeeMessage(feeName, fee.amountInr);
-  } else if (fee.promoMessage?.trim()) {
-    message = fee.promoMessage.trim();
   } else if (fee.discountAmountInr > 0) {
-    message = `List price ₹${fee.amountInr}, discount ₹${fee.discountAmountInr}. Amount due: ₹${fee.effectiveAmountInr}.`;
+    message =
+      formatFeePaymentStageMessage({
+        feeName: feeName.replace(/\s+fee$/i, ''),
+        amountInr: fee.amountInr,
+        discountAmountInr: fee.discountAmountInr,
+        discountType: fee.discountType,
+        discountValue: fee.discountValue,
+        netAmountInr: fee.effectiveAmountInr,
+      }) ?? `Amount due: ₹${fee.effectiveAmountInr}.`;
   } else {
     message = `Amount due: ₹${fee.effectiveAmountInr}.`;
   }
@@ -185,18 +250,36 @@ export function formatProficiencyTestFeeMessage(fee: {
   amountDueInr: number;
   displayName?: string;
   effectiveAmountInr?: number;
+  discountAmountInr?: number;
+  discountType?: string;
+  discountValue?: number;
   promoMessage?: string | null;
 }): string | undefined {
   const feeName = fee.displayName ?? 'proficiency test fee';
   const effectiveAmountInr = fee.effectiveAmountInr ?? fee.amountDueInr;
+  const discountAmountInr =
+    fee.discountAmountInr ??
+    Math.max(0, fee.listPriceInr - effectiveAmountInr);
 
   if (effectiveAmountInr <= 0 && fee.listPriceInr > 0) {
-    return buildWaivedFeeMessage(feeName, fee.listPriceInr);
-  }
-  if (effectiveAmountInr > 0) {
     if (fee.promoMessage?.trim()) {
       return fee.promoMessage.trim();
     }
+    return buildWaivedFeeMessage(feeName, fee.listPriceInr);
+  }
+  if (effectiveAmountInr > 0 && discountAmountInr > 0) {
+    return (
+      formatFeePaymentStageMessage({
+        feeName: feeName.replace(/\s+fee$/i, ''),
+        amountInr: fee.listPriceInr,
+        discountAmountInr,
+        discountType: fee.discountType,
+        discountValue: fee.discountValue,
+        netAmountInr: effectiveAmountInr,
+      }) ?? `Amount due before the test: ₹${effectiveAmountInr}.`
+    );
+  }
+  if (effectiveAmountInr > 0) {
     return `Amount due before the test: ₹${effectiveAmountInr}.`;
   }
   return undefined;

@@ -6,6 +6,7 @@ export enum BatchJobNameEnum {
   CLASS_REMINDER = 'class-reminder',
   FEEDBACK_REMINDER = 'feedback-reminder',
   CALENDAR_UPDATE_REMINDER = 'calendar-update-reminder',
+  PAYMENT_SETTLEMENT_SYNC = 'payment-settlement-sync',
 }
 
 registerEnumType(BatchJobNameEnum, {

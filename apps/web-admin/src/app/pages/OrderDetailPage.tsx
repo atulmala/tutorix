@@ -28,6 +28,9 @@ type PaymentAttemptRow = {
   gatewayPaymentId?: string | null;
   amountInr: number;
   status: string;
+  gatewaySettlementId?: string | null;
+  settlementUtr?: string | null;
+  settledAt?: string | null;
 };
 
 type AdminOrderDetailData = {
@@ -96,6 +99,20 @@ function lineTotal(item: OrderItemRow): number {
   );
 }
 
+function isGatewayOrder(paymentMethod?: string | null): boolean {
+  return paymentMethod === 'gateway' || paymentMethod === 'mixed';
+}
+
+function pickPaidGatewayAttempt(
+  attempts: PaymentAttemptRow[],
+): PaymentAttemptRow | undefined {
+  return attempts.find((attempt) => attempt.status === 'paid') ?? attempts[0];
+}
+
+function settlementField(value?: string | null): string {
+  return value?.trim() ? value : 'Not yet available';
+}
+
 function Section({
   title,
   children,
@@ -125,6 +142,10 @@ export function OrderDetailPage() {
   );
 
   const order = data?.adminOrderDetail;
+  const paidGatewayAttempt = order
+    ? pickPaidGatewayAttempt(order.paymentAttempts)
+    : undefined;
+  const isSettled = Boolean(paidGatewayAttempt?.gatewaySettlementId?.trim());
 
   if (!Number.isFinite(parsedId)) {
     return <p className="text-sm text-red-600">Invalid order ID.</p>;
@@ -297,31 +318,60 @@ export function OrderDetailPage() {
           )}
         </Section>
 
-        <Section title="Payment attempts">
-          {order.paymentAttempts.length === 0 ? (
+        <Section title="Gateway">
+          {!isGatewayOrder(order.paymentMethod) ? (
             <p className="text-sm text-muted">
-              {order.paymentMethod === 'waived' || order.amountDueInr === 0
-                ? 'No gateway payment (waived or zero amount).'
-                : 'No payment attempts recorded.'}
+              No gateway payment (waived or zero amount).
             </p>
+          ) : !paidGatewayAttempt ? (
+            <p className="text-sm text-muted">No payment attempts recorded.</p>
           ) : (
-            <div className="space-y-3">
-              {order.paymentAttempts.map((attempt) => (
-                <div
-                  key={attempt.id}
-                  className="rounded-lg border border-subtle bg-gray-50 p-3 text-sm"
-                >
-                  <div className="font-medium capitalize">{attempt.provider}</div>
-                  <div className="mt-1 text-muted">Order ID: {attempt.gatewayOrderId}</div>
-                  {attempt.gatewayPaymentId ? (
-                    <div className="text-muted">Payment ID: {attempt.gatewayPaymentId}</div>
-                  ) : null}
-                  <div className="mt-1">
-                    {formatInr(attempt.amountInr)} · {attempt.status}
-                  </div>
+            <dl className="space-y-2 text-sm">
+              <div>
+                <dt className="text-muted">Provider</dt>
+                <dd className="font-medium capitalize">{paidGatewayAttempt.provider}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Gateway order ID</dt>
+                <dd className="font-medium break-all">{paidGatewayAttempt.gatewayOrderId}</dd>
+              </div>
+              {paidGatewayAttempt.gatewayPaymentId ? (
+                <div>
+                  <dt className="text-muted">Gateway payment ID</dt>
+                  <dd className="font-medium break-all">{paidGatewayAttempt.gatewayPaymentId}</dd>
                 </div>
-              ))}
-            </div>
+              ) : null}
+              <div>
+                <dt className="text-muted">Amount</dt>
+                <dd className="font-medium">
+                  {formatInr(paidGatewayAttempt.amountInr)} · {paidGatewayAttempt.status}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted">Settled</dt>
+                <dd className="font-medium">{isSettled ? 'Yes' : 'No'}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Settlement ID</dt>
+                <dd className="font-medium break-all">
+                  {settlementField(paidGatewayAttempt.gatewaySettlementId)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted">UTR no.</dt>
+                <dd className="font-medium break-all">
+                  {settlementField(paidGatewayAttempt.settlementUtr)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted">Settled at</dt>
+                <dd>
+                  {paidGatewayAttempt.settledAt
+                    ? formatDate(paidGatewayAttempt.settledAt)
+                    : 'Not yet available'}
+                </dd>
+              </div>
+            </dl>
           )}
         </Section>
       </div>

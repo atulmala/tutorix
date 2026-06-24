@@ -114,6 +114,11 @@ export class CheckoutService {
         description: config.displayName,
         feeCode: ctx.feeCode,
         commerceOrderNumber: order.orderNumber,
+        listPriceInr: String(line.lineSubtotalInr),
+        discountAmountInr: String(line.discountInr),
+        discountType: config.discountType,
+        discountValue: String(config.discountValue),
+        amountDueInr: String(line.amountDueInr),
       },
       customer: {
         id: String(ctx.user.id),

@@ -16,12 +16,21 @@ export async function openPaymentCheckout(
   }
 
   const payload = JSON.parse(session.checkoutPayloadJson) as Record<string, unknown>;
+  const checkoutPurpose =
+    typeof payload.description === 'string' && payload.description.trim()
+      ? payload.description.trim()
+      : typeof payload.notes === 'object' &&
+          payload.notes !== null &&
+          typeof (payload.notes as Record<string, unknown>).purpose === 'string'
+        ? String((payload.notes as Record<string, unknown>).purpose).trim()
+        : undefined;
 
   if (session.provider === 'razorpay') {
     const RazorpayCheckout = require('react-native-razorpay')
       .default as RazorpayNativeModule;
     const result = await RazorpayCheckout.open({
       ...payload,
+      ...(checkoutPurpose ? { description: checkoutPurpose } : {}),
       currency: payload.currency ?? 'INR',
     });
     return {

@@ -47,4 +47,16 @@ export class PaymentAttemptEntity extends QBaseEntity {
     default: PaymentAttemptStatusEnum.pending,
   })
   status: PaymentAttemptStatusEnum;
+
+  @Field({ nullable: true })
+  @Column({ name: 'gateway_settlement_id', type: 'varchar', nullable: true })
+  gatewaySettlementId?: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'settlement_utr', type: 'varchar', nullable: true })
+  settlementUtr?: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'settled_at', type: 'timestamp', nullable: true })
+  settledAt?: Date;
 }
