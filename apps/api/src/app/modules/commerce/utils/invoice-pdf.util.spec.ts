@@ -5,6 +5,7 @@ import {
   invoiceShowsGst,
   pickPrimaryAddress,
   renderInvoicePdfContent,
+  resolveInvoiceFontPath,
   SHOW_GST_ON_INVOICE,
 } from './invoice-pdf.util';
 import { AddressEntity } from '../../address/entities/address.entity';
@@ -89,5 +90,54 @@ describe('invoice-pdf.util', () => {
     const pdfText = pdfBuffer.toString('latin1');
     expect(pdfText).not.toContain('GST');
     expect(pdfText).not.toMatch(/\bTax:/);
+  });
+
+  it('embeds rupee symbol in PDF when NotoSans font is available', async () => {
+    if (!resolveInvoiceFontPath()) {
+      return;
+    }
+
+    const invoice = {
+      invoiceNumber: 'INV202606RUPEE',
+      orderNumber: 'TX260621RUPEE',
+      issuedAt: new Date('2026-06-21T00:00:00.000Z'),
+      paymentMethod: OrderPaymentMethodEnum.gateway,
+      subtotalInr: 199,
+      discountInr: 40,
+      taxInr: 0,
+      pointsValueInr: 0,
+      amountDueInr: 159,
+      amountPaidInr: 159,
+      lines: [
+        {
+          description: 'Tutor registration fee',
+          quantity: 1,
+          unitRateInr: 199,
+          discountInr: 40,
+          waiverApplied: false,
+          cgstInr: 0,
+          sgstInr: 0,
+          igstInr: 0,
+          lineTotalInr: 159,
+        } as InvoiceLineEntity,
+      ],
+    } as InvoiceEntity;
+
+    const order = { billingName: 'Test User' } as OrderEntity;
+    const chunks: Buffer[] = [];
+    const doc = new PDFDocument({ margin: 50 });
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+
+    const pdfDone = new Promise<Buffer>((resolve, reject) => {
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+    });
+
+    renderInvoicePdfContent(doc, invoice, order);
+    doc.end();
+
+    const pdfBuffer = await pdfDone;
+    expect(pdfBuffer.includes(Buffer.from('Subtotal:', 'utf8'))).toBe(true);
+    expect(pdfBuffer.includes(Buffer.from('\u20B9199', 'utf8'))).toBe(true);
   });
 });

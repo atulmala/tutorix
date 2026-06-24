@@ -30,6 +30,6 @@ import { RazorpayWebhookController } from './controllers/razorpay-webhook.contro
     PlatformFeePaymentService,
     PaymentResolver,
   ],
-  exports: [PlatformFeePaymentService, PaymentGatewayFactory],
+  exports: [PlatformFeePaymentService, PaymentGatewayFactory, RazorpayGateway],
 })
 export class PaymentModule {}

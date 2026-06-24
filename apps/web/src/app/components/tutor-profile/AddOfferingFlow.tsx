@@ -52,6 +52,9 @@ export const AddOfferingFlow: React.FC<AddOfferingFlowProps> = ({
         listPriceInr: ptFeeConfig.amountInr,
         amountDueInr: ptFeeConfig.effectiveAmountInr,
         effectiveAmountInr: ptFeeConfig.effectiveAmountInr,
+        discountAmountInr: ptFeeConfig.discountAmountInr,
+        discountType: ptFeeConfig.discountType,
+        discountValue: ptFeeConfig.discountValue,
         displayName: ptFeeConfig.displayName,
         promoMessage: ptFeeConfig.promoMessage,
       })

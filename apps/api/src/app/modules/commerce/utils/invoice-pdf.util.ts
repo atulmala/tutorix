@@ -45,6 +45,7 @@ function tableColumns() {
 export function resolveInvoiceFontPath(): string | undefined {
   const candidates = [
     join(__dirname, 'assets', 'fonts', 'NotoSans-Regular.ttf'),
+    join(__dirname, '..', '..', '..', 'assets', 'fonts', 'NotoSans-Regular.ttf'),
     join(process.cwd(), 'apps/api/src/assets/fonts/NotoSans-Regular.ttf'),
     join(process.cwd(), 'dist/apps/api/assets/fonts/NotoSans-Regular.ttf'),
   ];
@@ -55,6 +56,7 @@ export function registerInvoiceFont(doc: InstanceType<typeof PDFDocument>): stri
   const fontPath = resolveInvoiceFontPath();
   if (fontPath) {
     doc.registerFont(INVOICE_FONT, fontPath);
+    doc.font(INVOICE_FONT);
     return '\u20B9';
   }
   return 'Rs. ';
