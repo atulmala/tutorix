@@ -23,6 +23,7 @@ export const TutorRegistrationPayment: React.FC<StepComponentProps> = () => {
   });
   const fee = feeData?.platformFee;
   const summary = fee ? formatPlatformFeeSummary(fee) : null;
+  const feeMessage = summary?.message ?? fee?.promoMessage?.trim() ?? null;
 
   const [initiatePayment] = useMutation(INITIATE_PLATFORM_FEE_PAYMENT);
   const [confirmPayment] = useMutation(CONFIRM_PLATFORM_FEE_PAYMENT);
@@ -80,8 +81,8 @@ export const TutorRegistrationPayment: React.FC<StepComponentProps> = () => {
           role="status"
         >
           <p className="font-medium">{summary?.title ?? fee.displayName}</p>
-          {summary?.message ? (
-            <p className="mt-2 text-amber-900">{summary.message}</p>
+          {feeMessage ? (
+            <p className="mt-2 text-amber-900">{feeMessage}</p>
           ) : null}
           {orderNumber ? (
             <p className="mt-2 text-amber-900">Order {orderNumber}</p>

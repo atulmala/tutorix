@@ -90,6 +90,57 @@ describe('payment-checkout fee messages', () => {
     ).toBe('Proficiency test fee is not being charged for a limited time.');
   });
 
+  it('uses promo message for chargeable platform fee when configured', () => {
+    const summary = formatPlatformFeeSummary({
+      displayName: 'Tutor registration fee',
+      amountInr: 11,
+      discountAmountInr: 0,
+      effectiveAmountInr: 11,
+      waived: false,
+      displayLabel: '₹11',
+      promoMessage: 'Heavy Discount on Registration Fee for very limited time.',
+    });
+
+    expect(summary.message).toBe(
+      'Heavy Discount on Registration Fee for very limited time.',
+    );
+  });
+
+  it('prefers promo message over discount breakdown when both are set', () => {
+    const summary = formatPlatformFeeSummary({
+      displayName: 'Tutor registration fee',
+      amountInr: 199,
+      discountType: 'FIXED_INR',
+      discountValue: 49,
+      discountAmountInr: 49,
+      effectiveAmountInr: 150,
+      waived: false,
+      displayLabel: '₹150',
+      promoMessage: 'Heavy Discount on Registration Fee for very limited time.',
+    });
+
+    expect(summary.message).toBe(
+      'Heavy Discount on Registration Fee for very limited time.',
+    );
+  });
+
+  it('uses promo message when platform fee is waived', () => {
+    const summary = formatPlatformFeeSummary({
+      displayName: 'Tutor registration fee',
+      amountInr: 999,
+      discountAmountInr: 999,
+      effectiveAmountInr: 0,
+      waived: true,
+      displayLabel: '₹999 — Free for now',
+      promoMessage:
+        'The one-time registration fee is not being charged for a limited time.',
+    });
+
+    expect(summary.message).toBe(
+      'The one-time registration fee is not being charged for a limited time.',
+    );
+  });
+
   it('ignores stale promo on chargeable platform fee summary', () => {
     const summary = formatPlatformFeeSummary({
       displayName: 'Proficiency test fee',

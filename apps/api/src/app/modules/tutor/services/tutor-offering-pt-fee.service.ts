@@ -7,15 +7,25 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PlatformFeeService } from '../../platform-fee/services/platform-fee.service';
 import { PlatformFeeCodeEnum } from '../../platform-fee/enums/platform-fee-code.enum';
+import { PlatformFeeConfigEntity } from '../../platform-fee/entities/platform-fee-config.entity';
 import { ProficiencyTestFeeInfo } from '../dto/proficiency-test-fee-info.dto';
+import { TutorOfferingEntity } from '../entities/tutor-offering.entity';
 import { TutorOfferingPtFeeEntity } from '../entities/tutor-offering-pt-fee.entity';
 import { TutorOfferingPtFeeStatusEnum } from '../enums/tutor-offering-pt-fee-status.enum';
+
+type ResolvedPtFeeTerms = {
+  listPriceInr: number;
+  amountDueInr: number;
+  paymentStatus: TutorOfferingPtFeeStatusEnum;
+};
 
 @Injectable()
 export class TutorOfferingPtFeeService {
   constructor(
     @InjectRepository(TutorOfferingPtFeeEntity)
     private readonly feeRepo: Repository<TutorOfferingPtFeeEntity>,
+    @InjectRepository(TutorOfferingEntity)
+    private readonly tutorOfferingRepo: Repository<TutorOfferingEntity>,
     private readonly platformFeeService: PlatformFeeService,
   ) {}
 
@@ -33,35 +43,75 @@ export class TutorOfferingPtFeeService {
     return this.platformFeeService.getEffectiveAmountInr(config) > 0;
   }
 
-  mapToGraphql(entity: TutorOfferingPtFeeEntity): ProficiencyTestFeeInfo {
+  private async requireTutorOffering(
+    tutorOfferingId: number,
+  ): Promise<TutorOfferingEntity> {
+    const offering = await this.tutorOfferingRepo.findOne({
+      where: { id: tutorOfferingId, deleted: false },
+    });
+    if (!offering) {
+      throw new NotFoundException(`Tutor offering ${tutorOfferingId} not found`);
+    }
+    return offering;
+  }
+
+  private resolveFeeTerms(
+    tutorOffering: TutorOfferingEntity,
+    config: PlatformFeeConfigEntity,
+  ): ResolvedPtFeeTerms {
+    if (tutorOffering.isInitialOnboarding) {
+      return {
+        listPriceInr: config.amountInr,
+        amountDueInr: 0,
+        paymentStatus: TutorOfferingPtFeeStatusEnum.waived,
+      };
+    }
+
+    const effectiveAmount =
+      this.platformFeeService.getEffectiveAmountInr(config);
+    const collectionEnabled = effectiveAmount > 0;
+    return {
+      listPriceInr: config.amountInr,
+      amountDueInr: collectionEnabled ? effectiveAmount : 0,
+      paymentStatus: collectionEnabled
+        ? TutorOfferingPtFeeStatusEnum.pending
+        : TutorOfferingPtFeeStatusEnum.waived,
+    };
+  }
+
+  mapToGraphql(
+    entity: TutorOfferingPtFeeEntity,
+    tutorOffering?: TutorOfferingEntity,
+  ): ProficiencyTestFeeInfo {
+    const amountDueInr =
+      tutorOffering?.isInitialOnboarding === true ? 0 : entity.amountDueInr;
+    const paymentStatus =
+      tutorOffering?.isInitialOnboarding === true
+        ? TutorOfferingPtFeeStatusEnum.waived
+        : entity.paymentStatus;
+
     return {
       listPriceInr: entity.listPriceInr,
-      amountDueInr: entity.amountDueInr,
-      collectionEnabled: entity.amountDueInr > 0,
-      paymentStatus: entity.paymentStatus,
-      displayLabel: this.buildDisplayLabel(
-        entity.listPriceInr,
-        entity.amountDueInr,
-      ),
+      amountDueInr,
+      collectionEnabled: amountDueInr > 0,
+      paymentStatus,
+      displayLabel: this.buildDisplayLabel(entity.listPriceInr, amountDueInr),
     };
   }
 
   async createForTutorOffering(
     tutorOfferingId: number,
   ): Promise<TutorOfferingPtFeeEntity> {
+    const tutorOffering = await this.requireTutorOffering(tutorOfferingId);
     const config = await this.platformFeeService.findByCode(
       PlatformFeeCodeEnum.PROFICIENCY_TEST,
     );
-    const effectiveAmount =
-      this.platformFeeService.getEffectiveAmountInr(config);
-    const collectionEnabled = effectiveAmount > 0;
+    const terms = this.resolveFeeTerms(tutorOffering, config);
     const entity = this.feeRepo.create({
       tutorOfferingId,
-      listPriceInr: config.amountInr,
-      amountDueInr: collectionEnabled ? effectiveAmount : 0,
-      paymentStatus: collectionEnabled
-        ? TutorOfferingPtFeeStatusEnum.pending
-        : TutorOfferingPtFeeStatusEnum.waived,
+      listPriceInr: terms.listPriceInr,
+      amountDueInr: terms.amountDueInr,
+      paymentStatus: terms.paymentStatus,
     });
     return this.feeRepo.save(entity);
   }
@@ -74,7 +124,22 @@ export class TutorOfferingPtFeeService {
     });
   }
 
+  async ensureFeeRecordForTutorOffering(
+    tutorOfferingId: number,
+  ): Promise<TutorOfferingPtFeeEntity> {
+    const existing = await this.findByTutorOfferingId(tutorOfferingId);
+    if (existing) {
+      return existing;
+    }
+    return this.createForTutorOffering(tutorOfferingId);
+  }
+
   async assertCanTakeProficiencyTest(tutorOfferingId: number): Promise<void> {
+    const tutorOffering = await this.requireTutorOffering(tutorOfferingId);
+    if (tutorOffering.isInitialOnboarding) {
+      return;
+    }
+
     const fee = await this.findByTutorOfferingId(tutorOfferingId);
     if (!fee) {
       return;
@@ -96,11 +161,9 @@ export class TutorOfferingPtFeeService {
   async getFeeInfoForTutorOffering(
     tutorOfferingId: number,
   ): Promise<ProficiencyTestFeeInfo> {
-    const fee = await this.findByTutorOfferingId(tutorOfferingId);
-    if (!fee) {
-      throw new NotFoundException('Proficiency test fee record not found');
-    }
-    return this.mapToGraphql(fee);
+    const tutorOffering = await this.requireTutorOffering(tutorOfferingId);
+    const fee = await this.ensureFeeRecordForTutorOffering(tutorOfferingId);
+    return this.mapToGraphql(fee, tutorOffering);
   }
 
   async markPaid(

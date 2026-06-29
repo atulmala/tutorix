@@ -1,49 +1,24 @@
-import type { ConfirmPaymentInput, PaymentOrderSession } from './payment-checkout';
+import type { ConfirmPaymentInput, PaymentOrderSession } from './payment-checkout-core';
 
-type RazorpayNativeModule = {
-  open: (options: Record<string, unknown>) => Promise<{
-    razorpay_payment_id: string;
-    razorpay_order_id: string;
-    razorpay_signature: string;
-  }>;
-};
+export * from './payment-checkout-core';
+
+/**
+ * PHASE 1 BASELINE: mobile payments are intentionally disabled.
+ *
+ * The native Razorpay integration was reverted because live-key testing on
+ * device moved real money. Until the integration is re-introduced and hardened
+ * (see docs/plans razorpay mobile integration, phases 2-4), this never touches
+ * `react-native-razorpay` and cannot start a charge. Callers should direct the
+ * user to complete payment on the web.
+ */
+const MOBILE_PAYMENT_DISABLED_MESSAGE =
+  'This payment is temporarily available on the web only. Please complete it on the Tutorix website.';
 
 export async function openPaymentCheckout(
   session: PaymentOrderSession,
 ): Promise<ConfirmPaymentInput> {
-  if (session.skipped || !session.provider || !session.checkoutPayloadJson) {
-    throw new Error('No checkout session to open');
-  }
-
-  const payload = JSON.parse(session.checkoutPayloadJson) as Record<string, unknown>;
-  const checkoutPurpose =
-    typeof payload.description === 'string' && payload.description.trim()
-      ? payload.description.trim()
-      : typeof payload.notes === 'object' &&
-          payload.notes !== null &&
-          typeof (payload.notes as Record<string, unknown>).purpose === 'string'
-        ? String((payload.notes as Record<string, unknown>).purpose).trim()
-        : undefined;
-
-  if (session.provider === 'razorpay') {
-    const RazorpayCheckout = require('react-native-razorpay')
-      .default as RazorpayNativeModule;
-    const result = await RazorpayCheckout.open({
-      ...payload,
-      ...(checkoutPurpose ? { description: checkoutPurpose } : {}),
-      currency: payload.currency ?? 'INR',
-    });
-    return {
-      provider: 'razorpay',
-      orderId: result.razorpay_order_id,
-      paymentId: result.razorpay_payment_id,
-      signature: result.razorpay_signature,
-    };
-  }
-
-  throw new Error(
-    `Mobile checkout for ${session.provider} is not supported yet. Use Razorpay or complete payment on web.`,
-  );
+  void session;
+  throw new Error(MOBILE_PAYMENT_DISABLED_MESSAGE);
 }
 
 export function loadRazorpayScript(): Promise<void> {
@@ -53,10 +28,3 @@ export function loadRazorpayScript(): Promise<void> {
 export function loadCashfreeScript(): Promise<void> {
   return Promise.resolve();
 }
-
-export {
-  formatPlatformFeeSummary,
-  type ConfirmPaymentInput,
-  type PaymentGatewayProvider,
-  type PaymentOrderSession,
-} from './payment-checkout';

@@ -88,16 +88,21 @@ export const TutorPT: React.FC<TutorPTProps> = ({
   ]);
 
   const resolvedOfferingId = pendingOffering?.id ?? tutorOfferingIdProp;
+  const isOnboardingPt = context === 'onboarding';
 
   const { data: ptFeeData, refetch: refetchPtFee } = useQuery(GET_PT_FEE_INFO, {
     variables: { tutorOfferingId: resolvedOfferingId },
-    skip: !resolvedOfferingId,
+    skip: isOnboardingPt || !resolvedOfferingId,
     fetchPolicy: 'cache-and-network',
   });
 
   const ptFeeInfo = ptFeeData?.ptFeeInfo as PtFeeInfo | undefined;
-  const paymentRequired = ptFeeInfo ? isPtFeePaymentRequired(ptFeeInfo) : false;
+  const paymentRequired =
+    !isOnboardingPt && ptFeeInfo ? isPtFeePaymentRequired(ptFeeInfo) : false;
   const ptFeeMessage = useMemo(() => {
+    if (isOnboardingPt) {
+      return null;
+    }
     if (ptFeeInfo) {
       return formatProficiencyTestFeeMessage({
         listPriceInr: ptFeeInfo.listPriceInr,
@@ -106,7 +111,7 @@ export const TutorPT: React.FC<TutorPTProps> = ({
       });
     }
     return ptFeeDisplayLabel ?? null;
-  }, [ptFeeInfo, ptFeeDisplayLabel]);
+  }, [isOnboardingPt, ptFeeInfo, ptFeeDisplayLabel]);
 
   const [initiatePtFeePayment] = useMutation(INITIATE_PT_FEE_PAYMENT);
   const [confirmPtFeePayment] = useMutation(CONFIRM_PT_FEE_PAYMENT);

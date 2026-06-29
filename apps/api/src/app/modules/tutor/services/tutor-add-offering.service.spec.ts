@@ -4,11 +4,11 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { UserRole } from '../../auth/enums/user-role.enum';
 import { TutorOfferingEntity } from '../entities/tutor-offering.entity';
 import { TutorOfferingStatusEnum } from '../enums/tutor.enums';
+import { TutorOfferingPtFeeStatusEnum } from '../enums/tutor-offering-pt-fee-status.enum';
 import { TutorAddOfferingService } from './tutor-add-offering.service';
 import { TutorOfferingService } from './tutor-offering.service';
 import { TutorOfferingPtFeeService } from './tutor-offering-pt-fee.service';
 import { TutorService } from './tutor.service';
-import { TutorOfferingPtFeeStatusEnum } from '../enums/tutor-offering-pt-fee-status.enum';
 
 describe('TutorAddOfferingService', () => {
   let service: TutorAddOfferingService;
@@ -16,9 +16,8 @@ describe('TutorAddOfferingService', () => {
   let tutorServiceFindByUserId: jest.Mock;
   let findPendingForTutor: jest.Mock;
   let saveForTutor: jest.Mock;
-  let createForTutorOffering: jest.Mock;
+  let getFeeInfoForTutorOffering: jest.Mock;
   let findByIdForTutor: jest.Mock;
-  let mapToGraphql: jest.Mock;
 
   const onboardedTutor = {
     id: 10,
@@ -35,21 +34,17 @@ describe('TutorAddOfferingService', () => {
     saveForTutor = jest.fn().mockResolvedValue([
       { id: 99, offeringId: 5, status: TutorOfferingStatusEnum.pending_pt },
     ]);
-    createForTutorOffering = jest.fn().mockResolvedValue({
-      tutorOfferingId: 99,
+    getFeeInfoForTutorOffering = jest.fn().mockResolvedValue({
       listPriceInr: 99,
       amountDueInr: 0,
+      collectionEnabled: false,
       paymentStatus: TutorOfferingPtFeeStatusEnum.waived,
+      displayLabel: '₹99 — Free for now',
     });
     findByIdForTutor = jest.fn().mockResolvedValue({
       id: 99,
       offeringId: 5,
       status: TutorOfferingStatusEnum.pending_pt,
-    });
-    mapToGraphql = jest.fn().mockReturnValue({
-      listPriceInr: 99,
-      amountDueInr: 0,
-      displayLabel: '₹99 — Free for now',
     });
 
     const module: TestingModule = await Test.createTestingModule({
@@ -70,7 +65,7 @@ describe('TutorAddOfferingService', () => {
         },
         {
           provide: TutorOfferingPtFeeService,
-          useValue: { createForTutorOffering, mapToGraphql },
+          useValue: { getFeeInfoForTutorOffering },
         },
       ],
     }).compile();
@@ -111,7 +106,7 @@ describe('TutorAddOfferingService', () => {
     ).rejects.toThrow(/Complete the proficiency test/);
   });
 
-  it('creates offering with post-onboarding flags and waived fee', async () => {
+  it('creates offering with post-onboarding flags and returns pt fee info', async () => {
     tutorOfferingFindOne.mockResolvedValue(null);
 
     const result = await service.addMyTutorOffering(tutorUser as never, 5);
@@ -120,7 +115,7 @@ describe('TutorAddOfferingService', () => {
       isInitialOnboarding: false,
       advanceToNextStep: false,
     });
-    expect(createForTutorOffering).toHaveBeenCalledWith(99);
+    expect(getFeeInfoForTutorOffering).toHaveBeenCalledWith(99);
     expect(result.tutorOffering.id).toBe(99);
     expect(result.ptFee.displayLabel).toBe('₹99 — Free for now');
   });
