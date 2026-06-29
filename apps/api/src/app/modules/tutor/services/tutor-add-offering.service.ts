@@ -66,7 +66,7 @@ export class TutorAddOfferingService {
       { isInitialOnboarding: false, advanceToNextStep: false },
     );
 
-    const feeEntity = await this.ptFeeService.createForTutorOffering(saved.id);
+    const ptFee = await this.ptFeeService.getFeeInfoForTutorOffering(saved.id);
 
     const withRelations = await this.tutorOfferingService.findByIdForTutor(
       saved.id,
@@ -75,7 +75,7 @@ export class TutorAddOfferingService {
 
     return {
       tutorOffering: withRelations,
-      ptFee: this.ptFeeService.mapToGraphql(feeEntity),
+      ptFee,
     };
   }
 }

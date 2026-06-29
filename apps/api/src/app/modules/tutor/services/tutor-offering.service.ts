@@ -82,6 +82,7 @@ export class TutorOfferingService {
         where: { tutorId, offeringId, deleted: false },
       });
       if (existing) {
+        await this.ptFeeService.ensureFeeRecordForTutorOffering(existing.id);
         saved.push(existing);
         continue;
       }
@@ -97,7 +98,9 @@ export class TutorOfferingService {
         attemptsUsed: 0,
         isInitialOnboarding: options.isInitialOnboarding ?? true,
       });
-      saved.push(await this.tutorOfferingRepository.save(tutorOffering));
+      const created = await this.tutorOfferingRepository.save(tutorOffering);
+      await this.ptFeeService.ensureFeeRecordForTutorOffering(created.id);
+      saved.push(created);
     }
 
     return saved;

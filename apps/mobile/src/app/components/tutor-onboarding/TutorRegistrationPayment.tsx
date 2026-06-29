@@ -8,12 +8,14 @@ import {
 } from 'react-native';
 import { useMutation, useQuery } from '@apollo/client';
 import {
-  COMPLETE_REGISTRATION_PAYMENT_STEP,
-  CONFIRM_PLATFORM_FEE_PAYMENT,
   GET_MY_TUTOR_PROFILE,
   GET_PLATFORM_FEE,
+} from '@tutorix/shared-graphql/queries';
+import {
+  COMPLETE_REGISTRATION_PAYMENT_STEP,
+  CONFIRM_PLATFORM_FEE_PAYMENT,
   INITIATE_PLATFORM_FEE_PAYMENT,
-} from '@tutorix/shared-graphql';
+} from '@tutorix/shared-graphql/mutations';
 import {
   formatPlatformFeeSummary,
   openPaymentCheckout,
@@ -33,6 +35,7 @@ export const TutorRegistrationPayment: React.FC<Props> = () => {
   });
   const fee = feeData?.platformFee;
   const summary = fee ? formatPlatformFeeSummary(fee) : null;
+  const feeMessage = summary?.message ?? fee?.promoMessage?.trim() ?? null;
 
   const [initiatePayment] = useMutation(INITIATE_PLATFORM_FEE_PAYMENT);
   const [confirmPayment] = useMutation(CONFIRM_PLATFORM_FEE_PAYMENT);
@@ -46,6 +49,12 @@ export const TutorRegistrationPayment: React.FC<Props> = () => {
 
   const handleContinue = async () => {
     setErrorText(null);
+    if (summary?.requiresPayment) {
+      setErrorText(
+        'Paid registration is temporarily available on the web only. Please complete this step on the Tutorix website.',
+      );
+      return;
+    }
     try {
       const initiateResult = await initiatePayment({
         variables: { feeCode: 'TUTOR_REGISTRATION' },
@@ -89,8 +98,8 @@ export const TutorRegistrationPayment: React.FC<Props> = () => {
           <Text style={styles.infoBannerTitle}>
             {summary?.title ?? fee.displayName}
           </Text>
-          {summary?.message ? (
-            <Text style={styles.infoBannerSubtext}>{summary.message}</Text>
+          {feeMessage ? (
+            <Text style={styles.infoBannerSubtext}>{feeMessage}</Text>
           ) : null}
           {orderNumber ? (
             <Text style={styles.infoBannerSubtext}>Order {orderNumber}</Text>

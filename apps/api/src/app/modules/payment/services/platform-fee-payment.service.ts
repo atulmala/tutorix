@@ -464,7 +464,15 @@ export class PlatformFeePaymentService {
     if (!tutor) {
       throw new NotFoundException('Tutor profile not found');
     }
-    await this.tutorOfferingService.findByIdForTutor(tutorOfferingId, tutor.id);
+    const tutorOffering = await this.tutorOfferingService.findByIdForTutor(
+      tutorOfferingId,
+      tutor.id,
+    );
+    if (tutorOffering.isInitialOnboarding) {
+      throw new BadRequestException(
+        'Proficiency test fee is not required during initial onboarding',
+      );
+    }
 
     const fee = await this.ptFeeService.findByTutorOfferingId(tutorOfferingId);
     if (!fee) {
@@ -536,10 +544,15 @@ export class PlatformFeePaymentService {
     if (!tutor) {
       throw new NotFoundException('Tutor profile not found');
     }
-    await this.tutorOfferingService.findByIdForTutor(
+    const tutorOffering = await this.tutorOfferingService.findByIdForTutor(
       input.tutorOfferingId,
       tutor.id,
     );
+    if (tutorOffering.isInitialOnboarding) {
+      throw new BadRequestException(
+        'Proficiency test fee is not required during initial onboarding',
+      );
+    }
 
     const pending = await this.paymentRepo.findOne({
       where: {
