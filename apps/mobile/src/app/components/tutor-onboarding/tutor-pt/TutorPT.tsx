@@ -22,6 +22,7 @@ import {
 } from '@tutorix/shared-utils';
 import { PTIntroScreen } from './PTIntroScreen';
 import { PTTestScreen } from './PTTestScreen';
+import { openMobilePaymentCheckout } from '../../../../lib/mobile-payment-checkout';
 
 type Screen = 'intro' | 'test' | 'result';
 
@@ -153,6 +154,7 @@ export const TutorPT: React.FC<TutorPTProps> = ({
         async (input) => {
           await confirmPtFeePayment({ variables: { input } });
         },
+        openMobilePaymentCheckout,
       );
       await refetchPtFee();
     } catch (error) {

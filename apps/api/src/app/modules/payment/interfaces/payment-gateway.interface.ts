@@ -26,10 +26,18 @@ export interface VerifyPaymentInput {
   signature: string;
 }
 
+export interface GatewayCapturedPayment {
+  orderId: string;
+  paymentId: string;
+}
+
 export interface PaymentGateway {
   readonly provider: PaymentGatewayProviderEnum;
   createOrder(input: CreatePaymentOrderInput): Promise<PaymentOrderSession>;
   verifyPayment(input: VerifyPaymentInput): Promise<boolean>;
+  fetchCapturedPaymentForOrder?(
+    orderId: string,
+  ): Promise<GatewayCapturedPayment | null>;
 }
 
 export const PAYMENT_GATEWAY = Symbol('PAYMENT_GATEWAY');

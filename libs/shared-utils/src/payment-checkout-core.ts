@@ -40,6 +40,8 @@ export type ConfirmPaymentInput = {
   orderId: string;
   paymentId: string;
   signature: string;
+  /** When true, the API fetches captured payment details from Razorpay by order id. */
+  fetchFromGateway?: boolean;
 };
 
 export function checkoutSession(result: CheckoutResult): PaymentOrderSession {

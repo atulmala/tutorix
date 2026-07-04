@@ -2,6 +2,13 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
+// Some third-party native modules (e.g. react-native-keychain) look up this
+// legacy extension property on the :app project (not rootProject) to find
+// react-native's location instead of using the standard autolinking config.
+ext {
+    REACT_NATIVE_NODE_MODULES_DIR = file("../../node_modules/react-native").absolutePath
+}
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.

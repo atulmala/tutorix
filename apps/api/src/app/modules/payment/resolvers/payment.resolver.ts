@@ -1,4 +1,4 @@
-import { Args, Mutation, Resolver } from '@nestjs/graphql';
+import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
@@ -7,12 +7,28 @@ import { PlatformFeeCodeEnum } from '../../platform-fee/enums/platform-fee-code.
 import { PlatformFeePaymentService } from '../services/platform-fee-payment.service';
 import { ConfirmPlatformFeePaymentInput } from '../dto/confirm-platform-fee-payment.input';
 import { CheckoutResultDto } from '../../commerce/dto/checkout-result.dto';
+import { RazorpayOrderCaptureStatusDto } from '../dto/razorpay-order-capture-status.dto';
 
 @Resolver()
 export class PaymentResolver {
   constructor(
     private readonly platformFeePaymentService: PlatformFeePaymentService,
   ) {}
+
+  @Query(() => RazorpayOrderCaptureStatusDto, {
+    description:
+      'Read-only check whether a Razorpay order has a captured payment (mobile checkout fallback)',
+  })
+  @UseGuards(JwtAuthGuard)
+  async razorpayOrderCaptureStatus(
+    @CurrentUser() user: User,
+    @Args('orderId') orderId: string,
+  ): Promise<RazorpayOrderCaptureStatusDto> {
+    return this.platformFeePaymentService.getRazorpayOrderCaptureStatus(
+      orderId,
+      user,
+    );
+  }
 
   @Mutation(() => CheckoutResultDto, {
     description: 'Initiate platform fee payment for onboarding fees',

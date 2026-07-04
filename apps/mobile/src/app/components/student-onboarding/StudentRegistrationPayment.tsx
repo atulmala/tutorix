@@ -18,10 +18,10 @@ import {
 } from '@tutorix/shared-graphql/mutations';
 import {
   formatPlatformFeeSummary,
-  openPaymentCheckout,
   checkoutSession,
   type CheckoutResult,
 } from '@tutorix/shared-utils';
+import { openMobilePaymentCheckout } from '../../../lib/mobile-payment-checkout';
 import type { StudentStepComponentProps } from './types';
 
 export const StudentRegistrationPayment: React.FC<StudentStepComponentProps> = ({
@@ -49,12 +49,6 @@ export const StudentRegistrationPayment: React.FC<StudentStepComponentProps> = (
 
   const handleContinue = async () => {
     setErrorText(null);
-    if (summary?.requiresPayment) {
-      setErrorText(
-        'Paid registration is temporarily available on the web only. Please complete this step on the Tutorix website.',
-      );
-      return;
-    }
     try {
       const initiateResult = await initiatePayment({
         variables: { feeCode: 'STUDENT_REGISTRATION' },
@@ -65,7 +59,7 @@ export const StudentRegistrationPayment: React.FC<StudentStepComponentProps> = (
       const session = checkoutSession(checkout);
 
       if (!session.skipped) {
-        const confirmation = await openPaymentCheckout(session);
+        const confirmation = await openMobilePaymentCheckout(session);
         await confirmPayment({
           variables: {
             input: {
@@ -74,6 +68,7 @@ export const StudentRegistrationPayment: React.FC<StudentStepComponentProps> = (
               orderId: confirmation.orderId,
               paymentId: confirmation.paymentId,
               signature: confirmation.signature,
+              fetchFromGateway: confirmation.fetchFromGateway ?? false,
             },
           },
         });

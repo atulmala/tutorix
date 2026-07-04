@@ -127,6 +127,45 @@ export class RazorpayGateway implements PaymentGateway {
     return expected === input.signature;
   }
 
+  async fetchCapturedPaymentForOrder(
+    orderId: string,
+  ): Promise<{ orderId: string; paymentId: string } | null> {
+    if (!this.isConfigured()) {
+      return null;
+    }
+
+    const response = await fetch(
+      `https://api.razorpay.com/v1/orders/${encodeURIComponent(orderId)}/payments`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: this.getAuthHeader(),
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(
+        `Razorpay order payments fetch failed (${response.status}): ${body}`,
+      );
+    }
+
+    const data = (await response.json()) as {
+      items?: Array<{ id?: string; status?: string }>;
+    };
+
+    const captured = data.items?.find((item) => item.status === 'captured');
+    if (!captured?.id) {
+      return null;
+    }
+
+    return {
+      orderId,
+      paymentId: captured.id,
+    };
+  }
+
   verifyWebhookSignature(rawBody: string, signature: string): boolean {
     const webhookSecret = this.configService.get<string>('RAZORPAY_WEBHOOK_SECRET');
     if (!webhookSecret) {
