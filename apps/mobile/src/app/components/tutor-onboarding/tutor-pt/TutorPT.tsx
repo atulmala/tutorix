@@ -22,6 +22,7 @@ import {
 } from '@tutorix/shared-utils';
 import { PTIntroScreen } from './PTIntroScreen';
 import { PTTestScreen } from './PTTestScreen';
+import { openMobilePaymentCheckout } from '../../../../lib/mobile-payment-checkout';
 
 type Screen = 'intro' | 'test' | 'result';
 
@@ -57,6 +58,7 @@ export const TutorPT: React.FC<TutorPTProps> = ({
   } | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [payLoading, setPayLoading] = useState(false);
+  const [startLoading, setStartLoading] = useState(false);
 
   const isPostOnboardingPt =
     (context === 'addOffering' || context === 'profile') && tutorOfferingIdProp != null;
@@ -116,7 +118,7 @@ export const TutorPT: React.FC<TutorPTProps> = ({
   const [initiatePtFeePayment] = useMutation(INITIATE_PT_FEE_PAYMENT);
   const [confirmPtFeePayment] = useMutation(CONFIRM_PT_FEE_PAYMENT);
 
-  const { data: testData, loading: testLoading } = useQuery(
+  const { data: testData, loading: testLoading, refetch: refetchTest } = useQuery(
     GET_PROFICIENCY_TEST_FOR_TAKER,
     {
       variables: { tutorOfferingId: resolvedOfferingId },
@@ -153,8 +155,10 @@ export const TutorPT: React.FC<TutorPTProps> = ({
         async (input) => {
           await confirmPtFeePayment({ variables: { input } });
         },
+        openMobilePaymentCheckout,
       );
       await refetchPtFee();
+      await refetchTest();
     } catch (error) {
       setPaymentError(
         error instanceof Error
@@ -166,10 +170,26 @@ export const TutorPT: React.FC<TutorPTProps> = ({
     }
   };
 
-  const handleStart = () => {
-    if (resolvedOfferingId) {
+  const handleStart = async () => {
+    if (!resolvedOfferingId) return;
+    setPaymentError(null);
+    setStartLoading(true);
+    try {
+      const testRefetch = await refetchTest();
+      const refetchedQuestions =
+        testRefetch.data?.proficiencyTestForTaker?.questions ?? [];
+      if (testRefetch.error) {
+        setPaymentError(testRefetch.error.message);
+        return;
+      }
+      if (refetchedQuestions.length === 0) {
+        setPaymentError('No questions available for this test.');
+        return;
+      }
       setActiveTutorOfferingId(resolvedOfferingId);
       setScreen('test');
+    } finally {
+      setStartLoading(false);
     }
   };
 
@@ -373,10 +393,11 @@ export const TutorPT: React.FC<TutorPTProps> = ({
       paymentRequired={paymentRequired}
       amountDueInr={ptFeeInfo?.amountDueInr}
       payLoading={payLoading}
+      startLoading={startLoading}
       paymentError={paymentError}
       onPayFee={() => void handlePayFee()}
       context={context}
-      onStart={handleStart}
+      onStart={() => void handleStart()}
       onTakeLater={isPostOnboardingPt ? onComplete : undefined}
     />
   );

@@ -11,6 +11,8 @@ import { PlatformFeeService } from '../../platform-fee/services/platform-fee.ser
 import { PlatformFeeCodeEnum } from '../../platform-fee/enums/platform-fee-code.enum';
 import { PlatformFeeConfigEntity } from '../../platform-fee/entities/platform-fee-config.entity';
 import { PaymentGatewayFactory } from './payment-gateway.factory';
+import { PaymentGateway } from '../interfaces/payment-gateway.interface';
+import { RazorpayGateway } from './payment-gateways';
 import { PaymentOrderSessionDto } from '../dto/payment-order-session.dto';
 import { ConfirmPlatformFeePaymentInput } from '../dto/confirm-platform-fee-payment.input';
 import {
@@ -76,6 +78,65 @@ export class PlatformFeePaymentService {
 
   private get authService(): AuthService {
     return this.moduleRef.get(AuthService, { strict: false });
+  }
+
+  async getRazorpayOrderCaptureStatus(
+    orderId: string,
+    user: User,
+  ): Promise<{ captured: boolean; paymentId?: string }> {
+    const pending = await this.paymentRepo.findOne({
+      where: {
+        gatewayOrderId: orderId,
+        userId: user.id,
+        status: PlatformFeePaymentStatusEnum.pending,
+        deleted: false,
+      },
+    });
+    if (!pending) {
+      throw new BadRequestException('Pending payment not found for this order');
+    }
+
+    const gateway = this.paymentGatewayFactory.getActiveGateway();
+    if (!(gateway instanceof RazorpayGateway)) {
+      return { captured: false };
+    }
+
+    const fetched = await gateway.fetchCapturedPaymentForOrder(orderId);
+    if (!fetched) {
+      return { captured: false };
+    }
+
+    return { captured: true, paymentId: fetched.paymentId };
+  }
+
+  private async verifyGatewayPayment(
+    gateway: PaymentGateway,
+    input: {
+      orderId: string;
+      paymentId?: string;
+      signature?: string;
+      fetchFromGateway?: boolean;
+    },
+  ): Promise<{ paymentId: string; verified: boolean }> {
+    if (input.fetchFromGateway) {
+      if (!(gateway instanceof RazorpayGateway)) {
+        throw new BadRequestException(
+          'Fetching payment status from gateway is only supported for Razorpay',
+        );
+      }
+      const fetched = await gateway.fetchCapturedPaymentForOrder(input.orderId);
+      if (!fetched) {
+        return { paymentId: '', verified: false };
+      }
+      return { paymentId: fetched.paymentId, verified: true };
+    }
+
+    const verified = await gateway.verifyPayment({
+      orderId: input.orderId,
+      paymentId: input.paymentId ?? '',
+      signature: input.signature ?? '',
+    });
+    return { paymentId: input.paymentId ?? '', verified };
   }
 
   private async getCompletedPayment(
@@ -349,11 +410,7 @@ export class PlatformFeePaymentService {
       throw new BadRequestException('Payment provider mismatch');
     }
 
-    const verified = await gateway.verifyPayment({
-      orderId: input.orderId,
-      paymentId: input.paymentId,
-      signature: input.signature,
-    });
+    const { paymentId, verified } = await this.verifyGatewayPayment(gateway, input);
     if (!verified) {
       pending.status = PlatformFeePaymentStatusEnum.failed;
       await this.paymentRepo.save(pending);
@@ -362,14 +419,14 @@ export class PlatformFeePaymentService {
     }
 
     pending.status = PlatformFeePaymentStatusEnum.paid;
-    pending.gatewayPaymentId = input.paymentId;
+    pending.gatewayPaymentId = paymentId;
     pending.paidAt = new Date();
     await this.paymentRepo.save(pending);
 
     const config = await this.platformFeeService.findByCode(input.feeCode);
     await this.checkoutService.completePaidOrderFromGateway(
       input.orderId,
-      input.paymentId,
+      paymentId,
       config,
       user.id,
       pending.amountPaidInr,
@@ -574,11 +631,7 @@ export class PlatformFeePaymentService {
       throw new BadRequestException('Payment provider mismatch');
     }
 
-    const verified = await gateway.verifyPayment({
-      orderId: input.orderId,
-      paymentId: input.paymentId,
-      signature: input.signature,
-    });
+    const { paymentId, verified } = await this.verifyGatewayPayment(gateway, input);
     if (!verified) {
       pending.status = PlatformFeePaymentStatusEnum.failed;
       await this.paymentRepo.save(pending);
@@ -587,7 +640,7 @@ export class PlatformFeePaymentService {
     }
 
     pending.status = PlatformFeePaymentStatusEnum.paid;
-    pending.gatewayPaymentId = input.paymentId;
+    pending.gatewayPaymentId = paymentId;
     pending.paidAt = new Date();
     await this.paymentRepo.save(pending);
 
@@ -596,7 +649,7 @@ export class PlatformFeePaymentService {
     );
     await this.checkoutService.completePaidOrderFromGateway(
       input.orderId,
-      input.paymentId,
+      paymentId,
       config,
       user.id,
       pending.amountPaidInr,

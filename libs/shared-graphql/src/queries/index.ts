@@ -22,4 +22,5 @@ export * from './tutor-calendar.queries';
 export * from './pt-fee.queries';
 export * from './student.queries';
 export * from './platform-fee.queries';
+export * from './payment.queries';
 // export * from './class.queries';

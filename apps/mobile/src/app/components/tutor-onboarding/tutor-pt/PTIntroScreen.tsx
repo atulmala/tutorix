@@ -15,6 +15,7 @@ type PTIntroScreenProps = {
   paymentRequired?: boolean;
   amountDueInr?: number;
   payLoading?: boolean;
+  startLoading?: boolean;
   paymentError?: string | null;
   onPayFee?: () => void;
   context?: 'onboarding' | 'addOffering' | 'profile';
@@ -32,6 +33,7 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
   paymentRequired = false,
   amountDueInr,
   payLoading = false,
+  startLoading = false,
   paymentError,
   onPayFee,
   context = 'onboarding',
@@ -130,13 +132,15 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
         <TouchableOpacity
           style={[
             styles.primaryButton,
-            (paymentRequired || payLoading) && styles.buttonDisabled,
+            (paymentRequired || payLoading || startLoading) && styles.buttonDisabled,
           ]}
           onPress={onStart}
-          disabled={paymentRequired || payLoading}
+          disabled={paymentRequired || payLoading || startLoading}
           activeOpacity={0.7}
         >
-          <Text style={styles.primaryButtonText}>Start Test</Text>
+          <Text style={styles.primaryButtonText}>
+            {startLoading ? 'Loading…' : 'Start Test'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>

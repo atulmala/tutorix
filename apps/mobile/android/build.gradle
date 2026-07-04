@@ -20,4 +20,11 @@ buildscript {
     }
 }
 
+// Some third-party native modules (e.g. react-native-image-picker) don't use the
+// standard react-native-gradle-plugin autolinking config and instead look for this
+// legacy rootProject.ext property to find the react-native package location.
+ext {
+    REACT_NATIVE_NODE_MODULES_DIR = file("$rootDir/../node_modules/react-native").absolutePath
+}
+
 apply plugin: "com.facebook.react.rootproject"

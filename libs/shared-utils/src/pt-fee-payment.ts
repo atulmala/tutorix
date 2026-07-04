@@ -34,6 +34,9 @@ export async function runPtFeePaymentCheckout(
   confirmPtFeePayment: (
     input: ConfirmPaymentInput & { tutorOfferingId: number },
   ) => Promise<unknown>,
+  openCheckout: (
+    session: PaymentOrderSession,
+  ) => Promise<ConfirmPaymentInput> = openPaymentCheckout,
 ): Promise<CheckoutResult> {
   const checkout = await initiatePtFeePayment(tutorOfferingId);
   if (!checkout) {
@@ -45,13 +48,14 @@ export async function runPtFeePaymentCheckout(
     return checkout;
   }
 
-  const confirmation = await openPaymentCheckout(session);
+  const confirmation = await openCheckout(session);
   await confirmPtFeePayment({
     tutorOfferingId,
     provider: confirmation.provider,
     orderId: confirmation.orderId,
     paymentId: confirmation.paymentId,
     signature: confirmation.signature,
+    fetchFromGateway: confirmation.fetchFromGateway ?? false,
   });
   return checkout;
 }

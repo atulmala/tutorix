@@ -1,5 +1,12 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
-import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  ValidateIf,
+} from 'class-validator';
 import { PaymentGatewayProviderEnum } from '../enums/payment.enums';
 
 @InputType()
@@ -17,11 +24,18 @@ export class ConfirmPtFeePaymentInput {
   @IsString()
   orderId: string;
 
-  @Field()
+  @Field({ nullable: true })
+  @ValidateIf((input: ConfirmPtFeePaymentInput) => !input.fetchFromGateway)
   @IsString()
-  paymentId: string;
+  paymentId?: string;
 
-  @Field()
+  @Field({ nullable: true })
+  @ValidateIf((input: ConfirmPtFeePaymentInput) => !input.fetchFromGateway)
   @IsString()
-  signature: string;
+  signature?: string;
+
+  @Field({ nullable: true, defaultValue: false })
+  @IsOptional()
+  @IsBoolean()
+  fetchFromGateway?: boolean;
 }

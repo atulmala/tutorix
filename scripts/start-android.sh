@@ -5,6 +5,8 @@
 
 set -e
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 echo "🚀 Starting Android development environment..."
 echo ""
 
@@ -12,11 +14,19 @@ echo ""
 if lsof -Pi :8081 -sTCP:LISTEN -t >/dev/null ; then
     echo "✅ Metro bundler is already running on port 8081"
 else
-    echo "📦 Starting Metro bundler..."
-    # Start Metro in the background
-    npx nx start mobile &
-    METRO_PID=$!
-    
+    echo "📦 Starting Metro bundler in its own terminal window..."
+
+    if [[ "$OSTYPE" == "darwin"* ]] && [ -t 1 ]; then
+        # Open Metro in a separate, persistent Terminal.app window so its
+        # logs (JS errors, LogBox output, etc.) stay visible and don't get
+        # swallowed by backgrounding it inside this script's shell.
+        osascript -e "tell application \"Terminal\" to do script \"cd '$REPO_ROOT' && npx nx start mobile\"" >/dev/null
+        osascript -e 'tell application "Terminal" to activate' >/dev/null
+    else
+        # Non-macOS or non-interactive fallback: background it in this shell.
+        npx nx start mobile &
+    fi
+
     echo "⏳ Waiting for Metro bundler to be ready..."
     # Wait for Metro to be ready (check if port 8081 is listening)
     for i in {1..30}; do
@@ -26,10 +36,9 @@ else
         fi
         sleep 1
     done
-    
+
     if ! lsof -Pi :8081 -sTCP:LISTEN -t >/dev/null ; then
         echo "❌ Metro bundler failed to start. Please start it manually with: npm run mobile:start"
-        kill $METRO_PID 2>/dev/null || true
         exit 1
     fi
 fi
@@ -45,6 +54,6 @@ echo ""
 echo "✅ Android app launched!"
 echo ""
 echo "💡 Tips:"
-echo "   - Metro bundler is running in the background"
+echo "   - Metro bundler is running in its own Terminal window (or backgrounded if one couldn't be opened)"
 echo "   - To stop Metro, run: lsof -ti:8081 | xargs kill"
 echo "   - To restart Metro, run: npm run mobile:start"
