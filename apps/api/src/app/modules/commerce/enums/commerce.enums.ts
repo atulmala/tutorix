@@ -14,6 +14,7 @@ registerEnumType(OrderStatusEnum, { name: 'OrderStatus' });
 export enum OrderPaymentMethodEnum {
   waived = 'waived',
   gateway = 'gateway',
+  wallet = 'wallet',
   points = 'points',
   mixed = 'mixed',
 }
@@ -24,6 +25,7 @@ export enum OrderSourceEnum {
   onboarding = 'onboarding',
   cart = 'cart',
   admin = 'admin',
+  wallet = 'wallet',
 }
 
 registerEnumType(OrderSourceEnum, { name: 'OrderSource' });
@@ -40,6 +42,7 @@ export enum OrderItemTypeEnum {
   STUDENT_REGISTRATION = 'STUDENT_REGISTRATION',
   PROFICIENCY_TEST = 'PROFICIENCY_TEST',
   CLASS_BOOKING = 'CLASS_BOOKING',
+  WALLET_TOP_UP = 'WALLET_TOP_UP',
 }
 
 registerEnumType(OrderItemTypeEnum, { name: 'OrderItemType' });

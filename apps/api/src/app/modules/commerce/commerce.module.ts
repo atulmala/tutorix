@@ -52,6 +52,8 @@ import { CommerceResolver } from './resolvers/commerce.resolver';
   exports: [
     CheckoutService,
     OrderService,
+    OrderPricingService,
+    OrderFulfillmentService,
     InvoiceService,
     CommerceAdminService,
     PaymentSettlementBatchService,

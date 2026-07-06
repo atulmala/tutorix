@@ -12,6 +12,7 @@ import { TutorProfilePage } from './components/tutor-profile/TutorProfilePage';
 import { StudentOnboarding } from './components/student-onboarding';
 import { StudentProfilePage } from './components/student-profile';
 import { AppHeader } from './components/AppHeader';
+import { WalletPage } from './components/wallet';
 import { AnalyticsViewTracker } from '../components/AnalyticsViewTracker';
 import { WebAuthProvider, useWebAuth } from './auth/useWebAuth';
 import type { WebUser } from './types/web-user';
@@ -27,7 +28,8 @@ type View =
   | 'tutor-onboarding'
   | 'tutor-profile'
   | 'student-onboarding'
-  | 'student-profile';
+  | 'student-profile'
+  | 'wallet';
 
 function AppContent() {
   const { user: currentUser, refreshUser, logout } = useWebAuth();
@@ -175,6 +177,14 @@ function AppContent() {
       setCurrentView('home');
     }
   }, [fetchMyStudentProfile, fetchMyTutorProfile, routeStudentAfterProfile, routeTutorAfterProfile, setCurrentView]);
+
+  const handleOpenWallet = useCallback(() => {
+    setCurrentView('wallet');
+  }, [setCurrentView]);
+
+  const handleWalletBack = useCallback(() => {
+    void routeAfterAuthenticatedUser(currentUser);
+  }, [currentUser, routeAfterAuthenticatedUser]);
 
   // Check for reset password token in URL on mount (takes precedence over session restore)
   useEffect(() => {
@@ -326,7 +336,18 @@ function AppContent() {
       <div className="min-h-screen bg-subtle text-primary">
         <AppHeader onLogout={handleLogout} showProfileAvatar={false} />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
-          <StudentProfilePage />
+          <StudentProfilePage onOpenWallet={handleOpenWallet} />
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'wallet') {
+    return (
+      <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader onLogout={handleLogout} />
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
+          <WalletPage onBack={handleWalletBack} />
         </main>
       </div>
     );
@@ -369,7 +390,10 @@ function AppContent() {
       <div className="min-h-screen bg-subtle text-primary">
         <AppHeader onLogout={handleLogout} showProfileAvatar={false} />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
-          <TutorProfilePage />
+          <TutorProfilePage
+            onOpenWallet={handleOpenWallet}
+            onNavigateHome={handleBackHome}
+          />
         </main>
       </div>
     );

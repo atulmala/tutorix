@@ -98,6 +98,8 @@ export class OrderFulfillmentService {
         );
         break;
       }
+      case OrderItemTypeEnum.WALLET_TOP_UP:
+        break;
       default:
         break;
     }
