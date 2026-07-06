@@ -1,24 +1,28 @@
 import React, { useMemo, useState } from 'react';
-import { useQuery, useMutation } from '@apollo/client';
+import { useQuery, useMutation, useLazyQuery } from '@apollo/client';
 import {
-  CONFIRM_PT_FEE_PAYMENT,
+  COMPLETE_WALLET_PURCHASE,
+  CONFIRM_WALLET_TOP_UP,
   GET_MY_TUTOR_DETAIL,
   GET_MY_TUTOR_PROFILE,
   GET_PROFICIENCY_TEST_FOR_TAKER,
   GET_PT_FEE_INFO,
-  INITIATE_PT_FEE_PAYMENT,
+  INITIATE_WALLET_TOP_UP,
+  PREPARE_WALLET_PURCHASE,
   SUBMIT_PROFICIENCY_TEST,
 } from '@tutorix/shared-graphql';
 import {
   formatProficiencyTestFeeMessage,
   isPtFeePaymentRequired,
-  runPtFeePaymentCheckout,
-  type CheckoutResult,
+  runWalletAwarePurchaseCheckout,
   type PtFeeInfo,
+  type WalletPurchaseIntent,
+  type WalletPurchasePreview,
 } from '@tutorix/shared-utils';
 import type { StepComponentProps } from '../types';
 import { PTIntroScreen } from './PTIntroScreen';
 import { PTTestScreen } from './PTTestScreen';
+import { WalletLowBalanceDialog } from '../../wallet';
 
 type Screen = 'intro' | 'test' | 'result';
 
@@ -30,6 +34,8 @@ export type TutorPTProps = StepComponentProps & {
   ptFeeDisplayLabel?: string | null;
   /** When set (e.g. profile PT), avoids loading full myTutorProfile for test-tutor UI. */
   testTutor?: boolean;
+  /** After wallet top-up via gateway, navigate to home screen. */
+  onNavigateHome?: () => void;
   /** Prior PT attempts used for this tutor offering (profile / add-offering flows). */
   attemptsUsed?: number;
 };
@@ -43,6 +49,7 @@ export const TutorPT: React.FC<TutorPTProps> = ({
   ptFeeDisplayLabel,
   testTutor: testTutorProp,
   attemptsUsed: attemptsUsedProp = 0,
+  onNavigateHome,
 }) => {
   const [screen, setScreen] = useState<Screen>('intro');
   const [activeTutorOfferingId, setActiveTutorOfferingId] = useState<number | null>(
@@ -57,6 +64,10 @@ export const TutorPT: React.FC<TutorPTProps> = ({
   } | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [payLoading, setPayLoading] = useState(false);
+  const [walletPreview, setWalletPreview] = useState<WalletPurchasePreview | null>(null);
+  const [topUpAmount, setTopUpAmount] = useState(0);
+  const [showTopUpDialog, setShowTopUpDialog] = useState(false);
+  const [topUpError, setTopUpError] = useState<string | null>(null);
 
   const isPostOnboardingPt =
     (context === 'addOffering' || context === 'profile') && tutorOfferingIdProp != null;
@@ -113,8 +124,12 @@ export const TutorPT: React.FC<TutorPTProps> = ({
     return ptFeeDisplayLabel ?? null;
   }, [isOnboardingPt, ptFeeInfo, ptFeeDisplayLabel]);
 
-  const [initiatePtFeePayment] = useMutation(INITIATE_PT_FEE_PAYMENT);
-  const [confirmPtFeePayment] = useMutation(CONFIRM_PT_FEE_PAYMENT);
+  const [prepareWalletPurchaseQuery] = useLazyQuery(PREPARE_WALLET_PURCHASE, {
+    fetchPolicy: 'network-only',
+  });
+  const [completeWalletPurchase] = useMutation(COMPLETE_WALLET_PURCHASE);
+  const [initiateWalletTopUp] = useMutation(INITIATE_WALLET_TOP_UP);
+  const [confirmWalletTopUp] = useMutation(CONFIRM_WALLET_TOP_UP);
 
   const { data: testData, loading: testLoading } = useQuery(
     GET_PROFICIENCY_TEST_FOR_TAKER,
@@ -137,26 +152,104 @@ export const TutorPT: React.FC<TutorPTProps> = ({
   const maxMarks = testMeta?.score ?? 30;
   const passPercentage = testMeta?.passPercentage ?? 65;
 
+  const buildPurchaseIntent = (): WalletPurchaseIntent | null => {
+    if (!resolvedOfferingId) return null;
+    return {
+      itemType: 'PROFICIENCY_TEST',
+      referenceType: 'tutor_offering',
+      referenceId: resolvedOfferingId,
+    };
+  };
+
+  const runWalletPtPayment = async (amountOverride?: number) => {
+    const purchaseIntent = buildPurchaseIntent();
+    if (!purchaseIntent) return;
+
+    const result = await runWalletAwarePurchaseCheckout(
+      purchaseIntent,
+      async (intent) => {
+        const response = await prepareWalletPurchaseQuery({
+          variables: { input: { purchaseIntent: intent } },
+        });
+        const preview = response.data?.prepareWalletPurchase;
+        if (!preview) {
+          throw new Error('Could not prepare wallet purchase');
+        }
+        return preview as WalletPurchasePreview;
+      },
+      async (intent) => {
+        const response = await completeWalletPurchase({
+          variables: { purchaseIntent: intent },
+        });
+        return response.data?.completeWalletPurchase ?? { wallet: { balanceInr: 0 } };
+      },
+      async (input) => {
+        const response = await initiateWalletTopUp({ variables: { input } });
+        return response.data?.initiateWalletTopUp ?? null;
+      },
+      async (input) => {
+        const response = await confirmWalletTopUp({ variables: { input } });
+        return response.data?.confirmWalletTopUp ?? { wallet: { balanceInr: 0 } };
+      },
+      async (preview) => amountOverride ?? preview.shortfallInr,
+    );
+
+    if (result.usedGateway) {
+      onNavigateHome?.();
+      return;
+    }
+
+    await refetchPtFee();
+  };
+
   const handlePayFee = async () => {
-    if (!resolvedOfferingId) return;
+    if (!resolvedOfferingId || isOnboardingPt) return;
     setPaymentError(null);
     setPayLoading(true);
     try {
-      await runPtFeePaymentCheckout(
-        resolvedOfferingId,
-        async (offeringId) => {
-          const result = await initiatePtFeePayment({
-            variables: { tutorOfferingId: offeringId },
-          });
-          return result.data?.initiatePtFeePayment as CheckoutResult;
-        },
-        async (input) => {
-          await confirmPtFeePayment({ variables: { input } });
-        },
-      );
-      await refetchPtFee();
+      const purchaseIntent = buildPurchaseIntent();
+      if (!purchaseIntent) return;
+
+      const previewResult = await prepareWalletPurchaseQuery({
+        variables: { input: { purchaseIntent } },
+      });
+      const preview = previewResult.data?.prepareWalletPurchase as
+        | WalletPurchasePreview
+        | undefined;
+      if (!preview) {
+        throw new Error('Could not prepare wallet purchase');
+      }
+
+      if (preview.canPayFromWallet) {
+        await runWalletPtPayment();
+        return;
+      }
+
+      setWalletPreview(preview);
+      setTopUpAmount(preview.shortfallInr);
+      setTopUpError(null);
+      setShowTopUpDialog(true);
     } catch (error) {
       setPaymentError(
+        error instanceof Error
+          ? error.message
+          : 'Could not complete payment. Try again or contact support.',
+      );
+    } finally {
+      setPayLoading(false);
+    }
+  };
+
+  const handleConfirmTopUp = async () => {
+    if (!walletPreview) return;
+    setTopUpError(null);
+    setPayLoading(true);
+    try {
+      await runWalletPtPayment(topUpAmount);
+      setShowTopUpDialog(false);
+      setWalletPreview(null);
+    } catch (error) {
+      setTopUpError(
         error instanceof Error
           ? error.message
           : 'Could not complete payment. Try again or contact support.',
@@ -357,21 +450,38 @@ export const TutorPT: React.FC<TutorPTProps> = ({
   const attemptsLeft = 2 - (pendingOffering?.attemptsUsed ?? 0);
 
   return (
-    <PTIntroScreen
-      testName={testName}
-      timeMinutes={timeMinutes}
-      maxMarks={maxMarks}
-      passPercentage={passPercentage}
-      attemptsLeft={attemptsLeft}
-      ptFeeMessage={ptFeeMessage}
-      paymentRequired={paymentRequired}
-      amountDueInr={ptFeeInfo?.amountDueInr}
-      payLoading={payLoading}
-      paymentError={paymentError}
-      onPayFee={() => void handlePayFee()}
-      context={context}
-      onStart={handleStart}
-      onTakeLater={isPostOnboardingPt ? onComplete : undefined}
-    />
+    <>
+      <WalletLowBalanceDialog
+        open={showTopUpDialog}
+        preview={walletPreview}
+        topUpAmount={topUpAmount}
+        loading={payLoading}
+        error={topUpError}
+        onTopUpAmountChange={setTopUpAmount}
+        onConfirm={() => void handleConfirmTopUp()}
+        onCancel={() => {
+          if (payLoading) return;
+          setShowTopUpDialog(false);
+          setWalletPreview(null);
+          setTopUpError(null);
+        }}
+      />
+      <PTIntroScreen
+        testName={testName}
+        timeMinutes={timeMinutes}
+        maxMarks={maxMarks}
+        passPercentage={passPercentage}
+        attemptsLeft={attemptsLeft}
+        ptFeeMessage={ptFeeMessage}
+        paymentRequired={paymentRequired}
+        amountDueInr={ptFeeInfo?.amountDueInr}
+        payLoading={payLoading}
+        paymentError={paymentError}
+        onPayFee={() => void handlePayFee()}
+        context={context}
+        onStart={handleStart}
+        onTakeLater={isPostOnboardingPt ? onComplete : undefined}
+      />
+    </>
   );
 };

@@ -3,12 +3,14 @@ import { TutorOnboardingDocumentEligibilityService } from '../../document/servic
 import { TutorCertificationStageEnum } from '../enums/tutor.enums';
 import { Tutor } from '../entities/tutor.entity';
 import { TutorService } from './tutor.service';
+import { WalletService } from '../../wallet/services/wallet.service';
 
 @Injectable()
 export class TutorOnboardingService {
   constructor(
     private readonly tutorService: TutorService,
     private readonly documentEligibility: TutorOnboardingDocumentEligibilityService,
+    private readonly walletService: WalletService,
   ) {}
 
   async completeDocsStep(tutor: Tutor): Promise<Tutor> {
@@ -55,7 +57,9 @@ export class TutorOnboardingService {
       tutor.id,
       TutorCertificationStageEnum.complete,
     );
-    return this.tutorService.updateOnboardingStatus(tutor.id, true);
+    const updated = await this.tutorService.updateOnboardingStatus(tutor.id, true);
+    await this.walletService.ensureWalletForUser(updated.userId);
+    return updated;
   }
 
   async acknowledgeOnboardingCelebration(tutor: Tutor): Promise<Tutor> {

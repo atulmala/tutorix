@@ -55,6 +55,7 @@ export type TutorDetailViewProps = {
   mode: TutorDetailViewMode;
   tutor: TutorDetailRecord;
   headerAddon?: React.ReactNode;
+  headerTrailing?: React.ReactNode;
   profileAvatar?: React.ReactNode;
   onTestTutorChange?: (testTutor: boolean) => void;
   savingTestTutor?: boolean;
@@ -883,6 +884,7 @@ export function TutorDetailView({
   mode,
   tutor,
   headerAddon,
+  headerTrailing,
   profileAvatar,
   onTestTutorChange,
   savingTestTutor = false,
@@ -1107,7 +1109,7 @@ export function TutorDetailView({
   return (
     <div className="space-y-6">
       <div className="overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-r from-sky-100/80 via-white to-violet-100/80 px-6 py-5 shadow-md shadow-sky-100/30">
-        <div className={headerAvatar ? 'flex items-center gap-5' : undefined}>
+        <div className={headerAvatar ? 'flex items-start gap-5' : undefined}>
           {headerAvatar ? <div className="shrink-0">{headerAvatar}</div> : null}
           <div className={headerAvatar ? 'min-w-0 flex-1' : undefined}>
             {headerAddon}
@@ -1123,6 +1125,7 @@ export function TutorDetailView({
                   {tutor.certificationStage}
                 </span>
               )}
+              {headerTrailing}
               {isAdmin && tutor.testTutor && (
                 <span className="rounded-full bg-amber-500 px-3 py-0.5 text-xs font-bold text-white shadow-sm">
                   Test Tutor

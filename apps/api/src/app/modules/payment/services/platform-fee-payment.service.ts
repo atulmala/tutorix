@@ -36,6 +36,7 @@ import { AuthService } from '../../auth/services/auth.service';
 import { CheckoutService } from '../../commerce/services/checkout.service';
 import { CheckoutResultDto } from '../../commerce/dto/checkout-result.dto';
 import { OrderService } from '../../commerce/services/order.service';
+import { WalletService } from '../../wallet/services/wallet.service';
 
 export interface FeePaymentContext {
   user: User;
@@ -59,6 +60,10 @@ export class PlatformFeePaymentService {
     private readonly orderService: OrderService,
     private readonly moduleRef: ModuleRef,
   ) {}
+
+  private get walletService(): WalletService {
+    return this.moduleRef.get(WalletService, { strict: false });
+  }
 
   private get tutorService(): TutorService {
     return this.moduleRef.get(TutorService, { strict: false });
@@ -510,7 +515,9 @@ export class PlatformFeePaymentService {
     const updated = await this.studentService.ensureStudentExists(user.id);
     updated.onBoardingComplete = true;
     updated.onboardingStageEnteredAt = new Date();
-    return this.studentService.saveStudent(updated);
+    const saved = await this.studentService.saveStudent(updated);
+    await this.walletService.ensureWalletForUser(saved.userId);
+    return saved;
   }
 
   async initiatePtFeePayment(

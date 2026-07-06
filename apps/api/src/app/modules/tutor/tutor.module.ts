@@ -25,6 +25,7 @@ import { TutorOfferingPtFeeService } from './services/tutor-offering-pt-fee.serv
 import { OfferingsModule } from '../offerings/offerings.module';
 import { PlatformFeeModule } from '../platform-fee/platform-fee.module';
 import { PaymentModule } from '../payment';
+import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { PaymentModule } from '../payment';
     OfferingsModule,
     PlatformFeeModule,
     forwardRef(() => PaymentModule),
+    WalletModule,
   ],
   providers: [
     TutorResolver,

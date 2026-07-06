@@ -34,6 +34,8 @@ import { OrderItemEntity } from '../modules/commerce/entities/order-item.entity'
 import { PaymentAttemptEntity } from '../modules/commerce/entities/payment-attempt.entity';
 import { InvoiceEntity } from '../modules/commerce/entities/invoice.entity';
 import { InvoiceLineEntity } from '../modules/commerce/entities/invoice-line.entity';
+import { UserWalletEntity } from '../modules/wallet/entities/user-wallet.entity';
+import { WalletTransactionEntity } from '../modules/wallet/entities/wallet-transaction.entity';
 // Add other entities as they are created
 
 /**
@@ -85,6 +87,8 @@ export function createDatabaseOptions(
       PaymentAttemptEntity,
       InvoiceEntity,
       InvoiceLineEntity,
+      UserWalletEntity,
+      WalletTransactionEntity,
       // Add other entities here as they are created
       // Class,
     ],
