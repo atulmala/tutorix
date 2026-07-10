@@ -1,8 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@apollo/client';
-import { ADMIN_SET_TEST_TUTOR, GET_ADMIN_TUTOR_DETAIL } from '@tutorix/shared-graphql';
+import {
+  ADMIN_SET_TEST_TUTOR,
+  GET_ADMIN_TUTOR_DETAIL,
+  GET_ADMIN_TUTOR_WALLET,
+  GET_ADMIN_TUTOR_WALLET_TRANSACTIONS,
+} from '@tutorix/shared-graphql';
 import { TutorDetailView, type TutorDetailRecord } from '@tutorix/tutor-detail-ui';
+import {
+  AdminWalletBalanceChip,
+  AdminWalletTransactionsModal,
+} from '../components/wallet';
 
 type AdminTutorDetailData = {
   adminTutorDetail: TutorDetailRecord;
@@ -11,6 +20,7 @@ type AdminTutorDetailData = {
 export function TutorDetailPage() {
   const { tutorId } = useParams<{ tutorId: string }>();
   const parsedId = Number(tutorId);
+  const [walletOpen, setWalletOpen] = useState(false);
 
   const { data, loading, error, refetch } = useQuery<AdminTutorDetailData>(
     GET_ADMIN_TUTOR_DETAIL,
@@ -52,25 +62,48 @@ export function TutorDetailPage() {
     );
   }
 
+  const tutorName = [tutor.user?.firstName, tutor.user?.lastName]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
   return (
-    <TutorDetailView
-      mode="admin"
-      tutor={tutor}
-      savingTestTutor={savingTestTutor}
-      onTestTutorChange={(testTutor) => {
-        void setTestTutor({
-          variables: { tutorId: tutor.id, testTutor },
-        });
-      }}
-      onDocumentReviewComplete={() => void refetch()}
-      headerAddon={
-        <Link
-          to="/tutors"
-          className="inline-flex items-center gap-1 rounded-lg bg-white/70 px-3 py-1 text-sm font-semibold text-sky-800 ring-1 ring-sky-200 transition hover:bg-sky-50"
-        >
-          ← Back to tutors
-        </Link>
-      }
-    />
+    <>
+      <TutorDetailView
+        mode="admin"
+        tutor={tutor}
+        savingTestTutor={savingTestTutor}
+        onTestTutorChange={(testTutor) => {
+          void setTestTutor({
+            variables: { tutorId: tutor.id, testTutor },
+          });
+        }}
+        onDocumentReviewComplete={() => void refetch()}
+        headerAddon={
+          <Link
+            to="/tutors"
+            className="inline-flex items-center gap-1 rounded-lg bg-white/70 px-3 py-1 text-sm font-semibold text-sky-800 ring-1 ring-sky-200 transition hover:bg-sky-50"
+          >
+            ← Back to tutors
+          </Link>
+        }
+        headerTrailing={
+          <AdminWalletBalanceChip
+            query={GET_ADMIN_TUTOR_WALLET}
+            variables={{ tutorId: tutor.id }}
+            onOpenWallet={() => setWalletOpen(true)}
+            className="shrink-0"
+          />
+        }
+      />
+      <AdminWalletTransactionsModal
+        open={walletOpen}
+        onClose={() => setWalletOpen(false)}
+        subjectLabel={tutorName || `Tutor #${tutor.id}`}
+        walletQuery={GET_ADMIN_TUTOR_WALLET}
+        transactionsQuery={GET_ADMIN_TUTOR_WALLET_TRANSACTIONS}
+        variables={{ tutorId: tutor.id }}
+      />
+    </>
   );
 }

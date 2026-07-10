@@ -1,8 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
-import { GET_ADMIN_STUDENT_DETAIL } from '@tutorix/shared-graphql';
+import {
+  GET_ADMIN_STUDENT_DETAIL,
+  GET_ADMIN_STUDENT_WALLET,
+  GET_ADMIN_STUDENT_WALLET_TRANSACTIONS,
+} from '@tutorix/shared-graphql';
 import { StudentDetailView, type StudentDetailRecord } from '@tutorix/student-detail-ui';
+import {
+  AdminWalletBalanceChip,
+  AdminWalletTransactionsModal,
+} from '../components/wallet';
 
 type AdminStudentDetailData = {
   adminStudentDetail: StudentDetailRecord;
@@ -11,6 +19,7 @@ type AdminStudentDetailData = {
 export function StudentDetailPage() {
   const { studentId } = useParams<{ studentId: string }>();
   const parsedId = Number(studentId);
+  const [walletOpen, setWalletOpen] = useState(false);
 
   const { data, loading, error } = useQuery<AdminStudentDetailData>(
     GET_ADMIN_STUDENT_DETAIL,
@@ -48,17 +57,40 @@ export function StudentDetailPage() {
     );
   }
 
+  const studentName = [student.user?.firstName, student.user?.lastName]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
   return (
-    <StudentDetailView
-      student={student}
-      headerAddon={
-        <Link
-          to="/students"
-          className="inline-flex items-center gap-1 rounded-lg bg-white/70 px-3 py-1 text-sm font-semibold text-sky-800 ring-1 ring-sky-200 transition hover:bg-sky-50"
-        >
-          ← Back to students
-        </Link>
-      }
-    />
+    <>
+      <StudentDetailView
+        student={student}
+        headerAddon={
+          <Link
+            to="/students"
+            className="inline-flex items-center gap-1 rounded-lg bg-white/70 px-3 py-1 text-sm font-semibold text-sky-800 ring-1 ring-sky-200 transition hover:bg-sky-50"
+          >
+            ← Back to students
+          </Link>
+        }
+        headerTrailing={
+          <AdminWalletBalanceChip
+            query={GET_ADMIN_STUDENT_WALLET}
+            variables={{ studentId: student.id }}
+            onOpenWallet={() => setWalletOpen(true)}
+            className="shrink-0"
+          />
+        }
+      />
+      <AdminWalletTransactionsModal
+        open={walletOpen}
+        onClose={() => setWalletOpen(false)}
+        subjectLabel={studentName || `Student #${student.id}`}
+        walletQuery={GET_ADMIN_STUDENT_WALLET}
+        transactionsQuery={GET_ADMIN_STUDENT_WALLET_TRANSACTIONS}
+        variables={{ studentId: student.id }}
+      />
+    </>
   );
 }

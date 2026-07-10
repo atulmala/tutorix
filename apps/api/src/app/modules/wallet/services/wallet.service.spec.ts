@@ -159,4 +159,33 @@ describe('WalletService', () => {
 
     await expect(service.getWalletForUser(9)).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it('findWalletForUser returns null when onboarding incomplete', async () => {
+    tutorService.findByUserId.mockResolvedValue({ onBoardingComplete: false });
+    studentService.findByUserId.mockResolvedValue({ onBoardingComplete: false });
+
+    await expect(service.findWalletForUser(7)).resolves.toBeNull();
+    expect(walletRepo.findOne).not.toHaveBeenCalled();
+  });
+
+  it('findWalletForUser returns wallet when onboarded', async () => {
+    tutorService.findByUserId.mockResolvedValue({ onBoardingComplete: true });
+    studentService.findByUserId.mockResolvedValue(null);
+    walletRepo.findOne.mockResolvedValue({ id: 1, userId: 9, balanceInr: 40 });
+
+    await expect(service.findWalletForUser(9)).resolves.toEqual(
+      expect.objectContaining({ balanceInr: 40 }),
+    );
+  });
+
+  it('listTransactionsForAdmin returns empty when not onboarded', async () => {
+    tutorService.findByUserId.mockResolvedValue(null);
+    studentService.findByUserId.mockResolvedValue({ onBoardingComplete: false });
+
+    await expect(service.listTransactionsForAdmin(7)).resolves.toEqual({
+      items: [],
+      hasMore: false,
+    });
+    expect(transactionRepo.find).not.toHaveBeenCalled();
+  });
 });

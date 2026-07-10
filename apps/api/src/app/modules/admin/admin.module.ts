@@ -13,6 +13,7 @@ import { StudentModule } from '../student/student.module';
 import { TutorCalendarModule } from '../tutor-calendar/tutor-calendar.module';
 import { PlatformFeeModule } from '../platform-fee/platform-fee.module';
 import { CommerceModule } from '../commerce/commerce.module';
+import { WalletModule } from '../wallet/wallet.module';
 import { AdminService } from './admin.service';
 import { AdminResolver } from './admin.resolver';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -30,6 +31,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
     OfferingsModule,
     PlatformFeeModule,
     CommerceModule,
+    WalletModule,
   ],
   providers: [AdminService, AdminResolver, RolesGuard],
   exports: [AdminService],

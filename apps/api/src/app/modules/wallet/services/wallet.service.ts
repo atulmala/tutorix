@@ -87,6 +87,19 @@ export class WalletService {
     return wallet;
   }
 
+  /**
+   * Soft lookup for admin views: returns null when onboarding is incomplete
+   * or no wallet row exists (chip can hide instead of erroring).
+   */
+  async findWalletForUser(userId: number): Promise<UserWalletEntity | null> {
+    if (!(await this.isUserOnboarded(userId))) {
+      return null;
+    }
+    return this.walletRepo.findOne({
+      where: { userId, deleted: false },
+    });
+  }
+
   toWalletDto(wallet: UserWalletEntity): UserWalletDto {
     return { balanceInr: wallet.balanceInr };
   }
@@ -172,6 +185,28 @@ export class WalletService {
     offset = 0,
   ): Promise<WalletTransactionConnectionDto> {
     await this.assertUserOnboarded(userId);
+    return this.listTransactionsUnchecked(userId, limit, offset);
+  }
+
+  /**
+   * Soft transaction list for admin views: empty when not onboarded / no wallet.
+   */
+  async listTransactionsForAdmin(
+    userId: number,
+    limit = 20,
+    offset = 0,
+  ): Promise<WalletTransactionConnectionDto> {
+    if (!(await this.isUserOnboarded(userId))) {
+      return { items: [], hasMore: false };
+    }
+    return this.listTransactionsUnchecked(userId, limit, offset);
+  }
+
+  private async listTransactionsUnchecked(
+    userId: number,
+    limit = 20,
+    offset = 0,
+  ): Promise<WalletTransactionConnectionDto> {
     const take = Math.min(Math.max(limit, 1), 50);
     const rows = await this.transactionRepo.find({
       where: { userId, deleted: false },
