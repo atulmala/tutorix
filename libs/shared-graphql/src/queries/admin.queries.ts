@@ -382,3 +382,69 @@ export const GET_ADMIN_ORDER_DETAIL = gql`
     }
   }
 `;
+
+export const GET_ADMIN_STUDENT_WALLET = gql`
+  query GetAdminStudentWallet($studentId: Int!) {
+    adminStudentWallet(studentId: $studentId) {
+      balanceInr
+    }
+  }
+`;
+
+export const GET_ADMIN_STUDENT_WALLET_TRANSACTIONS = gql`
+  query GetAdminStudentWalletTransactions(
+    $studentId: Int!
+    $first: Int
+    $offset: Int
+  ) {
+    adminStudentWalletTransactions(
+      studentId: $studentId
+      first: $first
+      offset: $offset
+    ) {
+      hasMore
+      items {
+        id
+        createdDate
+        type
+        amountInr
+        balanceAfterInr
+        description
+        commerceOrderId
+      }
+    }
+  }
+`;
+
+export const GET_ADMIN_TUTOR_WALLET = gql`
+  query GetAdminTutorWallet($tutorId: Int!) {
+    adminTutorWallet(tutorId: $tutorId) {
+      balanceInr
+    }
+  }
+`;
+
+export const GET_ADMIN_TUTOR_WALLET_TRANSACTIONS = gql`
+  query GetAdminTutorWalletTransactions(
+    $tutorId: Int!
+    $first: Int
+    $offset: Int
+  ) {
+    adminTutorWalletTransactions(
+      tutorId: $tutorId
+      first: $first
+      offset: $offset
+    ) {
+      hasMore
+      items {
+        id
+        createdDate
+        type
+        amountInr
+        balanceAfterInr
+        description
+        commerceOrderId
+      }
+    }
+  }
+`;

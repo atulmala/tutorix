@@ -28,6 +28,13 @@ import { CommerceAdminService } from '../commerce/services/commerce-admin.servic
 import { AdminOrderListInput } from '../commerce/dto/admin/admin-order-list.input';
 import { AdminOrderListResult } from '../commerce/dto/admin/admin-order-list-result.dto';
 import { AdminOrderDetail } from '../commerce/dto/admin/admin-order-detail.dto';
+import { StudentService } from '../student/services/student.service';
+import { TutorService } from '../tutor/services/tutor.service';
+import { WalletService } from '../wallet/services/wallet.service';
+import {
+  UserWalletDto,
+  WalletTransactionConnectionDto,
+} from '../wallet/dto/wallet.dto';
 
 @Resolver()
 export class AdminResolver {
@@ -35,6 +42,9 @@ export class AdminResolver {
     private readonly adminService: AdminService,
     private readonly tutorCalendarService: TutorCalendarService,
     private readonly commerceAdminService: CommerceAdminService,
+    private readonly studentService: StudentService,
+    private readonly tutorService: TutorService,
+    private readonly walletService: WalletService,
   ) {}
 
   @Query(() => AdminDashboardStats, {
@@ -227,5 +237,73 @@ export class AdminResolver {
     @Args('orderId', { type: () => Int }) orderId: number,
   ): Promise<AdminOrderDetail> {
     return this.commerceAdminService.getOrderDetail(orderId);
+  }
+
+  @Query(() => UserWalletDto, {
+    nullable: true,
+    description: 'Wallet balance for a student (admin only; null if none)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminStudentWallet(
+    @Args('studentId', { type: () => Int }) studentId: number,
+  ): Promise<UserWalletDto | null> {
+    const student = await this.studentService.findOne(studentId);
+    const wallet = await this.walletService.findWalletForUser(student.userId);
+    return wallet ? this.walletService.toWalletDto(wallet) : null;
+  }
+
+  @Query(() => WalletTransactionConnectionDto, {
+    description: 'Wallet transactions for a student (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminStudentWalletTransactions(
+    @Args('studentId', { type: () => Int }) studentId: number,
+    @Args('first', { type: () => Int, nullable: true, defaultValue: 20 })
+    first?: number,
+    @Args('offset', { type: () => Int, nullable: true, defaultValue: 0 })
+    offset?: number,
+  ): Promise<WalletTransactionConnectionDto> {
+    const student = await this.studentService.findOne(studentId);
+    return this.walletService.listTransactionsForAdmin(
+      student.userId,
+      first,
+      offset,
+    );
+  }
+
+  @Query(() => UserWalletDto, {
+    nullable: true,
+    description: 'Wallet balance for a tutor (admin only; null if none)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminTutorWallet(
+    @Args('tutorId', { type: () => Int }) tutorId: number,
+  ): Promise<UserWalletDto | null> {
+    const tutor = await this.tutorService.findOne(tutorId);
+    const wallet = await this.walletService.findWalletForUser(tutor.userId);
+    return wallet ? this.walletService.toWalletDto(wallet) : null;
+  }
+
+  @Query(() => WalletTransactionConnectionDto, {
+    description: 'Wallet transactions for a tutor (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminTutorWalletTransactions(
+    @Args('tutorId', { type: () => Int }) tutorId: number,
+    @Args('first', { type: () => Int, nullable: true, defaultValue: 20 })
+    first?: number,
+    @Args('offset', { type: () => Int, nullable: true, defaultValue: 0 })
+    offset?: number,
+  ): Promise<WalletTransactionConnectionDto> {
+    const tutor = await this.tutorService.findOne(tutorId);
+    return this.walletService.listTransactionsForAdmin(
+      tutor.userId,
+      first,
+      offset,
+    );
   }
 }
