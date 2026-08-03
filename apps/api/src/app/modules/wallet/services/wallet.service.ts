@@ -15,6 +15,7 @@ import {
   WalletTransactionConnectionDto,
   WalletTransactionDto,
 } from '../dto/wallet.dto';
+import { WalletOfferingLabelService } from './wallet-offering-label.service';
 
 export type WalletCreditParams = {
   userId: number;
@@ -44,6 +45,7 @@ export class WalletService {
     private readonly dataSource: DataSource,
     private readonly tutorService: TutorService,
     private readonly studentService: StudentService,
+    private readonly walletOfferingLabelService: WalletOfferingLabelService,
   ) {}
 
   async isUserOnboarded(userId: number): Promise<boolean> {
@@ -216,7 +218,12 @@ export class WalletService {
     });
 
     const hasMore = rows.length > take;
-    const items = rows.slice(0, take).map((row) => this.toTransactionDto(row));
+    const pageRows = rows.slice(0, take);
+    const enrichedRows =
+      await this.walletOfferingLabelService.enrichTransactionDescriptions(
+        pageRows,
+      );
+    const items = enrichedRows.map((row) => this.toTransactionDto(row));
 
     return { items, hasMore };
   }

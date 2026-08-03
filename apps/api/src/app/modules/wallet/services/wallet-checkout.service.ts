@@ -56,6 +56,7 @@ import {
   WalletPurchaseItemTypeEnum,
   WalletPurchaseReferenceTypeEnum,
 } from '../enums/wallet.enums';
+import { WalletOfferingLabelService } from './wallet-offering-label.service';
 import { WalletService } from './wallet.service';
 
 type ResolvedPurchase = {
@@ -83,6 +84,7 @@ export class WalletCheckoutService {
     private readonly tutorService: TutorService,
     private readonly tutorOfferingService: TutorOfferingService,
     private readonly ptFeeService: TutorOfferingPtFeeService,
+    private readonly walletOfferingLabelService: WalletOfferingLabelService,
     @InjectRepository(PaymentAttemptEntity)
     private readonly paymentAttemptRepo: Repository<PaymentAttemptEntity>,
     @InjectRepository(PlatformFeePaymentEntity)
@@ -396,14 +398,17 @@ export class WalletCheckoutService {
       throw new BadRequestException('No payment is required for this proficiency test');
     }
 
-    const offeringName = `Offering #${intent.referenceId}`;
+    const description =
+      await this.walletOfferingLabelService.buildProficiencyTestDescription(
+        intent.referenceId,
+      );
 
     return {
       itemType: OrderItemTypeEnum.PROFICIENCY_TEST,
       referenceType: OrderItemReferenceTypeEnum.tutor_offering,
       referenceId: intent.referenceId,
       amountInr: fee.amountDueInr,
-      description: `Proficiency test — ${offeringName}`,
+      description,
       payerRole: OrderPayerRoleEnum.tutor,
       feeCode: PlatformFeeCodeEnum.PROFICIENCY_TEST,
       feeContextType: PlatformFeePaymentContextTypeEnum.tutor_offering,

@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { ProficiencyTestEntity } from '../../proficiency/entities/proficiency-test.entity';
 import { TutorOfferingEntity } from '../entities/tutor-offering.entity';
 import { TutorOfferingStatusEnum, TutorCertificationStageEnum } from '../enums/tutor.enums';
@@ -166,6 +166,16 @@ export class TutorOfferingService {
       throw new NotFoundException(`Tutor offering ${id} not found`);
     }
     return to;
+  }
+
+  async findByIds(ids: number[]): Promise<TutorOfferingEntity[]> {
+    const uniqueIds = [...new Set(ids.filter((id) => id > 0))];
+    if (uniqueIds.length === 0) {
+      return [];
+    }
+    return this.tutorOfferingRepository.find({
+      where: { id: In(uniqueIds), deleted: false },
+    });
   }
 
   /**

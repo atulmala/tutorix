@@ -1,6 +1,7 @@
 import {
   formatOfferingLabelForDisplay,
   formatTutorOfferingFullLabel,
+  formatTutorOfferingPathLabel,
   parseTutorOfferingLabelSegments,
   type OfferingNodeForLabel,
 } from './tutor-offering-display';
@@ -181,6 +182,46 @@ describe('formatTutorOfferingFullLabel', () => {
     const leaf = offering({ id: 99, displayName: 'Orphan Subject', level: 3 });
 
     expect(formatTutorOfferingFullLabel(leaf, new Map())).toBe('Orphan Subject');
+  });
+});
+
+describe('formatTutorOfferingPathLabel', () => {
+  it('formats school education as study area | board | class range | subject', () => {
+    const byId = buildSchoolEducationTree();
+    const leaf = offeringFrom(byId, 1001);
+
+    expect(
+      formatTutorOfferingPathLabel(leaf, byId, {
+        proficiencyTestOfferingIds: [1001, 1000, 1005],
+      }),
+    ).toBe('School Education | CBSE | Class 1 - 5 | Mathematics');
+  });
+
+  it('formats a single class when no PT offering list is provided', () => {
+    const byId = buildSchoolEducationTree();
+    const leaf = offeringFrom(byId, 1000);
+
+    expect(formatTutorOfferingPathLabel(leaf, byId)).toBe(
+      'School Education | CBSE | Class 4 | Mathematics',
+    );
+  });
+
+  it('includes non-English medium after board', () => {
+    const byId = buildSchoolEducationTree();
+    const leaf = offeringFrom(byId, 2000);
+
+    expect(formatTutorOfferingPathLabel(leaf, byId)).toBe(
+      'School Education | CBSE | Hindi | Kindergarten | Mathematics',
+    );
+  });
+
+  it('includes study area root for non-school offerings', () => {
+    const byId = buildStudyAbroadTree();
+    const leaf = offeringFrom(byId, 200);
+
+    expect(formatTutorOfferingPathLabel(leaf, byId)).toBe(
+      'Study Abroad | IELTS | Ielts Academic Reading',
+    );
   });
 });
 

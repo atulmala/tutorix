@@ -19,6 +19,9 @@ describe('WalletService', () => {
   let dataSource: { transaction: jest.Mock };
   let tutorService: { findByUserId: jest.Mock };
   let studentService: { findByUserId: jest.Mock };
+  let walletOfferingLabelService: {
+    enrichTransactionDescriptions: jest.Mock;
+  };
 
   beforeEach(() => {
     walletRepo = {
@@ -63,6 +66,9 @@ describe('WalletService', () => {
     };
     tutorService = { findByUserId: jest.fn() };
     studentService = { findByUserId: jest.fn() };
+    walletOfferingLabelService = {
+      enrichTransactionDescriptions: jest.fn(async (rows) => rows),
+    };
 
     service = new WalletService(
       walletRepo as never,
@@ -70,6 +76,7 @@ describe('WalletService', () => {
       dataSource as never,
       tutorService as never,
       studentService as never,
+      walletOfferingLabelService as never,
     );
   });
 
