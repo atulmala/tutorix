@@ -34,8 +34,6 @@ export type TutorPTProps = StepComponentProps & {
   ptFeeDisplayLabel?: string | null;
   /** When set (e.g. profile PT), avoids loading full myTutorProfile for test-tutor UI. */
   testTutor?: boolean;
-  /** After wallet top-up via gateway, navigate to home screen. */
-  onNavigateHome?: () => void;
   /** Prior PT attempts used for this tutor offering (profile / add-offering flows). */
   attemptsUsed?: number;
 };
@@ -49,7 +47,6 @@ export const TutorPT: React.FC<TutorPTProps> = ({
   ptFeeDisplayLabel,
   testTutor: testTutorProp,
   attemptsUsed: attemptsUsedProp = 0,
-  onNavigateHome,
 }) => {
   const [screen, setScreen] = useState<Screen>('intro');
   const [activeTutorOfferingId, setActiveTutorOfferingId] = useState<number | null>(
@@ -165,7 +162,7 @@ export const TutorPT: React.FC<TutorPTProps> = ({
     const purchaseIntent = buildPurchaseIntent();
     if (!purchaseIntent) return;
 
-    const result = await runWalletAwarePurchaseCheckout(
+    await runWalletAwarePurchaseCheckout(
       purchaseIntent,
       async (intent) => {
         const response = await prepareWalletPurchaseQuery({
@@ -193,11 +190,6 @@ export const TutorPT: React.FC<TutorPTProps> = ({
       },
       async (preview) => amountOverride ?? preview.shortfallInr,
     );
-
-    if (result.usedGateway) {
-      onNavigateHome?.();
-      return;
-    }
 
     await refetchPtFee();
   };

@@ -21,7 +21,6 @@ type AddOfferingFlowProps = {
   testTutor?: boolean;
   onClose: () => void;
   onComplete: () => void;
-  onNavigateHome?: () => void;
 };
 
 type Step = 'select' | 'confirm' | 'pt';
@@ -31,7 +30,6 @@ export const AddOfferingFlow: React.FC<AddOfferingFlowProps> = ({
   testTutor,
   onClose,
   onComplete,
-  onNavigateHome,
 }) => {
   const [step, setStep] = useState<Step>('select');
   const [leafOfferingId, setLeafOfferingId] = useState<number | null>(null);
@@ -166,7 +164,6 @@ export const AddOfferingFlow: React.FC<AddOfferingFlowProps> = ({
           tutorOfferingId={addResult.tutorOfferingId}
           offeringDisplayName={addResult.offeringName}
           testTutor={testTutor}
-          onNavigateHome={onNavigateHome}
           onComplete={() => {
             onComplete();
             onClose();

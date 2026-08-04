@@ -392,7 +392,6 @@ function AppContent() {
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
           <TutorProfilePage
             onOpenWallet={handleOpenWallet}
-            onNavigateHome={handleBackHome}
           />
         </main>
       </div>
