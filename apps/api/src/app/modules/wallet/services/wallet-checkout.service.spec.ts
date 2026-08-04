@@ -98,4 +98,16 @@ describe('WalletCheckoutService', () => {
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
+
+  it('rejects standalone top-up below minimum', async () => {
+    await expect(
+      service.initiateWalletTopUp({ id: 1 } as never, { amountInr: 499 }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects top-up above maximum', async () => {
+    await expect(
+      service.initiateWalletTopUp({ id: 1 } as never, { amountInr: 10_001 }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
 });
