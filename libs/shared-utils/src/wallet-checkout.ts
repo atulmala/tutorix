@@ -31,6 +31,23 @@ export type WalletTopUpResult = {
   purchaseOrderNumber?: string | null;
 };
 
+export const WALLET_STANDALONE_TOP_UP_MIN_INR = 500;
+export const WALLET_STANDALONE_TOP_UP_MAX_INR = 10_000;
+export const WALLET_STANDALONE_TOP_UP_PRESETS_INR = [500, 2000, 5000] as const;
+
+export function validateStandaloneWalletTopUpAmount(amountInr: number): void {
+  if (amountInr < WALLET_STANDALONE_TOP_UP_MIN_INR) {
+    throw new Error(
+      `Top-up amount must be at least ₹${WALLET_STANDALONE_TOP_UP_MIN_INR}`,
+    );
+  }
+  if (amountInr > WALLET_STANDALONE_TOP_UP_MAX_INR) {
+    throw new Error(
+      `Top-up amount cannot exceed ₹${WALLET_STANDALONE_TOP_UP_MAX_INR.toLocaleString('en-IN')}`,
+    );
+  }
+}
+
 export function formatWalletLowBalanceMessage(
   walletBalanceInr: number,
   shortfallInr: number,
@@ -97,4 +114,35 @@ export async function runWalletAwarePurchaseCheckout(
     walletBalanceInr: result.wallet.balanceInr,
     usedGateway: true,
   };
+}
+
+/** Top up wallet via payment gateway without an attached purchase. */
+export async function runStandaloneWalletTopUp(
+  amountInr: number,
+  initiateWalletTopUp: (
+    input: WalletTopUpInputPayload,
+  ) => Promise<CheckoutResult | null | undefined>,
+  confirmWalletTopUp: (
+    input: ConfirmPaymentInput,
+  ) => Promise<WalletTopUpResult>,
+  openCheckout: (
+    session: PaymentOrderSession,
+  ) => Promise<ConfirmPaymentInput> = openPaymentCheckout,
+): Promise<{ walletBalanceInr: number }> {
+  validateStandaloneWalletTopUpAmount(amountInr);
+
+  const checkout = await initiateWalletTopUp({ amountInr });
+  if (!checkout) {
+    throw new Error('Could not initiate wallet top-up');
+  }
+
+  const session = checkoutSession(checkout);
+  if (session.skipped) {
+    throw new Error('Wallet top-up cannot be skipped');
+  }
+
+  const confirmation = await openCheckout(session);
+  const result = await confirmWalletTopUp(confirmation);
+
+  return { walletBalanceInr: result.wallet.balanceInr };
 }

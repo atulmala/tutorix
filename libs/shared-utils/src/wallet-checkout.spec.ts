@@ -1,6 +1,9 @@
 import {
   formatWalletLowBalanceMessage,
   runWalletAwarePurchaseCheckout,
+  validateStandaloneWalletTopUpAmount,
+  WALLET_STANDALONE_TOP_UP_MAX_INR,
+  WALLET_STANDALONE_TOP_UP_MIN_INR,
 } from './wallet-checkout';
 
 describe('wallet-checkout utils', () => {
@@ -41,5 +44,15 @@ describe('wallet-checkout utils', () => {
     );
 
     expect(result).toEqual({ walletBalanceInr: 50, usedGateway: false });
+  });
+
+  it('validates standalone top-up amount bounds', () => {
+    expect(() =>
+      validateStandaloneWalletTopUpAmount(WALLET_STANDALONE_TOP_UP_MIN_INR - 1),
+    ).toThrow(/at least ₹500/);
+    expect(() =>
+      validateStandaloneWalletTopUpAmount(WALLET_STANDALONE_TOP_UP_MAX_INR + 1),
+    ).toThrow(/cannot exceed/);
+    expect(() => validateStandaloneWalletTopUpAmount(2000)).not.toThrow();
   });
 });

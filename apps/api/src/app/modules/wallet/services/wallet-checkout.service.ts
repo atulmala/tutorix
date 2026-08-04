@@ -57,6 +57,10 @@ import {
   WalletPurchaseReferenceTypeEnum,
 } from '../enums/wallet.enums';
 import { WalletOfferingLabelService } from './wallet-offering-label.service';
+import {
+  WALLET_STANDALONE_TOP_UP_MAX_INR,
+  WALLET_STANDALONE_TOP_UP_MIN_INR,
+} from '@tutorix/shared-utils';
 import { WalletService } from './wallet.service';
 
 type ResolvedPurchase = {
@@ -192,8 +196,13 @@ export class WalletCheckoutService {
     if (input.amountInr <= 0) {
       throw new BadRequestException('Top-up amount must be greater than zero');
     }
+    if (input.amountInr > WALLET_STANDALONE_TOP_UP_MAX_INR) {
+      throw new BadRequestException(
+        `Top-up amount cannot exceed ₹${WALLET_STANDALONE_TOP_UP_MAX_INR.toLocaleString('en-IN')}`,
+      );
+    }
 
-    let minAmountInr = 0;
+    let minAmountInr = WALLET_STANDALONE_TOP_UP_MIN_INR;
     if (input.purchaseIntent) {
       const preview = await this.prepareWalletPurchase(user, input.purchaseIntent);
       if (preview.canPayFromWallet) {
@@ -207,6 +216,10 @@ export class WalletCheckoutService {
           `Top-up amount must be at least ₹${minAmountInr} to complete this purchase`,
         );
       }
+    } else if (input.amountInr < WALLET_STANDALONE_TOP_UP_MIN_INR) {
+      throw new BadRequestException(
+        `Top-up amount must be at least ₹${WALLET_STANDALONE_TOP_UP_MIN_INR}`,
+      );
     }
 
     const line = {
