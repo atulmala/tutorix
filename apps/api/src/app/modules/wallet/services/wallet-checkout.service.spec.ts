@@ -34,6 +34,7 @@ describe('WalletCheckoutService', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
     );
   });
 

@@ -183,7 +183,10 @@ function collectClassNumbersForGroup(
   return numbers;
 }
 
-function formatClassRangeLabel(classNumbers: number[]): string | null {
+function formatClassRangeLabel(
+  classNumbers: number[],
+  style: 'Classes' | 'Class' = 'Classes',
+): string | null {
   if (classNumbers.length === 0) return null;
 
   const sorted = [...new Set(classNumbers)].sort((a, b) => a - b);
@@ -191,10 +194,10 @@ function formatClassRangeLabel(classNumbers: number[]): string | null {
   const high = sorted[sorted.length - 1];
 
   if (low === high) {
-    return `Classes ${low}`;
+    return `${style} ${low}`;
   }
 
-  return `Classes ${low} - ${high}`;
+  return `${style} ${low} - ${high}`;
 }
 
 function formatNonSchoolEducationLabel(
@@ -291,4 +294,112 @@ function formatSchoolEducationLabelWithCatalog(
   }
 
   return buildSchoolEducationLabel(board, subject, grade, leaf.mediumOfInstruction);
+}
+
+/**
+ * Full hierarchical offering path for wallet / ledger descriptions.
+ * School Education: "School Education | {board} | Class {low} - {high} | {subject}"
+ * (non-English medium inserted after board). Other study areas include the root name.
+ */
+export function formatTutorOfferingPathLabel(
+  leaf: OfferingNodeForLabel | null | undefined,
+  offeringsById: Map<number, OfferingNodeForLabel>,
+  options?: TutorOfferingLabelOptions,
+): string {
+  if (!leaf) return '—';
+
+  const resolvedLeaf = offeringsById.get(leaf.id) ?? leaf;
+  const ancestors = getOfferingAncestors(resolvedLeaf, offeringsById);
+  const root =
+    ancestors.length > 0
+      ? ancestors[0]
+      : resolvedLeaf.rootOffering
+        ? {
+            id: resolvedLeaf.rootOffering.id,
+            displayName: resolvedLeaf.rootOffering.displayName,
+            level: 0,
+          }
+        : resolvedLeaf;
+
+  if (root.displayName === SCHOOL_EDUCATION_ROOT) {
+    return formatSchoolEducationPathLabel(
+      resolvedLeaf,
+      ancestors,
+      offeringsById,
+      options,
+    );
+  }
+
+  const segments = [
+    root.displayName,
+    ...ancestors.slice(1).map((a) => a.displayName),
+    resolvedLeaf.displayName,
+  ];
+  return joinLabelSegments(...segments) || resolvedLeaf.displayName;
+}
+
+function formatSchoolEducationPathLabel(
+  leaf: OfferingNodeForLabel,
+  ancestors: OfferingNodeForLabel[],
+  offeringsById: Map<number, OfferingNodeForLabel>,
+  options?: TutorOfferingLabelOptions,
+): string {
+  const subject = leaf.displayName?.trim() || 'Offering';
+  const board = ancestors[1]?.displayName;
+  const grade = ancestors[2]?.displayName;
+  const mediumSegment = formatMediumSegmentForLabel(leaf.mediumOfInstruction);
+
+  if (!board) {
+    return joinLabelSegments(SCHOOL_EDUCATION_ROOT, subject);
+  }
+
+  const classSegment = resolveSchoolEducationClassSegment(
+    leaf,
+    ancestors,
+    offeringsById,
+    options,
+    grade,
+  );
+
+  return joinLabelSegments(
+    SCHOOL_EDUCATION_ROOT,
+    board,
+    mediumSegment,
+    classSegment,
+    subject,
+  );
+}
+
+function resolveSchoolEducationClassSegment(
+  leaf: OfferingNodeForLabel,
+  ancestors: OfferingNodeForLabel[],
+  offeringsById: Map<number, OfferingNodeForLabel>,
+  options: TutorOfferingLabelOptions | undefined,
+  grade: string | undefined,
+): string | null {
+  if (!grade) {
+    return null;
+  }
+
+  const groupKey = schoolEducationGroupKey(leaf, ancestors);
+  const ptOfferingIds = options?.proficiencyTestOfferingIds;
+
+  if (groupKey && ptOfferingIds?.length) {
+    const classNumbers = collectClassNumbersForGroup(
+      ptOfferingIds,
+      offeringsById,
+      groupKey,
+    );
+    const rangeLabel = formatClassRangeLabel(classNumbers, 'Class');
+    if (rangeLabel) {
+      return rangeLabel;
+    }
+  }
+
+  const classNum = parseClassNumber(grade);
+  if (classNum != null) {
+    return `Class ${classNum}`;
+  }
+
+  return grade;
 }
