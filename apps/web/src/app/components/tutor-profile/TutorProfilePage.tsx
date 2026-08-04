@@ -42,8 +42,7 @@ type CurrentUserData = {
 
 export const TutorProfilePage: React.FC<{
   onOpenWallet?: () => void;
-  onNavigateHome?: () => void;
-}> = ({ onOpenWallet, onNavigateHome }) => {
+}> = ({ onOpenWallet }) => {
   const { user: currentUser, refreshUser } = useWebAuth();
   const { data: meData, loading: meLoading } = useQuery<CurrentUserData>(GET_CURRENT_USER, {
     fetchPolicy: 'network-only',
@@ -319,7 +318,6 @@ export const TutorProfilePage: React.FC<{
             offeringDisplayName={offeringLabel}
             attemptsUsed={ptOffering.attemptsUsed}
             testTutor={tutor.testTutor}
-            onNavigateHome={onNavigateHome}
             onComplete={async () => {
               setPtOffering(null);
               await refetch();
@@ -336,7 +334,6 @@ export const TutorProfilePage: React.FC<{
         <AddOfferingFlow
           excludeOfferingIds={excludeOfferingIds}
           testTutor={tutor.testTutor}
-          onNavigateHome={onNavigateHome}
           onClose={() => setShowAddOffering(false)}
           onComplete={async () => {
             setShowAddOffering(false);
