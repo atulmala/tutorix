@@ -2,8 +2,6 @@ import React, { useState, useCallback } from 'react';
 import { View } from 'react-native';
 import {
   ApolloProvider,
-  ApolloClient,
-  NormalizedCacheObject,
   useLazyQuery,
   useMutation,
   useApolloClient,
@@ -17,6 +15,7 @@ import { TutorOnboarding } from './components/tutor-onboarding';
 import { StudentOnboarding } from './components/student-onboarding';
 import { StudentDetailScreen } from './components/student-profile/StudentDetailScreen';
 import { TutorDetailScreen } from './components/tutor-profile/TutorDetailScreen';
+import { WalletScreen } from './components/wallet';
 import { NavHeader } from './components/NavHeader';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { createApolloClient } from '@tutorix/shared-graphql/client/mobile';
@@ -28,10 +27,13 @@ import { GET_MY_STUDENT_PROFILE, GET_MY_TUTOR_PROFILE } from '@tutorix/shared-gr
 import { LOGIN } from '@tutorix/shared-graphql/mutations';
 import { AnalyticsViewTracker } from '../components/AnalyticsViewTracker';
 
-let apolloClient: ApolloClient<NormalizedCacheObject> | null = null;
+/** Align with createApolloClient's package types (avoids dual @apollo/client installs). */
+type AppApolloClient = ReturnType<typeof createApolloClient>;
+
+let apolloClient: AppApolloClient | null = null;
 let apolloClientError: Error | null = null;
 
-function getApolloClient(): ApolloClient<NormalizedCacheObject> | null {
+function getApolloClient(): AppApolloClient | null {
   if (apolloClient) return apolloClient;
   if (apolloClientError) return null;
   try {
@@ -53,11 +55,16 @@ type AppView =
   | 'tutorProfile'
   | 'studentOnboarding'
   | 'studentProfile'
+  | 'wallet'
   | 'home';
+
+type WalletReturnView = 'tutorProfile' | 'studentProfile';
 
 function AppContent() {
   const apolloClient = useApolloClient();
   const [currentView, setCurrentView] = useState<AppView>('splash');
+  const [walletReturnView, setWalletReturnView] =
+    useState<WalletReturnView>('tutorProfile');
   const [tutorProfileForOnboarding, setTutorProfileForOnboarding] = useState<{
     certificationStage?: string;
   } | null>(null);
@@ -196,6 +203,15 @@ function AppContent() {
     setCurrentView('studentProfile');
   };
 
+  const handleOpenWallet = useCallback((from: WalletReturnView) => {
+    setWalletReturnView(from);
+    setCurrentView('wallet');
+  }, []);
+
+  const handleWalletBack = useCallback(() => {
+    setCurrentView(walletReturnView);
+  }, [walletReturnView]);
+
   let screen: React.ReactNode;
   if (currentView === 'splash') {
     screen = <SplashScreen onFinish={handleSplashFinish} />;
@@ -230,14 +246,29 @@ function AppContent() {
     screen = (
       <View style={{ flex: 1 }}>
         <NavHeader title="My profile" onLogout={handleLogout} />
-        <StudentDetailScreen />
+        <StudentDetailScreen
+          onOpenWallet={() => handleOpenWallet('studentProfile')}
+        />
       </View>
     );
   } else if (currentView === 'tutorProfile') {
     screen = (
       <View style={{ flex: 1 }}>
         <NavHeader title="My profile" onLogout={handleLogout} />
-        <TutorDetailScreen />
+        <TutorDetailScreen
+          onOpenWallet={() => handleOpenWallet('tutorProfile')}
+        />
+      </View>
+    );
+  } else if (currentView === 'wallet') {
+    screen = (
+      <View style={{ flex: 1 }}>
+        <NavHeader
+          title="Wallet"
+          onBack={handleWalletBack}
+          onLogout={handleLogout}
+        />
+        <WalletScreen onBack={handleWalletBack} />
       </View>
     );
   } else if (currentView === 'home') {
@@ -273,7 +304,12 @@ export const App = () => {
 
   return (
     <ErrorBoundary>
-      <ApolloProvider client={client}>
+      <ApolloProvider
+        client={
+          // Dual @apollo/client installs (root vs apps/mobile) make these types nominally incompatible.
+          client as unknown as React.ComponentProps<typeof ApolloProvider>['client']
+        }
+      >
         <AppContent />
       </ApolloProvider>
     </ErrorBoundary>

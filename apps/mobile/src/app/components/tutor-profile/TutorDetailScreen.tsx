@@ -77,8 +77,13 @@ import {
   ProfilePicturePickCanceled,
   promptProfilePictureSource,
 } from '../student-home/pickProfilePictureImage';
+import { WalletBalanceChip } from '../wallet';
 
 type TutorOffering = TutorDetailRecord['offerings'][number];
+
+type TutorDetailScreenProps = {
+  onOpenWallet?: () => void;
+};
 
 type MyTutorDetailData = {
   myTutorDetail: TutorDetailRecord;
@@ -231,7 +236,9 @@ function DocumentViewerModal({
   );
 }
 
-export const TutorDetailScreen: React.FC = () => {
+export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
+  onOpenWallet,
+}) => {
   const { data, loading, error, refetch } = useQuery<MyTutorDetailData>(GET_MY_TUTOR_DETAIL, {
     fetchPolicy: 'cache-and-network',
   });
@@ -758,11 +765,20 @@ export const TutorDetailScreen: React.FC = () => {
         </View>
 
         <View style={styles.profileHeroText}>
-          <Text style={styles.title}>{displayName || 'Your profile'}</Text>
-          <Text style={styles.subtitle}>
-            Tutor #{tutor.id}
-            {tutor.certificationStage ? ` · ${tutor.certificationStage}` : ''}
-          </Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.idBadge}>#{tutor.id}</Text>
+            <Text style={[styles.title, styles.nameFlex]} numberOfLines={2}>
+              {displayName || 'Your profile'}
+            </Text>
+          </View>
+          <View style={styles.badgeRow}>
+            {tutor.certificationStage ? (
+              <Text style={styles.stageBadge}>{tutor.certificationStage}</Text>
+            ) : null}
+            {onOpenWallet ? (
+              <WalletBalanceChip onOpenWallet={onOpenWallet} />
+            ) : null}
+          </View>
           <Text style={styles.meta}>
             {formatMobile(tutor.user)}
             {tutor.user?.email ? ` · ${tutor.user.email}` : ''}
@@ -1354,6 +1370,43 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   title: { fontSize: 22, fontWeight: '700', color: '#0f172a' },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  nameFlex: {
+    flex: 1,
+    minWidth: 0,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  idBadge: {
+    backgroundColor: '#0ea5e9',
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  stageBadge: {
+    backgroundColor: '#6366f1',
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
   subtitle: { fontSize: 14, color: '#64748b', marginTop: 4 },
   meta: { fontSize: 13, color: '#64748b', marginTop: 8, lineHeight: 18 },
   profileHero: {

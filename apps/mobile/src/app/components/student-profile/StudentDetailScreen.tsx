@@ -40,9 +40,14 @@ import {
 } from '../student-home/pickProfilePictureImage';
 import { ParentModal } from './ParentModal';
 import { EducationModal } from './EducationModal';
+import { WalletBalanceChip } from '../wallet';
 
 type MyStudentDetailData = {
   myStudentDetail: StudentDetailRecord;
+};
+
+type StudentDetailScreenProps = {
+  onOpenWallet?: () => void;
 };
 
 function formatMobile(user?: StudentDetailRecord['user']): string {
@@ -112,7 +117,9 @@ function formatTimelineDate(entry: OnboardingTimelineEntry): string {
   return 'Pending';
 }
 
-export const StudentDetailScreen: React.FC = () => {
+export const StudentDetailScreen: React.FC<StudentDetailScreenProps> = ({
+  onOpenWallet,
+}) => {
   const [parentModalOpen, setParentModalOpen] = useState(false);
   const [addressModalOpen, setAddressModalOpen] = useState(false);
   const [educationModalOpen, setEducationModalOpen] = useState(false);
@@ -316,12 +323,17 @@ export const StudentDetailScreen: React.FC = () => {
           </View>
 
           <View style={styles.heroText}>
-            <Text style={styles.name}>
-              {[firstName, lastName].filter(Boolean).join(' ') || 'Student'}
-            </Text>
-            <View style={styles.badgeRow}>
+            <View style={styles.nameRow}>
               <Text style={styles.idBadge}>#{student.id}</Text>
+              <Text style={[styles.name, styles.nameFlex]} numberOfLines={2}>
+                {[firstName, lastName].filter(Boolean).join(' ') || 'Student'}
+              </Text>
+            </View>
+            <View style={styles.badgeRow}>
               <Text style={styles.stageBadge}>{getStageTitle(student)}</Text>
+              {onOpenWallet ? (
+                <WalletBalanceChip onOpenWallet={onOpenWallet} />
+              ) : null}
             </View>
             <Text style={styles.contact}>
               {formatMobile(student.user)}
@@ -519,14 +531,25 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   name: {
     fontSize: 20,
     fontWeight: '700',
     color: '#143055',
   },
+  nameFlex: {
+    flex: 1,
+    minWidth: 0,
+  },
   badgeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 8,
     marginTop: 8,
   },
@@ -538,6 +561,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
+    overflow: 'hidden',
   },
   stageBadge: {
     backgroundColor: '#6366f1',

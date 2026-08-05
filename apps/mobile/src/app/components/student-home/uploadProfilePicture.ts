@@ -1,5 +1,3 @@
-import type { FetchResult, MutationFunctionOptions } from '@apollo/client';
-
 export type PickedProfileImage = {
   uri: string;
   name: string;
@@ -7,31 +5,32 @@ export type PickedProfileImage = {
   type: string;
 };
 
-type RequestUploadUrlMutation = (
-  options?: MutationFunctionOptions<
-    {
-      requestProfilePictureUploadUrl?: {
-        uploadUrl?: string;
-        storageKey?: string;
-        contentType?: string;
-      };
-    },
-    { input: { mimeType: string; byteSize: number } }
-  >,
-) => Promise<FetchResult>;
+/**
+ * Structural mutation callbacks — avoid Apollo MutationFunctionOptions, which
+ * fail assignability against useMutation under dual @apollo/client installs
+ * (update/OperationVariables contravariance).
+ */
+type RequestUploadUrlMutation = (options: {
+  variables: { input: { mimeType: string; byteSize: number } };
+}) => Promise<{
+  data?: {
+    requestProfilePictureUploadUrl?: {
+      uploadUrl?: string | null;
+      storageKey?: string | null;
+      contentType?: string | null;
+    } | null;
+  } | null;
+}>;
 
-type ConfirmUploadMutation = (
-  options?: MutationFunctionOptions<
-    { confirmProfilePictureUpload?: unknown },
-    {
-      input: {
-        storageKey: string;
-        mimeType: string;
-        sizeBytes: number;
-      };
-    }
-  >,
-) => Promise<FetchResult>;
+type ConfirmUploadMutation = (options: {
+  variables: {
+    input: {
+      storageKey: string;
+      mimeType: string;
+      sizeBytes: number;
+    };
+  };
+}) => Promise<{ data?: { confirmProfilePictureUpload?: unknown } | null }>;
 
 export function validateProfileImage(file: PickedProfileImage): string | null {
   if (file.type !== 'image/jpeg' && file.type !== 'image/png') {
