@@ -1,0 +1,48 @@
+{
+  "conditions": [],
+  "parameters": {
+    "min_supported_version": {
+      "defaultValue": {
+        "value": "1.0.0"
+      },
+      "description": "Force update if installed app version is below this semver (major.minor.patch).",
+      "valueType": "STRING"
+    },
+    "latest_version": {
+      "defaultValue": {
+        "value": "1.0.0"
+      },
+      "description": "Optional update prompt when installed version is below this but at or above min_supported_version.",
+      "valueType": "STRING"
+    },
+    "ios_store_url": {
+      "defaultValue": {
+        "value": "https://apps.apple.com"
+      },
+      "description": "App Store URL opened by the Update button on iOS. Replace with the real Tutorix App Store link before production.",
+      "valueType": "STRING"
+    },
+    "android_store_url": {
+      "defaultValue": {
+        "value": "https://play.google.com/store"
+      },
+      "description": "Play Store URL opened by the Update button on Android. Replace with the real Tutorix Play Store link before production.",
+      "valueType": "STRING"
+    },
+    "force_update_message": {
+      "defaultValue": {
+        "value": "A required update is available. Please update Tutorix to continue."
+      },
+      "description": "Body copy on the blocking force-update screen.",
+      "valueType": "STRING"
+    },
+    "optional_update_message": {
+      "defaultValue": {
+        "value": "A newer version of Tutorix is available. Update for the latest improvements."
+      },
+      "description": "Body copy on the optional update modal.",
+      "valueType": "STRING"
+    }
+  },
+  "parameterGroups": {}
+}

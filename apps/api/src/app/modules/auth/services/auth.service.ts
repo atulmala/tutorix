@@ -25,6 +25,7 @@ import { ResetPasswordInput } from '../dto/reset-password.input';
 import { ConfigService } from '@nestjs/config';
 import { TutorService } from '../../tutor/services/tutor.service';
 import { StudentService } from '../../student/services/student.service';
+import { RegistrationSettingsService } from '../../registration-settings/services/registration-settings.service';
 
 @Injectable()
 export class AuthService {
@@ -38,6 +39,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly tutorService: TutorService,
     private readonly studentService: StudentService,
+    private readonly registrationSettingsService: RegistrationSettingsService,
   ) {}
 
   /**
@@ -48,6 +50,19 @@ export class AuthService {
     if (!input.email) {
       throw new BadRequestException('Email is required for registration');
     }
+
+    if (
+      !(await this.registrationSettingsService.isRegistrationRoleEnabled(
+        input.role,
+      ))
+    ) {
+      throw new BadRequestException(
+        await this.registrationSettingsService.registrationDisabledMessage(
+          input.role,
+        ),
+      );
+    }
+
     const existingEmail = await this.userRepository.findOne({
       where: { email: input.email },
     });
@@ -129,6 +144,34 @@ export class AuthService {
 
     // If user exists with same mobile or email, check if signup is incomplete
     const existingUser = existingMobile || existingEmail;
+
+    const assertRoleRegistrationAllowed = async (
+      role: UserRole | undefined,
+    ) => {
+      if (!role || role === UserRole.UNKNOWN) return;
+      if (
+        !(await this.registrationSettingsService.isRegistrationRoleEnabled(
+          role,
+        ))
+      ) {
+        throw new BadRequestException(
+          await this.registrationSettingsService.registrationDisabledMessage(
+            role,
+          ),
+        );
+      }
+    };
+
+    if (!existingUser) {
+      await assertRoleRegistrationAllowed(input.role);
+    } else if (
+      existingUser.role === UserRole.UNKNOWN &&
+      input.role &&
+      input.role !== UserRole.UNKNOWN
+    ) {
+      // Incomplete signup assigning a role for the first time
+      await assertRoleRegistrationAllowed(input.role);
+    }
 
     if (existingUser) {
       // Check if signup is already completed

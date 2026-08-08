@@ -24,6 +24,8 @@ import { TutorCalendar } from '../tutor-calendar/entities/tutor-calendar.entity'
 import { TutorCalendarService } from '../tutor-calendar/services/tutor-calendar.service';
 import { AdminPlatformFeeConfig } from './dto/admin-platform-fee-config.dto';
 import { AdminUpdatePlatformFeeInput } from '../platform-fee/dto/admin-update-platform-fee.input';
+import { RegistrationSettingsEntity } from '../registration-settings/entities/registration-settings.entity';
+import { AdminUpdateRegistrationSettingsInput } from '../registration-settings/dto/admin-update-registration-settings.input';
 import { CommerceAdminService } from '../commerce/services/commerce-admin.service';
 import { AdminOrderListInput } from '../commerce/dto/admin/admin-order-list.input';
 import { AdminOrderListResult } from '../commerce/dto/admin/admin-order-list-result.dto';
@@ -215,6 +217,26 @@ export class AdminResolver {
     @Args('input') input: AdminUpdatePlatformFeeInput,
   ): Promise<AdminPlatformFeeConfig> {
     return this.adminService.updatePlatformFee(input);
+  }
+
+  @Query(() => RegistrationSettingsEntity, {
+    description: 'Tutor/student registration enable flags (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminRegistrationSettings(): Promise<RegistrationSettingsEntity> {
+    return this.adminService.getRegistrationSettings();
+  }
+
+  @Mutation(() => RegistrationSettingsEntity, {
+    description: 'Update tutor/student registration enable flags (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminUpdateRegistrationSettings(
+    @Args('input') input: AdminUpdateRegistrationSettingsInput,
+  ): Promise<RegistrationSettingsEntity> {
+    return this.adminService.updateRegistrationSettings(input);
   }
 
   @Query(() => AdminOrderListResult, {

@@ -1,8 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useMutation } from '@apollo/client';
+import { useMutation, useQuery } from '@apollo/client';
 import { BRAND_NAME } from '../../config';
-import { REGISTER_USER } from '@tutorix/shared-graphql';
+import {
+  GET_REGISTRATION_SETTINGS,
+  REGISTER_USER,
+} from '@tutorix/shared-graphql';
 import { getPhoneCountryCode } from '@tutorix/shared-utils';
+
+const DEFAULT_DISABLED_MESSAGE =
+  'Registration for this role is temporarily unavailable. Please try again later.';
 
 export type BasicDetails = {
   firstName: string;
@@ -63,6 +69,24 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
   const passwordRef = useRef<HTMLInputElement | null>(null);
   const confirmRef = useRef<HTMLInputElement | null>(null);
 
+  const { data: registrationData } = useQuery<{
+    registrationSettings: {
+      tutorRegistrationEnabled: boolean;
+      studentRegistrationEnabled: boolean;
+      disabledMessage: string;
+    };
+  }>(GET_REGISTRATION_SETTINGS, {
+    fetchPolicy: 'network-only',
+  });
+
+  const tutorEnabled =
+    registrationData?.registrationSettings?.tutorRegistrationEnabled ?? true;
+  const studentEnabled =
+    registrationData?.registrationSettings?.studentRegistrationEnabled ?? true;
+  const disabledMessage =
+    registrationData?.registrationSettings?.disabledMessage?.trim() ||
+    DEFAULT_DISABLED_MESSAGE;
+
   const [registerUser, { loading: isSubmitting }] = useMutation(REGISTER_USER, {
     onError: (error) => {
       hasErrorRef.current = true;
@@ -79,6 +103,24 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
   useEffect(() => {
     setForm(initialValue);
   }, [initialValue]);
+
+  useEffect(() => {
+    setForm((prev) => {
+      if (prev.isTutor === true && !tutorEnabled) {
+        if (studentEnabled) return { ...prev, isTutor: false };
+        return { ...prev, isTutor: null };
+      }
+      if (prev.isTutor === false && !studentEnabled) {
+        if (tutorEnabled) return { ...prev, isTutor: true };
+        return { ...prev, isTutor: null };
+      }
+      if (prev.isTutor === null) {
+        if (tutorEnabled && !studentEnabled) return { ...prev, isTutor: true };
+        if (studentEnabled && !tutorEnabled) return { ...prev, isTutor: false };
+      }
+      return prev;
+    });
+  }, [tutorEnabled, studentEnabled]);
 
   const updateField = <K extends keyof BasicDetails>(key: K, value: BasicDetails[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -126,6 +168,15 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
     const { passwordError, confirmError } = validatePasswords(form.password, form.confirmPassword);
     if (passwordError) next.password = passwordError;
     if (confirmError) next.confirmPassword = confirmError;
+    if (!tutorEnabled && !studentEnabled) {
+      next.isTutor = disabledMessage;
+    } else if (form.isTutor === null) {
+      next.isTutor = 'Please select a role';
+    } else if (form.isTutor === true && !tutorEnabled) {
+      next.isTutor = disabledMessage;
+    } else if (form.isTutor === false && !studentEnabled) {
+      next.isTutor = disabledMessage;
+    }
     // Remove undefined entries
     Object.keys(next).forEach((key) => {
       if (next[key as keyof BasicDetails] === undefined) {
@@ -133,7 +184,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
       }
     });
     return next;
-  }, [form]);
+  }, [form, tutorEnabled, studentEnabled, disabledMessage]);
 
   const canSubmit =
     Object.keys(validationErrors).length === 0 &&
@@ -143,7 +194,8 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
     form.email &&
     form.password &&
     form.confirmPassword &&
-    form.isTutor !== null;
+    form.isTutor !== null &&
+    (form.isTutor ? tutorEnabled : studentEnabled);
 
   const focusFirstError = (errs: ErrorMap) => {
     const order: Array<keyof BasicDetails> = [
@@ -588,9 +640,10 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
         <div className="grid gap-3 md:grid-cols-2">
           {[
             {
-              key: 'student',
+              key: 'student' as const,
               title: 'Student',
               desc: 'Learn with expert tutors and structured paths.',
+              enabled: studentEnabled,
               icon: (
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -609,9 +662,10 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
               ),
             },
             {
-              key: 'tutor',
+              key: 'tutor' as const,
               title: 'Tutor',
               desc: 'Teach, mentor, and grow your tutoring practice.',
+              enabled: tutorEnabled,
               icon: (
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -640,22 +694,33 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
               <button
                 key={role.key}
                 type="button"
-                onClick={() => updateField('isTutor', role.key === 'tutor')}
+                disabled={!role.enabled}
+                onClick={() => {
+                  if (!role.enabled) return;
+                  updateField('isTutor', role.key === 'tutor');
+                }}
                 className={`flex h-full w-full items-start gap-3 rounded-xl border px-4 py-3 text-left transition ${
-                  selected
-                    ? 'border-[#5fa8ff] bg-[#eef3ff]'
-                    : 'border-subtle bg-white hover:border-primary'
+                  !role.enabled
+                    ? 'cursor-not-allowed border-subtle bg-gray-50 opacity-60'
+                    : selected
+                      ? 'border-[#5fa8ff] bg-[#eef3ff]'
+                      : 'border-subtle bg-white hover:border-primary'
                 }`}
               >
                 <div className="rounded-lg bg-white p-2 shadow-sm">{role.icon}</div>
                 <div className="space-y-1">
                   <p className="text-base font-semibold text-primary">{role.title}</p>
-                  <p className="text-sm text-muted">{role.desc}</p>
+                  <p className="text-sm text-muted">
+                    {role.enabled ? role.desc : 'Temporarily unavailable'}
+                  </p>
                 </div>
               </button>
             );
           })}
         </div>
+        {(submitAttempted || errors.isTutor) && errors.isTutor && (
+          <p className="text-sm text-danger">{errors.isTutor}</p>
+        )}
       </div>
 
       {submitError && (

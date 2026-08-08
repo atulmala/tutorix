@@ -26,6 +26,8 @@ import {
 import { GET_MY_STUDENT_PROFILE, GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
 import { LOGIN } from '@tutorix/shared-graphql/mutations';
 import { AnalyticsViewTracker } from '../components/AnalyticsViewTracker';
+import { FeatureFlagsProvider } from './feature-flags/FeatureFlagsContext';
+import { AppUpdateGate } from './components/AppUpdateGate';
 
 /** Align with createApolloClient's package types (avoids dual @apollo/client installs). */
 type AppApolloClient = ReturnType<typeof createApolloClient>;
@@ -310,7 +312,11 @@ export const App = () => {
           client as unknown as React.ComponentProps<typeof ApolloProvider>['client']
         }
       >
-        <AppContent />
+        <FeatureFlagsProvider>
+          <AppUpdateGate>
+            <AppContent />
+          </AppUpdateGate>
+        </FeatureFlagsProvider>
       </ApolloProvider>
     </ErrorBoundary>
   );

@@ -20,6 +20,7 @@ import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { ProfilePictureService } from './services/profile-picture.service';
 import { TutorModule } from '../tutor/tutor.module';
 import { StudentModule } from '../student/student.module';
+import { RegistrationSettingsModule } from '../registration-settings/registration-settings.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { StudentModule } from '../student/student.module';
     ConfigModule,
     forwardRef(() => TutorModule),
     forwardRef(() => StudentModule),
+    RegistrationSettingsModule,
   ],
   providers: [
     AuthService,

@@ -1,6 +1,10 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
-import { GET_ADMIN_DASHBOARD_STATS } from '@tutorix/shared-graphql';
+import {
+  GET_ADMIN_DASHBOARD_STATS,
+  GET_ADMIN_REGISTRATION_SETTINGS,
+} from '@tutorix/shared-graphql';
 
 type StatCardProps = {
   label: string;
@@ -87,10 +91,32 @@ function OnlineStatCard({ label, users, sessions, accent }: OnlineStatCardProps)
   );
 }
 
+function RegistrationStatusBadge({ enabled }: { enabled: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+        enabled
+          ? 'bg-emerald-100 text-emerald-800'
+          : 'bg-amber-100 text-amber-900'
+      }`}
+    >
+      {enabled ? 'Enabled' : 'Disabled'}
+    </span>
+  );
+}
+
 export function DashboardPage() {
   const { data, loading, error } = useQuery(GET_ADMIN_DASHBOARD_STATS);
+  const {
+    data: registrationData,
+    loading: registrationLoading,
+    error: registrationError,
+  } = useQuery(GET_ADMIN_REGISTRATION_SETTINGS, {
+    fetchPolicy: 'network-only',
+  });
 
   const stats = data?.adminDashboardStats;
+  const registration = registrationData?.adminRegistrationSettings;
 
   return (
     <div>
@@ -113,6 +139,58 @@ export function DashboardPage() {
 
       {!loading && !error && stats && (
         <div className="mt-8 space-y-8 lg:max-w-4xl">
+          <section>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                Registration
+              </h2>
+              <Link
+                to="/registration-settings"
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Manage settings
+              </Link>
+            </div>
+            {registrationLoading && (
+              <p className="mt-3 text-sm text-muted">Loading registration status…</p>
+            )}
+            {registrationError && (
+              <p className="mt-3 text-sm text-red-600" role="alert">
+                Could not load registration status.
+              </p>
+            )}
+            {!registrationLoading && !registrationError && registration && (
+              <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-subtle bg-white px-5 py-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-primary">
+                      Tutor registration
+                    </p>
+                    <RegistrationStatusBadge
+                      enabled={registration.tutorRegistrationEnabled}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-muted">
+                    New tutor signups on web and mobile
+                  </p>
+                </div>
+                <div className="rounded-xl border border-subtle bg-white px-5 py-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-primary">
+                      Student registration
+                    </p>
+                    <RegistrationStatusBadge
+                      enabled={registration.studentRegistrationEnabled}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-muted">
+                    New student signups on web and mobile
+                  </p>
+                </div>
+              </div>
+            )}
+          </section>
+
           <section>
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
               Signups

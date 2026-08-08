@@ -47,3 +47,15 @@ export const ADMIN_UPDATE_PLATFORM_FEE = gql`
     }
   }
 `;
+
+export const ADMIN_UPDATE_REGISTRATION_SETTINGS = gql`
+  mutation AdminUpdateRegistrationSettings(
+    $input: AdminUpdateRegistrationSettingsInput!
+  ) {
+    adminUpdateRegistrationSettings(input: $input) {
+      tutorRegistrationEnabled
+      studentRegistrationEnabled
+      disabledMessage
+    }
+  }
+`;
