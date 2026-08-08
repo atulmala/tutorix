@@ -9,7 +9,7 @@ import React, {
 import { AppState, type AppStateStatus, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApolloClient } from '@apollo/client';
-import { GET_REGISTRATION_SETTINGS } from '@tutorix/shared-graphql';
+import { GET_REGISTRATION_SETTINGS } from '@tutorix/shared-graphql/queries';
 import { APP_VERSION } from '../config';
 import {
   getRemoteConfigString,

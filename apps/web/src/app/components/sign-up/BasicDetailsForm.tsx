@@ -711,7 +711,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
                 <div className="space-y-1">
                   <p className="text-base font-semibold text-primary">{role.title}</p>
                   <p className="text-sm text-muted">
-                    {role.enabled ? role.desc : 'Temporarily unavailable'}
+                    {role.enabled ? role.desc : disabledMessage}
                   </p>
                 </div>
               </button>

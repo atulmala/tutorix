@@ -590,7 +590,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
                     !role.enabled && styles.roleTextDisabled,
                   ]}
                 >
-                  {role.enabled ? role.desc : 'Temporarily unavailable'}
+                  {role.enabled ? role.desc : disabledMessage}
                 </Text>
               </TouchableOpacity>
             );
