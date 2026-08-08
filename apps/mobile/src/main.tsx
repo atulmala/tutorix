@@ -1,9 +1,11 @@
 import '@react-native-firebase/app';
 import '@react-native-firebase/crashlytics';
+import '@react-native-firebase/remote-config';
 import { AppRegistry, View, Text } from 'react-native';
 import React from 'react';
 import { initializeAnalytics, verifyAnalytics } from './lib/analytics';
 import { initializeCrashlytics, verifyCrashlytics } from './lib/crashlytics';
+import { initializeRemoteConfig } from './lib/remote-config';
 
 // CRITICAL: Patch rehackt to use the same React instance as React Native
 // Apollo Client uses rehackt which does require('react') at runtime
@@ -17,7 +19,7 @@ if (typeof global !== 'undefined') {
     // Force rehackt to use our React instance by replacing all its React methods
     if (rehackt && (!rehackt.useContext || rehackt.useContext !== React.useContext)) {
       // Copy all React properties to rehackt
-      Object.keys(React).forEach(key => {
+      (Object.keys(React) as Array<keyof typeof React>).forEach((key) => {
         rehackt[key] = React[key];
       });
       console.log('[main.tsx] ✅ Patched rehackt to use React Native React instance');
@@ -57,6 +59,11 @@ try {
     </View>
   );
 }
+
+// Kick off Remote Config early; FeatureFlagsProvider also awaits initializeRemoteConfig.
+initializeRemoteConfig().catch((error) => {
+  console.warn('[main.tsx] Remote Config initialization failed:', error);
+});
 
 // Initialize Firebase Analytics
 // Note: React Native Firebase Analytics initializes automatically when the app starts

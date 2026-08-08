@@ -19,12 +19,17 @@ target 'Mobile' do
   config = use_native_modules!
 
   # Ensure Firebase/Google pods emit module maps when built as static libs
+  # (required for Swift FirebaseRemoteConfig + RNFBRemoteConfig)
   pod 'FirebaseCoreInternal', :modular_headers => true
   pod 'FirebaseCrashlytics', :modular_headers => true
   pod 'FirebaseSessions', :modular_headers => true
   pod 'FirebaseCore', :modular_headers => true
   pod 'FirebaseCoreExtension', :modular_headers => true
   pod 'FirebaseInstallations', :modular_headers => true
+  pod 'FirebaseABTesting', :modular_headers => true
+  pod 'FirebaseRemoteConfig', :modular_headers => true
+  pod 'FirebaseRemoteConfigInterop', :modular_headers => true
+  pod 'FirebaseSharedSwift', :modular_headers => true
   pod 'GoogleUtilities', :modular_headers => true
   pod 'GoogleDataTransport', :modular_headers => true
   pod 'nanopb', :modular_headers => true

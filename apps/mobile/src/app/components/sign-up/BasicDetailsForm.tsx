@@ -16,6 +16,7 @@ import DateTimePicker, {
 } from '@react-native-community/datetimepicker';
 import { REGISTER_USER } from '@tutorix/shared-graphql/mutations';
 import { getPhoneCountryCode } from '@tutorix/shared-utils';
+import { useRegistrationFlags } from '../../feature-flags/FeatureFlagsContext';
 
 export type BasicDetails = {
   firstName: string;
@@ -106,6 +107,11 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [iosPickerDate, setIosPickerDate] = useState<Date>(getDefaultDobDate);
   const [hasError, setHasError] = useState(false);
+  const {
+    tutorEnabled,
+    studentEnabled,
+    disabledMessage,
+  } = useRegistrationFlags();
 
   const [registerUser, { loading: isSubmitting }] = useMutation(REGISTER_USER, {
     onError: (error) => {
@@ -122,6 +128,25 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
   useEffect(() => {
     setForm(initialValue);
   }, [initialValue]);
+
+  // Auto-select the only enabled role; clear selection if the chosen role is disabled.
+  useEffect(() => {
+    setForm((prev) => {
+      if (prev.isTutor === true && !tutorEnabled) {
+        if (studentEnabled) return { ...prev, isTutor: false };
+        return { ...prev, isTutor: null };
+      }
+      if (prev.isTutor === false && !studentEnabled) {
+        if (tutorEnabled) return { ...prev, isTutor: true };
+        return { ...prev, isTutor: null };
+      }
+      if (prev.isTutor === null) {
+        if (tutorEnabled && !studentEnabled) return { ...prev, isTutor: true };
+        if (studentEnabled && !tutorEnabled) return { ...prev, isTutor: false };
+      }
+      return prev;
+    });
+  }, [tutorEnabled, studentEnabled]);
 
   const updateField = <K extends keyof BasicDetails>(key: K, value: BasicDetails[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -180,14 +205,22 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
     const { passwordError, confirmError } = validatePasswords(form.password, form.confirmPassword);
     if (passwordError) next.password = passwordError;
     if (confirmError) next.confirmPassword = confirmError;
-    if (form.isTutor === null) next.isTutor = 'Please select a role';
+    if (!tutorEnabled && !studentEnabled) {
+      next.isTutor = disabledMessage;
+    } else if (form.isTutor === null) {
+      next.isTutor = 'Please select a role';
+    } else if (form.isTutor === true && !tutorEnabled) {
+      next.isTutor = disabledMessage;
+    } else if (form.isTutor === false && !studentEnabled) {
+      next.isTutor = disabledMessage;
+    }
     Object.keys(next).forEach((key) => {
       if (next[key as keyof BasicDetails] === undefined) {
         delete next[key as keyof BasicDetails];
       }
     });
     return next;
-  }, [form]);
+  }, [form, tutorEnabled, studentEnabled, disabledMessage]);
 
   const canSubmit =
     Object.keys(validationErrors).length === 0 &&
@@ -197,7 +230,8 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
     form.email &&
     form.password &&
     form.confirmPassword &&
-    form.isTutor !== null;
+    form.isTutor !== null &&
+    (form.isTutor ? tutorEnabled : studentEnabled);
 
   const handleSubmit = async () => {
     setSubmitAttempted(true);
@@ -510,8 +544,18 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
         <Text style={styles.label}>Registering as</Text>
         <View style={styles.roleRow}>
           {[
-            { key: 'student', title: 'Student', desc: 'Learn with expert tutors.' },
-            { key: 'tutor', title: 'Tutor', desc: 'Teach and grow your practice.' },
+            {
+              key: 'student' as const,
+              title: 'Student',
+              desc: 'Learn with expert tutors.',
+              enabled: studentEnabled,
+            },
+            {
+              key: 'tutor' as const,
+              title: 'Tutor',
+              desc: 'Teach and grow your practice.',
+              enabled: tutorEnabled,
+            },
           ].map((role) => {
             const selected =
               form.isTutor !== null &&
@@ -520,11 +564,34 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
             return (
               <TouchableOpacity
                 key={role.key}
-                style={[styles.roleCard, selected && styles.roleCardSelected]}
-                onPress={() => updateField('isTutor', role.key === 'tutor')}
+                style={[
+                  styles.roleCard,
+                  selected && styles.roleCardSelected,
+                  !role.enabled && styles.roleCardDisabled,
+                ]}
+                onPress={() => {
+                  if (!role.enabled) return;
+                  updateField('isTutor', role.key === 'tutor');
+                }}
+                disabled={!role.enabled}
+                accessibilityState={{ disabled: !role.enabled, selected }}
               >
-                <Text style={styles.roleTitle}>{role.title}</Text>
-                <Text style={styles.roleDesc}>{role.desc}</Text>
+                <Text
+                  style={[
+                    styles.roleTitle,
+                    !role.enabled && styles.roleTextDisabled,
+                  ]}
+                >
+                  {role.title}
+                </Text>
+                <Text
+                  style={[
+                    styles.roleDesc,
+                    !role.enabled && styles.roleTextDisabled,
+                  ]}
+                >
+                  {role.enabled ? role.desc : 'Temporarily unavailable'}
+                </Text>
               </TouchableOpacity>
             );
           })}
@@ -736,6 +803,11 @@ const styles = StyleSheet.create({
     borderColor: '#5fa8ff',
     backgroundColor: '#eef3ff',
   },
+  roleCardDisabled: {
+    opacity: 0.5,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+  },
   roleTitle: {
     fontSize: 14,
     fontWeight: '700',
@@ -745,6 +817,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748b',
     marginTop: 4,
+  },
+  roleTextDisabled: {
+    color: '#94a3b8',
   },
   errorContainer: {
     backgroundColor: '#fef2f2',

@@ -23,6 +23,7 @@ import { PlatformFeeModule } from './modules/platform-fee/platform-fee.module';
 import { PaymentModule } from './modules/payment';
 import { CommerceModule } from './modules/commerce/commerce.module';
 import { WalletModule } from './modules/wallet/wallet.module';
+import { RegistrationSettingsModule } from './modules/registration-settings/registration-settings.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { WalletModule } from './modules/wallet/wallet.module';
     CommerceModule,
     WalletModule,
     PaymentModule,
+    RegistrationSettingsModule,
     // Add other modules here as they are created:
     // ClassesModule,
   ],

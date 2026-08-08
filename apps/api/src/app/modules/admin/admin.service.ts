@@ -43,6 +43,9 @@ import { AdminPlatformFeeConfig } from './dto/admin-platform-fee-config.dto';
 import { PlatformFeeService } from '../platform-fee/services/platform-fee.service';
 import { AdminUpdatePlatformFeeInput } from '../platform-fee/dto/admin-update-platform-fee.input';
 import { PlatformFeeConfigEntity } from '../platform-fee/entities/platform-fee-config.entity';
+import { RegistrationSettingsService } from '../registration-settings/services/registration-settings.service';
+import { RegistrationSettingsEntity } from '../registration-settings/entities/registration-settings.entity';
+import { AdminUpdateRegistrationSettingsInput } from '../registration-settings/dto/admin-update-registration-settings.input';
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 20;
@@ -64,6 +67,7 @@ export class AdminService {
     private readonly proficiencyTestService: ProficiencyTestService,
     private readonly offeringService: OfferingService,
     private readonly platformFeeService: PlatformFeeService,
+    private readonly registrationSettingsService: RegistrationSettingsService,
   ) {}
 
   async getDashboardStats(): Promise<AdminDashboardStats> {
@@ -309,6 +313,16 @@ export class AdminService {
   ): Promise<AdminPlatformFeeConfig> {
     const updated = await this.platformFeeService.updateConfig(input);
     return this.toAdminPlatformFeeConfig(updated);
+  }
+
+  async getRegistrationSettings(): Promise<RegistrationSettingsEntity> {
+    return this.registrationSettingsService.getSettings();
+  }
+
+  async updateRegistrationSettings(
+    input: AdminUpdateRegistrationSettingsInput,
+  ): Promise<RegistrationSettingsEntity> {
+    return this.registrationSettingsService.updateSettings(input);
   }
 
   private toAdminPlatformFeeConfig(
