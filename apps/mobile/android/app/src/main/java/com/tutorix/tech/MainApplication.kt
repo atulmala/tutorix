@@ -1,4 +1,4 @@
-package com.mobile
+package com.tutorix.tech
 
 import android.app.Application
 import com.facebook.react.PackageList

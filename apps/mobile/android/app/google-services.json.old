@@ -9,25 +9,6 @@
       "client_info": {
         "mobilesdk_app_id": "1:353992914030:android:c84532768b4832d5a9a27f",
         "android_client_info": {
-          "package_name": "com.mobile"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyDWluEaKwRQoWhbvc8Uv7NjxIeoUVG1Ucc"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:353992914030:android:c21624fecaa53ebba9a27f",
-        "android_client_info": {
           "package_name": "com.tutorix.tech"
         }
       },
