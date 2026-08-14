@@ -37,6 +37,7 @@ import { InvoiceLineEntity } from '../modules/commerce/entities/invoice-line.ent
 import { UserWalletEntity } from '../modules/wallet/entities/user-wallet.entity';
 import { WalletTransactionEntity } from '../modules/wallet/entities/wallet-transaction.entity';
 import { RegistrationSettingsEntity } from '../modules/registration-settings/entities/registration-settings.entity';
+import { EmailSendEntity } from '../modules/communication/email/entities/email-send.entity';
 // Add other entities as they are created
 
 /**
@@ -91,6 +92,7 @@ export function createDatabaseOptions(
       UserWalletEntity,
       WalletTransactionEntity,
       RegistrationSettingsEntity,
+      EmailSendEntity,
       // Add other entities here as they are created
       // Class,
     ],

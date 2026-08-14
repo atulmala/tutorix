@@ -1,0 +1,8 @@
+export enum EmailSendStatus {
+  SENT = 'SENT',
+  FAILED = 'FAILED',
+  DELIVERED = 'DELIVERED',
+  BOUNCED = 'BOUNCED',
+  COMPLAINED = 'COMPLAINED',
+  REJECTED = 'REJECTED',
+}

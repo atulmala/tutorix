@@ -325,9 +325,9 @@ Common errors:
 
 ## Next Steps
 
-1. Add email verification for admins
+1. ~~Deliver email verification OTP via AWS SES~~ (see [EMAIL_SES.md](./EMAIL_SES.md))
 2. Add mobile verification (SMS OTP) for tutors/students
-3. Implement password reset flow
+3. Send password-reset email via the same EmailModule (under communication/)
 4. Add rate limiting for login attempts
 5. Add two-factor authentication (2FA) for admins
 6. Add session management and device tracking

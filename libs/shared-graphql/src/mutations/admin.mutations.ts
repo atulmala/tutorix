@@ -59,3 +59,12 @@ export const ADMIN_UPDATE_REGISTRATION_SETTINGS = gql`
     }
   }
 `;
+
+export const ADMIN_SEND_EMAIL = gql`
+  mutation AdminSendEmail($input: AdminSendEmailInput!) {
+    adminSendEmail(input: $input) {
+      success
+      messageId
+    }
+  }
+`;

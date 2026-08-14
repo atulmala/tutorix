@@ -448,3 +448,15 @@ export const GET_ADMIN_TUTOR_WALLET_TRANSACTIONS = gql`
     }
   }
 `;
+
+export const GET_ADMIN_EMAIL_STATUS = gql`
+  query GetAdminEmailStatus {
+    adminEmailStatus {
+      provider
+      fromEmail
+      fromName
+      region
+      configured
+    }
+  }
+`;

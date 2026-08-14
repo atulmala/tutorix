@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: '/proficiency-tests', label: 'Proficiency test' },
   { to: '/fees-and-charges', label: 'Fees & Charges' },
   { to: '/registration-settings', label: 'Registration' },
+  { to: '/email', label: 'Email' },
   { to: '/orders', label: 'Orders' },
 ] as const;
 
