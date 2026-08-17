@@ -24,6 +24,7 @@ import { PaymentModule } from './modules/payment';
 import { CommerceModule } from './modules/commerce/commerce.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { RegistrationSettingsModule } from './modules/registration-settings/registration-settings.module';
+import { CommunicationModule } from './modules/communication/communication.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { RegistrationSettingsModule } from './modules/registration-settings/regi
     WalletModule,
     PaymentModule,
     RegistrationSettingsModule,
+    CommunicationModule,
     // Add other modules here as they are created:
     // ClassesModule,
   ],

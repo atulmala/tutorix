@@ -21,6 +21,7 @@ import { ProfilePictureService } from './services/profile-picture.service';
 import { TutorModule } from '../tutor/tutor.module';
 import { StudentModule } from '../student/student.module';
 import { RegistrationSettingsModule } from '../registration-settings/registration-settings.module';
+import { CommunicationModule } from '../communication/communication.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { RegistrationSettingsModule } from '../registration-settings/registratio
     forwardRef(() => TutorModule),
     forwardRef(() => StudentModule),
     RegistrationSettingsModule,
+    CommunicationModule,
   ],
   providers: [
     AuthService,

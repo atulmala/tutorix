@@ -15,6 +15,7 @@ import { PlatformFeeModule } from '../platform-fee/platform-fee.module';
 import { CommerceModule } from '../commerce/commerce.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { RegistrationSettingsModule } from '../registration-settings/registration-settings.module';
+import { CommunicationModule } from '../communication/communication.module';
 import { AdminService } from './admin.service';
 import { AdminResolver } from './admin.resolver';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -34,6 +35,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
     CommerceModule,
     WalletModule,
     RegistrationSettingsModule,
+    CommunicationModule,
   ],
   providers: [AdminService, AdminResolver, RolesGuard],
   exports: [AdminService],

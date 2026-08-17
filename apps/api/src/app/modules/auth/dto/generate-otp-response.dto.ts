@@ -4,15 +4,15 @@ import { OtpPurpose } from '../enums/otp-purpose.enum';
 @ObjectType()
 export class GenerateOtpResponse {
   @Field(() => Int)
-  userId: number;
+  userId!: number;
 
   @Field(() => OtpPurpose)
-  purpose: OtpPurpose;
+  purpose!: OtpPurpose;
 
   @Field(() => Date)
-  expiresAt: Date;
+  expiresAt!: Date;
 
-  @Field()
-  otp: string;
+  @Field(() => String, { nullable: true })
+  otp?: string | null;
 }
 

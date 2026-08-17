@@ -37,6 +37,12 @@ import {
   UserWalletDto,
   WalletTransactionConnectionDto,
 } from '../wallet/dto/wallet.dto';
+import { EmailService } from '../communication/email/email.service';
+import { EmailPurpose } from '../communication/email/enums/email-purpose.enum';
+import { wrapPlainTextAsHtml } from '../communication/email/email.utils';
+import { AdminEmailStatus } from '../communication/email/dto/admin-email-status.dto';
+import { AdminSendEmailInput } from '../communication/email/dto/admin-send-email.input';
+import { AdminSendEmailResult } from '../communication/email/dto/admin-send-email-result.dto';
 
 @Resolver()
 export class AdminResolver {
@@ -47,6 +53,7 @@ export class AdminResolver {
     private readonly studentService: StudentService,
     private readonly tutorService: TutorService,
     private readonly walletService: WalletService,
+    private readonly emailService: EmailService,
   ) {}
 
   @Query(() => AdminDashboardStats, {
@@ -327,5 +334,36 @@ export class AdminResolver {
       first,
       offset,
     );
+  }
+
+  @Query(() => AdminEmailStatus, {
+    description: 'Current email delivery status (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminEmailStatus(): Promise<AdminEmailStatus> {
+    return this.emailService.getStatus();
+  }
+
+  @Mutation(() => AdminSendEmailResult, {
+    description: 'Send a one-off email via the configured provider (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminSendEmail(
+    @Args('input') input: AdminSendEmailInput,
+  ): Promise<AdminSendEmailResult> {
+    const result = await this.emailService.send({
+      to: input.to,
+      subject: input.subject,
+      text: input.body,
+      html: wrapPlainTextAsHtml(input.body),
+      purpose: EmailPurpose.ADMIN_TEST,
+      tags: { purpose: 'admin-test' },
+    });
+    return {
+      success: true,
+      messageId: result.messageId,
+    };
   }
 }
