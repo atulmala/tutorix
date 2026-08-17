@@ -1,0 +1,4 @@
+---
+title: Wallet credited
+---
+₹{{amountInr}} added. New balance: ₹{{balanceInr}}.

@@ -25,4 +25,5 @@ export * from './platform-fee.queries';
 export * from './payment.queries';
 export * from './wallet.queries';
 export * from './registration-settings.queries';
+export * from './communication.queries';
 // export * from './class.queries';

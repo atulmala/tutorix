@@ -1,0 +1,7 @@
+---
+dltTemplateId: 
+dltEntityId: 
+dltHeader: 
+variableMapping: {"amountInr":"1","balanceInr":"2"}
+---
+Tutorix: ₹{{amountInr}} credited. Balance ₹{{balanceInr}}.

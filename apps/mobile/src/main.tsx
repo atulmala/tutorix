@@ -1,6 +1,7 @@
 import '@react-native-firebase/app';
 import '@react-native-firebase/crashlytics';
 import '@react-native-firebase/remote-config';
+import '@react-native-firebase/messaging';
 import { AppRegistry, View, Text } from 'react-native';
 import React from 'react';
 import { initializeAnalytics, verifyAnalytics } from './lib/analytics';

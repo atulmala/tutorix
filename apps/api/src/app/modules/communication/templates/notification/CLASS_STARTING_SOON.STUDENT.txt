@@ -1,0 +1,4 @@
+---
+title: Class starting soon
+---
+{{offeringName}} starts in {{minutesUntil}} minutes.

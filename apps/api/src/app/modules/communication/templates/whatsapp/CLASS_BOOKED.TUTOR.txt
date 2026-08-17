@@ -1,0 +1,5 @@
+---
+whatsappTemplateName: 
+variableMapping: {"tutorName":"1","studentName":"2"}
+---
+Dear {{tutorName}}, a student {{studentName}} has booked {{offeringName}} with you at {{classTime}}. Please check your Tutorix dashboard.

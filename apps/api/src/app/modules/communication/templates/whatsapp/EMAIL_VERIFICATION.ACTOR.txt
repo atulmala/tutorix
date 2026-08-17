@@ -1,0 +1,5 @@
+---
+whatsappTemplateName: 
+variableMapping: {"otp":"1"}
+---
+Hi {{firstName}}, your Tutorix verification code is {{otp}}. It expires in {{expiryMinutes}} minutes.

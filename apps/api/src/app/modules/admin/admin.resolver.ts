@@ -43,6 +43,10 @@ import { wrapPlainTextAsHtml } from '../communication/email/email.utils';
 import { AdminEmailStatus } from '../communication/email/dto/admin-email-status.dto';
 import { AdminSendEmailInput } from '../communication/email/dto/admin-send-email.input';
 import { AdminSendEmailResult } from '../communication/email/dto/admin-send-email-result.dto';
+import { CommunicationAdminService } from '../communication/communication.admin.service';
+import { AdminCommunicationCatalog } from '../communication/dto/admin-communication-catalog.dto';
+import { AdminUpdateCommunicationRuleInput } from '../communication/dto/admin-update-communication-rule.input';
+import { AdminUpdateCommunicationTemplateInput } from '../communication/dto/admin-update-communication-template.input';
 
 @Resolver()
 export class AdminResolver {
@@ -54,6 +58,7 @@ export class AdminResolver {
     private readonly tutorService: TutorService,
     private readonly walletService: WalletService,
     private readonly emailService: EmailService,
+    private readonly communicationAdminService: CommunicationAdminService,
   ) {}
 
   @Query(() => AdminDashboardStats, {
@@ -365,5 +370,36 @@ export class AdminResolver {
       success: true,
       messageId: result.messageId,
     };
+  }
+
+  @Query(() => AdminCommunicationCatalog, {
+    description: 'Communication event rules and file-backed templates (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminCommunicationCatalog(): Promise<AdminCommunicationCatalog> {
+    return this.communicationAdminService.getCatalog();
+  }
+
+  @Mutation(() => AdminCommunicationCatalog, {
+    description: 'Update channel routing for a communication event (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminUpdateCommunicationRule(
+    @Args('input') input: AdminUpdateCommunicationRuleInput,
+  ): Promise<AdminCommunicationCatalog> {
+    return this.communicationAdminService.updateRule(input);
+  }
+
+  @Mutation(() => AdminCommunicationCatalog, {
+    description: 'Write a communication template file (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminUpdateCommunicationTemplate(
+    @Args('input') input: AdminUpdateCommunicationTemplateInput,
+  ): Promise<AdminCommunicationCatalog> {
+    return this.communicationAdminService.updateTemplate(input);
   }
 }
