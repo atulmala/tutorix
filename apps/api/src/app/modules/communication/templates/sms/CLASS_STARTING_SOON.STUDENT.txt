@@ -1,0 +1,7 @@
+---
+dltTemplateId: 
+dltEntityId: 
+dltHeader: 
+variableMapping: {"minutesUntil":"1"}
+---
+Tutorix: {{offeringName}} starts in {{minutesUntil}} minutes.

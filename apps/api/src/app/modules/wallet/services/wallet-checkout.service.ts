@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -62,6 +63,8 @@ import {
   WALLET_STANDALONE_TOP_UP_MIN_INR,
 } from '@tutorix/shared-utils';
 import { WalletService } from './wallet.service';
+import { CommunicationService } from '../../communication/communication.service';
+import { CommunicationEvent } from '../../communication/enums/communication-event.enum';
 
 type ResolvedPurchase = {
   itemType: OrderItemTypeEnum;
@@ -77,6 +80,8 @@ type ResolvedPurchase = {
 
 @Injectable()
 export class WalletCheckoutService {
+  private readonly logger = new Logger(WalletCheckoutService.name);
+
   constructor(
     private readonly walletService: WalletService,
     private readonly orderService: OrderService,
@@ -89,6 +94,7 @@ export class WalletCheckoutService {
     private readonly tutorOfferingService: TutorOfferingService,
     private readonly ptFeeService: TutorOfferingPtFeeService,
     private readonly walletOfferingLabelService: WalletOfferingLabelService,
+    private readonly communicationService: CommunicationService,
     @InjectRepository(PaymentAttemptEntity)
     private readonly paymentAttemptRepo: Repository<PaymentAttemptEntity>,
     @InjectRepository(PlatformFeePaymentEntity)
@@ -335,6 +341,23 @@ export class WalletCheckoutService {
       commerceOrderId: order.id,
       description: 'Wallet top-up',
     });
+
+    void this.communicationService
+      .emit({
+        event: CommunicationEvent.WALLET_TOP_UP,
+        userId: user.id,
+        entityType: 'commerce_order',
+        entityId: order.id,
+        payload: {
+          firstName: user.firstName?.trim() || 'there',
+          amountInr: String(order.amountPaidInr),
+          balanceInr: String(updatedWallet.balanceInr),
+        },
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(`WALLET_TOP_UP emit failed: ${message}`);
+      });
 
     if (topUpItem) {
       topUpItem.fulfillmentStatus = OrderItemFulfillmentStatusEnum.fulfilled;

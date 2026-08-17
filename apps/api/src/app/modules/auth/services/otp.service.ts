@@ -9,10 +9,8 @@ import { GenerateOtpResponse } from '../dto/generate-otp-response.dto';
 import { VerifyOtpInput } from '../dto/verify-otp.input';
 import { VerifyOtpResponse } from '../dto/verify-otp-response.dto';
 import { OtpPurpose } from '../enums/otp-purpose.enum';
-import { EmailService } from '../../communication/email/email.service';
-import { EmailPurpose } from '../../communication/email/enums/email-purpose.enum';
-import { buildEmailOtpMessage } from '../../communication/email/templates/email-otp.template';
-import { formatRecipientName } from '../../communication/email/email.utils';
+import { CommunicationService } from '../../communication/communication.service';
+import { CommunicationEvent } from '../../communication/enums/communication-event.enum';
 
 @Injectable()
 export class OtpService {
@@ -23,7 +21,7 @@ export class OtpService {
     private readonly otpRepository: Repository<Otp>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    private readonly emailService: EmailService,
+    private readonly communicationService: CommunicationService,
   ) {}
 
   /**
@@ -66,36 +64,38 @@ export class OtpService {
       await this.otpRepository.save(otp);
     }
 
+    const payload = {
+      firstName: user.firstName?.trim() || 'there',
+      otp: otpValue,
+      expiryMinutes: String(OtpService.OTP_EXPIRY_MINUTES),
+    };
+
     if (input.purpose === OtpPurpose.EMAIL_VERIFICATION) {
       if (!user.email) {
         throw new BadRequestException('User email is required for email verification');
       }
 
-      const message = buildEmailOtpMessage({
-        firstName: user.firstName,
-        otp: otpValue,
-      });
-      await this.emailService.send({
-        to: user.email,
-        subject: message.subject,
-        html: message.html,
-        text: message.text,
-        purpose: EmailPurpose.EMAIL_OTP,
+      await this.communicationService.emit({
+        event: CommunicationEvent.EMAIL_VERIFICATION,
         userId: user.id,
-        recipientName: formatRecipientName(user.firstName, user.lastName),
-        recipientRole: user.role,
-        tags: { purpose: 'email-otp' },
+        payload,
       });
 
       return {
         userId: input.userId,
         purpose: input.purpose,
         expiresAt,
-        otp: this.emailService.returnsOtpInApiResponse() ? otpValue : null,
+        otp: this.communicationService.returnsOtpInApiResponse() ? otpValue : null,
       };
     }
 
-    this.logOtpForNonEmailDelivery(input.purpose, user, input.userId, otpValue, expiresAt);
+    if (input.purpose === OtpPurpose.MOBILE_VERIFICATION) {
+      await this.communicationService.emit({
+        event: CommunicationEvent.MOBILE_VERIFICATION,
+        userId: user.id,
+        payload,
+      });
+    }
 
     return {
       userId: input.userId,
@@ -103,39 +103,6 @@ export class OtpService {
       expiresAt,
       otp: otpValue,
     };
-  }
-
-  private logOtpForNonEmailDelivery(
-    purpose: OtpPurpose,
-    user: Pick<User, 'id' | 'email' | 'mobileCountryCode' | 'mobileNumber' | 'firstName' | 'lastName'>,
-    userId: number,
-    otpValue: string,
-    expiresAt: Date,
-  ): void {
-    const purposeLabel =
-      purpose === OtpPurpose.MOBILE_VERIFICATION
-        ? 'MOBILE VERIFICATION'
-        : purpose;
-
-    const userInfo = user.email
-      ? `Email: ${user.email}`
-      : user.mobileNumber
-        ? `Phone: ${user.mobileCountryCode || '+91'} ${user.mobileNumber}`
-        : `User ID: ${user.id}`;
-
-    const userName =
-      user.firstName || user.lastName
-        ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
-        : null;
-
-    console.log('\n' + '='.repeat(50));
-    console.log(`OTP GENERATED [${purposeLabel}]`);
-    if (userName) console.log(`   User: ${userName}`);
-    console.log(`   ${userInfo}`);
-    console.log(`   User ID: ${userId}`);
-    console.log(`   OTP Code: ${otpValue}`);
-    console.log(`   Expires At: ${expiresAt.toLocaleString()}`);
-    console.log('='.repeat(50) + '\n');
   }
 
   /**
@@ -155,7 +122,6 @@ export class OtpService {
       throw new BadRequestException('Invalid timestamp');
     }
 
-    // Ensure request time is within the validity window
     if (clientTime > record.expiresAt) {
       throw new BadRequestException('OTP has expired');
     }
@@ -165,7 +131,6 @@ export class OtpService {
       throw new BadRequestException('Invalid OTP');
     }
 
-    // Mark verification flags
     const user = await this.userRepository.findOne({
       where: { id: input.userId },
       select: ['id', 'isMobileVerified', 'isEmailVerified', 'isSignupComplete'],
@@ -191,7 +156,6 @@ export class OtpService {
   }
 
   private createOtpCode(): string {
-    // Generate 6-digit OTP
     return Math.floor(Math.random() * 1000000)
       .toString()
       .padStart(6, '0');
@@ -201,4 +165,3 @@ export class OtpService {
     return crypto.createHash('sha256').update(otp).digest('hex');
   }
 }
-

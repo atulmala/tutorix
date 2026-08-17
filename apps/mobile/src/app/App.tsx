@@ -25,6 +25,10 @@ import {
 } from '@tutorix/shared-graphql/client/mobile/token-storage';
 import { GET_MY_STUDENT_PROFILE, GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
 import { LOGIN } from '@tutorix/shared-graphql/mutations';
+import {
+  registerPushNotifications,
+  unregisterPushNotifications,
+} from '../lib/push-notifications';
 import { AnalyticsViewTracker } from '../components/AnalyticsViewTracker';
 import { FeatureFlagsProvider } from './feature-flags/FeatureFlagsContext';
 import { AppUpdateGate } from './components/AppUpdateGate';
@@ -79,6 +83,7 @@ function AppContent() {
   } | null>(null);
 
   const handleLogout = useCallback(async () => {
+    await unregisterPushNotifications(apolloClient);
     await removeAuthToken();
     await apolloClient.clearStore();
     setCurrentView('login');
@@ -152,6 +157,7 @@ function AppContent() {
   const handleSplashFinish = () => setCurrentView('login');
 
   const handleLoginSuccess = (user?: { id: number; role?: string }) => {
+    void registerPushNotifications(apolloClient);
     const role = user?.role != null ? String(user.role).toUpperCase() : undefined;
     if (role === 'STUDENT') {
       getMyStudentProfile();

@@ -38,6 +38,10 @@ import { UserWalletEntity } from '../modules/wallet/entities/user-wallet.entity'
 import { WalletTransactionEntity } from '../modules/wallet/entities/wallet-transaction.entity';
 import { RegistrationSettingsEntity } from '../modules/registration-settings/entities/registration-settings.entity';
 import { EmailSendEntity } from '../modules/communication/email/entities/email-send.entity';
+import { CommunicationRuleEntity } from '../modules/communication/entities/communication-rule.entity';
+import { CommunicationTemplateEntity } from '../modules/communication/entities/communication-template.entity';
+import { CommunicationSendEntity } from '../modules/communication/entities/communication-send.entity';
+import { UserDeviceTokenEntity } from '../modules/communication/entities/user-device-token.entity';
 // Add other entities as they are created
 
 /**
@@ -93,6 +97,10 @@ export function createDatabaseOptions(
       WalletTransactionEntity,
       RegistrationSettingsEntity,
       EmailSendEntity,
+      CommunicationRuleEntity,
+      CommunicationTemplateEntity,
+      CommunicationSendEntity,
+      UserDeviceTokenEntity,
       // Add other entities here as they are created
       // Class,
     ],

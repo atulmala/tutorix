@@ -14,6 +14,7 @@ import { ProficiencyTestDetailPage } from './pages/ProficiencyTestDetailPage';
 import { FeesAndChargesPage } from './pages/FeesAndChargesPage';
 import { RegistrationSettingsPage } from './pages/RegistrationSettingsPage';
 import { SendEmailPage } from './pages/SendEmailPage';
+import { CommunicationPage } from './pages/CommunicationPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
 
@@ -43,7 +44,9 @@ export function App() {
             path="registration-settings"
             element={<RegistrationSettingsPage />}
           />
-          <Route path="email" element={<SendEmailPage />} />
+          <Route path="communication" element={<CommunicationPage />} />
+          <Route path="communication/test-email" element={<SendEmailPage />} />
+          <Route path="email" element={<Navigate to="/communication" replace />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:orderId" element={<OrderDetailPage />} />
         </Route>

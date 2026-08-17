@@ -1,0 +1,5 @@
+---
+whatsappTemplateName: 
+variableMapping: {"amountInr":"1","balanceInr":"2"}
+---
+Hi {{firstName}}, ₹{{amountInr}} was added to your Tutorix wallet. New balance: ₹{{balanceInr}}.

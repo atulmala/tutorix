@@ -1,0 +1,5 @@
+---
+whatsappTemplateName: 
+variableMapping: {"tutorName":"1","studentName":"2"}
+---
+Hi {{studentName}}, your {{offeringName}} class with {{tutorName}} is booked for {{classTime}}.

@@ -1,0 +1,5 @@
+---
+whatsappTemplateName: 
+variableMapping: {"minutesUntil":"1"}
+---
+{{offeringName}} starts in {{minutesUntil}} minutes. Join from your Tutorix dashboard.

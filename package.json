@@ -150,7 +150,7 @@
     "@react-native-firebase/analytics": "^23.8.4",
     "@react-native-firebase/app": "^23.8.4",
     "@react-native-firebase/crashlytics": "^23.8.4",
-    "@react-native-firebase/remote-config": "^23.8.4",
+    "@react-native-firebase/messaging": "^23.8.4",
     "@types/pdfkit": "^0.17.6",
     "axios": "^1.6.0",
     "bcrypt": "^6.0.0",

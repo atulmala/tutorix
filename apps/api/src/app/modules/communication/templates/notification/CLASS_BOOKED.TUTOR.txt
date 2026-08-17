@@ -1,0 +1,4 @@
+---
+title: New class booking
+---
+{{studentName}} booked {{offeringName}} at {{classTime}}.

@@ -1,0 +1,4 @@
+---
+title: Your Tutorix verification code
+---
+Hi {{firstName}}, your code is {{otp}}. It expires in {{expiryMinutes}} minutes.

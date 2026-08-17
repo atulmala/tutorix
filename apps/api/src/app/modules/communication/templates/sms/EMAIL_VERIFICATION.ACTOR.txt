@@ -1,0 +1,7 @@
+---
+dltTemplateId: 
+dltEntityId: 
+dltHeader: 
+variableMapping: {"otp":"1"}
+---
+Tutorix code: {{otp}}. Valid for {{expiryMinutes}} minutes. Do not share this code.

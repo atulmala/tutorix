@@ -4,7 +4,8 @@ import { OtpService } from './otp.service';
 import { Otp } from '../entities/otp.entity';
 import { User } from '../entities/user.entity';
 import { OtpPurpose } from '../enums/otp-purpose.enum';
-import { EmailService } from '../../communication/email/email.service';
+import { CommunicationService } from '../../communication/communication.service';
+import { CommunicationEvent } from '../../communication/enums/communication-event.enum';
 
 describe('OtpService', () => {
   let service: OtpService;
@@ -14,8 +15,8 @@ describe('OtpService', () => {
     create: jest.Mock;
   };
   let userRepository: { findOne: jest.Mock };
-  let emailService: {
-    send: jest.Mock;
+  let communicationService: {
+    emit: jest.Mock;
     returnsOtpInApiResponse: jest.Mock;
   };
 
@@ -36,8 +37,8 @@ describe('OtpService', () => {
         role: 'STUDENT',
       }),
     };
-    emailService = {
-      send: jest.fn().mockResolvedValue({ messageId: 'ses-1' }),
+    communicationService = {
+      emit: jest.fn().mockResolvedValue(undefined),
       returnsOtpInApiResponse: jest.fn().mockReturnValue(false),
     };
 
@@ -46,43 +47,50 @@ describe('OtpService', () => {
         OtpService,
         { provide: getRepositoryToken(Otp), useValue: otpRepository },
         { provide: getRepositoryToken(User), useValue: userRepository },
-        { provide: EmailService, useValue: emailService },
+        { provide: CommunicationService, useValue: communicationService },
       ],
     }).compile();
 
     service = module.get(OtpService);
   });
 
-  it('sends email OTP and omits the code when SES is the provider', async () => {
+  it('emits EMAIL_VERIFICATION and omits the code when SES is the provider', async () => {
     const result = await service.generateOtp({
       userId: 9,
       purpose: OtpPurpose.EMAIL_VERIFICATION,
     });
-    expect(emailService.send).toHaveBeenCalledTimes(1);
-    expect(emailService.send.mock.calls[0][0].to).toBe('user@example.com');
-    expect(emailService.send.mock.calls[0][0].purpose).toBe('EMAIL_OTP');
-    expect(emailService.send.mock.calls[0][0].userId).toBe(9);
-    expect(emailService.send.mock.calls[0][0].recipientRole).toBe('STUDENT');
-    expect(emailService.send.mock.calls[0][0].text).toMatch(/\d{6}/);
+    expect(communicationService.emit).toHaveBeenCalledTimes(1);
+    expect(communicationService.emit.mock.calls[0][0].event).toBe(
+      CommunicationEvent.EMAIL_VERIFICATION,
+    );
+    expect(communicationService.emit.mock.calls[0][0].userId).toBe(9);
+    expect(communicationService.emit.mock.calls[0][0].payload.otp).toMatch(
+      /^\d{6}$/,
+    );
     expect(result.otp).toBeNull();
   });
 
   it('returns the email OTP when the console provider is active', async () => {
-    emailService.returnsOtpInApiResponse.mockReturnValue(true);
+    communicationService.returnsOtpInApiResponse.mockReturnValue(true);
     const result = await service.generateOtp({
       userId: 9,
       purpose: OtpPurpose.EMAIL_VERIFICATION,
     });
-    expect(emailService.send).toHaveBeenCalled();
+    expect(communicationService.emit).toHaveBeenCalled();
     expect(result.otp).toMatch(/^\d{6}$/);
   });
 
-  it('does not send email for mobile OTP and still returns the code', async () => {
+  it('emits MOBILE_VERIFICATION and still returns the code', async () => {
     const result = await service.generateOtp({
       userId: 9,
       purpose: OtpPurpose.MOBILE_VERIFICATION,
     });
-    expect(emailService.send).not.toHaveBeenCalled();
+    expect(communicationService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: CommunicationEvent.MOBILE_VERIFICATION,
+        userId: 9,
+      }),
+    );
     expect(result.otp).toMatch(/^\d{6}$/);
   });
 });
