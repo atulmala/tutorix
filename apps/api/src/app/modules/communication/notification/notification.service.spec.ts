@@ -84,7 +84,25 @@ describe('NotificationService', () => {
       title: 'Hi',
       body: 'There',
     });
-    expect(sendEachForMulticast).toHaveBeenCalled();
+    expect(sendEachForMulticast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tokens: ['stale-token'],
+        notification: { title: 'Hi', body: 'There' },
+        android: {
+          notification: {
+            channelId: 'tutorix_default',
+            sound: 'default',
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+            },
+          },
+        },
+      }),
+    );
     expect(fcmTokens.deleteTokens).toHaveBeenCalledWith(['stale-token']);
   });
 });

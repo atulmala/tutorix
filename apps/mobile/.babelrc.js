@@ -1,14 +1,13 @@
-module.exports = function (api) {
-  api.cache(true);
+const path = require('path');
+const { config } = require('dotenv');
 
-  // Load environment variables from .env file
-  const path = require('path');
-  const { config } = require('dotenv');
-  try {
-    config({ path: path.resolve(__dirname, '../../.env') });
-  } catch {
-    // Silently fail if .env doesn't exist
-  }
+config({ path: path.resolve(__dirname, '../../.env') });
+
+module.exports = function (api) {
+  api.cache.using(
+    () =>
+      `${process.env.DEV_LAN_HOST || ''}|${process.env.NX_GRAPHQL_ENDPOINT || ''}`,
+  );
 
   // Simple inline plugin to replace process.env variables with actual values
   const inlineEnvPlugin = function ({ types: t }) {
@@ -39,6 +38,7 @@ module.exports = function (api) {
             if (
               varName === 'NX_GRAPHQL_ENDPOINT' ||
               varName === 'GRAPHQL_ENDPOINT' ||
+              varName === 'DEV_LAN_HOST' ||
               varName === 'GOOGLE_MAPS_API_KEY' ||
               varName === 'VITE_GOOGLE_MAPS_API_KEY'
             ) {

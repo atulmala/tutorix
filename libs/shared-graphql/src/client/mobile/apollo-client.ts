@@ -1,5 +1,5 @@
 import { ApolloClient, from } from '@apollo/client';
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 
 import {
   createHttpLinkForClient,
@@ -10,18 +10,55 @@ import {
 import { createCache } from './cache-config';
 import { getGraphQLEndpoint } from './endpoint';
 
+function getMetroPackagerHost(): string | null {
+  try {
+    const scriptURL = NativeModules.SourceCode?.scriptURL as string | undefined;
+    if (!scriptURL) {
+      return null;
+    }
+    const host = new URL(scriptURL).hostname;
+    if (!host || host === 'localhost' || host === '127.0.0.1') {
+      return null;
+    }
+    return host;
+  } catch {
+    return null;
+  }
+}
+
+/** USB Metro tunnels as localhost, so this must be a real LAN IP of the Mac. */
+const COMPILED_DEV_LAN_HOST = '192.168.1.117';
+
+function getDevLanHost(): string | null {
+  const fromEnv = process.env['DEV_LAN_HOST'];
+  if (fromEnv && fromEnv !== 'localhost' && fromEnv !== '127.0.0.1') {
+    return fromEnv;
+  }
+  return COMPILED_DEV_LAN_HOST;
+}
+
+function replaceLoopbackHost(endpoint: string, host: string): string {
+  return endpoint
+    .replace('://localhost', `://${host}`)
+    .replace('://127.0.0.1', `://${host}`);
+}
+
 /**
- * Get GraphQL endpoint for mobile
- * Handles Android emulator special case (10.0.2.2 instead of localhost)
+ * Get GraphQL endpoint for mobile.
+ * Loopback URLs cannot be used on a physical device. Prefer Metro's host,
+ * then DEV_LAN_HOST. Android emulator scriptURL is 10.0.2.2.
  */
 function getMobileGraphQLEndpoint(): string {
   let endpoint = getGraphQLEndpoint();
-  
-  // For Android emulator, replace localhost with 10.0.2.2
-  // iOS simulator works fine with localhost
-  if (Platform.OS === 'android' && endpoint.includes('localhost')) {
-    endpoint = endpoint.replace('localhost', '10.0.2.2');
-    console.log('[Apollo Client - Mobile] Android detected, using:', endpoint);
+
+  if (endpoint.includes('localhost') || endpoint.includes('127.0.0.1')) {
+    const host =
+      getMetroPackagerHost() ??
+      getDevLanHost() ??
+      (Platform.OS === 'android' ? '10.0.2.2' : null);
+    if (host) {
+      endpoint = replaceLoopbackHost(endpoint, host);
+    }
   }
 
   return endpoint;

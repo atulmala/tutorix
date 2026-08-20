@@ -125,6 +125,7 @@ apps/api/src/schema.gql
 
 # Environment variables
 .env
+.env.old
 .env.local
 .env.*.local
 # Keep .env.example in git (it's a template)

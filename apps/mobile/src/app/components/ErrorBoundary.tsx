@@ -40,7 +40,7 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('[ErrorBoundary] Caught error:', error);
     console.error('[ErrorBoundary] Error info:', errorInfo);
     console.error('[ErrorBoundary] Component stack:', errorInfo.componentStack);
-    
+
     this.setState({
       error,
       errorInfo,

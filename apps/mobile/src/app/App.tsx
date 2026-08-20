@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { View } from 'react-native';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import {
   ApolloProvider,
   useLazyQuery,
@@ -28,6 +28,11 @@ import { LOGIN } from '@tutorix/shared-graphql/mutations';
 import {
   registerPushNotifications,
   unregisterPushNotifications,
+  subscribeForegroundPush,
+  subscribeNotificationOpened,
+  consumeInitialNotification,
+  shouldOpenWallet,
+  type PushPayload,
 } from '../lib/push-notifications';
 import { AnalyticsViewTracker } from '../components/AnalyticsViewTracker';
 import { FeatureFlagsProvider } from './feature-flags/FeatureFlagsContext';
@@ -66,6 +71,17 @@ type AppView =
 
 type WalletReturnView = 'tutorProfile' | 'studentProfile';
 
+const UNAUTHED_VIEWS: AppView[] = [
+  'splash',
+  'login',
+  'forgotPassword',
+  'signup',
+];
+
+function isAuthedView(view: AppView): boolean {
+  return !UNAUTHED_VIEWS.includes(view);
+}
+
 function AppContent() {
   const apolloClient = useApolloClient();
   const [currentView, setCurrentView] = useState<AppView>('splash');
@@ -81,6 +97,10 @@ function AppContent() {
     userId?: number;
     verificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean };
   } | null>(null);
+  const [pushBanner, setPushBanner] = useState<PushPayload | null>(null);
+  const currentViewRef = useRef(currentView);
+  currentViewRef.current = currentView;
+  const pushBannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleLogout = useCallback(async () => {
     await unregisterPushNotifications(apolloClient);
@@ -90,6 +110,11 @@ function AppContent() {
     setTutorProfileForOnboarding(null);
     setStudentProfileForOnboarding(null);
     setSignupResume(null);
+    setPushBanner(null);
+    if (pushBannerTimerRef.current) {
+      clearTimeout(pushBannerTimerRef.current);
+      pushBannerTimerRef.current = null;
+    }
   }, [apolloClient]);
 
   const routeStudentAfterProfile = useCallback(
@@ -220,6 +245,66 @@ function AppContent() {
     setCurrentView(walletReturnView);
   }, [walletReturnView]);
 
+  const openWalletFromPush = useCallback(() => {
+    const view = currentViewRef.current;
+    if (view === 'studentProfile' || view === 'studentOnboarding') {
+      setWalletReturnView('studentProfile');
+    } else if (view !== 'wallet') {
+      setWalletReturnView('tutorProfile');
+    }
+    setCurrentView('wallet');
+    setPushBanner(null);
+  }, []);
+
+  const handlePushOpen = useCallback(
+    (payload: PushPayload) => {
+      if (!isAuthedView(currentViewRef.current)) {
+        return;
+      }
+      if (shouldOpenWallet(payload)) {
+        openWalletFromPush();
+      }
+    },
+    [openWalletFromPush],
+  );
+
+  const showPushBanner = useCallback((payload: PushPayload) => {
+    setPushBanner(payload);
+    if (pushBannerTimerRef.current) {
+      clearTimeout(pushBannerTimerRef.current);
+    }
+    pushBannerTimerRef.current = setTimeout(() => {
+      setPushBanner(null);
+      pushBannerTimerRef.current = null;
+    }, 6000);
+  }, []);
+
+  const authed = isAuthedView(currentView);
+  const consumedInitialPush = useRef(false);
+
+  useEffect(() => {
+    if (!authed) {
+      consumedInitialPush.current = false;
+      return;
+    }
+    let unsubscribeForeground: () => void = () => undefined;
+    let unsubscribeOpened: () => void = () => undefined;
+    try {
+      unsubscribeForeground = subscribeForegroundPush(showPushBanner);
+      unsubscribeOpened = subscribeNotificationOpened(handlePushOpen);
+      if (!consumedInitialPush.current) {
+        consumedInitialPush.current = true;
+        void consumeInitialNotification(handlePushOpen);
+      }
+    } catch (error) {
+      console.warn('[push] Failed to subscribe after login', error);
+    }
+    return () => {
+      unsubscribeForeground();
+      unsubscribeOpened();
+    };
+  }, [authed, handlePushOpen, showPushBanner]);
+
   let screen: React.ReactNode;
   if (currentView === 'splash') {
     screen = <SplashScreen onFinish={handleSplashFinish} />;
@@ -295,6 +380,21 @@ function AppContent() {
     <>
       <AnalyticsViewTracker screenName={currentView} />
       {screen}
+      {pushBanner ? (
+        <Pressable
+          style={pushBannerStyles.banner}
+          onPress={() => handlePushOpen(pushBanner)}
+        >
+          <Text style={pushBannerStyles.title}>
+            {pushBanner.title || 'Tutorix'}
+          </Text>
+          {pushBanner.body ? (
+            <Text style={pushBannerStyles.body} numberOfLines={2}>
+              {pushBanner.body}
+            </Text>
+          ) : null}
+        </Pressable>
+      ) : null}
     </>
   );
 }
@@ -329,3 +429,31 @@ export const App = () => {
 };
 
 export default App;
+
+const pushBannerStyles = StyleSheet.create({
+  banner: {
+    position: 'absolute',
+    top: 52,
+    left: 16,
+    right: 16,
+    borderRadius: 12,
+    backgroundColor: '#143055',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  title: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  body: {
+    color: '#e5e7eb',
+    fontSize: 13,
+    marginTop: 4,
+  },
+});
