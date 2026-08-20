@@ -1,6 +1,9 @@
 package com.tutorix.tech
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
@@ -35,10 +38,25 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
+    createDefaultNotificationChannel()
     SoLoader.init(this, OpenSourceMergedSoMapping)
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
       // If you opted-in for the New Architecture, we load the native entry point for this app.
       load()
     }
+  }
+
+  private fun createDefaultNotificationChannel() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+      return
+    }
+    val channel = NotificationChannel(
+      "tutorix_default",
+      "Tutorix",
+      NotificationManager.IMPORTANCE_HIGH,
+    )
+    channel.description = "Wallet and class notifications"
+    val manager = getSystemService(NotificationManager::class.java)
+    manager.createNotificationChannel(channel)
   }
 }

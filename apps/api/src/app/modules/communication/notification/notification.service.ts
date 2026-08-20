@@ -10,6 +10,8 @@ import { DeviceTokenService } from './device-token.service';
 
 export type NotificationProviderKind = 'fcm' | 'console';
 
+export const ANDROID_NOTIFICATION_CHANNEL_ID = 'tutorix_default';
+
 /**
  * Push notifications (Firebase Cloud Messaging).
  * Analytics/Crashlytics stay in libs/common/analytics — this channel is user messaging only.
@@ -76,6 +78,19 @@ export class NotificationService {
       tokens: rows.map((row) => row.token),
       notification: { title: input.title, body: input.body },
       data,
+      android: {
+        notification: {
+          channelId: ANDROID_NOTIFICATION_CHANNEL_ID,
+          sound: 'default',
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+          },
+        },
+      },
     });
 
     const stale: string[] = [];

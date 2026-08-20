@@ -57,6 +57,20 @@ FIREBASE_SERVICE_ACCOUNT_PATH=/path/to/service-account-key.json
 # FIREBASE_SERVICE_ACCOUNT_JSON='{"type":"service_account",...}'
 ```
 
+The same Admin SDK credentials are used for **FCM push** (`NotificationService`). When they are set, Admin → Communication shows Push as ready.
+
+### 4. Firebase Console checklist (push)
+
+Project: `tutorix-b7882`. Bundle / application ID: `com.tutorix.tech` on both platforms.
+
+1. **APNs Authentication Keys (required for iOS)** — Project settings → Cloud Messaging → Apple app `com.tutorix.tech`. Firebase has **separate Development and Production** APNs auth-key slots. Upload both. Xcode Debug uses `aps-environment=development` (`Mobile.entitlements`), so a missing Development key fails with `Invalid APNs credential` even if Production is set. TestFlight / App Store need the Production key. Team ID is `5PQ69FYJ9J`.
+2. Confirm Android and iOS apps both use `com.tutorix.tech` (iOS `GOOGLE_APP_ID` in `GoogleService-Info.plist` must match the Firebase iOS app).
+3. **Admin SDK JSON** on the API host (`FIREBASE_SERVICE_ACCOUNT_PATH` or `FIREBASE_SERVICE_ACCOUNT_JSON`). Never commit the key.
+4. If sends fail with API-disabled errors, enable **Firebase Cloud Messaging API** in Google Cloud for this project.
+5. Optional: disable the old iOS app `org.reactjs.native.example.Mobile`. Do not commit `GoogleService-Info.plist.old`.
+
+**Apple Developer (for step 1):** App ID `com.tutorix.tech` with Push Notifications. Create APNs keys with the matching environment (Sandbox for Debug, Production for Release, or Sandbox & Production if Apple offers that on the key). Upload each `.p8` to the matching Firebase slot with its Key ID. Regenerate the iOS provisioning profile; Xcode team + Push capability; full native rebuild. Test on a physical device, not the iOS Simulator.
+
 ## Usage
 
 The `AnalyticsService` is available globally and can be injected into any service:
