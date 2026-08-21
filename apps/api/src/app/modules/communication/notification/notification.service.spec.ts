@@ -87,9 +87,13 @@ describe('NotificationService', () => {
     expect(sendEachForMulticast).toHaveBeenCalledWith(
       expect.objectContaining({
         tokens: ['stale-token'],
-        notification: { title: 'Hi', body: 'There' },
+        notification: { title: 'Tutorix', body: 'There' },
         android: {
           notification: {
+            title: 'Tutorix',
+            body: 'There',
+            icon: 'ic_notification',
+            color: '#1FBBA6',
             channelId: 'tutorix_default',
             sound: 'default',
           },

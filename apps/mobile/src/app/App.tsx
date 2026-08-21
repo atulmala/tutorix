@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
 import {
   ApolloProvider,
   useLazyQuery,
@@ -37,6 +37,9 @@ import {
 import { AnalyticsViewTracker } from '../components/AnalyticsViewTracker';
 import { FeatureFlagsProvider } from './feature-flags/FeatureFlagsContext';
 import { AppUpdateGate } from './components/AppUpdateGate';
+import { BRAND_NAME } from './config';
+
+const notificationIcon = require('../assets/tutorix-icon.png');
 
 /** Align with createApolloClient's package types (avoids dual @apollo/client installs). */
 type AppApolloClient = ReturnType<typeof createApolloClient>;
@@ -385,14 +388,19 @@ function AppContent() {
           style={pushBannerStyles.banner}
           onPress={() => handlePushOpen(pushBanner)}
         >
-          <Text style={pushBannerStyles.title}>
-            {pushBanner.title || 'Tutorix'}
-          </Text>
-          {pushBanner.body ? (
-            <Text style={pushBannerStyles.body} numberOfLines={2}>
-              {pushBanner.body}
-            </Text>
-          ) : null}
+          <Image
+            source={notificationIcon}
+            style={pushBannerStyles.icon}
+            accessibilityLabel={BRAND_NAME}
+          />
+          <View style={pushBannerStyles.text}>
+            <Text style={pushBannerStyles.title}>{BRAND_NAME}</Text>
+            {pushBanner.body || pushBanner.title ? (
+              <Text style={pushBannerStyles.body} numberOfLines={2}>
+                {pushBanner.body || pushBanner.title}
+              </Text>
+            ) : null}
+          </View>
         </Pressable>
       ) : null}
     </>
@@ -438,13 +446,25 @@ const pushBannerStyles = StyleSheet.create({
     right: 16,
     borderRadius: 12,
     backgroundColor: '#143055',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
+  },
+  icon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    marginRight: 12,
+  },
+  text: {
+    flex: 1,
   },
   title: {
     color: '#fff',
