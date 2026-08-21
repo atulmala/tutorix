@@ -6,6 +6,8 @@
     "crashlytics_is_error_generation_on_js_crash_enabled": true,
     "crashlytics_javascript_exception_handler_chaining_enabled": true,
     "messaging_ios_auto_register_for_remote_messages": true,
-    "messaging_android_notification_channel_id": "tutorix_default"
+    "messaging_android_notification_channel_id": "tutorix_default",
+    "messaging_android_notification_icon": "ic_notification",
+    "messaging_android_notification_color": "@color/notification_accent"
   }
 }

@@ -11,6 +11,9 @@ import { DeviceTokenService } from './device-token.service';
 export type NotificationProviderKind = 'fcm' | 'console';
 
 export const ANDROID_NOTIFICATION_CHANNEL_ID = 'tutorix_default';
+export const PUSH_NOTIFICATION_TITLE = 'Tutorix';
+export const ANDROID_NOTIFICATION_ICON = 'ic_notification';
+export const ANDROID_NOTIFICATION_COLOR = '#1FBBA6';
 
 /**
  * Push notifications (Firebase Cloud Messaging).
@@ -74,12 +77,18 @@ export class NotificationService {
       }
     }
 
+    const title = PUSH_NOTIFICATION_TITLE;
+    const body = input.body?.trim() || input.title;
     const response = await admin.messaging(this.app).sendEachForMulticast({
       tokens: rows.map((row) => row.token),
-      notification: { title: input.title, body: input.body },
+      notification: { title, body },
       data,
       android: {
         notification: {
+          title,
+          body,
+          icon: ANDROID_NOTIFICATION_ICON,
+          color: ANDROID_NOTIFICATION_COLOR,
           channelId: ANDROID_NOTIFICATION_CHANNEL_ID,
           sound: 'default',
         },

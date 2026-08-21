@@ -309,8 +309,8 @@ function AppContent() {
     return (
       <>
         <AnalyticsViewTracker viewName="session-restore" />
-        <div className="flex min-h-screen items-center justify-center bg-subtle text-primary">
-          <p className="text-sm text-muted">Loading…</p>
+        <div className="flex min-h-screen items-center justify-center bg-[#e9f5fe]">
+          <img src="/tutorix-logo.png" alt="Tutorix" className="h-40 w-auto" />
         </div>
       </>
     );
