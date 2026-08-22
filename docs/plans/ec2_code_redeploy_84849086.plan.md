@@ -1,4 +1,4 @@
----
+ ---
 name: EC2 Code Redeploy
 overview: Redeploy updated Tutorix code to the existing EC2 dev Docker stack by pulling the latest repo revision, rebuilding affected containers, handling any schema changes, and verifying the three services behind host nginx.
 todos:
