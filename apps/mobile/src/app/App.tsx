@@ -98,7 +98,11 @@ function AppContent() {
   } | null>(null);
   const [signupResume, setSignupResume] = useState<{
     userId?: number;
-    verificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean };
+    verificationStatus?: {
+      isMobileVerified: boolean;
+      isEmailVerified: boolean;
+      mobileVerificationRequired?: boolean;
+    };
   } | null>(null);
   const [pushBanner, setPushBanner] = useState<PushPayload | null>(null);
   const currentViewRef = useRef(currentView);
@@ -200,7 +204,11 @@ function AppContent() {
 
   const handleSignUp = (
     userId?: number,
-    verificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean }
+    verificationStatus?: {
+      isMobileVerified: boolean;
+      isEmailVerified: boolean;
+      mobileVerificationRequired?: boolean;
+    }
   ) => {
     setSignupResume(userId ? { userId, verificationStatus } : null);
     setCurrentView('signup');

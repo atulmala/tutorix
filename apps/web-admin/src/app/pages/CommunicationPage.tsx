@@ -226,17 +226,19 @@ function Toggle({
   disabled,
   onChange,
   label,
+  prominent,
 }: {
   checked: boolean;
   disabled?: boolean;
   onChange: (next: boolean) => void;
   label?: string;
+  prominent?: boolean;
 }) {
   return (
     <label
-      className={`inline-flex items-center gap-2.5 ${
-        disabled ? 'opacity-50' : 'cursor-pointer'
-      }`}
+      className={`inline-flex items-center ${
+        prominent ? 'gap-3' : 'gap-2.5'
+      } ${disabled ? 'opacity-50' : 'cursor-pointer'}`}
     >
       <button
         type="button"
@@ -244,18 +246,38 @@ function Toggle({
         aria-checked={checked}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-          checked ? 'bg-emerald-500' : 'bg-slate-300'
+        className={`relative shrink-0 rounded-full transition ${
+          prominent ? 'h-8 w-14' : 'h-6 w-11'
+        } ${
+          checked
+            ? 'bg-emerald-500'
+            : prominent
+              ? 'bg-red-500'
+              : 'bg-slate-300'
         }`}
       >
         <span
-          className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition ${
-            checked ? 'translate-x-5' : 'translate-x-0'
+          className={`absolute rounded-full bg-white shadow transition ${
+            prominent
+              ? `top-1 h-6 w-6 ${checked ? 'left-7' : 'left-1'}`
+              : `top-0.5 left-0.5 h-5 w-5 ${
+                  checked ? 'translate-x-5' : 'translate-x-0'
+                }`
           }`}
         />
       </button>
       {label ? (
-        <span className="text-sm font-medium text-slate-700">{label}</span>
+        <span
+          className={
+            prominent
+              ? `text-lg font-bold uppercase tracking-wide ${
+                  checked ? 'text-emerald-600' : 'text-red-600'
+                }`
+              : 'text-sm font-medium text-slate-700'
+          }
+        >
+          {label}
+        </span>
       ) : null}
     </label>
   );
@@ -306,7 +328,7 @@ export function CommunicationPage() {
   const [errorText, setErrorText] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  const events = catalog?.events ?? [];
+  const events = useMemo(() => catalog?.events ?? [], [catalog?.events]);
   const selected =
     events.find((row) => `${row.event}:${row.audience}` === selectedKey) ??
     events[0];
@@ -369,7 +391,7 @@ export function CommunicationPage() {
       whatsappTemplateName: template.whatsappTemplateName ?? '',
       variableMapping: template.variableMapping ?? '',
     });
-  }, [template?.templatePath, template?.body, selected?.event, selected?.audience, channel]);
+  }, [template]);
 
   const providerEnabled: Record<Channel, boolean> = {
     EMAIL: Boolean(catalog?.emailConfigured),
@@ -548,8 +570,18 @@ export function CommunicationPage() {
                             </span>
                           ) : null}
                           {!row.enabled ? (
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                            <span
+                              className={
+                                row.event === 'MOBILE_VERIFICATION'
+                                  ? 'rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-red-700'
+                                  : 'rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500'
+                              }
+                            >
                               off
+                            </span>
+                          ) : row.event === 'MOBILE_VERIFICATION' ? (
+                            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+                              on
                             </span>
                           ) : null}
                         </div>
@@ -590,12 +622,19 @@ export function CommunicationPage() {
                 <p className="mt-0.5 font-mono text-[11px] text-slate-500">
                   {selected.event} / {selected.audience}
                 </p>
+                {selected.event === 'MOBILE_VERIFICATION' ? (
+                  <p className="mt-2 max-w-xl text-xs text-slate-600">
+                    When off, signup skips phone OTP and email verification also
+                    marks the mobile as verified.
+                  </p>
+                ) : null}
               </div>
               <Toggle
                 checked={selected.enabled}
                 disabled={savingRule}
                 onChange={(enabled) => saveRule({ enabled })}
                 label={selected.enabled ? 'On' : 'Off'}
+                prominent={selected.event === 'MOBILE_VERIFICATION'}
               />
             </div>
 

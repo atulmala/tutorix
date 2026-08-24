@@ -33,7 +33,14 @@ type LoginUser = { id: number; role?: string; firstName?: string; lastName?: str
 type LoginScreenProps = {
   onLoginSuccess?: (user?: LoginUser) => void;
   onForgotPassword?: () => void;
-  onSignUp?: (userId?: number, verificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean }) => void;
+  onSignUp?: (
+    userId?: number,
+    verificationStatus?: {
+      isMobileVerified: boolean;
+      isEmailVerified: boolean;
+      mobileVerificationRequired?: boolean;
+    }
+  ) => void;
 };
 
 type IncompleteSignupError = {
@@ -41,6 +48,7 @@ type IncompleteSignupError = {
   userId: number;
   isMobileVerified: boolean;
   isEmailVerified: boolean;
+  mobileVerificationRequired?: boolean;
 };
 
 const COUNTRY_OPTIONS = [
@@ -126,6 +134,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onForg
                       onSignUp?.(errorData.userId, {
                         isMobileVerified: errorData.isMobileVerified,
                         isEmailVerified: errorData.isEmailVerified,
+                        mobileVerificationRequired: errorData.mobileVerificationRequired,
                       });
                     },
                   },

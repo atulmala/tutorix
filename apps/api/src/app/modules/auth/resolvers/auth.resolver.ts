@@ -25,6 +25,8 @@ import {
   ProfilePictureUploadUrlResult,
 } from '../dto/profile-picture-upload.dto';
 import { RequestProfilePictureUploadUrlInput } from '../dto/request-profile-picture-upload-url.input';
+import { SignupVerificationPolicy } from '../dto/signup-verification-policy.dto';
+import { CommunicationService } from '../../communication/communication.service';
 
 @Resolver(() => User)
 export class AuthResolver {
@@ -32,6 +34,7 @@ export class AuthResolver {
     private readonly authService: AuthService,
     private readonly sessionService: SessionService,
     private readonly profilePictureService: ProfilePictureService,
+    private readonly communicationService: CommunicationService,
   ) {}
 
   @Mutation(() => AuthResponse)
@@ -139,6 +142,17 @@ export class AuthResolver {
   @Query(() => Boolean)
   async validateResetToken(@Args('token') token: string): Promise<boolean> {
     return this.authService.validateResetToken(token);
+  }
+
+  @Query(() => SignupVerificationPolicy, {
+    description:
+      'Public signup policy. When mobileVerificationRequired is false, signup skips phone OTP.',
+  })
+  async signupVerificationPolicy(): Promise<SignupVerificationPolicy> {
+    return {
+      mobileVerificationRequired:
+        await this.communicationService.isMobileVerificationRequired(),
+    };
   }
 
   @Mutation(() => ProfilePictureUploadUrlResult, {

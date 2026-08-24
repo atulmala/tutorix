@@ -5,12 +5,18 @@ import { BRAND_NAME } from '../../config';
 import { BasicDetailsForm, BasicDetails, createEmptyDetails } from './BasicDetailsForm';
 import { PhoneVerification } from './PhoneVerification';
 import { EmailVerification } from './EmailVerification';
-import { GET_USER_BY_ID } from '@tutorix/shared-graphql/queries';
+import { GET_SIGNUP_VERIFICATION_POLICY, GET_USER_BY_ID } from '@tutorix/shared-graphql/queries';
 import { getIsoCountryCode } from '@tutorix/shared-utils';
+
+export type SignupVerificationStatus = {
+  isMobileVerified: boolean;
+  isEmailVerified: boolean;
+  mobileVerificationRequired?: boolean;
+};
 
 type SignUpProps = {
   resumeUserId?: number;
-  resumeVerificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean };
+  resumeVerificationStatus?: SignupVerificationStatus;
   /** Called automatically once both verifications are done; parent handles login + routing. */
   onVerificationComplete?: (email: string, password: string) => Promise<void>;
   /** Fallback shown if auto-login fails so the user can log in manually. */
@@ -19,11 +25,28 @@ type SignUpProps = {
 
 type Step = 'basic' | 'phone' | 'email';
 
-const steps: Array<{ id: Step; label: string }> = [
+const ALL_STEPS: Array<{ id: Step; label: string }> = [
   { id: 'basic', label: 'Basic details' },
   { id: 'phone', label: 'Verify phone' },
   { id: 'email', label: 'Verify email' },
 ];
+
+function nextSignupStep(
+  isMobileVerified: boolean,
+  isEmailVerified: boolean,
+  mobileVerificationRequired: boolean,
+): Step | null {
+  if (!mobileVerificationRequired) {
+    return isEmailVerified ? null : 'email';
+  }
+  if (!isMobileVerified) {
+    return 'phone';
+  }
+  if (!isEmailVerified) {
+    return 'email';
+  }
+  return null;
+}
 
 export const SignUpScreen: React.FC<SignUpProps> = ({
   resumeUserId,
@@ -39,6 +62,17 @@ export const SignUpScreen: React.FC<SignUpProps> = ({
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [autoLoginFailed, setAutoLoginFailed] = useState(false);
 
+  const { data: policyData } = useQuery(GET_SIGNUP_VERIFICATION_POLICY, {
+    fetchPolicy: 'network-only',
+  });
+  const mobileVerificationRequired =
+    policyData?.signupVerificationPolicy?.mobileVerificationRequired ??
+    resumeVerificationStatus?.mobileVerificationRequired ??
+    false;
+  const steps = mobileVerificationRequired
+    ? ALL_STEPS
+    : ALL_STEPS.filter((item) => item.id !== 'phone');
+
   const { data: userData } = useQuery(GET_USER_BY_ID, {
     variables: { id: resumeUserId?.toString() },
     skip: !resumeUserId,
@@ -51,15 +85,24 @@ export const SignUpScreen: React.FC<SignUpProps> = ({
       setMobileVerified(resumeVerificationStatus.isMobileVerified);
       setEmailVerified(resumeVerificationStatus.isEmailVerified);
 
-      if (!resumeVerificationStatus.isMobileVerified) {
-        setStep('phone');
-      } else if (!resumeVerificationStatus.isEmailVerified) {
-        setStep('email');
-      } else {
-        setStep('basic');
-      }
+      const requireMobile =
+        policyData?.signupVerificationPolicy?.mobileVerificationRequired ??
+        resumeVerificationStatus.mobileVerificationRequired ??
+        false;
+      const next = nextSignupStep(
+        resumeVerificationStatus.isMobileVerified,
+        resumeVerificationStatus.isEmailVerified,
+        requireMobile,
+      );
+      setStep(next ?? 'basic');
     }
-  }, [resumeUserId, resumeVerificationStatus]);
+  }, [resumeUserId, resumeVerificationStatus, policyData]);
+
+  useEffect(() => {
+    if (!mobileVerificationRequired && step === 'phone' && userId !== null) {
+      setStep('email');
+    }
+  }, [mobileVerificationRequired, step, userId]);
 
   useEffect(() => {
     if (userData?.user && resumeUserId) {
@@ -80,24 +123,27 @@ export const SignUpScreen: React.FC<SignUpProps> = ({
   const handleBasicSubmit = (
     details: BasicDetails,
     registeredUserId: number,
-    userVerificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean }
+    userVerificationStatus?: SignupVerificationStatus
   ) => {
     setBasicDetails(details);
     setUserId(registeredUserId);
 
-    if (userVerificationStatus) {
-      const { isMobileVerified: isMobile, isEmailVerified: isEmail } = userVerificationStatus;
-      if (isMobile && !isEmail) {
-        setMobileVerified(true);
-        setStep('email');
-      } else if (!isMobile) {
-        setStep('phone');
-      } else {
-        setMobileVerified(true);
-        setEmailVerified(true);
-      }
+    const isMobile = userVerificationStatus?.isMobileVerified ?? false;
+    const isEmail = userVerificationStatus?.isEmailVerified ?? false;
+    const next = nextSignupStep(isMobile, isEmail, mobileVerificationRequired);
+
+    if (isMobile) {
+      setMobileVerified(true);
+    }
+    if (isEmail) {
+      setEmailVerified(true);
+    }
+
+    if (next) {
+      setStep(next);
     } else {
-      setStep('phone');
+      setMobileVerified(true);
+      setEmailVerified(true);
     }
   };
 
@@ -108,6 +154,9 @@ export const SignUpScreen: React.FC<SignUpProps> = ({
 
   const handleEmailVerified = async () => {
     setEmailVerified(true);
+    if (!mobileVerificationRequired) {
+      setMobileVerified(true);
+    }
     if (onVerificationComplete && basicDetails.email && basicDetails.password) {
       setIsLoggingIn(true);
       try {
@@ -170,6 +219,7 @@ export const SignUpScreen: React.FC<SignUpProps> = ({
               <BasicDetailsForm
                 initialValue={basicDetails}
                 onSubmit={handleBasicSubmit}
+                mobileVerificationRequired={mobileVerificationRequired}
               />
             )}
             {step === 'phone' && userId !== null && (
@@ -196,7 +246,11 @@ export const SignUpScreen: React.FC<SignUpProps> = ({
           {step === 'email' && emailVerified && (
             <View style={styles.successCard}>
               <Text style={styles.successTitle}>You are all set.</Text>
-              <Text style={styles.successText}>Phone and email verified. Setting up your profile…</Text>
+              <Text style={styles.successText}>
+                {mobileVerificationRequired
+                  ? 'Phone and email verified. Setting up your profile…'
+                  : 'Email verified. Setting up your profile…'}
+              </Text>
               {isLoggingIn ? (
                 <ActivityIndicator color="#22c55e" style={{ marginTop: 4 }} />
               ) : autoLoginFailed ? (

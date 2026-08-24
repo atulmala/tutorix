@@ -35,7 +35,14 @@ function AppContent() {
   const { user: currentUser, refreshUser, logout } = useWebAuth();
   const [currentView, setCurrentViewInternal] = useState<View>('home');
   const [resumeUserId, setResumeUserId] = useState<number | undefined>(undefined);
-  const [resumeVerificationStatus, setResumeVerificationStatus] = useState<{ isMobileVerified: boolean; isEmailVerified: boolean } | undefined>(undefined);
+  const [resumeVerificationStatus, setResumeVerificationStatus] = useState<
+    | {
+        isMobileVerified: boolean;
+        isEmailVerified: boolean;
+        mobileVerificationRequired?: boolean;
+      }
+    | undefined
+  >(undefined);
   const [resetPasswordToken, setResetPasswordToken] = useState<string | undefined>(undefined);
   const [tutorProfileForOnboarding, setTutorProfileForOnboarding] = useState<{ certificationStage?: string } | null>(null);
   const [studentProfileForOnboarding, setStudentProfileForOnboarding] = useState<{ onboardingStage?: string } | null>(null);
@@ -223,7 +230,14 @@ function AppContent() {
     setResetPasswordToken(undefined);
   };
 
-  const handleSignUp = (userId?: number, verificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean }) => {
+  const handleSignUp = (
+    userId?: number,
+    verificationStatus?: {
+      isMobileVerified: boolean;
+      isEmailVerified: boolean;
+      mobileVerificationRequired?: boolean;
+    }
+  ) => {
     setSignupSuccessMessage(null);
     if (userId && verificationStatus) {
       setResumeUserId(userId);
