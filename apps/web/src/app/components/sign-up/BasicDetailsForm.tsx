@@ -41,6 +41,7 @@ type BasicDetailsFormProps = {
   onSubmit: (value: BasicDetails, userId: number, user?: { isMobileVerified: boolean; isEmailVerified: boolean }) => void;
   onBackHome?: () => void;
   onLogin?: () => void;
+  mobileVerificationRequired?: boolean;
 };
 
 type ErrorMap = Partial<Record<keyof BasicDetails, string>>;
@@ -50,6 +51,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
   onSubmit,
   onBackHome,
   onLogin,
+  mobileVerificationRequired = false,
 }) => {
   const [form, setForm] = useState<BasicDetails>(initialValue);
   const [errors, setErrors] = useState<ErrorMap>({});
@@ -99,6 +101,12 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
       console.error('Registration error:', error);
     },
   });
+
+  const submitLabel = isSubmitting
+    ? 'Creating Account...'
+    : mobileVerificationRequired
+      ? 'Verify Phone'
+      : 'Verify Email';
 
   useEffect(() => {
     setForm(initialValue);
@@ -735,7 +743,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
           disabled={!canSubmit || isSubmitting}
           className="h-11 rounded-lg bg-[#5fa8ff] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:bg-[#5fa8ff]/40"
         >
-          {isSubmitting ? 'Creating Account...' : 'Verify Phone'}
+          {submitLabel}
         </button>
       </div>
     </form>

@@ -26,6 +26,7 @@ import { ConfigService } from '@nestjs/config';
 import { TutorService } from '../../tutor/services/tutor.service';
 import { StudentService } from '../../student/services/student.service';
 import { RegistrationSettingsService } from '../../registration-settings/services/registration-settings.service';
+import { CommunicationService } from '../../communication/communication.service';
 
 @Injectable()
 export class AuthService {
@@ -40,6 +41,7 @@ export class AuthService {
     private readonly tutorService: TutorService,
     private readonly studentService: StudentService,
     private readonly registrationSettingsService: RegistrationSettingsService,
+    private readonly communicationService: CommunicationService,
   ) {}
 
   /**
@@ -201,6 +203,10 @@ export class AuthService {
       if (!existingUser.mobileCountryCode) existingUser.mobileCountryCode = countryCode;
       if (!existingUser.mobileNumber) existingUser.mobileNumber = mobileNumber;
 
+      if (!(await this.communicationService.isMobileVerificationRequired())) {
+        existingUser.isMobileVerified = true;
+      }
+
       const savedUser = await this.userRepository.save(existingUser);
       
       // Create tutor if user role is TUTOR
@@ -249,7 +255,8 @@ export class AuthService {
       gender: input.gender ?? Gender.OTHER,
       dob: input.dob,
       isSignupComplete: false,
-      isMobileVerified: false,
+      isMobileVerified:
+        !(await this.communicationService.isMobileVerificationRequired()),
       isEmailVerified: false,
     });
 
@@ -508,6 +515,8 @@ export class AuthService {
         userId: user.id,
         isMobileVerified: user.isMobileVerified || false,
         isEmailVerified: user.isEmailVerified || false,
+        mobileVerificationRequired:
+          await this.communicationService.isMobileVerificationRequired(),
       });
       throw new BadRequestException(errorMessage);
     }

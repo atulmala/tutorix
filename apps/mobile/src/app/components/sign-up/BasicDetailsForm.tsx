@@ -51,6 +51,7 @@ type BasicDetailsFormProps = {
     userId: number,
     user?: { isMobileVerified: boolean; isEmailVerified: boolean }
   ) => void;
+  mobileVerificationRequired?: boolean;
 };
 
 type ErrorMap = Partial<Record<keyof BasicDetails, string>>;
@@ -96,7 +97,9 @@ const getDefaultDobDate = () => {
 export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
   initialValue,
   onSubmit,
+  mobileVerificationRequired = false,
 }) => {
+  const submitLabel = mobileVerificationRequired ? 'Verify Phone' : 'Verify Email';
   const [form, setForm] = useState<BasicDetails>(initialValue);
   const [errors, setErrors] = useState<ErrorMap>({});
   const [showPassword, setShowPassword] = useState(false);
@@ -613,7 +616,9 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
         {isSubmitting ? (
           <ActivityIndicator color="#ffffff" />
         ) : (
-          <Text style={styles.primaryButtonText}>Verify Phone</Text>
+          <Text style={styles.primaryButtonText}>
+            {submitLabel}
+          </Text>
         )}
       </TouchableOpacity>
 

@@ -7,7 +7,14 @@ import { setAuthTokens } from '@tutorix/shared-graphql/client/web/token-storage'
 
 type LoginProps = {
   onBackHome: () => void;
-  onSignUp: (userId?: number, verificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean }) => void;
+  onSignUp: (
+    userId?: number,
+    verificationStatus?: {
+      isMobileVerified: boolean;
+      isEmailVerified: boolean;
+      mobileVerificationRequired?: boolean;
+    }
+  ) => void;
   onLoginSuccess?: (user?: { id: number; role: string }) => void;
   onForgotPassword?: () => void;
 };
@@ -17,6 +24,7 @@ type IncompleteSignupError = {
   userId: number;
   isMobileVerified: boolean;
   isEmailVerified: boolean;
+  mobileVerificationRequired?: boolean;
 };
 
 export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSuccess, onForgotPassword }) => {
@@ -184,9 +192,18 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
 
   const handleContinueToSignup = () => {
     if (incompleteSignupError) {
-      const { userId, isMobileVerified, isEmailVerified } = incompleteSignupError;
+      const {
+        userId,
+        isMobileVerified,
+        isEmailVerified,
+        mobileVerificationRequired,
+      } = incompleteSignupError;
       setShowIncompleteModal(false);
-      const verificationStatus = { isMobileVerified, isEmailVerified };
+      const verificationStatus = {
+        isMobileVerified,
+        isEmailVerified,
+        mobileVerificationRequired,
+      };
       onSignUp(userId, verificationStatus);
       setIncompleteSignupError(null);
     }
@@ -416,6 +433,7 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
             </p>
             
             <div className="mb-4 space-y-2 text-sm">
+              {incompleteSignupError.mobileVerificationRequired !== false && (
               <div className="flex items-center gap-2">
                 <span className={`font-semibold ${incompleteSignupError.isMobileVerified ? 'text-green-600' : 'text-amber-600'}`}>
                   {incompleteSignupError.isMobileVerified ? '✓' : '○'} Mobile Verification:
@@ -424,6 +442,7 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
                   {incompleteSignupError.isMobileVerified ? 'Verified' : 'Pending'}
                 </span>
               </div>
+              )}
               <div className="flex items-center gap-2">
                 <span className={`font-semibold ${incompleteSignupError.isEmailVerified ? 'text-green-600' : 'text-amber-600'}`}>
                   {incompleteSignupError.isEmailVerified ? '✓' : '○'} Email Verification:

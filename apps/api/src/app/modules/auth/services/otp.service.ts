@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
@@ -14,6 +14,7 @@ import { CommunicationEvent } from '../../communication/enums/communication-even
 
 @Injectable()
 export class OtpService {
+  private readonly logger = new Logger(OtpService.name);
   private static readonly OTP_EXPIRY_MINUTES = 30;
 
   constructor(
@@ -70,6 +71,12 @@ export class OtpService {
       expiryMinutes: String(OtpService.OTP_EXPIRY_MINUTES),
     };
 
+    if (process.env.NODE_ENV !== 'production') {
+      const line = `✅ OTP generated [${input.purpose}] userId=${user.id} otp=${otpValue}`;
+      this.logger.log(line);
+      console.log(line);
+    }
+
     if (input.purpose === OtpPurpose.EMAIL_VERIFICATION) {
       if (!user.email) {
         throw new BadRequestException('User email is required for email verification');
@@ -90,6 +97,13 @@ export class OtpService {
     }
 
     if (input.purpose === OtpPurpose.MOBILE_VERIFICATION) {
+      const required =
+        await this.communicationService.isMobileVerificationRequired();
+      if (!required) {
+        throw new BadRequestException(
+          'Mobile verification is turned off. Continue with email verification.',
+        );
+      }
       await this.communicationService.emit({
         event: CommunicationEvent.MOBILE_VERIFICATION,
         userId: user.id,
@@ -142,6 +156,9 @@ export class OtpService {
       }
       if (input.purpose === OtpPurpose.EMAIL_VERIFICATION) {
         user.isEmailVerified = true;
+        if (!(await this.communicationService.isMobileVerificationRequired())) {
+          user.isMobileVerified = true;
+        }
       }
       if (user.isMobileVerified && user.isEmailVerified) {
         user.isSignupComplete = true;

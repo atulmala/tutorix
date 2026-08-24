@@ -3,8 +3,7 @@
  * 
  * Tests the complete signup user journey including:
  * - Basic details form
- * - Phone verification
- * - Email verification
+ * - Email verification (phone OTP is skipped unless Communication Mobile verification is On)
  * - Signup completion
  */
 
@@ -39,9 +38,9 @@ describe('User Signup Flow', () => {
       cy.get('[data-testid="submit-button"]').click();
 
       // Assert
-      // Should navigate to phone verification step
+      // Default policy skips phone OTP and goes to email verification
       cy.url().should('include', '/signup');
-      cy.get('[data-testid="phone-verification-step"]').should('be.visible');
+      cy.get('[data-testid="email-verification-step"]').should('be.visible');
     });
 
     it('should validate required fields', () => {
@@ -82,7 +81,7 @@ describe('User Signup Flow', () => {
     });
   });
 
-  describe('Phone Verification Step', () => {
+  describe('Email Verification Step after basic details', () => {
     beforeEach(() => {
       // Setup: Complete basic details first
       // This would ideally use a helper function or fixture
@@ -95,23 +94,12 @@ describe('User Signup Flow', () => {
       cy.get('[data-testid="confirm-password-input"]').type('Test123456');
       cy.get('[data-testid="submit-button"]').click();
 
-      // Wait for phone verification step to appear
-      cy.get('[data-testid="phone-verification-step"]').should('be.visible');
+      cy.get('[data-testid="email-verification-step"]').should('be.visible');
     });
 
-    it('should successfully verify phone with correct OTP', () => {
-      // Arrange
-      // In a real scenario, you'd need to get the OTP from your test system
-      // For now, we'll assume a test OTP or mock the OTP verification
-      const otp = '123456'; // This would be the actual OTP from your test setup
-
-      // Act
-      cy.get('[data-testid="otp-input"]').type(otp);
-      cy.get('[data-testid="verify-button"]').click();
-
-      // Assert
-      // Should navigate to email verification step
+    it('should stay on email verification after basic details', () => {
       cy.get('[data-testid="email-verification-step"]').should('be.visible');
+      cy.get('[data-testid="phone-verification-step"]').should('not.exist');
     });
 
     it('should show error for incorrect OTP', () => {
@@ -137,7 +125,7 @@ describe('User Signup Flow', () => {
 
   describe('Email Verification Step', () => {
     beforeEach(() => {
-      // Setup: Complete basic details and phone verification
+      // Setup: Complete basic details (phone OTP is skipped by default)
       // This would ideally use a helper function
     });
 
@@ -161,7 +149,7 @@ describe('User Signup Flow', () => {
   describe('Signup Completion', () => {
     it('should complete signup and redirect to appropriate page', () => {
       // Arrange
-      // Setup: Complete all steps (basic details, phone verification, email verification)
+      // Setup: Complete all steps (basic details, email verification)
       // This would ideally use a helper function
 
       // Act

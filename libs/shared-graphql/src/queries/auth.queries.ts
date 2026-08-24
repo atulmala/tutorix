@@ -59,3 +59,11 @@ export const VALIDATE_RESET_TOKEN = gql`
     validateResetToken(token: $token)
   }
 `;
+
+export const GET_SIGNUP_VERIFICATION_POLICY = gql`
+  query SignupVerificationPolicy {
+    signupVerificationPolicy {
+      mobileVerificationRequired
+    }
+  }
+`;

@@ -5,8 +5,14 @@ import { EmailVerification } from './EmailVerification';
 import { BasicDetailsForm, BasicDetails, createEmptyDetails } from './BasicDetailsForm';
 import { PhoneVerification } from './PhoneVerification';
 import { useSignupTracking } from '../../../hooks/useSignupTracking';
-import { GET_USER_BY_ID } from '@tutorix/shared-graphql';
+import { GET_SIGNUP_VERIFICATION_POLICY, GET_USER_BY_ID } from '@tutorix/shared-graphql';
 import { getIsoCountryCode } from '@tutorix/shared-utils';
+
+export type SignupVerificationStatus = {
+  isMobileVerified: boolean;
+  isEmailVerified: boolean;
+  mobileVerificationRequired?: boolean;
+};
 
 type SignUpProps = {
   onBackHome: () => void;
@@ -14,16 +20,33 @@ type SignUpProps = {
   onSignUpSuccess?: () => void;
   onTutorOnboarding?: () => void;
   resumeUserId?: number;
-  resumeVerificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean };
+  resumeVerificationStatus?: SignupVerificationStatus;
 };
 
 type Step = 'basic' | 'phone' | 'email';
 
-const steps: Array<{ id: Step; label: string }> = [
+const ALL_STEPS: Array<{ id: Step; label: string }> = [
   { id: 'basic', label: 'Basic details' },
   { id: 'phone', label: 'Verify phone' },
   { id: 'email', label: 'Verify email' },
 ];
+
+function nextSignupStep(
+  isMobileVerified: boolean,
+  isEmailVerified: boolean,
+  mobileVerificationRequired: boolean,
+): Step | null {
+  if (!mobileVerificationRequired) {
+    return isEmailVerified ? null : 'email';
+  }
+  if (!isMobileVerified) {
+    return 'phone';
+  }
+  if (!isEmailVerified) {
+    return 'email';
+  }
+  return null;
+}
 
 export const SignUp: React.FC<SignUpProps> = ({ 
   onBackHome, 
@@ -38,6 +61,17 @@ export const SignUp: React.FC<SignUpProps> = ({
   const [userId, setUserId] = useState<number | null>(resumeUserId || null);
   const [mobileVerified, setMobileVerified] = useState(resumeVerificationStatus?.isMobileVerified || false);
   const [emailVerified, setEmailVerified] = useState(resumeVerificationStatus?.isEmailVerified || false);
+
+  const { data: policyData } = useQuery(GET_SIGNUP_VERIFICATION_POLICY, {
+    fetchPolicy: 'network-only',
+  });
+  const mobileVerificationRequired =
+    policyData?.signupVerificationPolicy?.mobileVerificationRequired ??
+    resumeVerificationStatus?.mobileVerificationRequired ??
+    false;
+  const steps = mobileVerificationRequired
+    ? ALL_STEPS
+    : ALL_STEPS.filter((item) => item.id !== 'phone');
 
   const {
     startSignup,
@@ -63,17 +97,20 @@ export const SignUp: React.FC<SignUpProps> = ({
       setMobileVerified(resumeVerificationStatus.isMobileVerified);
       setEmailVerified(resumeVerificationStatus.isEmailVerified);
       
-      // Navigate directly to the appropriate step
-      if (!resumeVerificationStatus.isMobileVerified) {
-        setStep('phone');
-        trackStepStart('phone');
-        startSignup(resumeUserId);
-      } else if (!resumeVerificationStatus.isEmailVerified) {
-        setStep('email');
-        trackStepStart('email');
+      const requireMobile =
+        policyData?.signupVerificationPolicy?.mobileVerificationRequired ??
+        resumeVerificationStatus.mobileVerificationRequired ??
+        false;
+      const next = nextSignupStep(
+        resumeVerificationStatus.isMobileVerified,
+        resumeVerificationStatus.isEmailVerified,
+        requireMobile,
+      );
+      if (next) {
+        setStep(next);
+        trackStepStart(next);
         startSignup(resumeUserId);
       } else {
-        // Both verified - signup should be complete, but handle gracefully
         setStep('basic');
       }
     } else {
@@ -85,7 +122,14 @@ export const SignUp: React.FC<SignUpProps> = ({
         setUserId(savedState.userId);
       }
     }
-  }, [resumeUserId, resumeVerificationStatus, loadState, startSignup, trackStepStart]);
+  }, [resumeUserId, resumeVerificationStatus, loadState, startSignup, trackStepStart, policyData]);
+
+  useEffect(() => {
+    if (!mobileVerificationRequired && step === 'phone' && userId !== null) {
+      setStep('email');
+      trackStepStart('email');
+    }
+  }, [mobileVerificationRequired, step, userId, trackStepStart]);
 
   // Populate basicDetails with user data when fetched (for resuming signup)
   useEffect(() => {
@@ -112,37 +156,32 @@ export const SignUp: React.FC<SignUpProps> = ({
   const handleBasicSubmit = (
     details: BasicDetails, 
     registeredUserId: number,
-    userVerificationStatus?: { isMobileVerified: boolean; isEmailVerified: boolean }
+    userVerificationStatus?: SignupVerificationStatus
   ) => {
     setBasicDetails(details);
     setUserId(registeredUserId);
 
     // Track signup start/resume
     startSignup(registeredUserId);
-    
-    // Determine next step based on verification status (resume logic)
-    if (userVerificationStatus) {
-      const { isMobileVerified: isMobile, isEmailVerified: isEmail } = userVerificationStatus;
-      
-      if (isMobile && !isEmail) {
-        // Phone verified but email not - jump to email verification
-        setMobileVerified(true);
-        setStep('email');
-        trackStepStart('email');
-      } else if (!isMobile) {
-        // Phone not verified - go to phone verification
-        setStep('phone');
-        trackStepStart('phone');
-      } else {
-        // Both verified - shouldn't happen, but handle gracefully
-        setMobileVerified(true);
-        setEmailVerified(true);
-        trackSignupCompleted(registeredUserId);
-      }
+
+    const isMobile = userVerificationStatus?.isMobileVerified ?? false;
+    const isEmail = userVerificationStatus?.isEmailVerified ?? false;
+    const next = nextSignupStep(isMobile, isEmail, mobileVerificationRequired);
+
+    if (isMobile) {
+      setMobileVerified(true);
+    }
+    if (isEmail) {
+      setEmailVerified(true);
+    }
+
+    if (next) {
+      setStep(next);
+      trackStepStart(next);
     } else {
-      // New signup - start with phone verification
-      setStep('phone');
-      trackStepStart('phone');
+      setMobileVerified(true);
+      setEmailVerified(true);
+      trackSignupCompleted(registeredUserId);
     }
     
     // Track basic details submission
@@ -158,6 +197,9 @@ export const SignUp: React.FC<SignUpProps> = ({
 
   const handleEmailVerified = () => {
     setEmailVerified(true);
+    if (!mobileVerificationRequired) {
+      setMobileVerified(true);
+    }
     trackStepComplete('email', userId || undefined);
     trackSignupCompleted(userId || undefined);
     // Take user back to home and show success message (they can then login to start onboarding)
@@ -234,11 +276,12 @@ export const SignUp: React.FC<SignUpProps> = ({
             onSubmit={handleBasicSubmit}
             onBackHome={onBackHome}
             onLogin={onLogin}
+            mobileVerificationRequired={mobileVerificationRequired}
           />
         )}
 
         {step === 'phone' && userId !== null && (
-          <div className="space-y-6">
+          <div className="space-y-6" data-testid="phone-verification-step">
             <PhoneVerification
               userId={userId}
               initialCountryCode={basicDetails.countryCode}
@@ -256,7 +299,7 @@ export const SignUp: React.FC<SignUpProps> = ({
         )}
 
         {step === 'email' && userId !== null && (
-          <div className="space-y-6">
+          <div className="space-y-6" data-testid="email-verification-step">
             <EmailVerification
               userId={userId}
               initialEmail={basicDetails.email}
@@ -272,11 +315,18 @@ export const SignUp: React.FC<SignUpProps> = ({
       </div>
 
       {step === 'email' && emailVerified && (
-        <div className="mt-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+        <div
+          className="mt-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700"
+          data-testid="signup-complete-message"
+        >
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="font-semibold">You’re all set!</p>
-              <p>Phone and email verified. Continue to complete your profile.</p>
+              <p>
+                {mobileVerificationRequired
+                  ? 'Phone and email verified. Continue to complete your profile.'
+                  : 'Email verified. Continue to complete your profile.'}
+              </p>
             </div>
             <button
               type="button"
