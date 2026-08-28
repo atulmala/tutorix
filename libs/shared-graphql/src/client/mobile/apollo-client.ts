@@ -26,15 +26,13 @@ function getMetroPackagerHost(): string | null {
   }
 }
 
-/** USB Metro tunnels as localhost, so this must be a real LAN IP of the Mac. */
-const COMPILED_DEV_LAN_HOST = '192.168.1.117';
-
+/** USB Metro tunnels as localhost; babel inlines DEV_LAN_HOST at bundle time. */
 function getDevLanHost(): string | null {
   const fromEnv = process.env['DEV_LAN_HOST'];
   if (fromEnv && fromEnv !== 'localhost' && fromEnv !== '127.0.0.1') {
     return fromEnv;
   }
-  return COMPILED_DEV_LAN_HOST;
+  return null;
 }
 
 function replaceLoopbackHost(endpoint: string, host: string): string {

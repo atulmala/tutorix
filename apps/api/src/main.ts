@@ -9,9 +9,8 @@ import { join } from 'path';
 config({ path: join(__dirname, '../../../.env') });
 
 import { Logger } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
 import { json, raw } from 'express';
-import { AppModule } from './app/app.module';
+import { loadAppSecrets } from './app/config/app-secrets.loader';
 
 function buildCorsOrigins(): string[] {
   const defaults = [
@@ -32,6 +31,11 @@ function buildCorsOrigins(): string[] {
 }
 
 async function bootstrap() {
+  await loadAppSecrets();
+
+  const { NestFactory } = await import('@nestjs/core');
+  const { AppModule } = await import('./app/app.module');
+
   const app = await NestFactory.create(AppModule, {
     // Ensure logger is enabled so GraphQL and other logs are visible
     logger:
@@ -41,20 +45,20 @@ async function bootstrap() {
   });
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
-  
+
   app.enableCors({
     origin: buildCorsOrigins(),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
-  
+
   // Razorpay webhooks require the raw body for signature verification.
   app.use(`/${globalPrefix}/webhooks/razorpay`, raw({ type: 'application/json' }));
 
   // Ensure JSON body parser is set up for Apollo Server
   app.use(json({ limit: '10mb' }));
-  
+
   const port = parseInt(process.env.PORT ?? '3000', 10);
   /** Bind all interfaces so nginx/other containers can reach the API on Docker networks. */
   const listenHost = process.env.LISTEN_HOST ?? '0.0.0.0';

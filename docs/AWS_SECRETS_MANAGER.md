@@ -1,259 +1,53 @@
 # AWS Secrets Manager Integration
 
-## Overview
+The API loads shared secrets from one Secrets Manager JSON, `tutorix/app`, in `us-east-1`. Docker Compose sets `NODE_ENV=production` on staging as well, so Razorpay live vs test is controlled by **`TUTORIX_ENV`**, not `NODE_ENV`.
 
-The Tutorix API supports loading database credentials from AWS Secrets Manager in production environments, while using `.env` files for development and staging.
-
-## How It Works
-
-### Development & Staging
-- **Source**: `.env` file
-- **Loading**: Automatic via `dotenv`
-- **No AWS SDK required**
-
-### Production
-- **Source**: AWS Secrets Manager
-- **Loading**: Automatic via `@aws-sdk/client-secrets-manager`
-- **Requires**: AWS credentials configured (IAM role, credentials file, or environment variables)
-
-## Configuration
-
-### Environment Variables
-
-#### Required for All Environments
-```env
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=tutorix
-```
-
-#### Development/Staging (.env file)
-```env
-DB_USERNAME=postgres
-DB_PASSWORD=your_password
-```
-
-#### Production (AWS Secrets Manager)
-```env
-NODE_ENV=production
-AWS_SECRET_NAME=tutorix/production/database  # Optional, defaults to this
-AWS_REGION=us-east-1                          # Optional, defaults to us-east-1
-```
-
-### AWS Secrets Manager Secret Format
-
-The secret in AWS Secrets Manager should be stored as a JSON string with the following structure:
+## What is stored (`tutorix/app`)
 
 ```json
 {
-  "DB_USERNAME": "postgres",
-  "DB_PASSWORD": "your_secure_password",
-  "DB_HOST": "your-db-host.rds.amazonaws.com",
-  "DB_PORT": "5432",
-  "DB_NAME": "tutorix"
+  "DB_USERNAME": "...",
+  "DB_PASSWORD": "...",
+  "JWT_SECRET": "...",
+  "ANTHROPIC_API_KEY": "...",
+  "FIREBASE_SERVICE_ACCOUNT_JSON": "{...}",
+  "RAZORPAY_KEY_ID": "rzp_live_...",
+  "RAZORPAY_KEY_SECRET": "..."
 }
 ```
 
-**Alternative field names** (also supported):
-```json
-{
-  "username": "postgres",
-  "password": "your_secure_password",
-  "host": "your-db-host.rds.amazonaws.com",
-  "port": "5432",
-  "database": "tutorix"
-}
-```
+Razorpay values in this secret are the **live** keys. They are applied only when `TUTORIX_ENV=production`.
 
-## Setting Up AWS Secrets Manager
+## What stays in `.env` / Compose (per environment)
 
-### 1. Create the Secret
+- `TUTORIX_ENV` — `development` | `staging` | `production`
+- `AWS_SECRET_NAME=tutorix/app` and `AWS_REGION=us-east-1`
+- `DB_HOST`, `DB_PORT`, `DB_NAME`
+- `FRONTEND_URL`, `CORS_ORIGINS`, S3 bucket + `S3_DOCUMENTS_BUCKET_REGION`, SES
+- **Staging/local only:** `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` test keys (`rzp_test_...`)
+- **Local only:** `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`. EC2 uses instance role `TutorixEC2Role`
 
-```bash
-aws secretsmanager create-secret \
-  --name tutorix/production/database \
-  --description "Database credentials for Tutorix production" \
-  --secret-string '{"DB_USERNAME":"postgres","DB_PASSWORD":"secure_password","DB_HOST":"db.example.com","DB_PORT":"5432","DB_NAME":"tutorix"}' \
-  --region us-east-1
-```
+`TUTORIX_ENV=test` (Jest) does not call Secrets Manager.
 
-### 2. Configure IAM Permissions
+## Loader behavior
 
-Your application needs permission to read the secret. Attach this policy to your IAM role/user:
+[`apps/api/src/app/config/app-secrets.loader.ts`](../apps/api/src/app/config/app-secrets.loader.ts) runs at API startup (and before TypeORM CLI / `create:admin`):
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "secretsmanager:GetSecretValue",
-        "secretsmanager:DescribeSecret"
-      ],
-      "Resource": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:tutorix/production/database-*"
-    }
-  ]
-}
-```
+1. Fetch `tutorix/app`.
+2. Assign JSON keys onto `process.env`.
+3. Never overwrite `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `DB_HOST`, `DB_PORT`, `DB_NAME`.
+4. Apply `RAZORPAY_*` from the secret **only** when `TUTORIX_ENV=production`.
+5. Fail closed if the fetch fails or `DB_USERNAME` / `DB_PASSWORD` are missing.
 
-### 3. AWS Credentials
+## IAM
 
-The application will use AWS credentials in this order:
-1. **IAM Role** (if running on EC2/ECS/Lambda) - Recommended for production
-2. **Environment Variables**: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
-3. **Credentials File**: `~/.aws/credentials`
-4. **Instance Metadata** (for EC2 instances)
+The API identity needs `secretsmanager:GetSecretValue` and `DescribeSecret` on:
 
-## Usage
+`arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:tutorix/app-*`
 
-### Application Startup (NestJS)
+`TutorixEC2Role` has `TutorixSecretsManagerRead`. Local IAM user `classup` has `TutorixSecretsManagerWrite`.
 
-The application automatically loads credentials based on `NODE_ENV`:
+## Related
 
-```typescript
-// In database.module.ts - automatically handles credential loading
-TypeOrmModule.forRootAsync({
-  useFactory: async () => {
-    const credentials = await loadDatabaseCredentials();
-    // ... uses credentials
-  },
-})
-```
-
-### Running Migrations
-
-#### Development/Staging
-```bash
-# Uses .env file automatically
-npm run migration:run
-```
-
-#### Production
-
-**Option 1: Pre-set Environment Variables** (Recommended)
-```bash
-# Load secrets and set as environment variables
-export $(aws secretsmanager get-secret-value \
-  --secret-id tutorix/production/database \
-  --query SecretString \
-  --output text | jq -r 'to_entries|map("\(.key)=\(.value)")|.[]')
-
-# Run migration
-npm run migration:run
-```
-
-**Option 2: Use a Migration Script**
-Create a script that loads secrets before running migrations:
-
-```bash
-#!/bin/bash
-# scripts/migrate-production.sh
-
-# Load secrets from AWS
-SECRET=$(aws secretsmanager get-secret-value \
-  --secret-id tutorix/production/database \
-  --query SecretString \
-  --output text)
-
-# Parse and export
-export DB_USERNAME=$(echo $SECRET | jq -r '.DB_USERNAME')
-export DB_PASSWORD=$(echo $SECRET | jq -r '.DB_PASSWORD')
-export DB_HOST=$(echo $SECRET | jq -r '.DB_HOST')
-export DB_PORT=$(echo $SECRET | jq -r '.DB_PORT')
-export DB_NAME=$(echo $SECRET | jq -r '.DB_NAME')
-
-# Run migration
-npm run migration:run
-```
-
-## Code Structure
-
-### Files
-
-- **`apps/api/src/app/database/database-credentials.loader.ts`**
-  - Contains `loadDatabaseCredentials()` function
-  - Handles environment-based credential loading
-
-- **`apps/api/src/app/database/database.config.ts`**
-  - Creates TypeORM options from credentials
-  - Shared by both NestJS app and CLI
-
-- **`apps/api/src/app/database/database.module.ts`**
-  - NestJS module configuration
-  - Uses async credential loading
-
-- **`apps/api/src/data-source.ts`**
-  - TypeORM CLI configuration
-  - Uses synchronous .env loading (for CLI compatibility)
-
-## Security Best Practices
-
-### ✅ DO:
-- Use IAM roles for production (not access keys)
-- Rotate secrets regularly
-- Use different secrets for each environment
-- Limit IAM permissions to specific secrets
-- Enable CloudTrail for audit logging
-- Use VPC endpoints for Secrets Manager (if in VPC)
-
-### ❌ DON'T:
-- Store AWS credentials in code or .env files
-- Use the same secret across environments
-- Grant broader permissions than necessary
-- Log secret values
-- Commit secrets to version control
-
-## Troubleshooting
-
-### Error: "Failed to load database credentials from AWS Secrets Manager"
-
-**Possible causes:**
-1. AWS credentials not configured
-2. IAM permissions insufficient
-3. Secret name incorrect
-4. Region mismatch
-
-**Solutions:**
-- Verify AWS credentials: `aws sts get-caller-identity`
-- Check IAM permissions
-- Verify secret name matches `AWS_SECRET_NAME` env var
-- Ensure region matches secret location
-
-### Error: "Secret does not contain a SecretString"
-
-**Solution:**
-- Ensure the secret is stored as a JSON string, not binary
-- Check secret format matches expected structure
-
-### Migrations Fail in Production
-
-**Solution:**
-- Ensure environment variables are set before running migrations
-- Use the migration script approach (Option 2 above)
-- Or run migrations as part of deployment pipeline that loads secrets
-
-## Testing
-
-### Local Testing with AWS Secrets Manager
-
-```bash
-# Set AWS credentials
-export AWS_ACCESS_KEY_ID=your_key
-export AWS_SECRET_ACCESS_KEY=your_secret
-export AWS_REGION=us-east-1
-
-# Set production mode
-export NODE_ENV=production
-export AWS_SECRET_NAME=tutorix/production/database
-
-# Run application
-npm run serve:api
-```
-
-## Related Documentation
-
-- [SECURITY.md](../SECURITY.md) - General security best practices
-- [MIGRATIONS_GUIDE.md](./MIGRATIONS_GUIDE.md) - Migration workflow
-- [AWS Secrets Manager Documentation](https://docs.aws.amazon.com/secretsmanager/)
-
+- [SECURITY.md](../SECURITY.md)
+- [MIGRATIONS_GUIDE.md](./MIGRATIONS_GUIDE.md)

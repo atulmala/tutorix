@@ -1,12 +1,15 @@
 const path = require('path');
 const { config } = require('dotenv');
+const { applyDevLanHost, applyGraphqlEndpointAlias } = require('./detect-lan-host.cjs');
 
 config({ path: path.resolve(__dirname, '../../.env') });
+applyDevLanHost();
+applyGraphqlEndpointAlias();
 
 module.exports = function (api) {
   api.cache.using(
     () =>
-      `${process.env.DEV_LAN_HOST || ''}|${process.env.NX_GRAPHQL_ENDPOINT || ''}`,
+      `${process.env.DEV_LAN_HOST || ''}|${process.env.NX_GRAPHQL_ENDPOINT || ''}|${process.env.VITE_GRAPHQL_ENDPOINT || ''}`,
   );
 
   // Simple inline plugin to replace process.env variables with actual values
@@ -38,6 +41,7 @@ module.exports = function (api) {
             if (
               varName === 'NX_GRAPHQL_ENDPOINT' ||
               varName === 'GRAPHQL_ENDPOINT' ||
+              varName === 'VITE_GRAPHQL_ENDPOINT' ||
               varName === 'DEV_LAN_HOST' ||
               varName === 'GOOGLE_MAPS_API_KEY' ||
               varName === 'VITE_GOOGLE_MAPS_API_KEY'

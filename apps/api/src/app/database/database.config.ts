@@ -46,7 +46,7 @@ import { UserDeviceTokenEntity } from '../modules/communication/entities/user-de
 
 /**
  * Creates database options with credentials
- * Credentials are loaded from .env (dev/staging) or  AWS Secrets Manager (production)
+ * Username/password come from Secrets Manager; host/port/name from process.env.
  */
 export function createDatabaseOptions(
   credentials: DatabaseCredentials,

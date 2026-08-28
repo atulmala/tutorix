@@ -7,6 +7,7 @@ import {
   SendNotificationResult,
 } from './notification.types';
 import { DeviceTokenService } from './device-token.service';
+import { normalizePemPrivateKey } from '../../../config/firebase-service-account';
 
 export type NotificationProviderKind = 'fcm' | 'console';
 
@@ -147,11 +148,26 @@ export class NotificationService {
       const path = this.readEnv('FIREBASE_SERVICE_ACCOUNT_PATH');
       let credential: admin.credential.Credential | undefined;
       if (json) {
-        credential = admin.credential.cert(JSON.parse(json) as admin.ServiceAccount);
-      } else if (path && existsSync(path)) {
+        const parsed: unknown = JSON.parse(json);
+        const record =
+          parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+            ? (parsed as Record<string, unknown>)
+            : null;
+        if (record && typeof record.private_key === 'string') {
+          record.private_key = normalizePemPrivateKey(record.private_key);
+        }
         credential = admin.credential.cert(
-          JSON.parse(readFileSync(path, 'utf8')) as admin.ServiceAccount,
+          (record ?? parsed) as admin.ServiceAccount,
         );
+      } else if (path && existsSync(path)) {
+        const fromFile = JSON.parse(readFileSync(path, 'utf8')) as Record<
+          string,
+          unknown
+        >;
+        if (typeof fromFile.private_key === 'string') {
+          fromFile.private_key = normalizePemPrivateKey(fromFile.private_key);
+        }
+        credential = admin.credential.cert(fromFile as admin.ServiceAccount);
       }
       if (!credential) {
         this.logger.warn('FCM requested but Firebase credentials are missing');

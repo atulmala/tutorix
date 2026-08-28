@@ -8,7 +8,6 @@ import { loadDatabaseCredentials } from './database-credentials.loader';
   imports: [
     TypeOrmModule.forRootAsync({
       useFactory: async () => {
-        // Load credentials from .env (dev/staging) or AWS Secrets Manager (production)
         const credentials = await loadDatabaseCredentials();
         const options = createDatabaseOptions(credentials);
 

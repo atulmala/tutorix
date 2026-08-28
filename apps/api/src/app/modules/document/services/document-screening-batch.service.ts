@@ -14,6 +14,7 @@ import { DocumentScreeningStatusEnum } from '../enums/document-screening-status.
 import { ONBOARDING_DOCUMENT_TYPES } from '../onboarding-document-types';
 import { DocumentScreeningAiService } from './document-screening-ai.service';
 import type { AiScreeningTokenUsage } from './document-screening-ai.service';
+import { resolveS3DocumentsRegion } from '../../../common/aws-s3-region';
 
 export type DocumentProcessOutcome = 'processed' | 'skipped';
 
@@ -61,10 +62,7 @@ export class DocumentScreeningBatchService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
   ) {
-    const region =
-      this.configService.get<string>('AWS_REGION') ||
-      this.configService.get<string>('AWS_DEFAULT_REGION') ||
-      'us-east-1';
+    const region = resolveS3DocumentsRegion(this.configService);
     this.bucket =
       this.configService.get<string>('S3_DOCUMENTS_BUCKET') ||
       process.env.S3_DOCUMENTS_BUCKET ||

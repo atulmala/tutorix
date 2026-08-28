@@ -6,6 +6,7 @@
  * Environment variable names (in order of priority):
  * - NX_GRAPHQL_ENDPOINT (for Nx projects)
  * - GRAPHQL_ENDPOINT (fallback)
+ * - VITE_GRAPHQL_ENDPOINT (root .env; copied onto NX_GRAPHQL_ENDPOINT at Metro load)
  * 
  * For React Native (mobile):
  * - Android emulator: Uses 10.0.2.2 instead of localhost (handled in apollo-client.ts)
@@ -15,12 +16,13 @@
 export function getGraphQLEndpoint(): string {
   let endpoint: string | undefined;
   
-  // Check for React Native environment variables (process.env only)
-  // NO Vite checks - Metro bundler should not pull in Vite-specific code
+  // Check for React Native environment variables (process.env only).
+  // VITE_GRAPHQL_ENDPOINT is read from process.env after dotenv (not import.meta).
   if (typeof process !== 'undefined' && process.env) {
-    endpoint = 
-      process.env['NX_GRAPHQL_ENDPOINT'] || 
-      process.env['GRAPHQL_ENDPOINT'];
+    endpoint =
+      process.env['NX_GRAPHQL_ENDPOINT'] ||
+      process.env['GRAPHQL_ENDPOINT'] ||
+      process.env['VITE_GRAPHQL_ENDPOINT'];
   }
 
   // If endpoint is provided, use it as-is
@@ -29,12 +31,13 @@ export function getGraphQLEndpoint(): string {
     return endpoint;
   }
   
-  // Default endpoint configuration
-  // API is served via nginx on port 80 (Docker); path includes /api/ global prefix
+  // Local Nx API listens on :3000 (see apps/api main.ts). Docker/nginx on :80
+  // should set VITE_GRAPHQL_ENDPOINT / NX_GRAPHQL_ENDPOINT explicitly.
   const host = 'localhost';
+  const port = '3000';
   const path = '/api/graphql';
-  
-  const finalEndpoint = `http://${host}${path}`;
+
+  const finalEndpoint = `http://${host}:${port}${path}`;
   
   console.log('[GraphQL Endpoint - Mobile] Using default endpoint:', finalEndpoint);
   

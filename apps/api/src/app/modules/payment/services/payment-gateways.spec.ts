@@ -59,4 +59,22 @@ describe('RazorpayGateway', () => {
       purpose: 'Tutor Registration Fee',
     });
   });
+
+  it('returns null when Razorpay payment id is unknown to this account', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: async () =>
+        JSON.stringify({
+          error: {
+            code: 'BAD_REQUEST_ERROR',
+            description: 'The id provided does not exist',
+          },
+        }),
+    });
+
+    await expect(
+      gateway.fetchSettlementForPayment('pay_from_another_account'),
+    ).resolves.toBeNull();
+  });
 });
