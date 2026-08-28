@@ -16,6 +16,17 @@ import {
   resolveRazorpayCheckoutLogoUrl,
 } from '../utils/razorpay-checkout.util';
 
+/** Razorpay returns 400 (not 404) when a payment/settlement id is unknown to this key. */
+function isRazorpayUnknownIdResponse(status: number, body: string): boolean {
+  if (status === 404) {
+    return true;
+  }
+  if (status !== 400) {
+    return false;
+  }
+  return /does not exist/i.test(body);
+}
+
 @Injectable()
 export class RazorpayGateway implements PaymentGateway {
   readonly provider = PaymentGatewayProviderEnum.razorpay;
@@ -205,6 +216,9 @@ export class RazorpayGateway implements PaymentGateway {
 
     if (!paymentResponse.ok) {
       const body = await paymentResponse.text();
+      if (isRazorpayUnknownIdResponse(paymentResponse.status, body)) {
+        return null;
+      }
       throw new Error(`Razorpay payment fetch failed (${paymentResponse.status}): ${body}`);
     }
 
@@ -243,6 +257,9 @@ export class RazorpayGateway implements PaymentGateway {
 
     if (!settlementResponse.ok) {
       const body = await settlementResponse.text();
+      if (isRazorpayUnknownIdResponse(settlementResponse.status, body)) {
+        return null;
+      }
       throw new Error(
         `Razorpay settlement fetch failed (${settlementResponse.status}): ${body}`,
       );

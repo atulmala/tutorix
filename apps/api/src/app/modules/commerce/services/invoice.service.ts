@@ -22,6 +22,7 @@ import {
   pickPrimaryAddress,
   renderInvoicePdfContent,
 } from '../utils/invoice-pdf.util';
+import { resolveS3DocumentsRegion } from '../../../common/aws-s3-region';
 
 const PDF_URL_EXPIRES_SEC = 3600;
 
@@ -42,10 +43,7 @@ export class InvoiceService {
     @InjectRepository(Tutor)
     private readonly tutorRepo: Repository<Tutor>,
   ) {
-    const region =
-      this.configService.get<string>('AWS_REGION') ||
-      this.configService.get<string>('AWS_DEFAULT_REGION') ||
-      'us-east-1';
+    const region = resolveS3DocumentsRegion(this.configService);
     this.bucket =
       this.configService.get<string>('S3_DOCUMENTS_BUCKET') ||
       process.env.S3_DOCUMENTS_BUCKET ||

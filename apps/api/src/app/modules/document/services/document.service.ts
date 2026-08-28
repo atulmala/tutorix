@@ -36,6 +36,7 @@ import {
   resolveDocumentPreviewS3Key,
 } from '../document-preview.helpers';
 import { buildTutorDocumentImageMediaPatch } from '../document-image-media';
+import { resolveS3DocumentsRegion } from '../../../common/aws-s3-region';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const PRESIGN_EXPIRES_SEC = 900;
@@ -87,10 +88,7 @@ export class DocumentService {
     @InjectRepository(Tutor)
     private readonly tutorRepo: Repository<Tutor>,
   ) {
-    const region =
-      this.configService.get<string>('AWS_REGION') ||
-      this.configService.get<string>('AWS_DEFAULT_REGION') ||
-      'us-east-1';
+    const region = resolveS3DocumentsRegion(this.configService);
     this.bucket =
       this.configService.get<string>('S3_DOCUMENTS_BUCKET') ||
       process.env.S3_DOCUMENTS_BUCKET ||

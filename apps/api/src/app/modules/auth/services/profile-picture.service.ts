@@ -27,6 +27,7 @@ import {
   ProfilePictureUploadUrlResult,
 } from '../dto/profile-picture-upload.dto';
 import { RequestProfilePictureUploadUrlInput } from '../dto/request-profile-picture-upload-url.input';
+import { resolveS3DocumentsRegion } from '../../../common/aws-s3-region';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const PRESIGN_EXPIRES_SEC = 900;
@@ -54,10 +55,7 @@ export class ProfilePictureService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {
-    const region =
-      this.configService.get<string>('AWS_REGION') ||
-      this.configService.get<string>('AWS_DEFAULT_REGION') ||
-      'us-east-1';
+    const region = resolveS3DocumentsRegion(this.configService);
     this.bucket =
       this.configService.get<string>('S3_DOCUMENTS_BUCKET') ||
       process.env.S3_DOCUMENTS_BUCKET ||

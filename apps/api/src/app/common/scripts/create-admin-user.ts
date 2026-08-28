@@ -8,7 +8,7 @@
 
 import * as readline from 'readline';
 import * as bcrypt from 'bcrypt';
-import dataSource from '../../../data-source';
+import cliDataSource from '../../../data-source';
 import { User } from '../../modules/auth/entities/user.entity';
 import { UserRole } from '../../modules/auth/enums/user-role.enum';
 import { Gender } from '../../modules/auth/enums/gender.enum';
@@ -138,6 +138,7 @@ async function main(): Promise<void> {
     throw err;
   }
 
+  const dataSource = await cliDataSource;
   await dataSource.initialize();
 
   try {

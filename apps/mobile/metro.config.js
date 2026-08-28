@@ -2,6 +2,7 @@ const { withNxMetro } = require('@nx/react-native');
 const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
 const path = require('path');
 const { config } = require('dotenv');
+const { applyDevLanHost, applyGraphqlEndpointAlias } = require('./detect-lan-host.cjs');
 
 // Load environment variables from .env file
 // This makes them available to Metro bundler's process.env
@@ -9,6 +10,11 @@ try {
   config({ path: path.resolve(__dirname, '../../.env') });
 } catch {
   // Silently fail if .env doesn't exist
+}
+const lanHost = applyDevLanHost();
+applyGraphqlEndpointAlias();
+if (lanHost) {
+  console.log(`[metro] DEV_LAN_HOST=${lanHost}`);
 }
 
 const defaultConfig = getDefaultConfig(__dirname);
