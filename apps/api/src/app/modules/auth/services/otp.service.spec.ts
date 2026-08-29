@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
@@ -89,6 +90,26 @@ describe('OtpService', () => {
     });
     expect(communicationService.emit).toHaveBeenCalled();
     expect(result.otp).toMatch(/^\d{6}$/);
+  });
+
+  it('logs the generated OTP even when NODE_ENV is production', async () => {
+    const previous = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    try {
+      await service.generateOtp({
+        userId: 9,
+        purpose: OtpPurpose.EMAIL_VERIFICATION,
+      });
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /^✅ OTP generated \[EMAIL_VERIFICATION\] userId=9 name=Ada Lovelace email=user@example.com phone=\+91 9876543210 otp=\d{6}$/,
+        ),
+      );
+    } finally {
+      process.env.NODE_ENV = previous;
+      logSpy.mockRestore();
+    }
   });
 
   it('emits MOBILE_VERIFICATION and still returns the code', async () => {

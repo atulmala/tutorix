@@ -71,11 +71,7 @@ export class OtpService {
       expiryMinutes: String(OtpService.OTP_EXPIRY_MINUTES),
     };
 
-    if (process.env.NODE_ENV !== 'production') {
-      const line = `✅ OTP generated [${input.purpose}] userId=${user.id} otp=${otpValue}`;
-      this.logger.log(line);
-      console.log(line);
-    }
+    this.logger.log(this.formatOtpGeneratedLog(input.purpose, user, otpValue));
 
     if (input.purpose === OtpPurpose.EMAIL_VERIFICATION) {
       if (!user.email) {
@@ -170,6 +166,25 @@ export class OtpService {
       success: true,
       message: 'OTP verified successfully',
     };
+  }
+
+  private formatOtpGeneratedLog(
+    purpose: OtpPurpose,
+    user: User,
+    otpValue: string,
+  ): string {
+    const name =
+      [user.firstName, user.lastName]
+        .map((part) => part?.trim())
+        .filter(Boolean)
+        .join(' ') || '-';
+    const email = user.email?.trim() || '-';
+    const phone =
+      [user.mobileCountryCode, user.mobileNumber]
+        .map((part) => part?.trim())
+        .filter(Boolean)
+        .join(' ') || '-';
+    return `✅ OTP generated [${purpose}] userId=${user.id} name=${name} email=${email} phone=${phone} otp=${otpValue}`;
   }
 
   private createOtpCode(): string {
