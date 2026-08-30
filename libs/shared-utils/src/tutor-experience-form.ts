@@ -1,6 +1,55 @@
 import { EmploymentType } from './employment-type.enum';
 import { YearsOfExperienceEnum } from './years-of-experience.enum';
 
+export const EXPERIENCE_MONTH_DAY = 15;
+export const EXPERIENCE_MIN_YEAR = 1950;
+
+export const EXPERIENCE_MONTH_SHORT_LABELS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
+
+export type ExperienceMonthYear = {
+  year: number;
+  month: number;
+};
+
+export function toExperienceMonthDate(year: number, month: number): string {
+  const paddedMonth = String(month).padStart(2, '0');
+  const paddedDay = String(EXPERIENCE_MONTH_DAY).padStart(2, '0');
+  return `${year}-${paddedMonth}-${paddedDay}`;
+}
+
+export function parseExperienceMonthYear(
+  value?: string | null,
+): ExperienceMonthYear | null {
+  if (!value) return null;
+  const match = /^(\d{4})-(\d{2})/.exec(value.trim());
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    return null;
+  }
+  return { year, month };
+}
+
+export function formatExperienceMonthYear(value?: string | null): string {
+  const parsed = parseExperienceMonthYear(value);
+  if (!parsed) return '';
+  return `${EXPERIENCE_MONTH_SHORT_LABELS[parsed.month - 1]} ${parsed.year}`;
+}
+
 export type ExperienceFormRow = {
   id?: number;
   jobTitle: string;
@@ -13,6 +62,20 @@ export type ExperienceFormRow = {
 };
 
 export type ExperienceRowFieldErrors = Partial<Record<keyof ExperienceFormRow, string>>;
+
+export function pinExperienceRowToMonthDay(row: ExperienceFormRow): ExperienceFormRow {
+  const start = parseExperienceMonthYear(row.startDate);
+  const end = parseExperienceMonthYear(row.endDate);
+  return {
+    ...row,
+    startDate: start ? toExperienceMonthDate(start.year, start.month) : row.startDate,
+    endDate: row.isCurrent
+      ? ''
+      : end
+        ? toExperienceMonthDate(end.year, end.month)
+        : row.endDate,
+  };
+}
 
 const EMPLOYMENT_TYPE_BY_NUM: Record<number, EmploymentType> = {
   1: EmploymentType.FULL_TIME,
@@ -88,8 +151,8 @@ export function validateExperienceRow(
     const start = new Date(row.startDate);
     if (Number.isNaN(start.getTime())) {
       fieldErrors.startDate = 'Invalid date';
-    } else if (start.getFullYear() < 1950 || start.getFullYear() > currentYear) {
-      fieldErrors.startDate = `Year must be between 1950 and ${currentYear}`;
+    } else if (start.getFullYear() < EXPERIENCE_MIN_YEAR || start.getFullYear() > currentYear) {
+      fieldErrors.startDate = `Year must be between ${EXPERIENCE_MIN_YEAR} and ${currentYear}`;
     }
   }
   if (!row.isCurrent && !row.endDate.trim()) {

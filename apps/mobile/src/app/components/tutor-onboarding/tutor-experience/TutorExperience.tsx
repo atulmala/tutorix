@@ -24,10 +24,12 @@ import {
   mapExperienceToFormRow,
   normalizeYearsOfExperience,
   validateExperienceRow,
+  pinExperienceRowToMonthDay,
   type ExperienceFormRow,
   type ExperienceRowFieldErrors,
   type StepComponentProps,
 } from '@tutorix/shared-utils';
+import { MonthYearPickerField } from '../../tutor-experience/MonthYearPickerField';
 
 type MyTutorProfileExperience = Parameters<typeof mapExperienceToFormRow>[0];
 
@@ -146,7 +148,7 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
       setFormError(null);
       const row = experiences[index];
       if (!row) return false;
-      const result = validateExperienceRow(row);
+      const result = validateExperienceRow(pinExperienceRowToMonthDay(row));
       if (result.ok === false) {
         setErrors((prev) => ({ ...prev, [index]: result.fieldErrors }));
         return false;
@@ -166,7 +168,7 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
     let valid = true;
     const next: Record<number, ExperienceRowFieldErrors> = {};
     experiences.forEach((row, index) => {
-      const result = validateExperienceRow(row);
+      const result = validateExperienceRow(pinExperienceRowToMonthDay(row));
       if (result.ok === false) {
         next[index] = result.fieldErrors;
         valid = false;
@@ -183,7 +185,9 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
     saveExperiences({
       variables: {
         input: {
-          experiences: buildExperienceMutationInput(experiences),
+          experiences: buildExperienceMutationInput(
+            experiences.map(pinExperienceRowToMonthDay),
+          ),
           yearsOfExperience,
           advanceToNextStep: false,
         },
@@ -197,23 +201,14 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
     saveExperiences({
       variables: {
         input: {
-          experiences: buildExperienceMutationInput(experiences),
+          experiences: buildExperienceMutationInput(
+            experiences.map(pinExperienceRowToMonthDay),
+          ),
           yearsOfExperience,
           advanceToNextStep: true,
         },
       },
     });
-  };
-
-  const formatDateInput = (value: string) => {
-    let formatted = value.replace(/\D/g, '');
-    if (formatted.length > 4) {
-      formatted = formatted.slice(0, 4) + '-' + formatted.slice(4);
-    }
-    if (formatted.length > 7) {
-      formatted = formatted.slice(0, 7) + '-' + formatted.slice(7, 9);
-    }
-    return formatted;
   };
 
   return (
@@ -338,19 +333,12 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
                 <Text style={styles.label}>
                   Start date <Text style={styles.required}>*</Text>
                 </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    !!errors[index]?.startDate && styles.inputError,
-                  ]}
+                <MonthYearPickerField
                   value={row.startDate}
-                  onChangeText={(v) =>
-                    updateRow(index, { startDate: formatDateInput(v) })
-                  }
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="numeric"
-                  maxLength={10}
+                  onChange={(startDate) => updateRow(index, { startDate })}
+                  hasError={Boolean(errors[index]?.startDate)}
+                  title="Start date"
+                  accessibilityLabel="Start date"
                 />
                 {!!errors[index]?.startDate && (
                   <Text style={styles.fieldError}>{errors[index].startDate}</Text>
@@ -360,21 +348,13 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
                 <Text style={styles.label}>
                   End date{!row.isCurrent && <Text style={styles.required}> *</Text>}
                 </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    !!errors[index]?.endDate && styles.inputError,
-                    row.isCurrent && styles.inputDisabled,
-                  ]}
+                <MonthYearPickerField
                   value={row.endDate}
-                  onChangeText={(v) =>
-                    updateRow(index, { endDate: formatDateInput(v) })
-                  }
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="numeric"
-                  maxLength={10}
-                  editable={!row.isCurrent}
+                  onChange={(endDate) => updateRow(index, { endDate })}
+                  disabled={row.isCurrent}
+                  hasError={Boolean(errors[index]?.endDate)}
+                  title="End date"
+                  accessibilityLabel="End date"
                 />
                 {!!errors[index]?.endDate && (
                   <Text style={styles.fieldError}>{errors[index].endDate}</Text>
@@ -601,10 +581,6 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderColor: '#dc2626',
-  },
-  inputDisabled: {
-    opacity: 0.6,
-    backgroundColor: '#f1f5f9',
   },
   fieldError: {
     fontSize: 12,

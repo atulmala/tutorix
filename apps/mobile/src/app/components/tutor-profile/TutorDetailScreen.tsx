@@ -39,12 +39,14 @@ import {
   formatDate,
   formatDateTime,
   formatExperienceDuration,
+  formatExperienceMonthYear,
   formatQualificationTitle,
   getAvailableQualificationTypes,
   mapExperienceToFormRow,
   mapQualificationToFormRow,
   monthsToExperienceDuration,
   normalizeYearsOfExperience,
+  pinExperienceRowToMonthDay,
   sortQualificationsHighestFirst,
   sumExperienceDurations,
   formatOfferingLabelForDisplay,
@@ -423,7 +425,9 @@ export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
         await saveExperiences({
           variables: {
             input: {
-              experiences: buildExperienceMutationInput(rows),
+              experiences: buildExperienceMutationInput(
+                rows.map(pinExperienceRowToMonthDay),
+              ),
               yearsOfExperience: normalizeYearsOfExperience(tutor.yearsOfExperience),
               advanceToNextStep: false,
             },
@@ -1048,8 +1052,10 @@ export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
                       {exp.employerAddress ? ` · ${exp.employerAddress}` : ''}
                     </Text>
                     <Text style={styles.muted}>
-                      {formatDate(exp.startDate)} –{' '}
-                      {exp.isCurrent ? 'Present' : formatDate(exp.endDate)}
+                      {formatExperienceMonthYear(exp.startDate) || '—'} –{' '}
+                      {exp.isCurrent
+                        ? 'Present'
+                        : formatExperienceMonthYear(exp.endDate) || '—'}
                     </Text>
                   </View>
                 );

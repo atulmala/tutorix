@@ -2,9 +2,13 @@ import { EmploymentType } from './employment-type.enum';
 import { YearsOfExperienceEnum } from './years-of-experience.enum';
 import {
   buildExperienceMutationInput,
+  formatExperienceMonthYear,
   mapEmploymentType,
   mapExperienceToFormRow,
   normalizeYearsOfExperience,
+  parseExperienceMonthYear,
+  pinExperienceRowToMonthDay,
+  toExperienceMonthDate,
   validateExperienceRow,
 } from './tutor-experience-form';
 
@@ -123,6 +127,65 @@ describe('tutor-experience-form', () => {
       expect(normalizeYearsOfExperience('FIVE_TO_TEN')).toBe(
         YearsOfExperienceEnum.FIVE_TO_TEN,
       );
+    });
+  });
+
+  describe('experience month-year helpers', () => {
+    it('writes the 15th of the given month', () => {
+      expect(toExperienceMonthDate(2020, 1)).toBe('2020-01-15');
+      expect(toExperienceMonthDate(2022, 12)).toBe('2022-12-15');
+    });
+
+    it('parses year and month from ISO and date-only strings', () => {
+      expect(parseExperienceMonthYear('2020-03-01')).toEqual({ year: 2020, month: 3 });
+      expect(parseExperienceMonthYear('2020-03-15T00:00:00.000Z')).toEqual({
+        year: 2020,
+        month: 3,
+      });
+    });
+
+    it('returns null for missing or invalid values', () => {
+      expect(parseExperienceMonthYear('')).toBeNull();
+      expect(parseExperienceMonthYear(null)).toBeNull();
+      expect(parseExperienceMonthYear('not-a-date')).toBeNull();
+      expect(parseExperienceMonthYear('2020-13-15')).toBeNull();
+    });
+
+    it('formats month and year without using the stored day', () => {
+      expect(formatExperienceMonthYear('2020-01-15')).toBe('Jan 2020');
+      expect(formatExperienceMonthYear('2021-12-01T00:00:00.000Z')).toBe('Dec 2021');
+      expect(formatExperienceMonthYear('')).toBe('');
+    });
+
+    it('pins form dates to the 15th of the month', () => {
+      expect(
+        pinExperienceRowToMonthDay({
+          jobTitle: 'Teacher',
+          employerName: 'School',
+          employerAddress: 'Addr',
+          employmentType: EmploymentType.FULL_TIME,
+          startDate: '2020-03-01',
+          endDate: '2021-04-20',
+          isCurrent: false,
+        }),
+      ).toMatchObject({
+        startDate: '2020-03-15',
+        endDate: '2021-04-15',
+      });
+    });
+
+    it('clears end date when currently working', () => {
+      expect(
+        pinExperienceRowToMonthDay({
+          jobTitle: 'Teacher',
+          employerName: 'School',
+          employerAddress: 'Addr',
+          employmentType: EmploymentType.FULL_TIME,
+          startDate: '2020-03-01',
+          endDate: '2021-04-20',
+          isCurrent: true,
+        }).endDate,
+      ).toBe('');
     });
   });
 });

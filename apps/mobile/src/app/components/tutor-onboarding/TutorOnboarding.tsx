@@ -1,8 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Keyboard,
+  Platform,
+} from 'react-native';
 import { useQuery } from '@apollo/client';
 import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
 import { ONBOARDING_STEPS, normalizeCertificationStage } from '@tutorix/shared-utils';
+import { scrollFocusedInputIntoView } from '../../lib/scrollFocusedInputIntoView';
 import { TutorAddressEntry } from './tutor-address-entry/TutorAddressEntry';
 import { TutorQualification } from './tutor-qualification';
 import { TutorExperience } from './tutor-experience';
@@ -67,6 +77,17 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
   const [currentStepIndex, setCurrentStepIndex] = useState(() =>
     stepIndexFromStage(initialProfile?.certificationStage)
   );
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollOffsetY = useRef(0);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => {
+      requestAnimationFrame(() => {
+        scrollFocusedInputIntoView(scrollRef, scrollOffsetY.current);
+      });
+    });
+    return () => show.remove();
+  }, []);
 
   const { data: profileData } = useQuery(GET_MY_TUTOR_PROFILE, {
     fetchPolicy: 'cache-and-network',
@@ -187,9 +208,25 @@ export const TutorOnboarding: React.FC<TutorOnboardingProps> = ({
         userInitials={tutorName ? getInitials(tutorName) : null}
         onLogout={onLogout}
       />
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        {renderStep()}
-      </ScrollView>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          ref={scrollRef}
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets
+          scrollEventThrottle={16}
+          onScroll={(event) => {
+            scrollOffsetY.current = event.nativeEvent.contentOffset.y;
+          }}
+        >
+          {renderStep()}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 };
@@ -198,6 +235,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  keyboardAvoid: {
+    flex: 1,
   },
   scroll: {
     flex: 1,
