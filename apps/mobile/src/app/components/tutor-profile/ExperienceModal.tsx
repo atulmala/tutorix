@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,18 +8,22 @@ import {
   Modal,
   ScrollView,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   ActivityIndicator,
   Switch,
 } from 'react-native';
+import { scrollFocusedInputIntoView } from '../../lib/scrollFocusedInputIntoView';
 import {
   EMPLOYMENT_TYPE_LABELS,
   EMPLOYMENT_TYPE_LIST,
   EmploymentType,
   validateExperienceRow,
+  pinExperienceRowToMonthDay,
   type ExperienceFormRow,
   type ExperienceRowFieldErrors,
 } from '@tutorix/shared-utils';
+import { MonthYearPickerField } from '../tutor-experience/MonthYearPickerField';
 
 type ExperienceModalProps = {
   visible: boolean;
@@ -30,17 +34,6 @@ type ExperienceModalProps = {
   onClose: () => void;
   onSubmit: (row: ExperienceFormRow) => void;
 };
-
-function formatDateInput(value: string): string {
-  let formatted = value.replace(/\D/g, '');
-  if (formatted.length > 4) {
-    formatted = `${formatted.slice(0, 4)}-${formatted.slice(4)}`;
-  }
-  if (formatted.length > 7) {
-    formatted = `${formatted.slice(0, 7)}-${formatted.slice(7, 9)}`;
-  }
-  return formatted;
-}
 
 export function ExperienceModal({
   visible,
@@ -55,6 +48,20 @@ export function ExperienceModal({
   const [fieldErrors, setFieldErrors] = useState<ExperienceRowFieldErrors>({});
   const [validationError, setValidationError] = useState<string | null>(null);
   const [employmentTypePickerVisible, setEmploymentTypePickerVisible] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollOffsetY = useRef(0);
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+    const show = Keyboard.addListener('keyboardDidShow', () => {
+      requestAnimationFrame(() => {
+        scrollFocusedInputIntoView(scrollRef, scrollOffsetY.current);
+      });
+    });
+    return () => show.remove();
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) {
@@ -79,7 +86,7 @@ export function ExperienceModal({
   };
 
   const handleSubmit = () => {
-    const result = validateExperienceRow(row);
+    const result = validateExperienceRow(pinExperienceRowToMonthDay(row));
     if (result.ok === false) {
       setFieldErrors(result.fieldErrors);
       setValidationError(null);
@@ -106,9 +113,16 @@ export function ExperienceModal({
           </View>
 
           <ScrollView
+            ref={scrollRef}
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            automaticallyAdjustKeyboardInsets
+            scrollEventThrottle={16}
+            onScroll={(event) => {
+              scrollOffsetY.current = event.nativeEvent.contentOffset.y;
+            }}
           >
             <Text style={styles.label}>
               Employment type <Text style={styles.required}>*</Text>
@@ -183,15 +197,13 @@ export function ExperienceModal({
                 <Text style={styles.label}>
                   Start date <Text style={styles.required}>*</Text>
                 </Text>
-                <TextInput
-                  style={[styles.input, fieldErrors.startDate ? styles.inputError : null]}
+                <MonthYearPickerField
                   value={row.startDate}
-                  onChangeText={(v) => updateRow({ startDate: formatDateInput(v) })}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="numeric"
-                  maxLength={10}
-                  editable={!saving}
+                  onChange={(startDate) => updateRow({ startDate })}
+                  disabled={saving}
+                  hasError={Boolean(fieldErrors.startDate)}
+                  title="Start date"
+                  accessibilityLabel="Start date"
                 />
                 {fieldErrors.startDate ? (
                   <Text style={styles.fieldError}>{fieldErrors.startDate}</Text>
@@ -202,19 +214,13 @@ export function ExperienceModal({
                   End date
                   {!row.isCurrent ? <Text style={styles.required}> *</Text> : null}
                 </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    fieldErrors.endDate ? styles.inputError : null,
-                    row.isCurrent ? styles.inputDisabled : null,
-                  ]}
+                <MonthYearPickerField
                   value={row.endDate}
-                  onChangeText={(v) => updateRow({ endDate: formatDateInput(v) })}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="numeric"
-                  maxLength={10}
-                  editable={!saving && !row.isCurrent}
+                  onChange={(endDate) => updateRow({ endDate })}
+                  disabled={saving || row.isCurrent}
+                  hasError={Boolean(fieldErrors.endDate)}
+                  title="End date"
+                  accessibilityLabel="End date"
                 />
                 {fieldErrors.endDate ? (
                   <Text style={styles.fieldError}>{fieldErrors.endDate}</Text>
@@ -356,7 +362,6 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   inputError: { borderColor: '#dc2626' },
-  inputDisabled: { opacity: 0.6, backgroundColor: '#f1f5f9' },
   fieldError: { fontSize: 12, color: '#dc2626', marginTop: 4 },
   rowTwoCols: { flexDirection: 'row', gap: 12 },
   col: { flex: 1, minWidth: 0 },
