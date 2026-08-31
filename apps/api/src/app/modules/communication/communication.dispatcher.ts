@@ -22,6 +22,7 @@ import { CommunicationEvent } from './enums/communication-event.enum';
 import { CommunicationSendStatus } from './enums/communication-send-status.enum';
 import {
   defaultTemplatePath,
+  enabledChannelsFromFlags,
   enabledChannelsFromRule,
   findCatalogEntry,
 } from './event-catalog';
@@ -66,16 +67,25 @@ export class CommunicationDispatcher {
       where: { event: input.event, audience, deleted: false },
     });
 
-    if (!rule || !rule.enabled) {
-      this.logger.debug(
-        `Skip ${input.event}/${audience}: rule missing or disabled`,
+    if (rule && !rule.enabled) {
+      this.logger.warn(
+        `Skip ${input.event}/${audience}: rule disabled`,
       );
       return;
     }
 
-    const channels = enabledChannelsFromRule(rule);
+    const channels = rule
+      ? enabledChannelsFromRule(rule)
+      : catalog
+        ? enabledChannelsFromFlags(catalog.defaultChannels)
+        : [];
+    if (!rule) {
+      this.logger.warn(
+        `No communication_rule for ${input.event}/${audience}; using catalog defaults (${channels.join(',') || 'none'})`,
+      );
+    }
     if (channels.length === 0) {
-      if (rule.mandatory || catalog?.mandatory) {
+      if (rule?.mandatory || catalog?.mandatory) {
         throw new BadRequestException(
           `Mandatory communication event ${input.event} has no channels enabled`,
         );

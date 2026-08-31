@@ -207,6 +207,18 @@ export function samplePayload(event: CommunicationEvent): Record<string, string>
   }
 }
 
+export function enabledChannelsFromFlags(
+  flags: ChannelFlags,
+): CommunicationChannel[] {
+  return enabledChannelsFromRule({
+    emailEnabled: flags.email,
+    smsEnabled: flags.sms,
+    pushEnabled: flags.push,
+    whatsappEnabled: flags.whatsapp,
+    onScreenEnabled: flags.onScreen,
+  });
+}
+
 export function enabledChannelsFromRule(rule: {
   emailEnabled: boolean;
   smsEnabled: boolean;
