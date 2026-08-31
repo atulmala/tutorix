@@ -24,6 +24,8 @@ async function createCliDataSource(): Promise<DataSource> {
     entities: [join(__dirname, 'app', '**', '*.entity.ts')],
     migrations: [join(__dirname, 'migrations', '*.ts')],
     migrationsTableName: 'migrations',
+    // each: commit after every file so Postgres can use newly added enum values
+    migrationsTransactionMode: 'each',
     synchronize: false,
     logging: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : false,
   });

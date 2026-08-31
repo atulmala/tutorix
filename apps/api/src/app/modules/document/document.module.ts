@@ -16,11 +16,14 @@ import { DocumentScreeningAiService } from './services/document-screening-ai.ser
 import { DocumentScreeningBatchService } from './services/document-screening-batch.service';
 import { DocumentScreeningService } from './services/document-screening.service';
 import { TutorOnboardingDocumentEligibilityService } from './services/tutor-onboarding-document-eligibility.service';
+import { DocumentVerificationCommunicationService } from './services/document-verification-communication.service';
+import { CommunicationModule } from '../communication/communication.module';
 
 @Module({
   imports: [
     ConfigModule,
     BatchJobAuditModule,
+    CommunicationModule,
     TypeOrmModule.forFeature([
       DocumentEntity,
       DocumentScreeningEntity,
@@ -34,6 +37,7 @@ import { TutorOnboardingDocumentEligibilityService } from './services/tutor-onbo
     DocumentScreeningBatchService,
     DocumentScreeningService,
     TutorOnboardingDocumentEligibilityService,
+    DocumentVerificationCommunicationService,
     DocumentUploadResolver,
     TutorDocumentsFieldResolver,
     DocumentEntityResolver,

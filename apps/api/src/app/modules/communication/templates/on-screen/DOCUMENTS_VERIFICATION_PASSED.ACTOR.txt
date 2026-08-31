@@ -1,0 +1,4 @@
+---
+title: Documents accepted
+---
+All of your documents have passed verification. You can continue to the next step.

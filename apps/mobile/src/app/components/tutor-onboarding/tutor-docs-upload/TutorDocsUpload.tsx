@@ -20,7 +20,11 @@ import {
   CONFIRM_TUTOR_DOCUMENT_UPLOAD,
   REQUEST_TUTOR_DOCUMENT_UPLOAD_URL,
 } from '@tutorix/shared-graphql/mutations';
-import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
+import {
+  GET_MY_IN_APP_MESSAGES,
+  GET_MY_TUTOR_PROFILE,
+  GET_ON_SCREEN_COPY,
+} from '@tutorix/shared-graphql/queries';
 import type { StepComponentProps } from '@tutorix/shared-utils';
 import { DocumentUploadCard } from './DocumentUploadCard';
 import {
@@ -55,12 +59,26 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = () => {
     GET_MY_TUTOR_PROFILE,
     { fetchPolicy: 'cache-and-network' },
   );
+  const { data: onScreenData } = useQuery(GET_ON_SCREEN_COPY, {
+    variables: { event: 'DOCUMENTS_ALL_UPLOADED' },
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: inAppData } = useQuery(GET_MY_IN_APP_MESSAGES, {
+    variables: { event: 'DOCUMENTS_ALL_UPLOADED' },
+    fetchPolicy: 'cache-and-network',
+  });
 
   const documents = profileData?.myTutorProfile?.documents;
 
   const [requestUploadUrl] = useMutation(REQUEST_TUTOR_DOCUMENT_UPLOAD_URL);
   const [confirmUpload] = useMutation(CONFIRM_TUTOR_DOCUMENT_UPLOAD, {
-    refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }],
+    refetchQueries: [
+      { query: GET_MY_TUTOR_PROFILE },
+      {
+        query: GET_MY_IN_APP_MESSAGES,
+        variables: { event: 'DOCUMENTS_ALL_UPLOADED' },
+      },
+    ],
     awaitRefetchQueries: true,
   });
   const [completeDocsStep, { loading: completingDocs }] = useMutation(
@@ -115,7 +133,12 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = () => {
 
       setUploadingSlot(slot);
       try {
-        await uploadTutorDocument(slot, file, requestUploadUrl, confirmUpload);
+        await uploadTutorDocument(
+          slot,
+          file,
+          (options) => requestUploadUrl(options),
+          (options) => confirmUpload(options),
+        );
         setLocalPreviewUris((prev) => {
           const next = { ...prev };
           delete next[slot];
@@ -236,6 +259,12 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = () => {
 
   const showReviewBanner =
     progress.allFilled && !progress.allPassed && !progress.anyRejected;
+  const onScreenCopy = onScreenData?.onScreenCopy;
+  const latestInAppMessage = inAppData?.myInAppMessages?.[0];
+  const reviewBannerBody =
+    latestInAppMessage?.body?.trim() || onScreenCopy?.body?.trim() || '';
+  const showConfiguredReviewBanner =
+    showReviewBanner && Boolean(onScreenCopy?.enabled) && Boolean(reviewBannerBody);
 
   const continueHint = !progress.allFilled
     ? 'Upload all four documents. Continue stays disabled until each document passes verification.'
@@ -253,15 +282,12 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = () => {
       </Text>
       <Text style={styles.progressText}>
         {progress.filled} of {ONBOARDING_SLOTS.length} documents uploaded
-        {showReviewBanner ? ' · Verification in progress' : ''}
+        {showConfiguredReviewBanner ? ' · Verification in progress' : ''}
       </Text>
 
-      {showReviewBanner && (
+      {showConfiguredReviewBanner && (
         <View style={styles.reviewBanner}>
-          <Text style={styles.reviewBannerText}>
-            Your documents are under review and the process may take up to 24 hours.
-            You will be notified when it is done!
-          </Text>
+          <Text style={styles.reviewBannerText}>{reviewBannerBody}</Text>
         </View>
       )}
 

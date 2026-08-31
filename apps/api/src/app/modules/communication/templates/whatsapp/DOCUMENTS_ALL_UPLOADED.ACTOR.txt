@@ -1,0 +1,5 @@
+---
+whatsappTemplateName: 
+variableMapping: {"firstName":"1"}
+---
+Hi {{firstName}}, we have received all of your onboarding documents. Verification may take up to 24 hours. We will notify you when it is done.

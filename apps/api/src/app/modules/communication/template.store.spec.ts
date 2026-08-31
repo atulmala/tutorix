@@ -39,6 +39,17 @@ describe('TemplateStore', () => {
     expect(file.body).toContain('Hi {{firstName}}');
   });
 
+  it('accepts on-screen template paths', () => {
+    mkdirSync(join(dir, 'on-screen'));
+    store.write(
+      'on-screen/DOCUMENTS_ALL_UPLOADED.ACTOR.txt',
+      '---\ntitle: Review\n---\nUnder review\n',
+    );
+    const file = store.read('on-screen/DOCUMENTS_ALL_UPLOADED.ACTOR.txt');
+    expect(file.attributes.title).toBe('Review');
+    expect(file.body).toContain('Under review');
+  });
+
   it('writes to the override directory', () => {
     store.write(
       'email/WALLET_TOP_UP.ACTOR.html',

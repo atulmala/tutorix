@@ -3,7 +3,9 @@ import { useMutation, useQuery } from '@apollo/client';
 import {
   COMPLETE_DOCS_STEP,
   CONFIRM_TUTOR_DOCUMENT_UPLOAD,
+  GET_MY_IN_APP_MESSAGES,
   GET_MY_TUTOR_PROFILE,
+  GET_ON_SCREEN_COPY,
   REQUEST_TUTOR_DOCUMENT_UPLOAD_URL,
 } from '@tutorix/shared-graphql';
 import type { StepComponentProps } from '../types';
@@ -127,12 +129,26 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = () => {
     GET_MY_TUTOR_PROFILE,
     { fetchPolicy: 'cache-and-network' },
   );
+  const { data: onScreenData } = useQuery(GET_ON_SCREEN_COPY, {
+    variables: { event: 'DOCUMENTS_ALL_UPLOADED' },
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: inAppData } = useQuery(GET_MY_IN_APP_MESSAGES, {
+    variables: { event: 'DOCUMENTS_ALL_UPLOADED' },
+    fetchPolicy: 'cache-and-network',
+  });
 
   const documents = profileData?.myTutorProfile?.documents;
 
   const [requestUploadUrl] = useMutation(REQUEST_TUTOR_DOCUMENT_UPLOAD_URL);
   const [confirmUpload] = useMutation(CONFIRM_TUTOR_DOCUMENT_UPLOAD, {
-    refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }],
+    refetchQueries: [
+      { query: GET_MY_TUTOR_PROFILE },
+      {
+        query: GET_MY_IN_APP_MESSAGES,
+        variables: { event: 'DOCUMENTS_ALL_UPLOADED' },
+      },
+    ],
     awaitRefetchQueries: true,
   });
   const [completeDocsStep, { loading: completingDocs }] = useMutation(
@@ -299,6 +315,12 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = () => {
 
   const showReviewBanner =
     progress.allFilled && !progress.allPassed && !progress.anyRejected;
+  const onScreenCopy = onScreenData?.onScreenCopy;
+  const latestInAppMessage = inAppData?.myInAppMessages?.[0];
+  const reviewBannerBody =
+    latestInAppMessage?.body?.trim() || onScreenCopy?.body?.trim() || '';
+  const showConfiguredReviewBanner =
+    showReviewBanner && Boolean(onScreenCopy?.enabled) && Boolean(reviewBannerBody);
 
   return (
     <div className="space-y-6">
@@ -309,17 +331,16 @@ export const TutorDocsUpload: React.FC<StepComponentProps> = () => {
         </p>
         <p className="mt-2 text-sm text-muted">
           {progress.filled} of {ONBOARDING_SLOTS.length} documents uploaded
-          {showReviewBanner ? ' · Verification in progress' : ''}
+          {showConfiguredReviewBanner ? ' · Verification in progress' : ''}
         </p>
       </div>
 
-      {showReviewBanner && (
+      {showConfiguredReviewBanner && (
         <div
           className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
           role="status"
         >
-          Your documents are under review and the process may take up to 24 hours. You
-          will be notified when it is done!
+          {reviewBannerBody}
         </div>
       )}
 

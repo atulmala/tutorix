@@ -1,0 +1,7 @@
+---
+whatsappTemplateName: 
+variableMapping: {"firstName":"1","failedCount":"2"}
+---
+Hi {{firstName}}, {{failedCount}} document(s) were not accepted:
+{{failedDocumentsText}}
+Please replace them in your Tutorix dashboard and wait for verification again.

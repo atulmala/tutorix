@@ -49,6 +49,10 @@ export class CommunicationRuleEntity extends QBaseEntity {
   @Column({ name: 'whatsapp_enabled', default: false })
   whatsappEnabled: boolean;
 
+  @Field()
+  @Column({ name: 'on_screen_enabled', default: false })
+  onScreenEnabled: boolean;
+
   @Field(() => Int, { nullable: true })
   @Column({ name: 'offset_minutes', type: 'smallint', nullable: true })
   offsetMinutes: number | null;

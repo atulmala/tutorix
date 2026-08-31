@@ -53,7 +53,7 @@ export const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onBackHome, onBa
           },
         },
       });
-    } catch (error) {
+    } catch {
       // Error handling is done in onError callback
       // Always show success for security
       setSubmitted(true);

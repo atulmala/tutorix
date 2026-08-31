@@ -5,6 +5,7 @@ export enum CommunicationChannel {
   SMS = 'SMS',
   PUSH = 'PUSH',
   WHATSAPP = 'WHATSAPP',
+  ON_SCREEN = 'ON_SCREEN',
 }
 
 registerEnumType(CommunicationChannel, {

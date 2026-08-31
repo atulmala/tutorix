@@ -13,11 +13,14 @@ import { WhatsAppModule } from './whatsapp/whatsapp.module';
 import { CommunicationRuleEntity } from './entities/communication-rule.entity';
 import { CommunicationTemplateEntity } from './entities/communication-template.entity';
 import { CommunicationSendEntity } from './entities/communication-send.entity';
+import { InAppMessageEntity } from './entities/in-app-message.entity';
 import { UserDeviceTokenEntity } from './entities/user-device-token.entity';
 import { TemplateStore } from './template.store';
 import { CommunicationDispatcher } from './communication.dispatcher';
 import { CommunicationService } from './communication.service';
 import { CommunicationAdminService } from './communication.admin.service';
+import { InAppMessageService } from './in-app-message.service';
+import { InAppMessageResolver } from './in-app-message.resolver';
 
 @Module({
   imports: [
@@ -26,6 +29,7 @@ import { CommunicationAdminService } from './communication.admin.service';
       CommunicationRuleEntity,
       CommunicationTemplateEntity,
       CommunicationSendEntity,
+      InAppMessageEntity,
       UserDeviceTokenEntity,
       User,
     ]),
@@ -39,12 +43,15 @@ import { CommunicationAdminService } from './communication.admin.service';
     CommunicationDispatcher,
     CommunicationService,
     CommunicationAdminService,
+    InAppMessageService,
+    InAppMessageResolver,
   ],
   exports: [
     EmailModule,
     NotificationModule,
     CommunicationService,
     CommunicationAdminService,
+    InAppMessageService,
   ],
 })
 export class CommunicationModule {}

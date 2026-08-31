@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { DocumentService } from './document.service';
+import { DocumentVerificationCommunicationService } from './document-verification-communication.service';
 import { DocumentEntity } from '../entities/document.entity';
 import { DocumentScreeningEntity } from '../entities/document-screening.entity';
 import { Tutor } from '../../tutor/entities/tutor.entity';
@@ -61,6 +62,13 @@ describe('DocumentService.resolvePreviewUrl', () => {
         {
           provide: getRepositoryToken(Tutor),
           useValue: { findOne: tutorFindOne },
+        },
+        {
+          provide: DocumentVerificationCommunicationService,
+          useValue: {
+            notifyIfAllUploaded: jest.fn(),
+            notifyIfVerificationComplete: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -150,6 +158,13 @@ describe('DocumentService admin preview URLs', () => {
         {
           provide: getRepositoryToken(Tutor),
           useValue: { findOne: jest.fn() },
+        },
+        {
+          provide: DocumentVerificationCommunicationService,
+          useValue: {
+            notifyIfAllUploaded: jest.fn(),
+            notifyIfVerificationComplete: jest.fn(),
+          },
         },
       ],
     }).compile();

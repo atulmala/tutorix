@@ -33,6 +33,10 @@ export class AdminUpdateCommunicationRuleInput {
   @IsBoolean()
   whatsappEnabled: boolean;
 
+  @Field()
+  @IsBoolean()
+  onScreenEnabled: boolean;
+
   @Field(() => Int, { nullable: true })
   @IsOptional()
   @IsInt()

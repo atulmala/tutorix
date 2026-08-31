@@ -15,6 +15,7 @@ const COMMUNICATION_CATALOG_FIELDS = `
     smsEnabled
     pushEnabled
     whatsappEnabled
+    onScreenEnabled
     offsetMinutes
     allowedVariables
     samplePayloadJson
@@ -30,6 +31,29 @@ const COMMUNICATION_CATALOG_FIELDS = `
       dltHeader
       whatsappTemplateName
       variableMapping
+    }
+  }
+`;
+
+export const GET_ON_SCREEN_COPY = gql`
+  query OnScreenCopy($event: CommunicationEvent!) {
+    onScreenCopy(event: $event) {
+      enabled
+      title
+      body
+    }
+  }
+`;
+
+export const GET_MY_IN_APP_MESSAGES = gql`
+  query MyInAppMessages($event: CommunicationEvent) {
+    myInAppMessages(event: $event) {
+      id
+      event
+      title
+      body
+      createdDate
+      readAt
     }
   }
 `;

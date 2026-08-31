@@ -7,8 +7,8 @@ import {
   GET_ADMIN_COMMUNICATION_CATALOG,
 } from '@tutorix/shared-graphql';
 
-type Channel = 'EMAIL' | 'SMS' | 'PUSH' | 'WHATSAPP';
-type EventGroup = 'Verification' | 'Wallet' | 'Classes' | 'Other';
+type Channel = 'EMAIL' | 'SMS' | 'PUSH' | 'WHATSAPP' | 'ON_SCREEN';
+type EventGroup = 'Documents' | 'Verification' | 'Wallet' | 'Classes' | 'Other';
 
 type ChannelTemplate = {
   channel: Channel;
@@ -34,6 +34,7 @@ type RuleView = {
   smsEnabled: boolean;
   pushEnabled: boolean;
   whatsappEnabled: boolean;
+  onScreenEnabled: boolean;
   offsetMinutes?: number | null;
   allowedVariables: string[];
   samplePayloadJson: string;
@@ -55,6 +56,7 @@ const CHANNELS: { key: Channel; flag: keyof RuleView; label: string }[] = [
   { key: 'SMS', flag: 'smsEnabled', label: 'SMS' },
   { key: 'PUSH', flag: 'pushEnabled', label: 'Notification' },
   { key: 'WHATSAPP', flag: 'whatsappEnabled', label: 'WhatsApp' },
+  { key: 'ON_SCREEN', flag: 'onScreenEnabled', label: 'On-screen' },
 ];
 
 const CHANNEL_STYLES: Record<
@@ -124,12 +126,33 @@ const CHANNEL_STYLES: Record<
     focus:
       'focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100',
   },
+  ON_SCREEN: {
+    chip: 'bg-rose-100 text-rose-800',
+    chipOn: 'bg-rose-500 text-white',
+    tab: 'bg-rose-600 text-white shadow-md shadow-rose-200',
+    tabIdle:
+      'border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100',
+    card: 'border-rose-200 bg-white',
+    cardOn:
+      'border-rose-300 bg-gradient-to-br from-rose-50 to-orange-100 ring-1 ring-rose-200',
+    iconBg: 'bg-rose-500',
+    icon: 'text-white',
+    focus:
+      'focus:border-rose-400 focus:ring-2 focus:ring-rose-100',
+  },
 };
 
 const GROUP_STYLES: Record<
   EventGroup,
   { header: string; active: string; bar: string; idle: string }
 > = {
+  Documents: {
+    header: 'text-rose-700',
+    active:
+      'border-rose-300 bg-gradient-to-br from-rose-50 via-white to-orange-50 ring-1 ring-rose-200/70',
+    bar: 'bg-rose-500',
+    idle: 'border-white bg-white hover:border-rose-200 hover:bg-rose-50/60',
+  },
   Verification: {
     header: 'text-amber-700',
     active:
@@ -167,6 +190,7 @@ const AUDIENCE_CHIP: Record<string, string> = {
 };
 
 function eventGroup(event: string): EventGroup {
+  if (event.startsWith('DOCUMENTS_')) return 'Documents';
   if (event.includes('VERIFICATION')) return 'Verification';
   if (event.includes('WALLET')) return 'Wallet';
   if (event.includes('CLASS')) return 'Classes';
@@ -211,6 +235,14 @@ function ChannelIcon({
       <svg {...common}>
         <path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 7H3s3 0 3-7" />
         <path d="M10 19a2 2 0 0 0 4 0" />
+      </svg>
+    );
+  }
+  if (channel === 'ON_SCREEN') {
+    return (
+      <svg {...common}>
+        <rect x="3" y="4" width="18" height="14" rx="2" />
+        <path d="M8 20h8" />
       </svg>
     );
   }
@@ -303,7 +335,11 @@ function preview(
   } catch {
     return template;
   }
-  return template.replace(
+  const withUnescaped = template.replace(
+    /\{\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}\}/g,
+    (_m, name: string) => payload[name] ?? '',
+  );
+  return withUnescaped.replace(
     /\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}/g,
     (_m, name: string) => {
       const value = payload[name] ?? '';
@@ -329,6 +365,19 @@ export function CommunicationPage() {
   const [saved, setSaved] = useState(false);
 
   const events = useMemo(() => catalog?.events ?? [], [catalog?.events]);
+  const groupedEvents = useMemo(() => {
+    const groups: { group: EventGroup; rows: RuleView[] }[] = [];
+    for (const row of events) {
+      const group = eventGroup(row.event);
+      const last = groups[groups.length - 1];
+      if (!last || last.group !== group) {
+        groups.push({ group, rows: [row] });
+      } else {
+        last.rows.push(row);
+      }
+    }
+    return groups;
+  }, [events]);
   const selected =
     events.find((row) => `${row.event}:${row.audience}` === selectedKey) ??
     events[0];
@@ -398,6 +447,7 @@ export function CommunicationPage() {
     SMS: Boolean(catalog?.smsConfigured),
     PUSH: Boolean(catalog?.pushConfigured),
     WHATSAPP: Boolean(catalog?.whatsappConfigured),
+    ON_SCREEN: true,
   };
 
   const previewText = useMemo(
@@ -435,6 +485,7 @@ export function CommunicationPage() {
           smsEnabled: next.smsEnabled,
           pushEnabled: next.pushEnabled,
           whatsappEnabled: next.whatsappEnabled,
+          onScreenEnabled: next.onScreenEnabled,
           offsetMinutes: next.offsetMinutes ?? null,
         },
       },
@@ -528,87 +579,84 @@ export function CommunicationPage() {
 
       {catalog && selected && (
         <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-          <div className="space-y-4">
-            {events.map((row, index) => {
-              const key = `${row.event}:${row.audience}`;
-              const active = key === `${selected.event}:${selected.audience}`;
-              const rowGroup = eventGroup(row.event);
-              const prevGroup =
-                index > 0 ? eventGroup(events[index - 1].event) : null;
-              const showHeader = rowGroup !== prevGroup;
-              const look = GROUP_STYLES[rowGroup];
-              return (
-                <React.Fragment key={key}>
-                  {showHeader && (
-                    <p
-                      className={`px-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
-                        index === 0 ? '' : 'pt-2'
-                      } ${look.header}`}
-                    >
-                      {rowGroup}
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedKey(key)}
-                    className={`w-full overflow-hidden rounded-xl border px-3 py-3 text-left shadow-sm transition ${
-                      active ? look.active : look.idle
+          <div className="space-y-3">
+            <label className="block">
+              <span className="mb-2 block px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                Event
+              </span>
+              <select
+                value={`${selected.event}:${selected.audience}`}
+                onChange={(e) => setSelectedKey(e.target.value)}
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+              >
+                {groupedEvents.map(({ group, rows }) => (
+                  <optgroup key={group} label={group}>
+                    {rows.map((row) => {
+                      const key = `${row.event}:${row.audience}`;
+                      return (
+                        <option key={key} value={key}>
+                          {row.label}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+            <div
+              className={`w-full overflow-hidden rounded-xl border px-3 py-3 text-left shadow-sm ${GROUP_STYLES[group].active}`}
+            >
+              <div className="flex items-start gap-2.5">
+                <span
+                  className={`mt-0.5 h-8 w-1 shrink-0 rounded-full ${GROUP_STYLES[group].bar}`}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-sm font-semibold text-slate-800">
+                      {selected.label}
+                    </span>
+                    {selected.mandatory ? (
+                      <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
+                        required
+                      </span>
+                    ) : null}
+                    {!selected.enabled ? (
+                      <span
+                        className={
+                          selected.event === 'MOBILE_VERIFICATION'
+                            ? 'rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-red-700'
+                            : 'rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500'
+                        }
+                      >
+                        off
+                      </span>
+                    ) : selected.event === 'MOBILE_VERIFICATION' ? (
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+                        on
+                      </span>
+                    ) : null}
+                  </div>
+                  <span
+                    className={`mt-1.5 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                      AUDIENCE_CHIP[selected.audience] ??
+                      'bg-slate-100 text-slate-700'
                     }`}
                   >
-                    <div className="flex items-start gap-2.5">
+                    {selected.audience.toLowerCase()}
+                  </span>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {CHANNELS.filter((c) => selected[c.flag]).map((c) => (
                       <span
-                        className={`mt-0.5 h-8 w-1 shrink-0 rounded-full ${look.bar}`}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-sm font-semibold text-slate-800">
-                            {row.label}
-                          </span>
-                          {row.mandatory ? (
-                            <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
-                              required
-                            </span>
-                          ) : null}
-                          {!row.enabled ? (
-                            <span
-                              className={
-                                row.event === 'MOBILE_VERIFICATION'
-                                  ? 'rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-red-700'
-                                  : 'rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500'
-                              }
-                            >
-                              off
-                            </span>
-                          ) : row.event === 'MOBILE_VERIFICATION' ? (
-                            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700">
-                              on
-                            </span>
-                          ) : null}
-                        </div>
-                        <span
-                          className={`mt-1.5 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                            AUDIENCE_CHIP[row.audience] ??
-                            'bg-slate-100 text-slate-700'
-                          }`}
-                        >
-                          {row.audience.toLowerCase()}
-                        </span>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {CHANNELS.filter((c) => row[c.flag]).map((c) => (
-                            <span
-                              key={c.key}
-                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${CHANNEL_STYLES[c.key].chip}`}
-                            >
-                              {c.label}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                </React.Fragment>
-              );
-            })}
+                        key={c.key}
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${CHANNEL_STYLES[c.key].chip}`}
+                      >
+                        {c.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-white bg-white shadow-md shadow-slate-200/70">
@@ -723,6 +771,10 @@ export function CommunicationPage() {
                         'bg-fuchsia-100 text-fuchsia-800',
                         'bg-rose-100 text-rose-800',
                       ];
+                      const token =
+                        name === 'failedDocumentsHtml'
+                          ? `{{{${name}}}}`
+                          : `{{${name}}}`;
                       return (
                         <span
                           key={name}
@@ -730,11 +782,19 @@ export function CommunicationPage() {
                             palette[i % palette.length]
                           }`}
                         >
-                          {`{{${name}}}`}
+                          {token}
                         </span>
                       );
                     })}
                   </div>
+                  {selected.event === 'DOCUMENTS_VERIFICATION_FAILED' && (
+                    <p className="text-xs text-slate-500">
+                      Use <code>{'{{{failedDocumentsHtml}}}'}</code> in the
+                      email HTML so the rejected-document list is not escaped.
+                      Other channels should use{' '}
+                      <code>{'{{failedDocumentsText}}'}</code>.
+                    </p>
+                  )}
 
                   {channel === 'EMAIL' && (
                     <>
@@ -762,7 +822,7 @@ export function CommunicationPage() {
                     </>
                   )}
 
-                  {channel === 'PUSH' && (
+                  {(channel === 'PUSH' || channel === 'ON_SCREEN') && (
                     <>
                       <label className="block text-sm font-medium text-slate-800">
                         Title
@@ -883,7 +943,9 @@ export function CommunicationPage() {
                             ? 'bg-amber-50 text-amber-800'
                             : channel === 'PUSH'
                               ? 'bg-violet-50 text-violet-800'
-                              : 'bg-emerald-50 text-emerald-800'
+                              : channel === 'ON_SCREEN'
+                                ? 'bg-rose-50 text-rose-800'
+                                : 'bg-emerald-50 text-emerald-800'
                       }`}
                     >
                       <ChannelIcon channel={channel} className="h-3.5 w-3.5" />
@@ -941,6 +1003,18 @@ export function CommunicationPage() {
                               {previewText || '—'}
                             </p>
                           </div>
+                        </div>
+                      </div>
+                    )}
+                    {channel === 'ON_SCREEN' && (
+                      <div className="bg-gradient-to-br from-rose-50 via-orange-50 to-amber-50 px-6 py-8">
+                        <div className="mx-auto max-w-lg rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-sm">
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+                            {previewTitle || 'On-screen'}
+                          </p>
+                          <p className="mt-1 whitespace-pre-wrap">
+                            {previewText || '—'}
+                          </p>
                         </div>
                       </div>
                     )}

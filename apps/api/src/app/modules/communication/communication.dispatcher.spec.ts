@@ -30,6 +30,7 @@ describe('CommunicationDispatcher', () => {
               smsEnabled: false,
               pushEnabled: false,
               whatsappEnabled: false,
+              onScreenEnabled: false,
             },
       ),
     };
@@ -44,6 +45,10 @@ describe('CommunicationDispatcher', () => {
       findOne: jest.fn().mockResolvedValue(null),
       create: jest.fn((row) => row),
       save: jest.fn(async (row) => row),
+    };
+    const inAppMessageRepository = {
+      create: jest.fn((row) => row),
+      save: jest.fn(async (row) => ({ ...row, id: 1 })),
     };
     const userRepository = {
       findOne: jest.fn().mockResolvedValue(user),
@@ -72,6 +77,7 @@ describe('CommunicationDispatcher', () => {
       ruleRepository as never,
       templateRepository as never,
       sendRepository as never,
+      inAppMessageRepository as never,
       userRepository as never,
       templateStore as never,
       emailService as never,
@@ -86,6 +92,7 @@ describe('CommunicationDispatcher', () => {
       smsService,
       notificationService,
       sendRepository,
+      inAppMessageRepository,
     };
   }
 
@@ -98,6 +105,7 @@ describe('CommunicationDispatcher', () => {
         smsEnabled: false,
         pushEnabled: false,
         whatsappEnabled: false,
+        onScreenEnabled: false,
       },
     });
     await dispatcher.dispatch({
@@ -117,6 +125,7 @@ describe('CommunicationDispatcher', () => {
         smsEnabled: false,
         pushEnabled: false,
         whatsappEnabled: false,
+        onScreenEnabled: false,
       },
     });
     await expect(
@@ -141,6 +150,33 @@ describe('CommunicationDispatcher', () => {
         to: 'user@example.com',
         purpose: EmailPurpose.EMAIL_OTP,
         html: '<p>&lt;Ada&gt; 123456</p>',
+      }),
+    );
+  });
+
+  it('persists an in-app message for ON_SCREEN', async () => {
+    const { dispatcher, inAppMessageRepository, emailService } = createDispatcher({
+      rule: {
+        enabled: true,
+        mandatory: false,
+        emailEnabled: false,
+        smsEnabled: false,
+        pushEnabled: false,
+        whatsappEnabled: false,
+        onScreenEnabled: true,
+      },
+      template: { templatePath: 'on-screen/DOCUMENTS_ALL_UPLOADED.ACTOR.txt' },
+    });
+    await dispatcher.dispatch({
+      event: CommunicationEvent.DOCUMENTS_ALL_UPLOADED,
+      userId: 9,
+      payload: { firstName: 'Ada' },
+    });
+    expect(emailService.send).not.toHaveBeenCalled();
+    expect(inAppMessageRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 9,
+        event: CommunicationEvent.DOCUMENTS_ALL_UPLOADED,
       }),
     );
   });

@@ -1,0 +1,4 @@
+---
+title: Documents need attention
+---
+One or more documents were not accepted. {{failedDocumentsText}} Please replace them and wait for verification again.

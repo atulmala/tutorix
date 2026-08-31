@@ -1,0 +1,5 @@
+---
+whatsappTemplateName: 
+variableMapping: {"firstName":"1"}
+---
+Hi {{firstName}}, all of your onboarding documents have passed verification. You can continue in your Tutorix dashboard.

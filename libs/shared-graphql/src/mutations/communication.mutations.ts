@@ -15,6 +15,7 @@ const COMMUNICATION_CATALOG_FIELDS = `
     smsEnabled
     pushEnabled
     whatsappEnabled
+    onScreenEnabled
     offsetMinutes
     allowedVariables
     samplePayloadJson

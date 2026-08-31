@@ -1,0 +1,7 @@
+---
+dltTemplateId: 
+dltEntityId: 
+dltHeader: 
+variableMapping: {"firstName":"1","failedCount":"2"}
+---
+Tutorix: Hi {{firstName}}, {{failedCount}} document(s) were not accepted. {{failedDocumentsText}} Please re-upload them.

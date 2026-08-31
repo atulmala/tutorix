@@ -1,0 +1,4 @@
+---
+title: Documents need attention
+---
+{{failedCount}} document(s) were not accepted. {{failedDocumentsText}}

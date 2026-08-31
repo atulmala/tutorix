@@ -27,6 +27,9 @@ import { TutorService } from '../../tutor/services/tutor.service';
 import { StudentService } from '../../student/services/student.service';
 import { RegistrationSettingsService } from '../../registration-settings/services/registration-settings.service';
 import { CommunicationService } from '../../communication/communication.service';
+import { EmailService } from '../../communication/email/email.service';
+import { EmailPurpose } from '../../communication/email/enums/email-purpose.enum';
+import { escapeHtml, formatRecipientName } from '../../communication/email/email.utils';
 
 @Injectable()
 export class AuthService {
@@ -42,6 +45,7 @@ export class AuthService {
     private readonly studentService: StudentService,
     private readonly registrationSettingsService: RegistrationSettingsService,
     private readonly communicationService: CommunicationService,
+    private readonly emailService: EmailService,
   ) {}
 
   /**
@@ -637,33 +641,30 @@ export class AuthService {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 
       (process.env.NODE_ENV === 'production' ? 'https://www.tutorix.com' : 'http://localhost:4200');
     const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+    const firstName = user.firstName?.trim() || 'there';
+    const safeName = escapeHtml(firstName);
+    const safeLink = escapeHtml(resetLink);
 
-    // TODO: Integrate with proper email service (e.g., SendGrid, AWS SES, Nodemailer)
-    // For now, log the reset link (remove this in production and implement proper email sending)
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('📧 PASSWORD RESET LINK GENERATED');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`To: ${user.email}`);
-    console.log(`Subject: Password Reset Request`);
-    console.log(`Reset Link: ${resetLink}`);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('⚠️ TODO: Replace this console.log with actual email sending');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
-    // Email template (for future implementation):
-    // Subject: Reset Your Password
-    // Body:
-    // Hi {firstName},
-    // 
-    // You requested to reset your password. Click the link below to reset it:
-    // {resetLink}
-    //
-    // This link will expire in 1 hour.
-    //
-    // If you didn't request this, please ignore this email.
-    //
-    // Best regards,
-    // Tutorix Team
+    await this.emailService.send({
+      to: user.email as string,
+      subject: 'Reset your Tutorix password',
+      text: `Hi ${firstName},\n\nYou requested to reset your Tutorix password. Open this link to choose a new one:\n${resetLink}\n\nThis link expires in 1 hour. If you didn't request this, you can ignore this email.\n\n— Tutorix`,
+      html: `<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial, Helvetica, sans-serif; color: #111827; line-height: 1.5;">
+    <p>Hi ${safeName},</p>
+    <p>You requested to reset your Tutorix password. Click the button below to choose a new one.</p>
+    <p style="margin: 24px 0;">
+      <a href="${safeLink}" style="background:#5fa8ff;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600;">Reset password</a>
+    </p>
+    <p>This link expires in 1 hour. If you didn't request this, you can ignore this email.</p>
+    <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">— Tutorix</p>
+  </body>
+</html>`,
+      purpose: EmailPurpose.OTHER,
+      userId: user.id,
+      recipientName: formatRecipientName(user.firstName, user.lastName),
+    });
 
     return true;
   }

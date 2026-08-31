@@ -37,6 +37,7 @@ import {
 } from '../document-preview.helpers';
 import { buildTutorDocumentImageMediaPatch } from '../document-image-media';
 import { resolveS3DocumentsRegion } from '../../../common/aws-s3-region';
+import { DocumentVerificationCommunicationService } from './document-verification-communication.service';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const PRESIGN_EXPIRES_SEC = 900;
@@ -87,6 +88,7 @@ export class DocumentService {
     private readonly screeningRepo: Repository<DocumentScreeningEntity>,
     @InjectRepository(Tutor)
     private readonly tutorRepo: Repository<Tutor>,
+    private readonly documentVerificationCommunication: DocumentVerificationCommunicationService,
   ) {
     const region = resolveS3DocumentsRegion(this.configService);
     this.bucket =
@@ -418,9 +420,15 @@ export class DocumentService {
     const saved = await this.documentRepo.save(entity);
 
     if (tutor.testTutor) {
-      return this.autoApproveTestTutorDocument(saved);
+      const approved = await this.autoApproveTestTutorDocument(saved);
+      this.documentVerificationCommunication.notifyIfAllUploaded(tutor.id);
+      this.documentVerificationCommunication.notifyIfVerificationComplete(
+        tutor.id,
+      );
+      return approved;
     }
 
+    this.documentVerificationCommunication.notifyIfAllUploaded(tutor.id);
     return saved;
   }
 

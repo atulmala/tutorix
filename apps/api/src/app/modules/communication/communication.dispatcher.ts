@@ -15,6 +15,7 @@ import { WhatsAppService } from './whatsapp/whatsapp.service';
 import { CommunicationSendEntity } from './entities/communication-send.entity';
 import { CommunicationRuleEntity } from './entities/communication-rule.entity';
 import { CommunicationTemplateEntity } from './entities/communication-template.entity';
+import { InAppMessageEntity } from './entities/in-app-message.entity';
 import { CommunicationAudience } from './enums/communication-audience.enum';
 import { CommunicationChannel } from './enums/communication-channel.enum';
 import { CommunicationEvent } from './enums/communication-event.enum';
@@ -47,6 +48,8 @@ export class CommunicationDispatcher {
     private readonly templateRepository: Repository<CommunicationTemplateEntity>,
     @InjectRepository(CommunicationSendEntity)
     private readonly sendRepository: Repository<CommunicationSendEntity>,
+    @InjectRepository(InAppMessageEntity)
+    private readonly inAppMessageRepository: Repository<InAppMessageEntity>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly templateStore: TemplateStore,
@@ -203,6 +206,19 @@ export class CommunicationDispatcher {
         if (!result.success && provider === 'fcm') {
           throw new Error('Push notification failed');
         }
+      } else if (channel === CommunicationChannel.ON_SCREEN) {
+        to = `user:${user.id}`;
+        const title = renderedAttrs.title?.trim() || null;
+        const row = this.inAppMessageRepository.create({
+          userId: user.id,
+          event: input.event,
+          title,
+          body: renderedBody.trim(),
+          readAt: null,
+        });
+        const saved = await this.inAppMessageRepository.save(row);
+        provider = 'in_app';
+        messageId = String(saved.id);
       } else if (channel === CommunicationChannel.SMS) {
         to = formatPhone(user.mobileCountryCode, user.mobileNumber);
         if (!to) {

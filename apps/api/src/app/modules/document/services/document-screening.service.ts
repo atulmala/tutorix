@@ -12,6 +12,7 @@ import { DocumentScreeningStatusEnum } from '../enums/document-screening-status.
 import { DocumentVerificationWorkflowStatusEnum } from '../enums/document-verification-workflow-status.enum';
 import { ONBOARDING_DOCUMENT_TYPES } from '../onboarding-document-types';
 import { DocumentService } from './document.service';
+import { DocumentVerificationCommunicationService } from './document-verification-communication.service';
 
 @Injectable()
 export class DocumentScreeningService {
@@ -21,6 +22,7 @@ export class DocumentScreeningService {
     @InjectRepository(DocumentEntity)
     private readonly documentRepo: Repository<DocumentEntity>,
     private readonly documentService: DocumentService,
+    private readonly documentVerificationCommunication: DocumentVerificationCommunicationService,
   ) {}
 
   async findByDocumentId(documentId: number): Promise<DocumentScreeningEntity | null> {
@@ -81,6 +83,11 @@ export class DocumentScreeningService {
 
     const savedScreening = await this.screeningRepo.save(screening);
     const savedDocument = await this.documentService.findDocumentById(documentId);
+    if (savedDocument.tutorId) {
+      this.documentVerificationCommunication.notifyIfVerificationComplete(
+        savedDocument.tutorId,
+      );
+    }
 
     return { document: savedDocument, screening: savedScreening };
   }
@@ -104,6 +111,11 @@ export class DocumentScreeningService {
     });
     const savedScreening = await this.screeningRepo.save(screening);
     const savedDocument = await this.documentService.findDocumentById(documentId);
+    if (savedDocument.tutorId) {
+      this.documentVerificationCommunication.notifyIfVerificationComplete(
+        savedDocument.tutorId,
+      );
+    }
 
     return { document: savedDocument, screening: savedScreening };
   }

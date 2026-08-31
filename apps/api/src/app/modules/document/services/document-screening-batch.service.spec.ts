@@ -13,6 +13,7 @@ import { User } from '../../auth/entities/user.entity';
 import { DocumentTypeEnum } from '../enums/document-type.enum';
 import { DocumentVerificationWorkflowStatusEnum } from '../enums/document-verification-workflow-status.enum';
 import { DocumentScreeningStatusEnum } from '../enums/document-screening-status.enum';
+import { DocumentVerificationCommunicationService } from './document-verification-communication.service';
 
 describe('DocumentScreeningBatchService', () => {
   let service: DocumentScreeningBatchService;
@@ -80,6 +81,12 @@ describe('DocumentScreeningBatchService', () => {
           useValue: {
             findOne: userFindOne,
             createQueryBuilder: userCreateQueryBuilder,
+          },
+        },
+        {
+          provide: DocumentVerificationCommunicationService,
+          useValue: {
+            notifyIfVerificationComplete: jest.fn(),
           },
         },
       ],

@@ -1,0 +1,7 @@
+---
+dltTemplateId: 
+dltEntityId: 
+dltHeader: 
+variableMapping: {"firstName":"1"}
+---
+Tutorix: Hi {{firstName}}, we received all your documents. Verification may take up to 24 hours.

@@ -1,26 +1,41 @@
-import type { FetchResult, MutationFunctionOptions } from '@apollo/client';
 import type { OnboardingDocType, PickedFile } from './document-upload.types';
 import { validatePickedFile } from './document-upload.utils';
 
-type RequestUploadUrlMutation = (
-  options?: MutationFunctionOptions<
-    {
-      requestTutorDocumentUploadUrl?: {
-        uploadUrl?: string;
-        storageKey?: string;
-        contentType?: string;
-      };
-    },
-    { input: Record<string, unknown> }
-  >,
-) => Promise<FetchResult>;
+/**
+ * Structural mutation callbacks — avoid Apollo MutationFunctionOptions, which
+ * fail assignability against useMutation under dual @apollo/client installs
+ * (update/OperationVariables contravariance).
+ */
+type RequestUploadUrlMutation = (options: {
+  variables: {
+    input: {
+      documentType: OnboardingDocType;
+      mimeType: string;
+      byteSize: number;
+      originalFilename: string;
+    };
+  };
+}) => Promise<{
+  data?: {
+    requestTutorDocumentUploadUrl?: {
+      uploadUrl?: string | null;
+      storageKey?: string | null;
+      contentType?: string | null;
+    } | null;
+  } | null;
+}>;
 
-type ConfirmUploadMutation = (
-  options?: MutationFunctionOptions<
-    { confirmTutorDocumentUpload?: unknown },
-    { input: Record<string, unknown> }
-  >,
-) => Promise<FetchResult>;
+type ConfirmUploadMutation = (options: {
+  variables: {
+    input: {
+      documentType: OnboardingDocType;
+      storageKey: string;
+      mimeType: string;
+      sizeBytes: number;
+      originalFilename: string;
+    };
+  };
+}) => Promise<{ data?: { confirmTutorDocumentUpload?: unknown } | null }>;
 
 export async function uploadTutorDocument(
   slot: OnboardingDocType,

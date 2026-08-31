@@ -13,6 +13,25 @@ describe('template.renderer', () => {
     ).toBe('<p>&lt;script&gt;x&lt;/script&gt;</p>');
   });
 
+  it('leaves triple-brace values unescaped', () => {
+    expect(
+      renderTemplate(
+        '<p>Hi {{firstName}}</p>{{{failedDocumentsHtml}}}',
+        {
+          firstName: '<Ada>',
+          failedDocumentsHtml: '<ul><li>PAN</li></ul>',
+        },
+        { htmlEscape: true },
+      ),
+    ).toBe('<p>Hi &lt;Ada&gt;</p><ul><li>PAN</li></ul>');
+  });
+
+  it('extracts triple-brace names as placeholders', () => {
+    expect(extractPlaceholders('{{firstName}} {{{failedDocumentsHtml}}}')).toEqual(
+      expect.arrayContaining(['firstName', 'failedDocumentsHtml']),
+    );
+  });
+
   it('extracts placeholders and flags unknown names', () => {
     expect(extractPlaceholders('{{tutorName}} {{otp}}')).toEqual(
       expect.arrayContaining(['tutorName', 'otp']),

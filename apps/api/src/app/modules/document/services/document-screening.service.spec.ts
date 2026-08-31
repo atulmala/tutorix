@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DocumentScreeningService } from './document-screening.service';
 import { DocumentService } from './document.service';
+import { DocumentVerificationCommunicationService } from './document-verification-communication.service';
 import { DocumentEntity } from '../entities/document.entity';
 import { DocumentScreeningEntity } from '../entities/document-screening.entity';
 import { DocumentTypeEnum } from '../enums/document-type.enum';
@@ -47,6 +48,12 @@ describe('DocumentScreeningService', () => {
         {
           provide: DocumentService,
           useValue: { findDocumentById },
+        },
+        {
+          provide: DocumentVerificationCommunicationService,
+          useValue: {
+            notifyIfVerificationComplete: jest.fn(),
+          },
         },
       ],
     }).compile();

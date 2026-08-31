@@ -1,0 +1,7 @@
+---
+dltTemplateId: 
+dltEntityId: 
+dltHeader: 
+variableMapping: {"firstName":"1"}
+---
+Tutorix: Hi {{firstName}}, your documents have passed verification. Continue in your dashboard.

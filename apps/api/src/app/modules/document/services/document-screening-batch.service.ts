@@ -15,6 +15,7 @@ import { ONBOARDING_DOCUMENT_TYPES } from '../onboarding-document-types';
 import { DocumentScreeningAiService } from './document-screening-ai.service';
 import type { AiScreeningTokenUsage } from './document-screening-ai.service';
 import { resolveS3DocumentsRegion } from '../../../common/aws-s3-region';
+import { DocumentVerificationCommunicationService } from './document-verification-communication.service';
 
 export type DocumentProcessOutcome = 'processed' | 'skipped';
 
@@ -61,6 +62,7 @@ export class DocumentScreeningBatchService {
     private readonly screeningRepo: Repository<DocumentScreeningEntity>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly documentVerificationCommunication: DocumentVerificationCommunicationService,
   ) {
     const region = resolveS3DocumentsRegion(this.configService);
     this.bucket =
@@ -247,6 +249,11 @@ export class DocumentScreeningBatchService {
     this.logger.log(
       `Document ${document.id} tutor=${document.tutorId} type=${document.documentType} outcome=${aiResult.status} batch=${batchJobRunId}`,
     );
+    if (document.tutorId) {
+      this.documentVerificationCommunication.notifyIfVerificationComplete(
+        document.tutorId,
+      );
+    }
     return { outcome: 'processed', usage: aiResult.usage ?? emptyTokenUsage() };
   }
 

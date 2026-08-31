@@ -42,6 +42,7 @@ import { CommunicationRuleEntity } from '../modules/communication/entities/commu
 import { CommunicationTemplateEntity } from '../modules/communication/entities/communication-template.entity';
 import { CommunicationSendEntity } from '../modules/communication/entities/communication-send.entity';
 import { UserDeviceTokenEntity } from '../modules/communication/entities/user-device-token.entity';
+import { InAppMessageEntity } from '../modules/communication/entities/in-app-message.entity';
 // Add other entities as they are created
 
 /**
@@ -101,6 +102,7 @@ export function createDatabaseOptions(
       CommunicationTemplateEntity,
       CommunicationSendEntity,
       UserDeviceTokenEntity,
+      InAppMessageEntity,
       // Add other entities here as they are created
       // Class,
     ],
@@ -110,6 +112,7 @@ export function createDatabaseOptions(
     // Use DB_SYNCHRONIZE=true in Docker to auto-create schema from entities.
     migrations: [join(__dirname, '..', '..', 'migrations', '*.ts')],
     migrationsTableName: 'migrations',
+    migrationsTransactionMode: 'each',
 
     // synchronize: auto-create/update schema from entities.
     // Enable via DB_SYNCHRONIZE=true env (Docker/fresh DB).

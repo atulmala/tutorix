@@ -32,6 +32,9 @@ export class AdminCommunicationRuleView {
   @Field()
   whatsappEnabled: boolean;
 
+  @Field()
+  onScreenEnabled: boolean;
+
   @Field(() => Int, { nullable: true })
   offsetMinutes?: number | null;
 

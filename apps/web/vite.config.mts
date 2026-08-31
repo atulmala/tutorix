@@ -3,13 +3,48 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
+import { existsSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 
+function readEnvFile(filePath: string): Record<string, string> {
+  if (!existsSync(filePath)) {
+    return {};
+  }
+  const parsed: Record<string, string> = {};
+  for (const raw of readFileSync(filePath, 'utf8').split('\n')) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) {
+      continue;
+    }
+    const eq = line.indexOf('=');
+    if (eq === -1) {
+      continue;
+    }
+    const key = line.slice(0, eq).trim();
+    let value = line.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    parsed[key] = value;
+  }
+  return parsed;
+}
+
 export default defineConfig(({ mode }) => {
-  // Load env file based on `mode` in the current working directory.
-  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
-  const env = loadEnv(mode, process.cwd(), '');
+  const workspaceRoot = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '../..',
+  );
+  // File values win over a stale process.env left over from an earlier serve.
+  const env = {
+    ...loadEnv(mode, process.cwd(), ''),
+    ...loadEnv(mode, workspaceRoot, ''),
+    ...readEnvFile(path.join(workspaceRoot, '.env')),
+  };
   
   return {
     root: import.meta.dirname,

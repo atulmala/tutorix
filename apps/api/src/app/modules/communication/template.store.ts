@@ -4,7 +4,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 const PATH_PATTERN =
-  /^(email|sms|whatsapp|notification)\/[A-Z0-9_]+\.[A-Z]+\.(html|txt)$/;
+  /^(email|sms|whatsapp|notification|on-screen)\/[A-Z0-9_]+\.[A-Z]+\.(html|txt)$/;
 
 export type ParsedTemplateFile = {
   attributes: Record<string, string>;

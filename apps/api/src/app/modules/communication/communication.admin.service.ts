@@ -88,6 +88,8 @@ export class CommunicationAdminService {
           pushEnabled: rule?.pushEnabled ?? entry.defaultChannels.push,
           whatsappEnabled:
             rule?.whatsappEnabled ?? entry.defaultChannels.whatsapp,
+          onScreenEnabled:
+            rule?.onScreenEnabled ?? entry.defaultChannels.onScreen,
           offsetMinutes: rule?.offsetMinutes ?? entry.offsetMinutes ?? null,
           allowedVariables: entry.allowedVariables,
           samplePayloadJson: JSON.stringify(samplePayload(entry.event)),
@@ -120,6 +122,7 @@ export class CommunicationAdminService {
       input.smsEnabled,
       input.pushEnabled,
       input.whatsappEnabled,
+      input.onScreenEnabled,
     ].filter(Boolean).length;
     const mandatory = catalog.mandatory;
     if (mandatory && enabledCount === 0) {
@@ -143,6 +146,7 @@ export class CommunicationAdminService {
     rule.smsEnabled = input.smsEnabled;
     rule.pushEnabled = input.pushEnabled;
     rule.whatsappEnabled = input.whatsappEnabled;
+    rule.onScreenEnabled = input.onScreenEnabled;
     if (input.offsetMinutes !== undefined) {
       rule.offsetMinutes = input.offsetMinutes;
     }
@@ -183,7 +187,10 @@ export class CommunicationAdminService {
         attributes.text = input.text.trim();
       }
     }
-    if (input.channel === CommunicationChannel.PUSH) {
+    if (
+      input.channel === CommunicationChannel.PUSH ||
+      input.channel === CommunicationChannel.ON_SCREEN
+    ) {
       attributes.title = input.title?.trim() || 'Tutorix';
     }
     if (input.channel === CommunicationChannel.SMS) {
