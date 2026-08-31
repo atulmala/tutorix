@@ -96,6 +96,24 @@ describe('CommunicationDispatcher', () => {
     };
   }
 
+  it('uses catalog default channels when the rule row is missing', async () => {
+    const { dispatcher, notificationService, emailService } = createDispatcher({
+      rule: null,
+    });
+    await dispatcher.dispatch({
+      event: CommunicationEvent.WALLET_TOP_UP,
+      userId: 9,
+      payload: { firstName: 'Ada', amountInr: '100', balanceInr: '200' },
+    });
+    expect(notificationService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 9,
+        data: expect.objectContaining({ event: CommunicationEvent.WALLET_TOP_UP }),
+      }),
+    );
+    expect(emailService.send).toHaveBeenCalled();
+  });
+
   it('skips when the rule is disabled', async () => {
     const { dispatcher, emailService } = createDispatcher({
       rule: {
