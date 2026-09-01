@@ -13,13 +13,14 @@ import {
   EMPLOYMENT_TYPE_LABELS,
   buildExperienceMutationInput,
   emptyExperienceRow,
-  EXPERIENCE_CURRENT_DATE,
   mapExperienceToFormRow,
   normalizeYearsOfExperience,
+  pinExperienceRowToMonthDay,
   validateExperienceRow,
   type ExperienceFormRow,
   type ExperienceRowFieldErrors,
 } from '@tutorix/shared-utils';
+import { MonthYearPickerField } from '@tutorix/tutor-detail-ui';
 import type { StepComponentProps } from '../types';
 
 type MyTutorProfileExperience = Parameters<typeof mapExperienceToFormRow>[0];
@@ -137,7 +138,7 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
       setFormError(null);
       const row = experiences[index];
       if (!row) return false;
-      const result = validateExperienceRow(row);
+      const result = validateExperienceRow(pinExperienceRowToMonthDay(row));
       if (result.ok === false) {
         setErrors((prev) => ({ ...prev, [index]: result.fieldErrors }));
         return false;
@@ -157,7 +158,7 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
     let valid = true;
     const next: Record<number, ExperienceRowFieldErrors> = {};
     experiences.forEach((row, index) => {
-      const result = validateExperienceRow(row);
+      const result = validateExperienceRow(pinExperienceRowToMonthDay(row));
       if (result.ok === false) {
         next[index] = result.fieldErrors;
         valid = false;
@@ -174,7 +175,9 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
     saveExperiences({
       variables: {
         input: {
-          experiences: buildExperienceMutationInput(experiences),
+          experiences: buildExperienceMutationInput(
+            experiences.map(pinExperienceRowToMonthDay),
+          ),
           yearsOfExperience,
           advanceToNextStep: false,
         },
@@ -191,7 +194,9 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
     saveExperiences({
       variables: {
         input: {
-          experiences: buildExperienceMutationInput(experiences),
+          experiences: buildExperienceMutationInput(
+            experiences.map(pinExperienceRowToMonthDay),
+          ),
           yearsOfExperience,
           advanceToNextStep: true,
         },
@@ -329,48 +334,48 @@ export const TutorExperience: React.FC<StepComponentProps> = () => {
                 </div>
               )}
 
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-primary">
-                    Start date <span className="text-danger">*</span>
+              <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:gap-16">
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <label className="block text-sm font-medium text-primary">
+                    Start month/year <span className="text-danger">*</span>
                   </label>
-                  <input
-                    type="date"
+                  <MonthYearPickerField
                     value={row.startDate}
-                    onChange={(e) => updateRow(index, { startDate: e.target.value })}
-                    className={inputCls(!!errors[index]?.startDate)}
-                    max={EXPERIENCE_CURRENT_DATE}
+                    onChange={(startDate) => updateRow(index, { startDate })}
+                    hasError={!!errors[index]?.startDate}
+                    monthAriaLabel={`Experience ${index + 1} start month`}
+                    yearAriaLabel={`Experience ${index + 1} start year`}
                   />
                   {errors[index]?.startDate && (
                     <p className="text-xs text-danger">{errors[index].startDate}</p>
                   )}
                 </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-primary">
-                    End date
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <label className="block text-sm font-medium text-primary">
+                    End month/year
                     {!row.isCurrent && <span className="text-danger"> *</span>}
                   </label>
-                  <input
-                    type="date"
+                  <MonthYearPickerField
                     value={row.endDate}
-                    onChange={(e) => updateRow(index, { endDate: e.target.value })}
-                    className={inputCls(!!errors[index]?.endDate)}
+                    onChange={(endDate) => updateRow(index, { endDate })}
+                    hasError={!!errors[index]?.endDate}
                     disabled={row.isCurrent}
-                    min={row.startDate || undefined}
-                    max={EXPERIENCE_CURRENT_DATE}
-                    style={row.isCurrent ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+                    minValue={row.startDate || undefined}
+                    monthAriaLabel={`Experience ${index + 1} end month`}
+                    yearAriaLabel={`Experience ${index + 1} end year`}
                   />
                   {errors[index]?.endDate && (
                     <p className="text-xs text-danger">{errors[index].endDate}</p>
                   )}
-                </div>
-                <div className="space-y-1 flex items-end pb-1">
-                  <label className="flex items-center gap-2">
+                  <label className="mt-1 flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={row.isCurrent}
                       onChange={(e) =>
-                        updateRow(index, { isCurrent: e.target.checked })
+                        updateRow(index, {
+                          isCurrent: e.target.checked,
+                          ...(e.target.checked ? { endDate: '' } : {}),
+                        })
                       }
                     />
                     <span className="text-sm font-medium text-primary">

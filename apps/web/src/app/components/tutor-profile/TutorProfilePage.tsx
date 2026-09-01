@@ -13,6 +13,7 @@ import {
   buildExperienceMutationInput,
   buildQualificationMutationInput,
   normalizeYearsOfExperience,
+  pinExperienceRowToMonthDay,
   type ExperienceFormRow,
   type QualificationFormRow,
 } from '@tutorix/shared-utils';
@@ -244,7 +245,9 @@ export const TutorProfilePage: React.FC<{
       await saveExperiences({
         variables: {
           input: {
-            experiences: buildExperienceMutationInput(rows),
+            experiences: buildExperienceMutationInput(
+              rows.map(pinExperienceRowToMonthDay),
+            ),
             yearsOfExperience: normalizeYearsOfExperience(tutor.yearsOfExperience),
             advanceToNextStep: false,
           },

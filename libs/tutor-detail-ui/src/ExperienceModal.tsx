@@ -3,12 +3,13 @@ import {
   EMPLOYMENT_TYPE_LABELS,
   EMPLOYMENT_TYPE_LIST,
   EmploymentType,
-  EXPERIENCE_CURRENT_DATE,
   emptyExperienceRow,
+  pinExperienceRowToMonthDay,
   validateExperienceRow,
   type ExperienceFormRow,
   type ExperienceRowFieldErrors,
 } from '@tutorix/shared-utils';
+import { MonthYearPickerField } from './MonthYearPickerField';
 
 export type { ExperienceFormRow };
 
@@ -64,7 +65,7 @@ export function ExperienceModal({
   };
 
   const handleSubmit = () => {
-    const result = validateExperienceRow(row);
+    const result = validateExperienceRow(pinExperienceRowToMonthDay(row));
     if (result.ok === false) {
       setFieldErrors(result.fieldErrors);
       setValidationError(null);
@@ -170,47 +171,49 @@ export function ExperienceModal({
             </>
           ) : null}
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-primary">
-                Start date <span className="text-danger">*</span>
+          <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:gap-16">
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <label className="block text-sm font-medium text-primary">
+                Start month/year <span className="text-danger">*</span>
               </label>
-              <input
-                type="date"
+              <MonthYearPickerField
                 value={row.startDate}
-                onChange={(e) => updateRow({ startDate: e.target.value })}
-                className={inputCls(!!fieldErrors.startDate)}
-                max={EXPERIENCE_CURRENT_DATE}
+                onChange={(startDate) => updateRow({ startDate })}
+                hasError={!!fieldErrors.startDate}
+                monthAriaLabel="Start month"
+                yearAriaLabel="Start year"
               />
               {fieldErrors.startDate ? (
                 <p className="text-xs text-danger">{fieldErrors.startDate}</p>
               ) : null}
             </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-primary">
-                End date
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <label className="block text-sm font-medium text-primary">
+                End month/year
                 {!row.isCurrent ? <span className="text-danger"> *</span> : null}
               </label>
-              <input
-                type="date"
+              <MonthYearPickerField
                 value={row.endDate}
-                onChange={(e) => updateRow({ endDate: e.target.value })}
-                className={inputCls(!!fieldErrors.endDate)}
+                onChange={(endDate) => updateRow({ endDate })}
+                hasError={!!fieldErrors.endDate}
                 disabled={row.isCurrent}
-                min={row.startDate || undefined}
-                max={EXPERIENCE_CURRENT_DATE}
-                style={row.isCurrent ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+                minValue={row.startDate || undefined}
+                monthAriaLabel="End month"
+                yearAriaLabel="End year"
               />
               {fieldErrors.endDate ? (
                 <p className="text-xs text-danger">{fieldErrors.endDate}</p>
               ) : null}
-            </div>
-            <div className="flex items-end pb-1">
-              <label className="flex items-center gap-2">
+              <label className="mt-1 flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={row.isCurrent}
-                  onChange={(e) => updateRow({ isCurrent: e.target.checked })}
+                  onChange={(e) =>
+                    updateRow({
+                      isCurrent: e.target.checked,
+                      ...(e.target.checked ? { endDate: '' } : {}),
+                    })
+                  }
                 />
                 <span className="text-sm font-medium text-primary">Currently working here</span>
               </label>

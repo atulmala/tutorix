@@ -11,6 +11,7 @@ import {
   experienceDurationMonths,
   formatDate,
   formatExperienceDuration,
+  formatExperienceMonthYear,
   formatQualificationTitle,
   getAvailableQualificationTypes,
   mapExperienceToFormRow,
@@ -853,8 +854,10 @@ function ExperienceSection({
                         {exp.employerAddress ? ` · ${exp.employerAddress}` : ''}
                       </p>
                       <p className="mt-1 text-violet-800/60">
-                        {formatDate(exp.startDate)} –{' '}
-                        {exp.isCurrent ? 'Present' : formatDate(exp.endDate)}
+                        {formatExperienceMonthYear(exp.startDate) || '—'} –{' '}
+                        {exp.isCurrent
+                          ? 'Present'
+                          : formatExperienceMonthYear(exp.endDate) || '—'}
                       </p>
                     </div>
                   </div>
