@@ -3,6 +3,7 @@ import { YearsOfExperienceEnum } from './years-of-experience.enum';
 import {
   buildExperienceMutationInput,
   formatExperienceMonthYear,
+  isExperienceMonthInFuture,
   mapEmploymentType,
   mapExperienceToFormRow,
   normalizeYearsOfExperience,
@@ -155,6 +156,14 @@ describe('tutor-experience-form', () => {
       expect(formatExperienceMonthYear('2020-01-15')).toBe('Jan 2020');
       expect(formatExperienceMonthYear('2021-12-01T00:00:00.000Z')).toBe('Dec 2021');
       expect(formatExperienceMonthYear('')).toBe('');
+    });
+
+    it('treats months after the current month as future', () => {
+      const now = new Date('2026-03-10T12:00:00.000Z');
+      expect(isExperienceMonthInFuture(2026, 3, now)).toBe(false);
+      expect(isExperienceMonthInFuture(2026, 4, now)).toBe(true);
+      expect(isExperienceMonthInFuture(2025, 12, now)).toBe(false);
+      expect(isExperienceMonthInFuture(2027, 1, now)).toBe(true);
     });
 
     it('pins form dates to the 15th of the month', () => {

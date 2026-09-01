@@ -16,6 +16,7 @@ export {
   type AddressPlacePrediction,
 } from './AddressModal';
 export { ExperienceModal, type ExperienceFormRow } from './ExperienceModal';
+export { MonthYearPickerField } from './MonthYearPickerField';
 export { QualificationModal, type QualificationFormRow } from './QualificationModal';
 export { RateCardModal, type RateCardFormValuesExport as RateCardFormValues } from './RateCardModal';
 export { OfferingLabel } from './OfferingLabel';

@@ -50,6 +50,18 @@ export function formatExperienceMonthYear(value?: string | null): string {
   return `${EXPERIENCE_MONTH_SHORT_LABELS[parsed.month - 1]} ${parsed.year}`;
 }
 
+export function isExperienceMonthInFuture(
+  year: number,
+  month: number,
+  now = new Date(),
+): boolean {
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  if (year > currentYear) return true;
+  if (year < currentYear) return false;
+  return month > currentMonth;
+}
+
 export type ExperienceFormRow = {
   id?: number;
   jobTitle: string;
