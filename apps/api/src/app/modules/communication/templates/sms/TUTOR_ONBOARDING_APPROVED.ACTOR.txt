@@ -1,0 +1,7 @@
+---
+dltTemplateId: 
+dltEntityId: 
+dltHeader: 
+variableMapping: {"firstName":"1"}
+---
+Tutorix: Hi {{firstName}}, congratulations! You are now a Tutorix certified tutor. Go to your dashboard to build your profile.

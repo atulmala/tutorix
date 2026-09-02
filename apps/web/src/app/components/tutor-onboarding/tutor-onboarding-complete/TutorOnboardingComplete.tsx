@@ -1,16 +1,29 @@
 import React, { useState } from 'react';
-import { useMutation } from '@apollo/client';
+import { useMutation, useQuery } from '@apollo/client';
 import {
   ACKNOWLEDGE_ONBOARDING_CELEBRATION,
+  GET_MY_IN_APP_MESSAGES,
   GET_MY_TUTOR_PROFILE,
+  GET_ON_SCREEN_COPY,
 } from '@tutorix/shared-graphql';
-import { ONBOARDING_APPROVED_MESSAGE } from '@tutorix/shared-utils';
+import {
+  TUTOR_ONBOARDING_APPROVED_EVENT,
+  resolveOnboardingApprovedCopy,
+} from '@tutorix/shared-utils';
 import type { StepComponentProps } from '../types';
 
 export const TutorOnboardingComplete: React.FC<StepComponentProps> = ({
   onComplete,
 }) => {
   const [error, setError] = useState<string | null>(null);
+  const { data: onScreenData } = useQuery(GET_ON_SCREEN_COPY, {
+    variables: { event: TUTOR_ONBOARDING_APPROVED_EVENT },
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: inAppData } = useQuery(GET_MY_IN_APP_MESSAGES, {
+    variables: { event: TUTOR_ONBOARDING_APPROVED_EVENT },
+    fetchPolicy: 'cache-and-network',
+  });
   const [acknowledge, { loading }] = useMutation(
     ACKNOWLEDGE_ONBOARDING_CELEBRATION,
     {
@@ -18,6 +31,11 @@ export const TutorOnboardingComplete: React.FC<StepComponentProps> = ({
       awaitRefetchQueries: true,
     },
   );
+
+  const approvedCopy = resolveOnboardingApprovedCopy({
+    inAppBody: inAppData?.myInAppMessages?.[0]?.body,
+    catalogBody: onScreenData?.onScreenCopy?.body,
+  });
 
   const handleGoToDashboard = async () => {
     setError(null);
@@ -37,7 +55,7 @@ export const TutorOnboardingComplete: React.FC<StepComponentProps> = ({
         className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-950"
         role="status"
       >
-        <p>{ONBOARDING_APPROVED_MESSAGE}</p>
+        <p>{approvedCopy}</p>
       </div>
 
       {error ? (

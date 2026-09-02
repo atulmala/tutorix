@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useMutation } from '@apollo/client';
+import { useMutation, useQuery } from '@apollo/client';
 import {
   ACKNOWLEDGE_ONBOARDING_CELEBRATION,
 } from '@tutorix/shared-graphql/mutations';
-import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
-import { ONBOARDING_APPROVED_MESSAGE } from '@tutorix/shared-utils';
+import {
+  GET_MY_IN_APP_MESSAGES,
+  GET_MY_TUTOR_PROFILE,
+  GET_ON_SCREEN_COPY,
+} from '@tutorix/shared-graphql/queries';
+import {
+  TUTOR_ONBOARDING_APPROVED_EVENT,
+  resolveOnboardingApprovedCopy,
+} from '@tutorix/shared-utils';
 
 type Props = {
   onGoToDashboard?: () => void;
@@ -13,6 +20,14 @@ type Props = {
 
 export const TutorOnboardingComplete: React.FC<Props> = ({ onGoToDashboard }) => {
   const [error, setError] = useState<string | null>(null);
+  const { data: onScreenData } = useQuery(GET_ON_SCREEN_COPY, {
+    variables: { event: TUTOR_ONBOARDING_APPROVED_EVENT },
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: inAppData } = useQuery(GET_MY_IN_APP_MESSAGES, {
+    variables: { event: TUTOR_ONBOARDING_APPROVED_EVENT },
+    fetchPolicy: 'cache-and-network',
+  });
   const [acknowledge, { loading }] = useMutation(
     ACKNOWLEDGE_ONBOARDING_CELEBRATION,
     {
@@ -20,6 +35,11 @@ export const TutorOnboardingComplete: React.FC<Props> = ({ onGoToDashboard }) =>
       awaitRefetchQueries: true,
     },
   );
+
+  const approvedCopy = resolveOnboardingApprovedCopy({
+    inAppBody: inAppData?.myInAppMessages?.[0]?.body,
+    catalogBody: onScreenData?.onScreenCopy?.body,
+  });
 
   const handleGoToDashboard = async () => {
     setError(null);
@@ -36,7 +56,7 @@ export const TutorOnboardingComplete: React.FC<Props> = ({ onGoToDashboard }) =>
   return (
     <View style={styles.container}>
       <View style={styles.banner}>
-        <Text style={styles.bannerText}>{ONBOARDING_APPROVED_MESSAGE}</Text>
+        <Text style={styles.bannerText}>{approvedCopy}</Text>
       </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <TouchableOpacity

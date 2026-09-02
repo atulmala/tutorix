@@ -1,11 +1,16 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useQuery } from '@apollo/client';
-import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
+import {
+  GET_MY_IN_APP_MESSAGES,
+  GET_MY_TUTOR_PROFILE,
+  GET_ON_SCREEN_COPY,
+} from '@tutorix/shared-graphql/queries';
 import {
   APPLICATION_REVIEW_MESSAGE,
-  ONBOARDING_APPROVED_MESSAGE,
+  TUTOR_ONBOARDING_APPROVED_EVENT,
   normalizeCertificationStage,
+  resolveOnboardingApprovedCopy,
 } from '@tutorix/shared-utils';
 
 export const TutorApplicationReview: React.FC = () => {
@@ -19,11 +24,27 @@ export const TutorApplicationReview: React.FC = () => {
     tutor?.onBoardingComplete === true ||
     normalizeCertificationStage(tutor?.certificationStage) === 'complete';
 
+  const { data: onScreenData } = useQuery(GET_ON_SCREEN_COPY, {
+    variables: { event: TUTOR_ONBOARDING_APPROVED_EVENT },
+    skip: !approved,
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: inAppData } = useQuery(GET_MY_IN_APP_MESSAGES, {
+    variables: { event: TUTOR_ONBOARDING_APPROVED_EVENT },
+    skip: !approved,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const approvedCopy = resolveOnboardingApprovedCopy({
+    inAppBody: inAppData?.myInAppMessages?.[0]?.body,
+    catalogBody: onScreenData?.onScreenCopy?.body,
+  });
+
   return (
     <View style={styles.container}>
       <View style={[styles.infoBanner, approved && styles.approvedBanner]}>
         <Text style={[styles.infoBannerText, approved && styles.approvedText]}>
-          {approved ? ONBOARDING_APPROVED_MESSAGE : APPLICATION_REVIEW_MESSAGE}
+          {approved ? approvedCopy : APPLICATION_REVIEW_MESSAGE}
         </Text>
       </View>
     </View>

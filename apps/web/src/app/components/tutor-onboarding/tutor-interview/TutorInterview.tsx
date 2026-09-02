@@ -1,10 +1,15 @@
 import React from 'react';
 import { useQuery } from '@apollo/client';
-import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql';
+import {
+  GET_MY_IN_APP_MESSAGES,
+  GET_MY_TUTOR_PROFILE,
+  GET_ON_SCREEN_COPY,
+} from '@tutorix/shared-graphql';
 import {
   APPLICATION_REVIEW_MESSAGE,
-  ONBOARDING_APPROVED_MESSAGE,
+  TUTOR_ONBOARDING_APPROVED_EVENT,
   normalizeCertificationStage,
+  resolveOnboardingApprovedCopy,
 } from '@tutorix/shared-utils';
 import type { StepComponentProps } from '../types';
 
@@ -19,6 +24,22 @@ export const TutorInterview: React.FC<StepComponentProps> = () => {
     tutor?.onBoardingComplete === true ||
     normalizeCertificationStage(tutor?.certificationStage) === 'complete';
 
+  const { data: onScreenData } = useQuery(GET_ON_SCREEN_COPY, {
+    variables: { event: TUTOR_ONBOARDING_APPROVED_EVENT },
+    skip: !approved,
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: inAppData } = useQuery(GET_MY_IN_APP_MESSAGES, {
+    variables: { event: TUTOR_ONBOARDING_APPROVED_EVENT },
+    skip: !approved,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const approvedCopy = resolveOnboardingApprovedCopy({
+    inAppBody: inAppData?.myInAppMessages?.[0]?.body,
+    catalogBody: onScreenData?.onScreenCopy?.body,
+  });
+
   return (
     <div
       className={`rounded-lg border px-4 py-3 text-sm ${
@@ -28,7 +49,7 @@ export const TutorInterview: React.FC<StepComponentProps> = () => {
       }`}
       role="status"
     >
-      <p>{approved ? ONBOARDING_APPROVED_MESSAGE : APPLICATION_REVIEW_MESSAGE}</p>
+      <p>{approved ? approvedCopy : APPLICATION_REVIEW_MESSAGE}</p>
     </div>
   );
 };

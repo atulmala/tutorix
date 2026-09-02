@@ -12,6 +12,20 @@ export const APPLICATION_REVIEW_MESSAGE =
 export const ONBOARDING_APPROVED_MESSAGE =
   'Congratulations! You are now accepted as a Tutorix certified tutor! Go to your dashboard to build your tutor profile.';
 
+/** GraphQL `CommunicationEvent` for the congratulations screen and email. */
+export const TUTOR_ONBOARDING_APPROVED_EVENT = 'TUTOR_ONBOARDING_APPROVED';
+
+export function resolveOnboardingApprovedCopy(parts: {
+  inAppBody?: string | null;
+  catalogBody?: string | null;
+}): string {
+  return (
+    parts.inAppBody?.trim() ||
+    parts.catalogBody?.trim() ||
+    ONBOARDING_APPROVED_MESSAGE
+  );
+}
+
 export type OnboardingStepId =
   | 'address'
   | 'qualification'

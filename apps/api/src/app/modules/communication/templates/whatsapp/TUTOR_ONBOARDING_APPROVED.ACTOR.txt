@@ -1,0 +1,5 @@
+---
+whatsappTemplateName: 
+variableMapping: {"firstName":"1"}
+---
+Hi {{firstName}}, congratulations! You are now accepted as a Tutorix certified tutor. Go to your dashboard to build your tutor profile.

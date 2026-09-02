@@ -3,7 +3,9 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BatchJobAuditModule } from '../../batch-jobs/batch-job-audit.module';
 import { AuthModule } from '../auth/auth.module';
+import { CommunicationModule } from '../communication/communication.module';
 import { DocumentModule } from '../document/document.module';
+import { User } from '../auth/entities/user.entity';
 import { Tutor } from './entities/tutor.entity';
 import { TutorQualificationEntity } from './entities/tutor-qualification.entity';
 import { TutorOfferingEntity } from './entities/tutor-offering.entity';
@@ -37,7 +39,9 @@ import { WalletModule } from '../wallet/wallet.module';
       TutorQualificationEntity,
       TutorOfferingEntity,
       TutorOfferingPtFeeEntity,
+      User,
     ]),
+    CommunicationModule,
     DocumentModule,
     ProficiencyModule,
     forwardRef(() => ExperienceModule),

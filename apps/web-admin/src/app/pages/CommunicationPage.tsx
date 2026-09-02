@@ -8,7 +8,13 @@ import {
 } from '@tutorix/shared-graphql';
 
 type Channel = 'EMAIL' | 'SMS' | 'PUSH' | 'WHATSAPP' | 'ON_SCREEN';
-type EventGroup = 'Documents' | 'Verification' | 'Wallet' | 'Classes' | 'Other';
+type EventGroup =
+  | 'Documents'
+  | 'Onboarding'
+  | 'Verification'
+  | 'Wallet'
+  | 'Classes'
+  | 'Other';
 
 type ChannelTemplate = {
   channel: Channel;
@@ -153,6 +159,13 @@ const GROUP_STYLES: Record<
     bar: 'bg-rose-500',
     idle: 'border-white bg-white hover:border-rose-200 hover:bg-rose-50/60',
   },
+  Onboarding: {
+    header: 'text-teal-700',
+    active:
+      'border-teal-300 bg-gradient-to-br from-teal-50 via-white to-emerald-50 ring-1 ring-teal-200/70',
+    bar: 'bg-teal-500',
+    idle: 'border-white bg-white hover:border-teal-200 hover:bg-teal-50/60',
+  },
   Verification: {
     header: 'text-amber-700',
     active:
@@ -191,6 +204,7 @@ const AUDIENCE_CHIP: Record<string, string> = {
 
 function eventGroup(event: string): EventGroup {
   if (event.startsWith('DOCUMENTS_')) return 'Documents';
+  if (event.includes('ONBOARDING')) return 'Onboarding';
   if (event.includes('VERIFICATION')) return 'Verification';
   if (event.includes('WALLET')) return 'Wallet';
   if (event.includes('CLASS')) return 'Classes';
