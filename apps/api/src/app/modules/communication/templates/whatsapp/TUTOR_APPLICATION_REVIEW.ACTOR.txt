@@ -1,0 +1,5 @@
+---
+whatsappTemplateName: 
+variableMapping: {"firstName":"1"}
+---
+Hi {{firstName}}, your application is undergoing review. You will be notified when the process is completed. Thanks for your patience.

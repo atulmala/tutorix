@@ -1,0 +1,7 @@
+---
+dltTemplateId: 
+dltEntityId: 
+dltHeader: 
+variableMapping: {"firstName":"1"}
+---
+Tutorix: Hi {{firstName}}, your application is under review. We will notify you when it is completed.

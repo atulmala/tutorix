@@ -15,15 +15,35 @@ export const ONBOARDING_APPROVED_MESSAGE =
 /** GraphQL `CommunicationEvent` for the congratulations screen and email. */
 export const TUTOR_ONBOARDING_APPROVED_EVENT = 'TUTOR_ONBOARDING_APPROVED';
 
+/** GraphQL `CommunicationEvent` for the application-review waiting screen. */
+export const TUTOR_APPLICATION_REVIEW_EVENT = 'TUTOR_APPLICATION_REVIEW';
+
+export function resolveOnScreenCopy(
+  parts: {
+    inAppBody?: string | null;
+    catalogBody?: string | null;
+  },
+  fallback: string,
+): string {
+  return (
+    parts.inAppBody?.trim() ||
+    parts.catalogBody?.trim() ||
+    fallback
+  );
+}
+
 export function resolveOnboardingApprovedCopy(parts: {
   inAppBody?: string | null;
   catalogBody?: string | null;
 }): string {
-  return (
-    parts.inAppBody?.trim() ||
-    parts.catalogBody?.trim() ||
-    ONBOARDING_APPROVED_MESSAGE
-  );
+  return resolveOnScreenCopy(parts, ONBOARDING_APPROVED_MESSAGE);
+}
+
+export function resolveApplicationReviewCopy(parts: {
+  inAppBody?: string | null;
+  catalogBody?: string | null;
+}): string {
+  return resolveOnScreenCopy(parts, APPLICATION_REVIEW_MESSAGE);
 }
 
 export type OnboardingStepId =

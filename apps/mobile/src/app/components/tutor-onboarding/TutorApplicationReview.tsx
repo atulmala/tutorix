@@ -7,9 +7,10 @@ import {
   GET_ON_SCREEN_COPY,
 } from '@tutorix/shared-graphql/queries';
 import {
-  APPLICATION_REVIEW_MESSAGE,
+  TUTOR_APPLICATION_REVIEW_EVENT,
   TUTOR_ONBOARDING_APPROVED_EVENT,
   normalizeCertificationStage,
+  resolveApplicationReviewCopy,
   resolveOnboardingApprovedCopy,
 } from '@tutorix/shared-utils';
 
@@ -24,27 +25,32 @@ export const TutorApplicationReview: React.FC = () => {
     tutor?.onBoardingComplete === true ||
     normalizeCertificationStage(tutor?.certificationStage) === 'complete';
 
+  const copyEvent = approved
+    ? TUTOR_ONBOARDING_APPROVED_EVENT
+    : TUTOR_APPLICATION_REVIEW_EVENT;
+
   const { data: onScreenData } = useQuery(GET_ON_SCREEN_COPY, {
-    variables: { event: TUTOR_ONBOARDING_APPROVED_EVENT },
-    skip: !approved,
+    variables: { event: copyEvent },
     fetchPolicy: 'cache-and-network',
   });
   const { data: inAppData } = useQuery(GET_MY_IN_APP_MESSAGES, {
-    variables: { event: TUTOR_ONBOARDING_APPROVED_EVENT },
-    skip: !approved,
+    variables: { event: copyEvent },
     fetchPolicy: 'cache-and-network',
   });
 
-  const approvedCopy = resolveOnboardingApprovedCopy({
+  const copyParts = {
     inAppBody: inAppData?.myInAppMessages?.[0]?.body,
     catalogBody: onScreenData?.onScreenCopy?.body,
-  });
+  };
+  const bannerCopy = approved
+    ? resolveOnboardingApprovedCopy(copyParts)
+    : resolveApplicationReviewCopy(copyParts);
 
   return (
     <View style={styles.container}>
       <View style={[styles.infoBanner, approved && styles.approvedBanner]}>
         <Text style={[styles.infoBannerText, approved && styles.approvedText]}>
-          {approved ? approvedCopy : APPLICATION_REVIEW_MESSAGE}
+          {bannerCopy}
         </Text>
       </View>
     </View>

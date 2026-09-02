@@ -204,7 +204,9 @@ const AUDIENCE_CHIP: Record<string, string> = {
 
 function eventGroup(event: string): EventGroup {
   if (event.startsWith('DOCUMENTS_')) return 'Documents';
-  if (event.includes('ONBOARDING')) return 'Onboarding';
+  if (event.includes('ONBOARDING') || event === 'TUTOR_APPLICATION_REVIEW') {
+    return 'Onboarding';
+  }
   if (event.includes('VERIFICATION')) return 'Verification';
   if (event.includes('WALLET')) return 'Wallet';
   if (event.includes('CLASS')) return 'Classes';

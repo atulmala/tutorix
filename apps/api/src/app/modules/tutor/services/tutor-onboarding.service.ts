@@ -39,10 +39,12 @@ export class TutorOnboardingService {
       );
     }
 
-    return this.tutorService.updateCertificationStage(
+    const updated = await this.tutorService.updateCertificationStage(
       tutor.id,
       TutorCertificationStageEnum.interview,
     );
+    await this.emitApplicationReview(updated);
+    return updated;
   }
 
   async approveTutorOnboarding(tutor: Tutor): Promise<Tutor> {
@@ -83,6 +85,25 @@ export class TutorOnboardingService {
       return tutor;
     }
     return this.tutorService.updateOnboardingCelebrationSeen(tutor.id, true);
+  }
+
+  private async emitApplicationReview(tutor: Tutor): Promise<void> {
+    try {
+      const user = await this.userRepo.findOne({
+        where: { id: tutor.userId, deleted: false },
+        select: ['id', 'firstName'],
+      });
+      await this.communicationService.emit({
+        event: CommunicationEvent.TUTOR_APPLICATION_REVIEW,
+        userId: tutor.userId,
+        entityType: 'tutor-application-review',
+        entityId: String(tutor.id),
+        payload: { firstName: user?.firstName?.trim() || 'there' },
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`TUTOR_APPLICATION_REVIEW emit failed: ${message}`);
+    }
   }
 
   private async emitOnboardingApproved(tutor: Tutor): Promise<void> {

@@ -33,6 +33,7 @@ const DOCS_FAILED_VARS = [
   'failedDocumentsHtml',
 ];
 const TUTOR_APPROVED_VARS = ['firstName'];
+const TUTOR_APPLICATION_REVIEW_VARS = ['firstName'];
 
 const NONE: ChannelFlags = {
   email: false,
@@ -133,6 +134,14 @@ export const COMMUNICATION_CATALOG: CatalogEntry[] = [
     allowedVariables: TUTOR_APPROVED_VARS,
     label: 'Tutor onboarding approved',
   },
+  {
+    event: CommunicationEvent.TUTOR_APPLICATION_REVIEW,
+    audience: CommunicationAudience.ACTOR,
+    mandatory: false,
+    defaultChannels: { ...NONE, onScreen: true },
+    allowedVariables: TUTOR_APPLICATION_REVIEW_VARS,
+    label: 'Tutor application review',
+  },
 ];
 
 export const ALL_CHANNELS: CommunicationChannel[] = [
@@ -204,6 +213,7 @@ export function samplePayload(event: CommunicationEvent): Record<string, string>
     case CommunicationEvent.DOCUMENTS_ALL_UPLOADED:
     case CommunicationEvent.DOCUMENTS_VERIFICATION_PASSED:
     case CommunicationEvent.TUTOR_ONBOARDING_APPROVED:
+    case CommunicationEvent.TUTOR_APPLICATION_REVIEW:
       return { firstName: 'Ada' };
     case CommunicationEvent.DOCUMENTS_VERIFICATION_FAILED:
       return {

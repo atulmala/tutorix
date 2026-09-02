@@ -23,7 +23,10 @@ describe('TutorOnboardingService', () => {
       }
       return Promise.resolve(undefined);
     });
-    const updateCertificationStage = jest.fn().mockResolvedValue(undefined);
+    const updateCertificationStage = jest.fn().mockResolvedValue({
+      ...tutor,
+      certificationStage: TutorCertificationStageEnum.interview,
+    });
     const updatedTutor = {
       ...tutor,
       certificationStage: TutorCertificationStageEnum.complete,
@@ -127,6 +130,49 @@ describe('TutorOnboardingService', () => {
       const result = await service.approveTutorOnboarding(tutorInput as never);
       expect(updateOnboardingStatus).toHaveBeenCalled();
       expect(result.onBoardingComplete).toBe(true);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('emits TUTOR_APPLICATION_REVIEW when documents step completes', async () => {
+    const { service, emit, updateCertificationStage } = createService({
+      stage: TutorCertificationStageEnum.docs,
+    });
+
+    await service.completeDocsStep({
+      ...tutor,
+      certificationStage: TutorCertificationStageEnum.docs,
+    } as never);
+
+    expect(updateCertificationStage).toHaveBeenCalledWith(
+      tutor.id,
+      TutorCertificationStageEnum.interview,
+    );
+    expect(emit).toHaveBeenCalledWith({
+      event: CommunicationEvent.TUTOR_APPLICATION_REVIEW,
+      userId: tutor.userId,
+      entityType: 'tutor-application-review',
+      entityId: String(tutor.id),
+      payload: { firstName: 'Ada' },
+    });
+  });
+
+  it('still completes documents step if application-review emit fails', async () => {
+    const errorSpy = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    const { service, updateCertificationStage } = createService({
+      stage: TutorCertificationStageEnum.docs,
+      emitError: new Error('smtp down'),
+    });
+
+    try {
+      await service.completeDocsStep({
+        ...tutor,
+        certificationStage: TutorCertificationStageEnum.docs,
+      } as never);
+      expect(updateCertificationStage).toHaveBeenCalled();
     } finally {
       errorSpy.mockRestore();
     }
