@@ -17,6 +17,7 @@ import { AnalyticsViewTracker } from '../components/AnalyticsViewTracker';
 import { WebAuthProvider, useWebAuth } from './auth/useWebAuth';
 import type { WebUser } from './types/web-user';
 import { SessionLoadingGate } from './auth/SessionLoadingGate';
+import { LegalPage } from './components/LegalPage';
 
 type View =
   | 'home'
@@ -29,7 +30,9 @@ type View =
   | 'tutor-profile'
   | 'student-onboarding'
   | 'student-profile'
-  | 'wallet';
+  | 'wallet'
+  | 'privacy'
+  | 'terms';
 
 function AppContent() {
   const { user: currentUser, refreshUser, logout } = useWebAuth();
@@ -195,6 +198,18 @@ function AppContent() {
 
   // Check for reset password token in URL on mount (takes precedence over session restore)
   useEffect(() => {
+    const path = window.location.pathname.replace(/\/$/, '') || '/';
+    if (path === '/privacy') {
+      skipSessionRestoreRef.current = true;
+      setCurrentViewInternal('privacy');
+      return;
+    }
+    if (path === '/terms') {
+      skipSessionRestoreRef.current = true;
+      setCurrentViewInternal('terms');
+      return;
+    }
+
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     if (token) {
@@ -410,6 +425,14 @@ function AppContent() {
         </main>
       </div>
     );
+  }
+
+  if (currentView === 'privacy') {
+    return <LegalPage kind="privacy" />;
+  }
+
+  if (currentView === 'terms') {
+    return <LegalPage kind="terms" />;
   }
 
   if (currentView === 'login') {

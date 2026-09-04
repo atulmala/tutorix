@@ -9,7 +9,7 @@ applyGraphqlEndpointAlias();
 module.exports = function (api) {
   api.cache.using(
     () =>
-      `${process.env.DEV_LAN_HOST || ''}|${process.env.NX_GRAPHQL_ENDPOINT || ''}|${process.env.VITE_GRAPHQL_ENDPOINT || ''}`,
+      `${process.env.DEV_LAN_HOST || ''}|${process.env.NX_GRAPHQL_ENDPOINT || ''}|${process.env.VITE_GRAPHQL_ENDPOINT || ''}|${process.env.VITE_FRONTEND_URL || ''}|${process.env.NX_FRONTEND_URL || ''}`,
   );
 
   // Simple inline plugin to replace process.env variables with actual values
@@ -44,7 +44,9 @@ module.exports = function (api) {
               varName === 'VITE_GRAPHQL_ENDPOINT' ||
               varName === 'DEV_LAN_HOST' ||
               varName === 'GOOGLE_MAPS_API_KEY' ||
-              varName === 'VITE_GOOGLE_MAPS_API_KEY'
+              varName === 'VITE_GOOGLE_MAPS_API_KEY' ||
+              varName === 'VITE_FRONTEND_URL' ||
+              varName === 'NX_FRONTEND_URL'
             ) {
               const value = process.env[varName];
               if (value !== undefined) {

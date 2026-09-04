@@ -144,6 +144,10 @@ export class ProfilePictureService {
     }
   }
 
+  async clearStoredObjects(user: User): Promise<void> {
+    await this.deleteExistingProfilePictureObjects(user);
+  }
+
   async requestUploadUrl(
     user: User,
     input: RequestProfilePictureUploadUrlInput,

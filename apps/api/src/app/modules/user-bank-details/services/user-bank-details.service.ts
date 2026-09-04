@@ -51,6 +51,21 @@ export class UserBankDetailsService {
     return this.mapEntityToGraphql(saved);
   }
 
+  async anonymizeAndSoftDelete(userId: number): Promise<void> {
+    const entity = await this.findByUserId(userId);
+    if (!entity) {
+      return;
+    }
+    entity.deleted = true;
+    entity.active = false;
+    entity.bankName = 'DELETED';
+    entity.accountNumber = 'DELETED';
+    entity.ifscCode = 'DELETED0000';
+    entity.gstNumber = null;
+    entity.panNumber = null;
+    await this.repo.save(entity);
+  }
+
   mapToGraphql(entity: UserBankDetailsEntity | null): UserBankDetails | null {
     if (!entity) {
       return null;

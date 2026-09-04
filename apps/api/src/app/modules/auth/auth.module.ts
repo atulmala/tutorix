@@ -22,6 +22,7 @@ import { TutorModule } from '../tutor/tutor.module';
 import { StudentModule } from '../student/student.module';
 import { RegistrationSettingsModule } from '../registration-settings/registration-settings.module';
 import { CommunicationModule } from '../communication/communication.module';
+import { UserBankDetailsModule } from '../user-bank-details/user-bank-details.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { CommunicationModule } from '../communication/communication.module';
     forwardRef(() => StudentModule),
     RegistrationSettingsModule,
     CommunicationModule,
+    UserBankDetailsModule,
   ],
   providers: [
     AuthService,

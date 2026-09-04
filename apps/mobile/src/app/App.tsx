@@ -34,6 +34,7 @@ import {
   shouldOpenWallet,
   type PushPayload,
 } from '../lib/push-notifications';
+import { clearBiometricToken } from './lib/biometric-auth';
 import { AnalyticsViewTracker } from '../components/AnalyticsViewTracker';
 import { FeatureFlagsProvider } from './feature-flags/FeatureFlagsContext';
 import { AppUpdateGate } from './components/AppUpdateGate';
@@ -111,6 +112,22 @@ function AppContent() {
 
   const handleLogout = useCallback(async () => {
     await unregisterPushNotifications(apolloClient);
+    await clearBiometricToken();
+    await removeAuthToken();
+    await apolloClient.clearStore();
+    setCurrentView('login');
+    setTutorProfileForOnboarding(null);
+    setStudentProfileForOnboarding(null);
+    setSignupResume(null);
+    setPushBanner(null);
+    if (pushBannerTimerRef.current) {
+      clearTimeout(pushBannerTimerRef.current);
+      pushBannerTimerRef.current = null;
+    }
+  }, [apolloClient]);
+
+  const handleAccountDeleted = useCallback(async () => {
+    await clearBiometricToken();
     await removeAuthToken();
     await apolloClient.clearStore();
     setCurrentView('login');
@@ -352,6 +369,9 @@ function AppContent() {
         <NavHeader title="My profile" onLogout={handleLogout} />
         <StudentDetailScreen
           onOpenWallet={() => handleOpenWallet('studentProfile')}
+          onAccountDeleted={() => {
+            void handleAccountDeleted();
+          }}
         />
       </View>
     );
@@ -361,6 +381,9 @@ function AppContent() {
         <NavHeader title="My profile" onLogout={handleLogout} />
         <TutorDetailScreen
           onOpenWallet={() => handleOpenWallet('tutorProfile')}
+          onAccountDeleted={() => {
+            void handleAccountDeleted();
+          }}
         />
       </View>
     );

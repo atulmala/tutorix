@@ -172,3 +172,9 @@ export const RESET_PASSWORD = gql`
     resetPassword(input: $input)
   }
 `;
+
+export const DELETE_MY_ACCOUNT = gql`
+  mutation DeleteMyAccount {
+    deleteMyAccount
+  }
+`;

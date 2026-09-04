@@ -149,4 +149,15 @@ export class StudentService {
     }
     return this.studentRepository.save(student);
   }
+
+  async removeByUserId(userId: number): Promise<void> {
+    const student = await this.studentRepository.findOne({
+      where: { userId, deleted: false },
+    });
+    if (!student) {
+      return;
+    }
+    student.deleted = true;
+    await this.studentRepository.save(student);
+  }
 }

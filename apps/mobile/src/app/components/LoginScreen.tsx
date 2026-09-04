@@ -18,6 +18,7 @@ import { LOGIN, REFRESH_TOKEN } from '@tutorix/shared-graphql/mutations';
 import { getPhoneCountryCode } from '@tutorix/shared-utils';
 import { setAuthToken, getAuthToken } from '@tutorix/shared-graphql/client/mobile/token-storage';
 import { BRAND_NAME } from '../config';
+import { LegalLinks } from './LegalLinks';
 import { AnalyticsEvent } from '@tutorix/analytics';
 import { trackEvent } from '../../lib/analytics';
 import { setUserId as setCrashlyticsUserId } from '../../lib/crashlytics';
@@ -537,6 +538,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onForg
             </TouchableOpacity>
           )}
 
+          <View style={styles.legalWrap}>
+            <LegalLinks />
+          </View>
+
         </View>
       </ScrollView>
 
@@ -755,6 +760,9 @@ const styles = StyleSheet.create({
     color: '#1d4ed8',
     fontSize: 14,
     fontWeight: '600',
+  },
+  legalWrap: {
+    marginTop: 20,
   },
   modalOverlay: {
     flex: 1,
