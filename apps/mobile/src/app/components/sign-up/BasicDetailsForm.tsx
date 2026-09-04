@@ -17,6 +17,7 @@ import DateTimePicker, {
 import { REGISTER_USER } from '@tutorix/shared-graphql/mutations';
 import { getPhoneCountryCode } from '@tutorix/shared-utils';
 import { useRegistrationFlags } from '../../feature-flags/FeatureFlagsContext';
+import { LegalLinks } from '../LegalLinks';
 
 export type BasicDetails = {
   firstName: string;
@@ -608,6 +609,10 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
         </View>
       )}
 
+      <View style={styles.legalWrap}>
+        <LegalLinks prefix />
+      </View>
+
       <TouchableOpacity
         style={[styles.primaryButton, (!canSubmit || isSubmitting) && styles.primaryButtonDisabled]}
         onPress={handleSubmit}
@@ -836,6 +841,10 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#991b1b',
     fontSize: 13,
+  },
+  legalWrap: {
+    marginTop: 8,
+    marginBottom: 4,
   },
   primaryButton: {
     backgroundColor: '#1d4ed8',

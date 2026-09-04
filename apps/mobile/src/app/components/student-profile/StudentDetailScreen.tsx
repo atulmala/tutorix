@@ -41,6 +41,7 @@ import {
 import { ParentModal } from './ParentModal';
 import { EducationModal } from './EducationModal';
 import { WalletBalanceChip } from '../wallet';
+import { AccountLegalSection } from '../AccountLegalSection';
 
 type MyStudentDetailData = {
   myStudentDetail: StudentDetailRecord;
@@ -48,6 +49,7 @@ type MyStudentDetailData = {
 
 type StudentDetailScreenProps = {
   onOpenWallet?: () => void;
+  onAccountDeleted?: () => void;
 };
 
 function formatMobile(user?: StudentDetailRecord['user']): string {
@@ -119,6 +121,7 @@ function formatTimelineDate(entry: OnboardingTimelineEntry): string {
 
 export const StudentDetailScreen: React.FC<StudentDetailScreenProps> = ({
   onOpenWallet,
+  onAccountDeleted,
 }) => {
   const [parentModalOpen, setParentModalOpen] = useState(false);
   const [addressModalOpen, setAddressModalOpen] = useState(false);
@@ -431,6 +434,10 @@ export const StudentDetailScreen: React.FC<StudentDetailScreenProps> = ({
           </View>
         ))}
       </View>
+
+      {onAccountDeleted ? (
+        <AccountLegalSection onAccountDeleted={onAccountDeleted} />
+      ) : null}
 
       <ParentModal
         visible={parentModalOpen}

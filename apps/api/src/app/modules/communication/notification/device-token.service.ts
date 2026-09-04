@@ -43,6 +43,10 @@ export class DeviceTokenService {
     return true;
   }
 
+  async unregisterAllForUser(userId: number): Promise<void> {
+    await this.tokenRepository.delete({ userId });
+  }
+
   async tokensForUser(userId: number): Promise<UserDeviceTokenEntity[]> {
     return this.tokenRepository.find({
       where: { userId, deleted: false, active: true },

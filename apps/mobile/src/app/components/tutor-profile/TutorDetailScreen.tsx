@@ -80,11 +80,13 @@ import {
   promptProfilePictureSource,
 } from '../student-home/pickProfilePictureImage';
 import { WalletBalanceChip } from '../wallet';
+import { AccountLegalSection } from '../AccountLegalSection';
 
 type TutorOffering = TutorDetailRecord['offerings'][number];
 
 type TutorDetailScreenProps = {
   onOpenWallet?: () => void;
+  onAccountDeleted?: () => void;
 };
 
 type MyTutorDetailData = {
@@ -240,6 +242,7 @@ function DocumentViewerModal({
 
 export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
   onOpenWallet,
+  onAccountDeleted,
 }) => {
   const { data, loading, error, refetch } = useQuery<MyTutorDetailData>(GET_MY_TUTOR_DETAIL, {
     fetchPolicy: 'cache-and-network',
@@ -1280,6 +1283,10 @@ export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
           ))
         )}
       </View>
+
+      {onAccountDeleted ? (
+        <AccountLegalSection onAccountDeleted={onAccountDeleted} />
+      ) : null}
 
       {selectedDocument ? (
         <DocumentViewerModal

@@ -3,6 +3,8 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -27,12 +29,17 @@ import { TutorService } from '../../tutor/services/tutor.service';
 import { StudentService } from '../../student/services/student.service';
 import { RegistrationSettingsService } from '../../registration-settings/services/registration-settings.service';
 import { CommunicationService } from '../../communication/communication.service';
+import { DeviceTokenService } from '../../communication/notification/device-token.service';
+import { UserBankDetailsService } from '../../user-bank-details/services/user-bank-details.service';
 import { EmailService } from '../../communication/email/email.service';
+import { ProfilePictureService } from './profile-picture.service';
 import { EmailPurpose } from '../../communication/email/enums/email-purpose.enum';
 import { escapeHtml, formatRecipientName } from '../../communication/email/email.utils';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -46,6 +53,9 @@ export class AuthService {
     private readonly registrationSettingsService: RegistrationSettingsService,
     private readonly communicationService: CommunicationService,
     private readonly emailService: EmailService,
+    private readonly deviceTokenService: DeviceTokenService,
+    private readonly userBankDetailsService: UserBankDetailsService,
+    private readonly profilePictureService: ProfilePictureService,
   ) {}
 
   /**
@@ -452,6 +462,7 @@ export class AuthService {
           'isMobileVerified',
           'isSignupComplete',
           'active',
+          'deleted',
           'lastLoginAt',
           'createdDate',
           'updatedDate',
@@ -483,6 +494,7 @@ export class AuthService {
           'isMobileVerified',
           'isSignupComplete',
           'active',
+          'deleted',
           'lastLoginAt',
           'createdDate',
           'updatedDate',
@@ -506,9 +518,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid login credentials');
     }
 
-    // Check if user is active
-    if (!user.active) {
-      throw new UnauthorizedException('Account is inactive');
+    if (user.deleted || !user.active) {
+      throw new UnauthorizedException(
+        user.deleted ? 'This account has been deleted' : 'Account is inactive',
+      );
     }
 
     // Check if signup is complete
@@ -543,7 +556,7 @@ export class AuthService {
    */
   async validateUser(userId: number): Promise<User | null> {
     const user = await this.userRepository.findOne({
-      where: { id: userId, active: true },
+      where: { id: userId, active: true, deleted: false },
       relations: ['tutor'],
     });
 
@@ -574,7 +587,7 @@ export class AuthService {
     const payload = this.jwtService.verifyAccessToken(tokens.accessToken);
     const user = await this.findById(payload.sub);
 
-    if (!user) {
+    if (!user || user.deleted || !user.active) {
       throw new UnauthorizedException('User not found');
     }
 
@@ -745,6 +758,97 @@ export class AuthService {
       return false;
     }
 
+    return true;
+  }
+
+  /**
+   * Self-service account deletion. Soft-deletes the user, anonymizes unique
+   * contact fields so the same email/mobile can register again, and revokes
+   * sessions. Payment history is retained.
+   */
+  async deleteMyAccount(user: User): Promise<boolean> {
+    if (user.role === UserRole.ADMIN) {
+      throw new ForbiddenException(
+        'Admin accounts cannot be deleted from the app. Contact support.',
+      );
+    }
+
+    const fullUser = await this.userRepository.findOne({
+      where: { id: user.id, deleted: false },
+      select: [
+        'id',
+        'email',
+        'mobile',
+        'mobileCountryCode',
+        'mobileNumber',
+        'firstName',
+        'lastName',
+        'dob',
+        'password',
+        'role',
+        'profilePicture',
+        'profilePictureStorageKey',
+        'profilePictureThumbnailMedium',
+        'profilePictureThumbnailLarge',
+        'profilePictureOriginalUrl',
+        'profilePictureAverageColor',
+        'profilePictureWidth',
+        'profilePictureHeight',
+        'active',
+        'deleted',
+        'version',
+      ],
+    });
+
+    if (!fullUser) {
+      throw new BadRequestException('Account is already deleted');
+    }
+
+    await this.deviceTokenService.unregisterAllForUser(fullUser.id);
+    await this.logoutAll(fullUser.id);
+    await this.passwordResetTokenRepository.update(
+      { userId: fullUser.id, isUsed: false },
+      { isUsed: true, usedAt: new Date() },
+    );
+
+    const tutor = await this.tutorService.findByUserId(fullUser.id);
+    if (tutor) {
+      await this.tutorService.remove(tutor.id);
+    }
+    await this.studentService.removeByUserId(fullUser.id);
+    await this.userBankDetailsService.anonymizeAndSoftDelete(fullUser.id);
+
+    try {
+      await this.profilePictureService.clearStoredObjects(fullUser);
+    } catch (err) {
+      this.logger.warn(
+        `Profile picture cleanup failed for user ${fullUser.id}`,
+        err,
+      );
+    }
+
+    const stamp = Date.now();
+    fullUser.email = `deleted+${fullUser.id}.${stamp}@deleted.tutorix.invalid`;
+    fullUser.mobile = `deleted:${fullUser.id}:${stamp}`;
+    fullUser.mobileCountryCode = undefined;
+    fullUser.mobileNumber = undefined;
+    fullUser.firstName = undefined;
+    fullUser.lastName = undefined;
+    fullUser.dob = undefined;
+    fullUser.profilePicture = undefined;
+    fullUser.profilePictureStorageKey = undefined;
+    fullUser.profilePictureThumbnailMedium = undefined;
+    fullUser.profilePictureThumbnailLarge = undefined;
+    fullUser.profilePictureOriginalUrl = undefined;
+    fullUser.profilePictureAverageColor = undefined;
+    fullUser.profilePictureWidth = undefined;
+    fullUser.profilePictureHeight = undefined;
+    fullUser.password = await this.passwordService.hashPassword(
+      crypto.randomBytes(32).toString('hex'),
+    );
+    fullUser.deleted = true;
+    fullUser.active = false;
+    await this.userRepository.save(fullUser);
     return true;
   }
 }

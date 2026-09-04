@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { BRAND_NAME } from '../config';
 import { LOGIN } from '@tutorix/shared-graphql';
+import { LegalFooter } from './LegalFooter';
 import { getPhoneCountryCode } from '@tutorix/shared-utils';
 import { setAuthTokens } from '@tutorix/shared-graphql/client/web/token-storage';
 
@@ -421,6 +422,7 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
             ← Back to home
           </button>
         </div>
+        <LegalFooter className="mt-6" />
       </div>
 
       {/* Incomplete Signup Modal */}

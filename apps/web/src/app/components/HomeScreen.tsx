@@ -1,5 +1,6 @@
 import React from 'react';
 import { BRAND_NAME } from '../config';
+import { LegalFooter } from './LegalFooter';
 import type { WebUser } from '../types/web-user';
 
 type HomeScreenProps = {
@@ -159,6 +160,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
         </div>
       </main>
+      <LegalFooter className="px-6 pb-8" />
     </div>
   );
 };

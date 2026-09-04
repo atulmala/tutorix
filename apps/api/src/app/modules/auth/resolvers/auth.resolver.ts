@@ -98,6 +98,12 @@ export class AuthResolver {
     return true;
   }
 
+  @Mutation(() => Boolean)
+  @UseGuards(JwtAuthGuard)
+  async deleteMyAccount(@CurrentUser() user: User): Promise<boolean> {
+    return this.authService.deleteMyAccount(user);
+  }
+
   @Query(() => User)
   @UseGuards(JwtAuthGuard)
   async me(@CurrentUser() user: User): Promise<User> {

@@ -6,6 +6,7 @@ import {
   REGISTER_USER,
 } from '@tutorix/shared-graphql';
 import { getPhoneCountryCode } from '@tutorix/shared-utils';
+import { LegalFooter } from '../LegalFooter';
 
 const DEFAULT_DISABLED_MESSAGE =
   'Registration for this role is temporarily unavailable. Please try again later.';
@@ -736,6 +737,8 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
           {submitError}
         </div>
       )}
+
+      <LegalFooter signupPrefix className="text-left" />
 
       <div className="flex justify-end">
         <button
