@@ -1,15 +1,19 @@
 const path = require('path');
 const { config } = require('dotenv');
 const { applyDevLanHost, applyGraphqlEndpointAlias } = require('./detect-lan-host.cjs');
+const { applyStoreEnv, isStoreBuild } = require('./load-store-env.cjs');
 
 config({ path: path.resolve(__dirname, '../../.env') });
-applyDevLanHost();
+applyStoreEnv();
+if (!isStoreBuild()) {
+  applyDevLanHost();
+}
 applyGraphqlEndpointAlias();
 
 module.exports = function (api) {
   api.cache.using(
     () =>
-      `${process.env.DEV_LAN_HOST || ''}|${process.env.NX_GRAPHQL_ENDPOINT || ''}|${process.env.VITE_GRAPHQL_ENDPOINT || ''}|${process.env.VITE_FRONTEND_URL || ''}|${process.env.NX_FRONTEND_URL || ''}`,
+      `${process.env.TUTORIX_STORE_BUILD || ''}|${process.env.DEV_LAN_HOST || ''}|${process.env.NX_GRAPHQL_ENDPOINT || ''}|${process.env.VITE_GRAPHQL_ENDPOINT || ''}|${process.env.VITE_FRONTEND_URL || ''}|${process.env.NX_FRONTEND_URL || ''}`,
   );
 
   // Simple inline plugin to replace process.env variables with actual values

@@ -80,6 +80,25 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+def tutorixLocalProperties = new Properties()
+def tutorixLocalPropertiesFile = rootProject.file('local.properties')
+if (tutorixLocalPropertiesFile.exists()) {
+    tutorixLocalPropertiesFile.withInputStream { tutorixLocalProperties.load(it) }
+}
+
+def tutorixProp = { String name ->
+    def fromEnv = System.getenv(name)
+    if (fromEnv != null && !fromEnv.isEmpty()) {
+        return fromEnv
+    }
+    def fromLocal = tutorixLocalProperties.getProperty(name)
+    if (fromLocal != null && !fromLocal.isEmpty()) {
+        return fromLocal
+    }
+    def fromProject = project.findProperty(name)
+    return fromProject != null ? fromProject.toString() : null
+}
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -101,11 +120,15 @@ android {
             keyPassword 'android'
         }
         release {
-            if (project.hasProperty('TUTORIX_UPLOAD_STORE_FILE')) {
-                storeFile file(TUTORIX_UPLOAD_STORE_FILE)
-                storePassword TUTORIX_UPLOAD_STORE_PASSWORD
-                keyAlias TUTORIX_UPLOAD_KEY_ALIAS
-                keyPassword TUTORIX_UPLOAD_KEY_PASSWORD
+            def uploadStoreFile = tutorixProp('TUTORIX_UPLOAD_STORE_FILE')
+            def uploadStorePassword = tutorixProp('TUTORIX_UPLOAD_STORE_PASSWORD')
+            def uploadKeyAlias = tutorixProp('TUTORIX_UPLOAD_KEY_ALIAS')
+            def uploadKeyPassword = tutorixProp('TUTORIX_UPLOAD_KEY_PASSWORD')
+            if (uploadStoreFile && uploadStorePassword && uploadKeyAlias && uploadKeyPassword) {
+                storeFile file(uploadStoreFile)
+                storePassword uploadStorePassword
+                keyAlias uploadKeyAlias
+                keyPassword uploadKeyPassword
             }
         }
     }

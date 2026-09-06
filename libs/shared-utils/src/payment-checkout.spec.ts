@@ -1,7 +1,9 @@
 import {
+  assertMobileRazorpayKeyAllowed,
   formatFeePaymentStageMessage,
   formatPlatformFeeSummary,
   formatProficiencyTestFeeMessage,
+  MOBILE_LIVE_KEY_BLOCKED_MESSAGE,
 } from './payment-checkout';
 
 describe('payment-checkout fee messages', () => {
@@ -155,5 +157,31 @@ describe('payment-checkout fee messages', () => {
 
     expect(summary.message).toBe('Amount due: ₹99.');
     expect(summary.requiresPayment).toBe(true);
+  });
+});
+
+describe('assertMobileRazorpayKeyAllowed', () => {
+  it('blocks live keys in __DEV__', () => {
+    expect(() =>
+      assertMobileRazorpayKeyAllowed('rzp_live_abc', true),
+    ).toThrow(MOBILE_LIVE_KEY_BLOCKED_MESSAGE);
+  });
+
+  it('blocks missing or non-test keys in __DEV__', () => {
+    expect(() => assertMobileRazorpayKeyAllowed('', true)).toThrow(
+      MOBILE_LIVE_KEY_BLOCKED_MESSAGE,
+    );
+  });
+
+  it('allows test keys in __DEV__', () => {
+    expect(() =>
+      assertMobileRazorpayKeyAllowed('rzp_test_abc', true),
+    ).not.toThrow();
+  });
+
+  it('allows live keys in production builds', () => {
+    expect(() =>
+      assertMobileRazorpayKeyAllowed('rzp_live_abc', false),
+    ).not.toThrow();
   });
 });

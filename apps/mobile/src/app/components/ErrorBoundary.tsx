@@ -12,9 +12,13 @@ interface State {
   errorInfo: ErrorInfo | null;
 }
 
+function isDevRuntime(): boolean {
+  return typeof __DEV__ !== 'undefined' && __DEV__;
+}
+
 /**
- * Error Boundary component to catch React errors and display them
- * This helps debug black screen issues on Android
+ * Catches React render errors. Dev builds show the stack; store builds
+ * show a short recovery message and send the error to Crashlytics.
  */
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
@@ -27,7 +31,6 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): State {
-    // Update state so the next render will show the fallback UI
     return {
       hasError: true,
       error,
@@ -36,10 +39,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error to console for debugging
-    console.error('[ErrorBoundary] Caught error:', error);
-    console.error('[ErrorBoundary] Error info:', errorInfo);
-    console.error('[ErrorBoundary] Component stack:', errorInfo.componentStack);
+    if (isDevRuntime()) {
+      console.error('[ErrorBoundary] Caught error:', error);
+      console.error('[ErrorBoundary] Error info:', errorInfo);
+      console.error('[ErrorBoundary] Component stack:', errorInfo.componentStack);
+    }
 
     this.setState({
       error,
@@ -53,60 +57,69 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   render() {
-    if (this.state.hasError) {
-      // Render custom fallback UI
+    if (!this.state.hasError) {
+      return this.props.children;
+    }
+
+    if (!isDevRuntime()) {
       return (
-        <View style={styles.container}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            <Text style={styles.title}>⚠️ App Error</Text>
-            <Text style={styles.subtitle}>
-              Something went wrong. Check the error details below:
-            </Text>
-            
-            {this.state.error && (
-              <View style={styles.errorSection}>
-                <Text style={styles.sectionTitle}>Error Message:</Text>
-                <Text style={styles.errorMessage}>
-                  {this.state.error.message || this.state.error.toString()}
-                </Text>
-                {this.state.error.name && (
-                  <Text style={styles.errorName}>
-                    Error Type: {this.state.error.name}
-                  </Text>
-                )}
-              </View>
-            )}
-
-            {this.state.errorInfo && (
-              <View style={styles.errorSection}>
-                <Text style={styles.sectionTitle}>Component Stack:</Text>
-                <Text style={styles.errorText}>
-                  {this.state.errorInfo.componentStack}
-                </Text>
-              </View>
-            )}
-
-            {this.state.error?.stack && (
-              <View style={styles.errorSection}>
-                <Text style={styles.sectionTitle}>Stack Trace:</Text>
-                <Text style={styles.errorText}>
-                  {this.state.error.stack}
-                </Text>
-              </View>
-            )}
-
-            <Text style={styles.hint}>
-              💡 Check Metro bundler logs and Android logcat for more details
-            </Text>
-            <Text style={styles.hint}>
-              Run: adb logcat | grep -i "ReactNative\|JS\|Error"
-            </Text>
-          </ScrollView>
+        <View style={[styles.container, styles.productionContainer]}>
+          <Text style={styles.title}>Something went wrong</Text>
+          <Text style={styles.subtitle}>
+            Please close and reopen the app. If this keeps happening, contact
+            info@tutorix.tech.
+          </Text>
         </View>
       );
     }
 
-    return this.props.children;
+    return (
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <Text style={styles.title}>App Error</Text>
+          <Text style={styles.subtitle}>
+            Something went wrong. Check the error details below:
+          </Text>
+
+          {this.state.error && (
+            <View style={styles.errorSection}>
+              <Text style={styles.sectionTitle}>Error Message:</Text>
+              <Text style={styles.errorMessage}>
+                {this.state.error.message || this.state.error.toString()}
+              </Text>
+              {this.state.error.name ? (
+                <Text style={styles.errorName}>
+                  Error Type: {this.state.error.name}
+                </Text>
+              ) : null}
+            </View>
+          )}
+
+          {this.state.errorInfo ? (
+            <View style={styles.errorSection}>
+              <Text style={styles.sectionTitle}>Component Stack:</Text>
+              <Text style={styles.errorText}>
+                {this.state.errorInfo.componentStack}
+              </Text>
+            </View>
+          ) : null}
+
+          {this.state.error?.stack ? (
+            <View style={styles.errorSection}>
+              <Text style={styles.sectionTitle}>Stack Trace:</Text>
+              <Text style={styles.errorText}>{this.state.error.stack}</Text>
+            </View>
+          ) : null}
+
+          <Text style={styles.hint}>
+            Check Metro bundler logs and Android logcat for more details
+          </Text>
+          <Text style={styles.hint}>
+            Run: adb logcat | grep -i "ReactNative|JS|Error"
+          </Text>
+        </ScrollView>
+      </View>
+    );
   }
 }
 
@@ -115,6 +128,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     padding: 20,
+  },
+  productionContainer: {
+    justifyContent: 'center',
   },
   scrollContent: {
     paddingBottom: 40,

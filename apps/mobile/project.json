@@ -77,6 +77,20 @@
         "command": "react-native upgrade",
         "cwd": "apps/mobile"
       }
+    },
+    "build-android-store": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash scripts/mobile-store-build.sh android",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "build-ios-store": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash scripts/mobile-store-build.sh ios",
+        "cwd": "{workspaceRoot}"
+      }
     }
   }
 }

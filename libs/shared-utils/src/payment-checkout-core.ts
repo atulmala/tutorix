@@ -48,6 +48,25 @@ export function checkoutSession(result: CheckoutResult): PaymentOrderSession {
   return result.session ?? { skipped: true };
 }
 
+export const RAZORPAY_TEST_KEY_PREFIX = 'rzp_test_';
+
+export const MOBILE_LIVE_KEY_BLOCKED_MESSAGE =
+  'Mobile payments are limited to Razorpay test mode right now. Please complete this payment on the web.';
+
+/**
+ * Metro `__DEV__` is true on local/dev clients. Block live Razorpay keys
+ * there so a misconfigured secret cannot charge a real instrument.
+ * Release/store builds pass `isDev=false` and allow live keys.
+ */
+export function assertMobileRazorpayKeyAllowed(
+  key: string,
+  isDev: boolean,
+): void {
+  if (isDev && !key.startsWith(RAZORPAY_TEST_KEY_PREFIX)) {
+    throw new Error(MOBILE_LIVE_KEY_BLOCKED_MESSAGE);
+  }
+}
+
 export function buildWaivedFeeMessage(feeLabel: string, amountInr: number): string {
   return `The regular ${feeLabel.toLowerCase()} is ₹${amountInr}, but it is waived for a limited time.`;
 }

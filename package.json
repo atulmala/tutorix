@@ -11,6 +11,8 @@
     "mobile:android": "bash scripts/start-android.sh",
     "mobile:start": "nx start mobile",
     "mobile:android:run": "nx run-android mobile",
+    "mobile:store:android": "bash scripts/mobile-store-build.sh android",
+    "mobile:store:ios": "bash scripts/mobile-store-build.sh ios",
     "build:api": "nx build api",
     "build:web": "nx build web",
     "build:admin": "nx build web-admin",
