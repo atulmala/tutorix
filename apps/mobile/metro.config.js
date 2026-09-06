@@ -3,6 +3,7 @@ const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
 const path = require('path');
 const { config } = require('dotenv');
 const { applyDevLanHost, applyGraphqlEndpointAlias } = require('./detect-lan-host.cjs');
+const { applyStoreEnv, isStoreBuild } = require('./load-store-env.cjs');
 
 // Load environment variables from .env file
 // This makes them available to Metro bundler's process.env
@@ -11,9 +12,14 @@ try {
 } catch {
   // Silently fail if .env doesn't exist
 }
-const lanHost = applyDevLanHost();
+const storeBuild = applyStoreEnv();
+const lanHost = storeBuild || isStoreBuild() ? null : applyDevLanHost();
 applyGraphqlEndpointAlias();
-if (lanHost) {
+if (storeBuild) {
+  console.log(
+    `[metro] TUTORIX_STORE_BUILD=1 NX_GRAPHQL_ENDPOINT=${process.env.NX_GRAPHQL_ENDPOINT || ''}`,
+  );
+} else if (lanHost) {
   console.log(`[metro] DEV_LAN_HOST=${lanHost}`);
 }
 

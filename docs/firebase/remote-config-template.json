@@ -17,16 +17,16 @@
     },
     "ios_store_url": {
       "defaultValue": {
-        "value": "https://apps.apple.com"
+        "value": "https://apps.apple.com/app/tutorix"
       },
-      "description": "App Store URL opened by the Update button on iOS. Replace with the real Tutorix App Store link before production.",
+      "description": "App Store URL opened by the Update button on iOS. After the first listing exists, set this to https://apps.apple.com/app/idXXXXXXXX in the Firebase console.",
       "valueType": "STRING"
     },
     "android_store_url": {
       "defaultValue": {
-        "value": "https://play.google.com/store"
+        "value": "https://play.google.com/store/apps/details?id=com.tutorix.tech"
       },
-      "description": "Play Store URL opened by the Update button on Android. Replace with the real Tutorix Play Store link before production.",
+      "description": "Play Store URL opened by the Update button on Android (package com.tutorix.tech).",
       "valueType": "STRING"
     },
     "force_update_message": {

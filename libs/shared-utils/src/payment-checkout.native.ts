@@ -1,26 +1,24 @@
 import RazorpayCheckout from 'react-native-razorpay';
-import type { ConfirmPaymentInput, PaymentOrderSession } from './payment-checkout-core';
+import {
+  assertMobileRazorpayKeyAllowed,
+  type ConfirmPaymentInput,
+  type PaymentOrderSession,
+} from './payment-checkout-core';
 import type { RazorpayErrorResponse } from './razorpay-native.types';
 
 export * from './payment-checkout-core';
 
-/**
- * Android bring-up safety gate.
- *
- * The previous native integration was reverted after live-key testing on a
- * device moved real money. As long as this constant is enforced, mobile
- * checkout will only open against a Razorpay TEST key (`rzp_test_...`), so a
- * misconfigured live key can never charge a real instrument from the app.
- */
-const TEST_KEY_PREFIX = 'rzp_test_';
-
 const NO_SESSION_MESSAGE = 'No checkout session to open';
 const UNSUPPORTED_PROVIDER_MESSAGE =
   'Payments on mobile currently support Razorpay only. Please complete this payment on the web.';
-const LIVE_KEY_BLOCKED_MESSAGE =
-  'Mobile payments are limited to Razorpay test mode right now. Please complete this payment on the web.';
 const CANCELLED_MESSAGE = 'Payment cancelled';
 const GENERIC_FAILURE_MESSAGE = 'Payment failed. Please try again.';
+
+declare const __DEV__: boolean;
+
+function isReactNativeDevRuntime(): boolean {
+  return typeof __DEV__ !== 'undefined' && __DEV__;
+}
 
 /**
  * These loaders only make sense on web (they inject the checkout <script>).
@@ -82,9 +80,7 @@ export async function openPaymentCheckout(
   const payload = JSON.parse(session.checkoutPayloadJson) as Record<string, unknown>;
 
   const key = typeof payload.key === 'string' ? payload.key : '';
-  if (!key.startsWith(TEST_KEY_PREFIX)) {
-    throw new Error(LIVE_KEY_BLOCKED_MESSAGE);
-  }
+  assertMobileRazorpayKeyAllowed(key, isReactNativeDevRuntime());
 
   const description = resolveCheckoutDescription(payload);
 

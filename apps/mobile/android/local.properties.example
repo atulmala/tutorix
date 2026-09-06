@@ -1,0 +1,7 @@
+# Copy to local.properties (gitignored) or set the same keys as CI env vars.
+# Android Studio also writes sdk.dir into local.properties.
+
+# TUTORIX_UPLOAD_STORE_FILE=tutorix-upload.keystore
+# TUTORIX_UPLOAD_KEY_ALIAS=tutorix-upload
+TUTORIX_UPLOAD_STORE_PASSWORD=
+TUTORIX_UPLOAD_KEY_PASSWORD=

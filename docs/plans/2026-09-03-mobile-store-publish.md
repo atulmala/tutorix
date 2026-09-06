@@ -1,6 +1,6 @@
 ---
 title: Mobile store publish (Razorpay first)
-status: in-progress
+status: done
 jira: TUTORIX-76
 created: 2026-09-03
 ---
@@ -16,7 +16,7 @@ Target binary: `apps/mobile` (`com.tutorix.tech`, version `1.0.0`).
 1. Add `/privacy` and `/terms` on web; `deleteMyAccount` API + mobile Account section and login/signup legal links
 2. Remove test-key-only gate in `payment-checkout.native.ts` for production builds; keep gate in `__DEV__`
 3. iOS Face ID, location, encryption, production push, PrivacyInfo; Android keystore secrets, camera optional, production ErrorBoundary
-4. Production GraphQL in store binaries, Remote Config store URLs, Play/App Store listing + reviewer notes
+4. Production GraphQL in store binaries, Remote Config store URLs, Play/App Store listing + reviewer notes — see `docs/STORE_LISTING.md`
 
 ## Deferred
 

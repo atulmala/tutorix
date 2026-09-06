@@ -35,8 +35,12 @@
 	<string>Connect to the Tutorix API on your local network while developing.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Take photos of your identity and qualification documents for verification.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Tutorix uses Face ID so you can sign in quickly and securely.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a profile photo or document image from your library.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
