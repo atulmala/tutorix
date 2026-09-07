@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLazyQuery, useMutation } from '@apollo/client';
 import { GET_MY_STUDENT_PROFILE, GET_MY_TUTOR_PROFILE, HEARTBEAT } from '@tutorix/shared-graphql';
 import { HomeScreen } from './components/HomeScreen';
+import { AudienceDetailPage } from './components/home/AudienceDetailPage';
+import { studentDetailCopy, tutorDetailCopy } from './components/home/audience-detail-copy';
 import { SignUp } from './components/sign-up/SignUp';
 import { Login } from './components/Login';
 import { ForgotPassword } from './components/ForgotPassword';
@@ -21,6 +23,8 @@ import { LegalPage } from './components/LegalPage';
 
 type View =
   | 'home'
+  | 'for-students'
+  | 'for-tutors'
   | 'signup'
   | 'login'
   | 'forgot-password'
@@ -202,24 +206,44 @@ function AppContent() {
     if (path === '/privacy') {
       skipSessionRestoreRef.current = true;
       setCurrentViewInternal('privacy');
-      return;
-    }
-    if (path === '/terms') {
+    } else if (path === '/terms') {
       skipSessionRestoreRef.current = true;
       setCurrentViewInternal('terms');
-      return;
+    } else if (path === '/students') {
+      skipSessionRestoreRef.current = true;
+      setCurrentViewInternal('for-students');
+    } else if (path === '/tutors') {
+      skipSessionRestoreRef.current = true;
+      setCurrentViewInternal('for-tutors');
+    } else {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      if (token) {
+        skipSessionRestoreRef.current = true;
+        setResetPasswordToken(token);
+        setCurrentViewInternal('reset-password');
+        setTimeout(() => {
+          window.history.replaceState({}, '', window.location.pathname);
+        }, 100);
+      }
     }
 
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    if (token) {
-      skipSessionRestoreRef.current = true;
-      setResetPasswordToken(token);
-      setCurrentViewInternal('reset-password');
-      setTimeout(() => {
-        window.history.replaceState({}, '', window.location.pathname);
-      }, 100);
-    }
+    const onPopState = () => {
+      const nextPath = window.location.pathname.replace(/\/$/, '') || '/';
+      if (nextPath === '/students') {
+        setCurrentViewInternal('for-students');
+        return;
+      }
+      if (nextPath === '/tutors') {
+        setCurrentViewInternal('for-tutors');
+        return;
+      }
+      if (nextPath === '/' || nextPath === '') {
+        setCurrentViewInternal('home');
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
   // Restore post-login view after session bootstrap
@@ -243,6 +267,20 @@ function AppContent() {
     setResumeUserId(undefined);
     setResumeVerificationStatus(undefined);
     setResetPasswordToken(undefined);
+    const path = window.location.pathname.replace(/\/$/, '') || '/';
+    if (path === '/students' || path === '/tutors') {
+      window.history.pushState({}, '', '/');
+    }
+  };
+
+  const handleForStudents = () => {
+    setCurrentView('for-students');
+    window.history.pushState({}, '', '/students');
+  };
+
+  const handleForTutors = () => {
+    setCurrentView('for-tutors');
+    window.history.pushState({}, '', '/tutors');
   };
 
   const handleSignUp = (
@@ -302,6 +340,10 @@ function AppContent() {
     setSessionRestorePhase('idle');
 
     setCurrentView('home');
+    const path = window.location.pathname.replace(/\/$/, '') || '/';
+    if (path === '/students' || path === '/tutors') {
+      window.history.pushState({}, '', '/');
+    }
 
     console.log('[App] Logout complete');
   };
@@ -435,6 +477,32 @@ function AppContent() {
     return <LegalPage kind="terms" />;
   }
 
+  if (currentView === 'for-students') {
+    return (
+      <AudienceDetailPage
+        copy={studentDetailCopy}
+        currentUser={currentUser}
+        onHome={handleBackHome}
+        onLogin={handleLogin}
+        onSignUp={handleSignUp}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  if (currentView === 'for-tutors') {
+    return (
+      <AudienceDetailPage
+        copy={tutorDetailCopy}
+        currentUser={currentUser}
+        onHome={handleBackHome}
+        onLogin={handleLogin}
+        onSignUp={handleSignUp}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   if (currentView === 'login') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
@@ -498,6 +566,8 @@ function AppContent() {
     <HomeScreen
       onLogin={handleLogin}
       onSignUp={handleSignUp}
+      onStudentDetails={handleForStudents}
+      onTutorDetails={handleForTutors}
       currentUser={currentUser}
       onLogout={handleLogout}
       signupSuccessMessage={signupSuccessMessage}
