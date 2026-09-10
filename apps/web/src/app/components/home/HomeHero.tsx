@@ -54,6 +54,14 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
         </p>
       </div>
 
+      <div className="relative mx-auto mt-8 w-full max-w-3xl md:mt-10 md:max-w-4xl">
+        <img
+          src="/home/01-discover-tutors-beyond-neighbourhood-transparent.png"
+          alt="A student discovering certified tutors across India, beyond her neighbourhood"
+          className="mx-auto h-auto w-full"
+        />
+      </div>
+
       <div className="relative mt-10 grid gap-6 md:grid-cols-2 md:items-stretch">
         <HomeAudienceCard
           variant="student"

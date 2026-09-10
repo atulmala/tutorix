@@ -38,6 +38,11 @@ describe('HomeScreen', () => {
     ).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Teach more. Earn more.' })).toBeTruthy();
     expect(screen.getByText('Connect, Learn, Grow')).toBeTruthy();
+    expect(
+      screen.getByRole('img', {
+        name: 'A student discovering certified tutors across India, beyond her neighbourhood',
+      }),
+    ).toBeTruthy();
     expect(screen.getByText('info@tutorix.tech')).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: "I'm a student" }));

@@ -31,11 +31,28 @@ describe('AudienceDetailPage', () => {
     ).toBeTruthy();
     expect(screen.getByText('Why stay limited to your neighbourhood?')).toBeTruthy();
     expect(screen.getByText('Your schedule, in one app')).toBeTruthy();
+    expect(
+      screen.getByRole('img', {
+        name: 'A student using the Tutorix app to browse certified tutors and class options',
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText('Ready to find a tutor beyond your neighbourhood?'),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('heading', { name: 'How it works?' }),
+    ).toBeTruthy();
+    expect(screen.getByText(/Already registered/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'I already have an account' })).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Create a student account' })).toHaveLength(1);
 
     await user.click(screen.getByRole('button', { name: /Back to home/ }));
     expect(onHome).toHaveBeenCalledTimes(1);
 
-    await user.click(screen.getAllByRole('button', { name: 'Create a student account' })[0]);
+    await user.click(screen.getByRole('link', { name: 'Login' }));
+    expect(onLogin).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole('button', { name: 'Create a student account' }));
     expect(onSignUp).toHaveBeenCalledTimes(1);
   });
 
@@ -55,8 +72,17 @@ describe('AudienceDetailPage', () => {
     expect(screen.getByRole('heading', { name: 'Teach more. Earn more.' })).toBeTruthy();
     expect(screen.getByText('Assured class bookings')).toBeTruthy();
     expect(screen.getByText('Teach offline or online')).toBeTruthy();
+    expect(
+      screen.getByRole('img', {
+        name: 'A tutor teaching an online student while managing bookings, payments, and schedule',
+      }),
+    ).toBeTruthy();
+    expect(screen.getByText('Ready to teach more and earn more?')).toBeTruthy();
+    expect(screen.getByText(/Already registered/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'I already have an account' })).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Create a tutor account' })).toHaveLength(1);
 
-    await user.click(screen.getAllByRole('button', { name: 'Create a tutor account' })[0]);
+    await user.click(screen.getByRole('button', { name: 'Create a tutor account' }));
     expect(onSignUp).toHaveBeenCalledTimes(1);
   });
 });
