@@ -1,6 +1,6 @@
 ---
 title: Web homepage ready for release
-status: in-progress
+status: done
 jira: TUTORIX-77
 created: 2026-09-07
 labels:
