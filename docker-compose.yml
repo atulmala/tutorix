@@ -73,6 +73,7 @@ services:
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
     expose:
       - '3000'
+    restart: unless-stopped
 
   web:
     build:
@@ -92,6 +93,7 @@ services:
         VITE_FIREBASE_MEASUREMENT_ID: ${VITE_FIREBASE_MEASUREMENT_ID:-}
     ports:
       - '127.0.0.1:${GATEWAY_HTTP_PORT:-8080}:80'
+    restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
@@ -104,6 +106,7 @@ services:
         VITE_GRAPHQL_ENDPOINT: ${VITE_GRAPHQL_ENDPOINT:-/api/graphql}
     ports:
       - '127.0.0.1:${ADMIN_HTTP_PORT:-81}:80'
+    restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
