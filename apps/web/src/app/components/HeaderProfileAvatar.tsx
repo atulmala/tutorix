@@ -9,6 +9,7 @@ import {
 } from '@tutorix/shared-graphql';
 import type { WebUser } from '../types/web-user';
 import {
+  initialsFromName,
   profilePictureAvatarUrl,
   uploadProfilePictureFile,
   type ProfilePictureUploadResult,
@@ -26,6 +27,8 @@ type HeaderProfileAvatarProps = {
   userLoading?: boolean;
   /** Shown below the circle when no profile picture is set */
   emptyHint?: string;
+  /** When set, the circle opens this instead of the file picker. */
+  onNavigate?: () => void;
 };
 
 const sizeClasses = {
@@ -51,6 +54,7 @@ export const HeaderProfileAvatar: React.FC<HeaderProfileAvatarProps> = ({
   errorAlign = 'right',
   userLoading = false,
   emptyHint,
+  onNavigate,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -85,7 +89,14 @@ export const HeaderProfileAvatar: React.FC<HeaderProfileAvatarProps> = ({
   const showEmptyUpload = !hasAvatarUrl && !showLoadingLabel;
   const showImage = hasAvatarUrl && imageStatus === 'loaded';
 
-  const circleLabel = showLoadingLabel ? 'loading...' : showEmptyUpload ? 'upload pic' : null;
+  const navigateOnly = Boolean(onNavigate);
+  const circleLabel = showLoadingLabel
+    ? 'loading...'
+    : showEmptyUpload
+      ? navigateOnly
+        ? initialsFromName(user.firstName, user.lastName)
+        : 'upload pic'
+      : null;
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -121,19 +132,25 @@ export const HeaderProfileAvatar: React.FC<HeaderProfileAvatarProps> = ({
       <button
         type="button"
         onClick={() => {
+          if (onNavigate) {
+            onNavigate();
+            return;
+          }
           setUploadError(null);
           fileInputRef.current?.click();
         }}
         disabled={uploading}
         className={`group relative shrink-0 overflow-hidden rounded-full border border-subtle bg-gray-100 focus:outline-none focus:ring-2 focus:ring-[#5fa8ff] disabled:opacity-60 ${dimensionClass}`}
-        aria-label="Upload profile picture"
+        aria-label={onNavigate ? 'Open profile' : 'Upload profile picture'}
         aria-describedby={uploadError ? 'header-avatar-upload-error' : undefined}
         title={
           showLoadingLabel
             ? 'Loading profile picture'
-            : hasAvatarUrl
-              ? 'Change profile picture'
-              : 'Upload profile picture'
+            : onNavigate
+              ? 'Open profile'
+              : hasAvatarUrl
+                ? 'Change profile picture'
+                : 'Upload profile picture'
         }
       >
         {hasAvatarUrl && avatarUrl ? (
@@ -152,19 +169,21 @@ export const HeaderProfileAvatar: React.FC<HeaderProfileAvatarProps> = ({
             {circleLabel}
           </span>
         ) : null}
-        {showImage ? (
+        {showImage && !onNavigate ? (
           <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-[10px] font-medium text-white opacity-0 transition group-hover:opacity-100 group-disabled:opacity-100">
             {uploading ? 'loading...' : 'Change'}
           </span>
         ) : null}
       </button>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/jpeg,image/png"
-        className="hidden"
-        onChange={handleFileChange}
-      />
+      {onNavigate ? null : (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+      )}
       {!hasAvatarUrl && !showLoadingLabel && emptyHint ? (
         <p
           className={`text-center text-[10px] leading-snug text-muted ${

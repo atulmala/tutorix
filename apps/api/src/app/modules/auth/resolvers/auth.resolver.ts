@@ -14,6 +14,7 @@ import { SetPasswordInput } from '../dto/set-password.input';
 import { UpdateUserInput } from '../dto/update-user.input';
 import { ForgotPasswordInput } from '../dto/forgot-password.input';
 import { ResetPasswordInput } from '../dto/reset-password.input';
+import { ChangePasswordInput } from '../dto/change-password.input';
 import { User } from '../entities/user.entity';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { RolesGuard } from '../guards/roles.guard';
@@ -102,6 +103,15 @@ export class AuthResolver {
   @UseGuards(JwtAuthGuard)
   async deleteMyAccount(@CurrentUser() user: User): Promise<boolean> {
     return this.authService.deleteMyAccount(user);
+  }
+
+  @Mutation(() => Boolean)
+  @UseGuards(JwtAuthGuard)
+  async changePassword(
+    @CurrentUser() user: User,
+    @Args('input') input: ChangePasswordInput,
+  ): Promise<boolean> {
+    return this.authService.changePassword(user.id, input);
   }
 
   @Query(() => User)

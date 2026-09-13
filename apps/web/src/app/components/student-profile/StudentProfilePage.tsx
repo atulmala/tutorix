@@ -17,7 +17,6 @@ import type { AddressFormValues, AddressLocationSuggestion } from '@tutorix/tuto
 import { useGooglePlacesAutocomplete } from '../../../hooks/useGooglePlacesAutocomplete';
 import { useWebAuth } from '../../auth/useWebAuth';
 import { HeaderProfileAvatar } from '../HeaderProfileAvatar';
-import { WalletBalanceChip } from '../wallet';
 import type { WebUser } from '../../types/web-user';
 
 type MyStudentDetailData = {
@@ -28,9 +27,7 @@ type CurrentUserData = {
   me: WebUser;
 };
 
-export const StudentProfilePage: React.FC<{ onOpenWallet?: () => void }> = ({
-  onOpenWallet,
-}) => {
+export const StudentProfilePage: React.FC = () => {
   const { user: currentUser, refreshUser } = useWebAuth();
   const { data: meData, loading: meLoading } = useQuery<CurrentUserData>(GET_CURRENT_USER, {
     fetchPolicy: 'network-only',
@@ -218,11 +215,6 @@ export const StudentProfilePage: React.FC<{ onOpenWallet?: () => void }> = ({
       <StudentDetailView
         mode="student"
         student={student}
-        headerTrailing={
-          onOpenWallet ? (
-            <WalletBalanceChip onOpenWallet={onOpenWallet} className="shrink-0" />
-          ) : null
-        }
         profileAvatar={
           avatarUser ? (
             <HeaderProfileAvatar

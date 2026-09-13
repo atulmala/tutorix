@@ -41,7 +41,13 @@ jest.mock('./components/tutor-onboarding', () => ({ TutorOnboarding: () => null 
 jest.mock('./components/tutor-profile/TutorProfilePage', () => ({
   TutorProfilePage: () => null,
 }));
+jest.mock('./components/tutor-home', () => ({
+  TutorHomePage: () => null,
+}));
 jest.mock('./components/student-onboarding', () => ({ StudentOnboarding: () => null }));
+jest.mock('./components/student-home', () => ({
+  StudentHomePage: () => null,
+}));
 jest.mock('./components/student-profile', () => ({
   StudentProfilePage: () => null,
 }));

@@ -1,5 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  SafeAreaView,
+  Image,
+} from 'react-native';
 import { BackArrowIcon } from './BackArrowIcon';
 import { LogoutIcon } from './LogoutIcon';
 
@@ -12,6 +19,12 @@ export type NavHeaderProps = {
   onBack?: () => void;
   /** User initials to show in circle (e.g. "SD"); later replace with profile image */
   userInitials?: string | null;
+  /** Profile image URL for the left avatar (student home). */
+  avatarUrl?: string | null;
+  /** When set and there is no back button, left avatar is tappable. */
+  onProfilePress?: () => void;
+  /** Slot rendered on the right, immediately before logout (e.g. wallet chip). */
+  rightBeforeLogout?: React.ReactNode;
   /** Callback when logout is pressed; if provided, logout icon is shown */
   onLogout?: () => void;
 };
@@ -21,8 +34,15 @@ export const NavHeader: React.FC<NavHeaderProps> = ({
   stepLabel,
   onBack,
   userInitials,
+  avatarUrl,
+  onProfilePress,
+  rightBeforeLogout,
   onLogout,
 }) => {
+  const showLeftAvatar = !onBack && !!onProfilePress;
+  const showLegacyRightInitials =
+    !showLeftAvatar && !onBack && !!userInitials;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -35,6 +55,22 @@ export const NavHeader: React.FC<NavHeaderProps> = ({
               accessibilityLabel="Go back"
             >
               <BackArrowIcon size={24} color="#0f172a" />
+            </TouchableOpacity>
+          ) : showLeftAvatar ? (
+            <TouchableOpacity
+              style={styles.avatarButton}
+              onPress={onProfilePress}
+              activeOpacity={0.8}
+              accessibilityLabel="Open profile"
+              accessibilityRole="button"
+            >
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+              ) : (
+                <View style={styles.initialsCircle}>
+                  <Text style={styles.initialsText}>{userInitials || '?'}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           ) : (
             <View style={styles.backPlaceholder} />
@@ -53,11 +89,12 @@ export const NavHeader: React.FC<NavHeaderProps> = ({
         </View>
 
         <View style={styles.right}>
-          {userInitials ? (
+          {showLegacyRightInitials ? (
             <View style={styles.initialsCircle}>
               <Text style={styles.initialsText}>{userInitials}</Text>
             </View>
           ) : null}
+          {rightBeforeLogout}
           {onLogout ? (
             <TouchableOpacity
               style={styles.logoutButton}
@@ -90,7 +127,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#cbd5e1',
   },
   left: {
-    width: 40,
+    minWidth: 48,
     alignItems: 'flex-start',
   },
   backButton: {
@@ -100,6 +137,17 @@ const styles = StyleSheet.create({
   backPlaceholder: {
     width: 24,
     height: 24,
+  },
+  avatarButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   center: {
     flex: 1,
@@ -121,7 +169,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    minWidth: 40,
+    minWidth: 48,
     justifyContent: 'flex-end',
   },
   initialsCircle: {

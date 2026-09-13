@@ -10,8 +10,10 @@ import { ForgotPassword } from './components/ForgotPassword';
 import { ResetPassword } from './components/ResetPassword';
 import { PasswordResetAcknowledgement } from './components/PasswordResetAcknowledgement';
 import { TutorOnboarding } from './components/tutor-onboarding';
+import { TutorHomePage } from './components/tutor-home';
 import { TutorProfilePage } from './components/tutor-profile/TutorProfilePage';
 import { StudentOnboarding } from './components/student-onboarding';
+import { StudentHomePage } from './components/student-home';
 import { StudentProfilePage } from './components/student-profile';
 import { AppHeader } from './components/AppHeader';
 import { WalletPage } from './components/wallet';
@@ -20,27 +22,18 @@ import { WebAuthProvider, useWebAuth } from './auth/useWebAuth';
 import type { WebUser } from './types/web-user';
 import { SessionLoadingGate } from './auth/SessionLoadingGate';
 import { LegalPage } from './components/LegalPage';
-
-type View =
-  | 'home'
-  | 'for-students'
-  | 'for-tutors'
-  | 'signup'
-  | 'login'
-  | 'forgot-password'
-  | 'reset-password'
-  | 'password-reset-ack'
-  | 'tutor-onboarding'
-  | 'tutor-profile'
-  | 'student-onboarding'
-  | 'student-profile'
-  | 'wallet'
-  | 'privacy'
-  | 'terms';
+import {
+  studentViewAfterProfile,
+  tutorViewAfterProfile,
+  type WalletReturnView,
+  type WebView,
+} from './web-navigation';
 
 function AppContent() {
   const { user: currentUser, refreshUser, logout } = useWebAuth();
-  const [currentView, setCurrentViewInternal] = useState<View>('home');
+  const [currentView, setCurrentViewInternal] = useState<WebView>('home');
+  const [walletReturnView, setWalletReturnView] =
+    useState<WalletReturnView>('tutor-home');
   const [resumeUserId, setResumeUserId] = useState<number | undefined>(undefined);
   const [resumeVerificationStatus, setResumeVerificationStatus] = useState<
     | {
@@ -81,7 +74,7 @@ function AppContent() {
   const currentViewRef = useRef(currentView);
   currentViewRef.current = currentView;
 
-  const setCurrentView = useCallback((view: View) => {
+  const setCurrentView = useCallback((view: WebView) => {
     console.log(`[App] View change: ${currentViewRef.current} -> ${view}`);
     setCurrentViewInternal(view);
   }, []);
@@ -117,18 +110,17 @@ function AppContent() {
       tutor.certificationStage,
     );
 
-    if (!onboardingComplete) {
+    const nextView = tutorViewAfterProfile(tutor);
+    if (nextView === 'tutor-onboarding') {
       setTutorProfileForOnboarding({
-        certificationStage: tutor.certificationStage ?? undefined,
+        certificationStage: !onboardingComplete
+          ? (tutor.certificationStage ?? undefined)
+          : 'complete',
       });
-      setCurrentView('tutor-onboarding');
-    } else if (!celebrationSeen) {
-      setTutorProfileForOnboarding({ certificationStage: 'complete' });
-      setCurrentView('tutor-onboarding');
     } else {
       setTutorProfileForOnboarding(null);
-      setCurrentView('tutor-profile');
     }
+    setCurrentView(nextView);
   }, [setCurrentView]);
 
   const routeStudentAfterProfile = useCallback((student: {
@@ -141,15 +133,15 @@ function AppContent() {
       return;
     }
 
-    if (!student.onBoardingComplete) {
+    const nextView = studentViewAfterProfile(student);
+    if (nextView === 'student-onboarding') {
       setStudentProfileForOnboarding({
         onboardingStage: student.onboardingStage ?? undefined,
       });
-      setCurrentView('student-onboarding');
     } else {
       setStudentProfileForOnboarding(null);
-      setCurrentView('student-profile');
     }
+    setCurrentView(nextView);
   }, [setCurrentView]);
 
   const routeAfterAuthenticatedUser = useCallback(async (user?: WebUser | null) => {
@@ -192,13 +184,14 @@ function AppContent() {
     }
   }, [fetchMyStudentProfile, fetchMyTutorProfile, routeStudentAfterProfile, routeTutorAfterProfile, setCurrentView]);
 
-  const handleOpenWallet = useCallback(() => {
+  const handleOpenWallet = useCallback((from: WalletReturnView) => {
+    setWalletReturnView(from);
     setCurrentView('wallet');
   }, [setCurrentView]);
 
   const handleWalletBack = useCallback(() => {
-    void routeAfterAuthenticatedUser(currentUser);
-  }, [currentUser, routeAfterAuthenticatedUser]);
+    setCurrentView(walletReturnView);
+  }, [setCurrentView, walletReturnView]);
 
   // Check for reset password token in URL on mount (takes precedence over session restore)
   useEffect(() => {
@@ -363,12 +356,12 @@ function AppContent() {
 
   const handleOnboardingComplete = () => {
     setTutorProfileForOnboarding(null);
-    setCurrentView('tutor-profile');
+    setCurrentView('tutor-home');
   };
 
   const handleStudentOnboardingComplete = () => {
     setStudentProfileForOnboarding(null);
-    setCurrentView('student-profile');
+    setCurrentView('student-home');
   };
 
   const holdingForSessionRoute =
@@ -402,12 +395,33 @@ function AppContent() {
     );
   }
 
+  if (currentView === 'student-home') {
+    return (
+      <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader
+          title="Home"
+          onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('student-profile')}
+          onOpenWallet={() => handleOpenWallet('student-home')}
+        />
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
+          <StudentHomePage />
+        </main>
+      </div>
+    );
+  }
+
   if (currentView === 'student-profile') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
-        <AppHeader onLogout={handleLogout} showProfileAvatar={false} />
+        <AppHeader
+          title="My profile"
+          onLogout={handleLogout}
+          onBack={() => setCurrentView('student-home')}
+          onOpenWallet={() => handleOpenWallet('student-profile')}
+        />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
-          <StudentProfilePage onOpenWallet={handleOpenWallet} />
+          <StudentProfilePage />
         </main>
       </div>
     );
@@ -416,7 +430,12 @@ function AppContent() {
   if (currentView === 'wallet') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
-        <AppHeader onLogout={handleLogout} />
+        <AppHeader
+          title="Wallet"
+          onLogout={handleLogout}
+          onBack={handleWalletBack}
+          onOpenWallet={() => undefined}
+        />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
           <WalletPage onBack={handleWalletBack} />
         </main>
@@ -456,14 +475,33 @@ function AppContent() {
     );
   }
 
+  if (currentView === 'tutor-home') {
+    return (
+      <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader
+          title="Home"
+          onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('tutor-profile')}
+          onOpenWallet={() => handleOpenWallet('tutor-home')}
+        />
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
+          <TutorHomePage />
+        </main>
+      </div>
+    );
+  }
+
   if (currentView === 'tutor-profile') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
-        <AppHeader onLogout={handleLogout} showProfileAvatar={false} />
+        <AppHeader
+          title="My profile"
+          onLogout={handleLogout}
+          onBack={() => setCurrentView('tutor-home')}
+          onOpenWallet={() => handleOpenWallet('tutor-profile')}
+        />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
-          <TutorProfilePage
-            onOpenWallet={handleOpenWallet}
-          />
+          <TutorProfilePage />
         </main>
       </div>
     );

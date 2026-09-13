@@ -1,7 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { AppHeader } from './AppHeader';
-
-const mockSetUser = jest.fn();
 
 jest.mock('../config', () => ({
   BRAND_NAME: 'Tutorix',
@@ -16,26 +14,56 @@ jest.mock('../auth/useWebAuth', () => ({
       email: 'ashton@gmail.com',
       role: 'TUTOR',
     },
-    setUser: mockSetUser,
   }),
 }));
 
 jest.mock('./HeaderProfileAvatar', () => ({
-  HeaderProfileAvatar: () => (
-    <button type="button" aria-label="Upload profile picture">
+  HeaderProfileAvatar: ({ onNavigate }: { onNavigate?: () => void }) => (
+    <button type="button" aria-label="Open profile" onClick={onNavigate}>
       Avatar
     </button>
   ),
 }));
 
+jest.mock('./wallet', () => ({
+  WalletBalanceChip: ({ onOpenWallet }: { onOpenWallet?: () => void }) => (
+    <button type="button" aria-label="Wallet balance ₹0" onClick={onOpenWallet}>
+      Wallet
+    </button>
+  ),
+}));
+
 describe('AppHeader', () => {
-  it('renders brand, avatar, and logout without display name', () => {
-    render(<AppHeader onLogout={jest.fn()} />);
+  it('opens profile from the left avatar and shows wallet before logout', () => {
+    const onProfilePress = jest.fn();
+    const onOpenWallet = jest.fn();
+    render(
+      <AppHeader
+        onLogout={jest.fn()}
+        onProfilePress={onProfilePress}
+        onOpenWallet={onOpenWallet}
+      />,
+    );
 
     expect(screen.getByText('Tutorix')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Upload profile picture' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Open profile' }));
+    expect(onProfilePress).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Wallet balance ₹0' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Logout' })).toBeTruthy();
     expect(screen.queryByText('Ashton Kuchler')).toBeNull();
-    expect(screen.queryByText('Ashton')).toBeNull();
+  });
+
+  it('hides the profile avatar when back is shown', () => {
+    render(
+      <AppHeader
+        onLogout={jest.fn()}
+        onBack={jest.fn()}
+        onProfilePress={jest.fn()}
+        onOpenWallet={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Go back' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Open profile' })).toBeNull();
   });
 });

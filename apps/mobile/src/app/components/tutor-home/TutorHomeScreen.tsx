@@ -1,27 +1,27 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useQuery } from '@apollo/client';
-import { GET_MY_STUDENT_PROFILE } from '@tutorix/shared-graphql/queries';
+import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
 
-type StudentHomeScreenProps = {
+type TutorHomeScreenProps = {
   currentUser?: {
     firstName?: string;
     lastName?: string;
   } | null;
 };
 
-export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
+export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
   currentUser,
 }) => {
-  const { data } = useQuery(GET_MY_STUDENT_PROFILE, {
+  const { data } = useQuery(GET_MY_TUTOR_PROFILE, {
     fetchPolicy: 'cache-and-network',
   });
 
-  const user = data?.myStudentProfile?.user;
+  const user = data?.myTutorProfile?.user;
   const firstName = user?.firstName ?? currentUser?.firstName;
   const lastName = user?.lastName ?? currentUser?.lastName;
   const displayName =
-    [firstName, lastName].filter(Boolean).join(' ') || 'Student';
+    [firstName, lastName].filter(Boolean).join(' ') || 'Tutor';
 
   return (
     <ScrollView
@@ -33,7 +33,7 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
         <Text style={styles.welcomeTitle}>Welcome, {displayName}</Text>
         <View style={styles.comingSoon}>
           <Text style={styles.comingSoonText}>
-            Find tutors, book sessions, and track your learning — coming soon.
+            Manage bookings, students, and your teaching schedule — coming soon.
           </Text>
         </View>
       </View>

@@ -14,9 +14,20 @@ import { SignUpScreen } from './components/sign-up/SignUpScreen';
 import { TutorOnboarding } from './components/tutor-onboarding';
 import { StudentOnboarding } from './components/student-onboarding';
 import { StudentDetailScreen } from './components/student-profile/StudentDetailScreen';
+import { StudentHomeScreen } from './components/student-home/StudentHomeScreen';
+import { StudentNavHeader } from './components/student-nav/StudentNavHeader';
 import { TutorDetailScreen } from './components/tutor-profile/TutorDetailScreen';
+import { TutorHomeScreen } from './components/tutor-home/TutorHomeScreen';
+import { TutorNavHeader } from './components/tutor-nav/TutorNavHeader';
 import { WalletScreen } from './components/wallet';
 import { NavHeader } from './components/NavHeader';
+import {
+  studentViewAfterProfile,
+  tutorViewAfterProfile,
+  walletReturnFromPush,
+  type AppView,
+  type WalletReturnView,
+} from './student-navigation';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { createApolloClient } from '@tutorix/shared-graphql/client/mobile';
 import {
@@ -61,19 +72,7 @@ function getApolloClient(): AppApolloClient | null {
   }
 }
 
-type AppView =
-  | 'splash'
-  | 'login'
-  | 'forgotPassword'
-  | 'signup'
-  | 'tutorOnboarding'
-  | 'tutorProfile'
-  | 'studentOnboarding'
-  | 'studentProfile'
-  | 'wallet'
-  | 'home';
-
-type WalletReturnView = 'tutorProfile' | 'studentProfile';
+export type { AppView, WalletReturnView };
 
 const UNAUTHED_VIEWS: AppView[] = [
   'splash',
@@ -90,7 +89,7 @@ function AppContent() {
   const apolloClient = useApolloClient();
   const [currentView, setCurrentView] = useState<AppView>('splash');
   const [walletReturnView, setWalletReturnView] =
-    useState<WalletReturnView>('tutorProfile');
+    useState<WalletReturnView>('tutorHome');
   const [tutorProfileForOnboarding, setTutorProfileForOnboarding] = useState<{
     certificationStage?: string;
   } | null>(null);
@@ -158,7 +157,7 @@ function AppContent() {
         setCurrentView('studentOnboarding');
       } else {
         setStudentProfileForOnboarding(null);
-        setCurrentView('studentProfile');
+        setCurrentView(studentViewAfterProfile(student));
       }
     },
     [],
@@ -182,7 +181,7 @@ function AppContent() {
         setCurrentView('tutorOnboarding');
       } else {
         setTutorProfileForOnboarding(null);
-        setCurrentView('tutorProfile');
+        setCurrentView(tutorViewAfterProfile(tutor));
       }
     },
     onError: () => {
@@ -256,12 +255,12 @@ function AppContent() {
 
   const handleTutorOnboardingComplete = () => {
     setTutorProfileForOnboarding(null);
-    setCurrentView('tutorProfile');
+    setCurrentView('tutorHome');
   };
 
   const handleStudentOnboardingComplete = () => {
     setStudentProfileForOnboarding(null);
-    setCurrentView('studentProfile');
+    setCurrentView('studentHome');
   };
 
   const handleOpenWallet = useCallback((from: WalletReturnView) => {
@@ -274,11 +273,9 @@ function AppContent() {
   }, [walletReturnView]);
 
   const openWalletFromPush = useCallback(() => {
-    const view = currentViewRef.current;
-    if (view === 'studentProfile' || view === 'studentOnboarding') {
-      setWalletReturnView('studentProfile');
-    } else if (view !== 'wallet') {
-      setWalletReturnView('tutorProfile');
+    const nextReturn = walletReturnFromPush(currentViewRef.current);
+    if (nextReturn) {
+      setWalletReturnView(nextReturn);
     }
     setCurrentView('wallet');
     setPushBanner(null);
@@ -363,24 +360,56 @@ function AppContent() {
         onLogout={handleLogout}
       />
     );
+  } else if (currentView === 'studentHome') {
+    screen = (
+      <View style={{ flex: 1 }}>
+        <StudentNavHeader
+          title="Home"
+          onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('studentProfile')}
+          onOpenWallet={() => handleOpenWallet('studentHome')}
+        />
+        <StudentHomeScreen />
+      </View>
+    );
   } else if (currentView === 'studentProfile') {
     screen = (
       <View style={{ flex: 1 }}>
-        <NavHeader title="My profile" onLogout={handleLogout} />
-        <StudentDetailScreen
+        <StudentNavHeader
+          title="My profile"
+          onBack={() => setCurrentView('studentHome')}
+          onLogout={handleLogout}
           onOpenWallet={() => handleOpenWallet('studentProfile')}
+        />
+        <StudentDetailScreen
           onAccountDeleted={() => {
             void handleAccountDeleted();
           }}
         />
       </View>
     );
+  } else if (currentView === 'tutorHome') {
+    screen = (
+      <View style={{ flex: 1 }}>
+        <TutorNavHeader
+          title="Home"
+          onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('tutorProfile')}
+          onOpenWallet={() => handleOpenWallet('tutorHome')}
+        />
+        <TutorHomeScreen />
+      </View>
+    );
   } else if (currentView === 'tutorProfile') {
     screen = (
       <View style={{ flex: 1 }}>
-        <NavHeader title="My profile" onLogout={handleLogout} />
-        <TutorDetailScreen
+        <TutorNavHeader
+          title="My profile"
+          onBack={() => setCurrentView('tutorHome')}
+          onLogout={handleLogout}
           onOpenWallet={() => handleOpenWallet('tutorProfile')}
+        />
+        <TutorDetailScreen
           onAccountDeleted={() => {
             void handleAccountDeleted();
           }}
@@ -388,13 +417,34 @@ function AppContent() {
       </View>
     );
   } else if (currentView === 'wallet') {
+    const studentWallet =
+      walletReturnView === 'studentHome' ||
+      walletReturnView === 'studentProfile';
+    const tutorWallet =
+      walletReturnView === 'tutorHome' || walletReturnView === 'tutorProfile';
     screen = (
       <View style={{ flex: 1 }}>
-        <NavHeader
-          title="Wallet"
-          onBack={handleWalletBack}
-          onLogout={handleLogout}
-        />
+        {studentWallet ? (
+          <StudentNavHeader
+            title="Wallet"
+            onBack={handleWalletBack}
+            onLogout={handleLogout}
+            onOpenWallet={() => undefined}
+          />
+        ) : tutorWallet ? (
+          <TutorNavHeader
+            title="Wallet"
+            onBack={handleWalletBack}
+            onLogout={handleLogout}
+            onOpenWallet={() => undefined}
+          />
+        ) : (
+          <NavHeader
+            title="Wallet"
+            onBack={handleWalletBack}
+            onLogout={handleLogout}
+          />
+        )}
         <WalletScreen onBack={handleWalletBack} />
       </View>
     );

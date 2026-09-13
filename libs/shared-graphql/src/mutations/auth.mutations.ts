@@ -178,3 +178,9 @@ export const DELETE_MY_ACCOUNT = gql`
     deleteMyAccount
   }
 `;
+
+export const CHANGE_PASSWORD = gql`
+  mutation ChangePassword($input: ChangePasswordInput!) {
+    changePassword(input: $input)
+  }
+`;

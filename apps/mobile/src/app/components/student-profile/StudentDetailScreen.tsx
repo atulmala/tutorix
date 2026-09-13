@@ -40,7 +40,6 @@ import {
 } from '../student-home/pickProfilePictureImage';
 import { ParentModal } from './ParentModal';
 import { EducationModal } from './EducationModal';
-import { WalletBalanceChip } from '../wallet';
 import { AccountLegalSection } from '../AccountLegalSection';
 
 type MyStudentDetailData = {
@@ -48,7 +47,6 @@ type MyStudentDetailData = {
 };
 
 type StudentDetailScreenProps = {
-  onOpenWallet?: () => void;
   onAccountDeleted?: () => void;
 };
 
@@ -120,7 +118,6 @@ function formatTimelineDate(entry: OnboardingTimelineEntry): string {
 }
 
 export const StudentDetailScreen: React.FC<StudentDetailScreenProps> = ({
-  onOpenWallet,
   onAccountDeleted,
 }) => {
   const [parentModalOpen, setParentModalOpen] = useState(false);
@@ -334,9 +331,6 @@ export const StudentDetailScreen: React.FC<StudentDetailScreenProps> = ({
             </View>
             <View style={styles.badgeRow}>
               <Text style={styles.stageBadge}>{getStageTitle(student)}</Text>
-              {onOpenWallet ? (
-                <WalletBalanceChip onOpenWallet={onOpenWallet} />
-              ) : null}
             </View>
             <Text style={styles.contact}>
               {formatMobile(student.user)}

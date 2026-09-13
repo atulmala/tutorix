@@ -30,7 +30,6 @@ import { TutorPT } from '../tutor-onboarding/tutor-pt/TutorPT';
 import { useGooglePlacesAutocomplete } from '../../../hooks/useGooglePlacesAutocomplete';
 import { useWebAuth } from '../../auth/useWebAuth';
 import { HeaderProfileAvatar } from '../HeaderProfileAvatar';
-import { WalletBalanceChip } from '../wallet';
 import type { WebUser } from '../../types/web-user';
 
 type MyTutorDetailData = {
@@ -41,9 +40,7 @@ type CurrentUserData = {
   me: WebUser;
 };
 
-export const TutorProfilePage: React.FC<{
-  onOpenWallet?: () => void;
-}> = ({ onOpenWallet }) => {
+export const TutorProfilePage: React.FC = () => {
   const { user: currentUser, refreshUser } = useWebAuth();
   const { data: meData, loading: meLoading } = useQuery<CurrentUserData>(GET_CURRENT_USER, {
     fetchPolicy: 'network-only',
@@ -353,11 +350,6 @@ export const TutorProfilePage: React.FC<{
       <TutorDetailView
         mode="tutor"
         tutor={tutor}
-        headerTrailing={
-          onOpenWallet ? (
-            <WalletBalanceChip onOpenWallet={onOpenWallet} className="shrink-0" />
-          ) : null
-        }
         profileAvatar={
           avatarUser ? (
             <HeaderProfileAvatar

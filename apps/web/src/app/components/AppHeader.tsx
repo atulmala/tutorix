@@ -2,22 +2,24 @@ import React from 'react';
 import { BRAND_NAME } from '../config';
 import { useWebAuth } from '../auth/useWebAuth';
 import { HeaderProfileAvatar } from './HeaderProfileAvatar';
-import type { ProfilePictureUploadResult } from '../lib/uploadProfilePicture';
+import { WalletBalanceChip } from './wallet';
 
 type AppHeaderProps = {
   onLogout: () => void;
-  showProfileAvatar?: boolean;
+  onOpenWallet?: () => void;
+  onProfilePress?: () => void;
+  onBack?: () => void;
+  title?: string;
 };
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
   onLogout,
-  showProfileAvatar = true,
+  onOpenWallet,
+  onProfilePress,
+  onBack,
+  title = BRAND_NAME,
 }) => {
-  const { user: currentUser, refreshUser } = useWebAuth();
-
-  const handleUploadComplete = async (_updated: ProfilePictureUploadResult) => {
-    await refreshUser();
-  };
+  const { user: currentUser } = useWebAuth();
 
   if (!currentUser) {
     return null;
@@ -25,11 +27,23 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   return (
     <header className="flex items-center justify-between px-6 py-4 md:px-12 md:py-6 bg-white border-b border-subtle">
-      <div className="text-2xl font-bold text-primary">{BRAND_NAME}</div>
-      <div className="relative flex items-center gap-3">
-        {showProfileAvatar ? (
-          <HeaderProfileAvatar user={currentUser} onUploadComplete={handleUploadComplete} />
+      <div className="flex items-center gap-3">
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-lg border border-subtle px-3 py-1.5 text-sm font-semibold text-primary transition hover:bg-gray-50"
+            aria-label="Go back"
+          >
+            Back
+          </button>
+        ) : onProfilePress ? (
+          <HeaderProfileAvatar user={currentUser} onNavigate={onProfilePress} />
         ) : null}
+        <div className="text-2xl font-bold text-primary">{title}</div>
+      </div>
+      <div className="relative flex items-center gap-3">
+        {onOpenWallet ? <WalletBalanceChip onOpenWallet={onOpenWallet} /> : null}
         <button
           onClick={onLogout}
           className="rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
