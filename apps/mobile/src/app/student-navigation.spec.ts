@@ -35,18 +35,32 @@ describe('walletReturnFromPush', () => {
     expect(walletReturnFromPush('studentProfile')).toBe('studentProfile');
   });
 
-  it('leaves tutors on tutorProfile', () => {
+  it('returns tutorHome from tutor home or onboarding', () => {
+    expect(walletReturnFromPush('tutorHome')).toBe('tutorHome');
+    expect(walletReturnFromPush('tutorOnboarding')).toBe('tutorHome');
+  });
+
+  it('returns tutorProfile when the tutor is already on profile', () => {
     expect(walletReturnFromPush('tutorProfile')).toBe('tutorProfile');
   });
 });
 
 describe('tutorViewAfterProfile', () => {
-  it('still lands onboarded tutors on tutorProfile', () => {
+  it('lands onboarded tutors on tutorHome', () => {
     expect(
       tutorViewAfterProfile({
         onBoardingComplete: true,
         onboardingCelebrationSeen: true,
       }),
-    ).toBe('tutorProfile');
+    ).toBe('tutorHome');
+  });
+
+  it('keeps incomplete tutors on onboarding', () => {
+    expect(
+      tutorViewAfterProfile({
+        onBoardingComplete: false,
+        onboardingCelebrationSeen: false,
+      }),
+    ).toBe('tutorOnboarding');
   });
 });

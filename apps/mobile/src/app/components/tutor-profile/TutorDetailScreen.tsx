@@ -79,13 +79,11 @@ import {
   ProfilePicturePickCanceled,
   promptProfilePictureSource,
 } from '../student-home/pickProfilePictureImage';
-import { WalletBalanceChip } from '../wallet';
 import { AccountLegalSection } from '../AccountLegalSection';
 
 type TutorOffering = TutorDetailRecord['offerings'][number];
 
 type TutorDetailScreenProps = {
-  onOpenWallet?: () => void;
   onAccountDeleted?: () => void;
 };
 
@@ -241,7 +239,6 @@ function DocumentViewerModal({
 }
 
 export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
-  onOpenWallet,
   onAccountDeleted,
 }) => {
   const { data, loading, error, refetch } = useQuery<MyTutorDetailData>(GET_MY_TUTOR_DETAIL, {
@@ -781,9 +778,6 @@ export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
           <View style={styles.badgeRow}>
             {tutor.certificationStage ? (
               <Text style={styles.stageBadge}>{tutor.certificationStage}</Text>
-            ) : null}
-            {onOpenWallet ? (
-              <WalletBalanceChip onOpenWallet={onOpenWallet} />
             ) : null}
           </View>
           <Text style={styles.meta}>

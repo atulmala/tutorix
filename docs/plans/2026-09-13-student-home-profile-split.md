@@ -1,6 +1,6 @@
 ---
 title: Student home vs profile (mobile)
-status: in-progress
+status: done
 jira: TUTORIX-78
 created: 2026-09-13
 labels:

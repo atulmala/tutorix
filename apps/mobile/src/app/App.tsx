@@ -17,10 +17,13 @@ import { StudentDetailScreen } from './components/student-profile/StudentDetailS
 import { StudentHomeScreen } from './components/student-home/StudentHomeScreen';
 import { StudentNavHeader } from './components/student-nav/StudentNavHeader';
 import { TutorDetailScreen } from './components/tutor-profile/TutorDetailScreen';
+import { TutorHomeScreen } from './components/tutor-home/TutorHomeScreen';
+import { TutorNavHeader } from './components/tutor-nav/TutorNavHeader';
 import { WalletScreen } from './components/wallet';
 import { NavHeader } from './components/NavHeader';
 import {
   studentViewAfterProfile,
+  tutorViewAfterProfile,
   walletReturnFromPush,
   type AppView,
   type WalletReturnView,
@@ -86,7 +89,7 @@ function AppContent() {
   const apolloClient = useApolloClient();
   const [currentView, setCurrentView] = useState<AppView>('splash');
   const [walletReturnView, setWalletReturnView] =
-    useState<WalletReturnView>('tutorProfile');
+    useState<WalletReturnView>('tutorHome');
   const [tutorProfileForOnboarding, setTutorProfileForOnboarding] = useState<{
     certificationStage?: string;
   } | null>(null);
@@ -178,7 +181,7 @@ function AppContent() {
         setCurrentView('tutorOnboarding');
       } else {
         setTutorProfileForOnboarding(null);
-        setCurrentView('tutorProfile');
+        setCurrentView(tutorViewAfterProfile(tutor));
       }
     },
     onError: () => {
@@ -252,7 +255,7 @@ function AppContent() {
 
   const handleTutorOnboardingComplete = () => {
     setTutorProfileForOnboarding(null);
-    setCurrentView('tutorProfile');
+    setCurrentView('tutorHome');
   };
 
   const handleStudentOnboardingComplete = () => {
@@ -385,12 +388,28 @@ function AppContent() {
         />
       </View>
     );
+  } else if (currentView === 'tutorHome') {
+    screen = (
+      <View style={{ flex: 1 }}>
+        <TutorNavHeader
+          title="Home"
+          onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('tutorProfile')}
+          onOpenWallet={() => handleOpenWallet('tutorHome')}
+        />
+        <TutorHomeScreen />
+      </View>
+    );
   } else if (currentView === 'tutorProfile') {
     screen = (
       <View style={{ flex: 1 }}>
-        <NavHeader title="My profile" onLogout={handleLogout} />
-        <TutorDetailScreen
+        <TutorNavHeader
+          title="My profile"
+          onBack={() => setCurrentView('tutorHome')}
+          onLogout={handleLogout}
           onOpenWallet={() => handleOpenWallet('tutorProfile')}
+        />
+        <TutorDetailScreen
           onAccountDeleted={() => {
             void handleAccountDeleted();
           }}
@@ -401,10 +420,19 @@ function AppContent() {
     const studentWallet =
       walletReturnView === 'studentHome' ||
       walletReturnView === 'studentProfile';
+    const tutorWallet =
+      walletReturnView === 'tutorHome' || walletReturnView === 'tutorProfile';
     screen = (
       <View style={{ flex: 1 }}>
         {studentWallet ? (
           <StudentNavHeader
+            title="Wallet"
+            onBack={handleWalletBack}
+            onLogout={handleLogout}
+            onOpenWallet={() => undefined}
+          />
+        ) : tutorWallet ? (
+          <TutorNavHeader
             title="Wallet"
             onBack={handleWalletBack}
             onLogout={handleLogout}

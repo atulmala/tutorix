@@ -17,6 +17,10 @@ export const GET_MY_TUTOR_PROFILE = gql`
         id
         firstName
         lastName
+        profilePicture
+        profilePictureThumbnailMedium
+        profilePictureThumbnailLarge
+        profilePictureOriginalUrl
       }
       addresses {
         id

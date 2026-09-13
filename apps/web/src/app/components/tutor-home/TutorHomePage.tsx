@@ -1,19 +1,18 @@
 import React from 'react';
 import { useQuery } from '@apollo/client';
-import { GET_MY_STUDENT_PROFILE } from '@tutorix/shared-graphql';
+import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql';
 import { useWebAuth } from '../../auth/useWebAuth';
 
-export const StudentHomePage: React.FC = () => {
+export const TutorHomePage: React.FC = () => {
   const { user: currentUser } = useWebAuth();
-  const { data } = useQuery(GET_MY_STUDENT_PROFILE, {
+  const { data } = useQuery(GET_MY_TUTOR_PROFILE, {
     fetchPolicy: 'cache-and-network',
   });
 
-  const user = data?.myStudentProfile?.user;
+  const user = data?.myTutorProfile?.user;
   const firstName = user?.firstName ?? currentUser?.firstName;
   const lastName = user?.lastName ?? currentUser?.lastName;
-  const displayName =
-    [firstName, lastName].filter(Boolean).join(' ') || 'Student';
+  const displayName = [firstName, lastName].filter(Boolean).join(' ') || 'Tutor';
 
   return (
     <div className="w-full max-w-5xl space-y-6">
@@ -21,7 +20,7 @@ export const StudentHomePage: React.FC = () => {
         <h1 className="text-2xl font-bold text-primary">Welcome, {displayName}</h1>
         <div className="mt-10 rounded-lg border border-dashed border-subtle bg-gray-50/50 p-6 text-center">
           <p className="text-sm text-muted">
-            Find tutors, book sessions, and track your learning — coming soon.
+            Manage bookings, students, and your teaching schedule — coming soon.
           </p>
         </div>
       </div>

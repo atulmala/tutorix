@@ -4,6 +4,7 @@ export type AppView =
   | 'forgotPassword'
   | 'signup'
   | 'tutorOnboarding'
+  | 'tutorHome'
   | 'tutorProfile'
   | 'studentOnboarding'
   | 'studentHome'
@@ -11,7 +12,11 @@ export type AppView =
   | 'wallet'
   | 'home';
 
-export type WalletReturnView = 'tutorProfile' | 'studentProfile' | 'studentHome';
+export type WalletReturnView =
+  | 'tutorHome'
+  | 'tutorProfile'
+  | 'studentProfile'
+  | 'studentHome';
 
 export type StudentRouteProfile = {
   onBoardingComplete?: boolean;
@@ -37,10 +42,16 @@ export function walletReturnFromPush(view: AppView): WalletReturnView | null {
   if (view === 'studentProfile') {
     return 'studentProfile';
   }
+  if (view === 'tutorHome' || view === 'tutorOnboarding') {
+    return 'tutorHome';
+  }
+  if (view === 'tutorProfile') {
+    return 'tutorProfile';
+  }
   if (view === 'wallet') {
     return null;
   }
-  return 'tutorProfile';
+  return 'tutorHome';
 }
 
 export function tutorViewAfterProfile(tutor: {
@@ -53,5 +64,5 @@ export function tutorViewAfterProfile(tutor: {
   if (!tutor.onBoardingComplete || !tutor.onboardingCelebrationSeen) {
     return 'tutorOnboarding';
   }
-  return 'tutorProfile';
+  return 'tutorHome';
 }
