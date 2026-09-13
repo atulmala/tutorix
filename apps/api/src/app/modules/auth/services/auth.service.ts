@@ -24,6 +24,7 @@ import { UpdateUserInput } from '../dto/update-user.input';
 import { PasswordResetToken } from '../entities/password-reset-token.entity';
 import { ForgotPasswordInput } from '../dto/forgot-password.input';
 import { ResetPasswordInput } from '../dto/reset-password.input';
+import { ChangePasswordInput } from '../dto/change-password.input';
 import { ConfigService } from '@nestjs/config';
 import { TutorService } from '../../tutor/services/tutor.service';
 import { StudentService } from '../../student/services/student.service';
@@ -319,6 +320,41 @@ export class AuthService {
     }
 
     user.password = await this.passwordService.hashPassword(input.password);
+    await this.userRepository.save(user);
+    return true;
+  }
+
+  /**
+   * Change password for the signed-in user after verifying the current password.
+   */
+  async changePassword(
+    userId: number,
+    input: ChangePasswordInput,
+  ): Promise<boolean> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId, active: true, deleted: false },
+      select: ['id', 'password'],
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found or inactive');
+    }
+
+    const currentValid = await this.passwordService.comparePassword(
+      input.currentPassword,
+      user.password,
+    );
+    if (!currentValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    if (input.currentPassword === input.newPassword) {
+      throw new BadRequestException(
+        'New password must be different from the current password',
+      );
+    }
+
+    user.password = await this.passwordService.hashPassword(input.newPassword);
     await this.userRepository.save(user);
     return true;
   }
