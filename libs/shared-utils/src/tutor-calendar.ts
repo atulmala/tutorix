@@ -134,6 +134,19 @@ export function addIstDaysUtc(startUtc: Date, days: number): Date {
   return istDayStartUtc(p.year, p.month, p.day + days);
 }
 
+/** Sunday 00:00 IST through next Sunday, matching the tutor calendar weekday order. */
+export function currentIstWeekRange(now = new Date()): {
+  weekStart: Date;
+  weekEnd: Date;
+} {
+  const todayStart = istTodayStartUtc(now);
+  const dow = new Date(todayStart.getTime() + IST_OFFSET_MS).getUTCDay();
+  const weekStart = addIstDaysUtc(todayStart, -dow);
+  return { weekStart, weekEnd: addIstDaysUtc(weekStart, 7) };
+}
+
+export const MIN_SLOTS_THIS_WEEK = 1;
+
 export function maxHorizonEndUtc(now = new Date()): Date {
   return addIstDaysUtc(istTodayStartUtc(now), MAX_WEEKS_AHEAD * 7);
 }

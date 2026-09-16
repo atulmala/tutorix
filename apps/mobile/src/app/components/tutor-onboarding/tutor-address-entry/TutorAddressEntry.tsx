@@ -20,6 +20,7 @@ import {
   type LocationSuggestion,
 } from '../../../../hooks/useGooglePlacesFetch';
 import type { StepComponentProps } from '@tutorix/shared-utils';
+import { LocalityValueInput } from '../../address/LocalityValueInput';
 
 interface AddressForm {
   locality: string;
@@ -317,23 +318,20 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = () => {
             Start typing and select the best matching location
           </Text>
           <View style={styles.localityWrap}>
-            <TextInput
-              style={[
-                styles.localityInput,
-                !!errors.locality && styles.inputError,
-              ]}
+            <LocalityValueInput
               value={form.locality}
               onChangeText={handleLocalityChange}
               onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
               placeholder="Start typing your locality or address..."
-              placeholderTextColor="#9ca3af"
               editable={!isSubmitting}
+              error={!!errors.locality}
+              preview={!!selectedLocation && !showSuggestions}
+              trailing={
+                isSearching ? (
+                  <ActivityIndicator size="small" color="#5fa8ff" />
+                ) : null
+              }
             />
-            {isSearching && (
-              <View style={styles.spinner}>
-                <ActivityIndicator size="small" color="#5fa8ff" />
-              </View>
-            )}
           </View>
           {showSuggestions && suggestions.length > 0 && (
             <View style={styles.suggestions}>
@@ -514,22 +512,6 @@ const styles = StyleSheet.create({
   },
   localityWrap: {
     position: 'relative',
-  },
-  localityInput: {
-    height: 44,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 14,
-    color: '#0f172a',
-    backgroundColor: '#fff',
-  },
-  spinner: {
-    position: 'absolute',
-    right: 12,
-    top: '50%',
-    marginTop: -10,
   },
   suggestions: {
     marginTop: 4,

@@ -25,6 +25,13 @@ import { TutorOfferingPtFeeService } from '../services/tutor-offering-pt-fee.ser
 import { PlatformFeePaymentService } from '../../payment/services/platform-fee-payment.service';
 import { CheckoutResultDto } from '../../commerce/dto/checkout-result.dto';
 import { ConfirmPtFeePaymentInput } from '../../payment/dto/confirm-pt-fee-payment.input';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { UserRole } from '../../auth/enums/user-role.enum';
+import { TutorSearchService } from '../services/tutor-search.service';
+import { SearchTutorsInput } from '../dto/search-tutors.input';
+import { TutorSearchConnection, TutorSearchDetail } from '../dto/tutor-search.dto';
+
 @Resolver(() => Tutor)
 export class TutorResolver {
   constructor(
@@ -36,6 +43,7 @@ export class TutorResolver {
     private readonly tutorAddOfferingService: TutorAddOfferingService,
     private readonly ptFeeService: TutorOfferingPtFeeService,
     private readonly platformFeePaymentService: PlatformFeePaymentService,
+    private readonly tutorSearchService: TutorSearchService,
   ) {}
 
   /**
@@ -327,6 +335,33 @@ export class TutorResolver {
       throw new BadRequestException('Tutor profile not found for this user');
     }
     return this.tutorOnboardingService.acknowledgeOnboardingCelebration(tutor);
+  }
+
+  @Query(() => TutorSearchConnection, {
+    name: 'searchTutors',
+    description: 'Student search for certified tutors by subject and filters',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  async searchTutors(
+    @CurrentUser() user: User,
+    @Args('input') input: SearchTutorsInput,
+  ): Promise<TutorSearchConnection> {
+    return this.tutorSearchService.searchTutors(user, input);
+  }
+
+  @Query(() => TutorSearchDetail, {
+    name: 'tutorSearchDetail',
+    description: 'Read-only tutor preview for a student search result',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  async tutorSearchDetail(
+    @CurrentUser() user: User,
+    @Args('tutorId', { type: () => ID }) tutorId: number,
+    @Args('offeringId', { type: () => ID }) offeringId: number,
+  ): Promise<TutorSearchDetail> {
+    return this.tutorSearchService.getTutorSearchDetail(user, tutorId, offeringId);
   }
 
   /**

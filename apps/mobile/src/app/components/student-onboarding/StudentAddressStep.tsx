@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
+  Keyboard,
+  Dimensions,
   ScrollView,
 } from 'react-native';
 import { useMutation, useQuery } from '@apollo/client';
@@ -19,6 +19,7 @@ import {
   type PlacePrediction,
   type LocationSuggestion,
 } from '../../../hooks/useGooglePlacesFetch';
+import { LocalityValueInput } from '../address/LocalityValueInput';
 
 interface AddressForm {
   locality: string;
@@ -88,6 +89,7 @@ export const StudentAddressStep: React.FC = () => {
   const [suggestions, setSuggestions] = useState<PlacePrediction[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [suggestionListMaxHeight, setSuggestionListMaxHeight] = useState(220);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [createAddress, { loading: isSubmitting }] = useMutation(
@@ -174,6 +176,15 @@ export const StudentAddressStep: React.FC = () => {
     setSuggestions([]);
   }, []);
 
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (event) => {
+      const windowHeight = Dimensions.get('window').height;
+      const available = windowHeight - event.endCoordinates.height - 200;
+      setSuggestionListMaxHeight(Math.max(160, Math.min(280, available)));
+    });
+    return () => show.remove();
+  }, []);
+
   const onOtherFieldFocus = useCallback(() => {
     setTimeout(hideSuggestions, 0);
   }, [hideSuggestions]);
@@ -218,6 +229,8 @@ export const StudentAddressStep: React.FC = () => {
 
   const handleSelectSuggestion = useCallback(async (placeId: string) => {
     setShowSuggestions(false);
+    setSuggestions([]);
+    Keyboard.dismiss();
     try {
       const loc = await getPlaceDetails(placeId);
       if (loc) {
@@ -302,61 +315,61 @@ export const StudentAddressStep: React.FC = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
-    >
-      <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.localityGroup}>
-          <Text style={styles.label}>
-            Locality <Text style={styles.required}>*</Text>
-          </Text>
-          <Text style={styles.hint}>
-            Start typing and select the best matching location
-          </Text>
-          <View style={styles.localityWrap}>
-            <TextInput
-              style={[
-                styles.localityInput,
-                !!errors.locality && styles.inputError,
-              ]}
-              value={form.locality}
-              onChangeText={handleLocalityChange}
-              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-              placeholder="Start typing your locality or address..."
-              placeholderTextColor="#9ca3af"
-              editable={!isSubmitting}
-            />
-            {isSearching && (
-              <View style={styles.spinner}>
+    <View style={styles.container}>
+      <View style={styles.localityGroup}>
+        <Text style={styles.label}>
+          Locality <Text style={styles.required}>*</Text>
+        </Text>
+        <Text style={styles.hint}>
+          Start typing and select the best matching location
+        </Text>
+        <View style={styles.localityWrap}>
+          <LocalityValueInput
+            value={form.locality}
+            onChangeText={handleLocalityChange}
+            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+            placeholder="Start typing your locality or address..."
+            editable={!isSubmitting}
+            error={!!errors.locality}
+            preview={!!selectedLocation && !showSuggestions}
+            trailing={
+              isSearching ? (
                 <ActivityIndicator size="small" color="#5fa8ff" />
-              </View>
-            )}
-            {showSuggestions && suggestions.length > 0 && (
-              <View style={styles.suggestions}>
-                {suggestions.map((item) => (
-                  <TouchableOpacity
-                    key={item.placeId}
-                    style={styles.suggestionItem}
-                    onPress={() => handleSelectSuggestion(item.placeId)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.suggestionMain}>{item.description}</Text>
-                    {item.secondaryText ? (
-                      <Text style={styles.suggestionSecondary}>
-                        {item.secondaryText}
-                      </Text>
-                    ) : null}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-          {errors.locality && (
-            <Text style={styles.fieldError}>{errors.locality}</Text>
-          )}
+              ) : null
+            }
+          />
         </View>
+        {showSuggestions && suggestions.length > 0 ? (
+          <ScrollView
+            style={[styles.suggestions, { maxHeight: suggestionListMaxHeight }]}
+            keyboardShouldPersistTaps="always"
+            keyboardDismissMode="none"
+            nestedScrollEnabled
+          >
+            {suggestions.map((item) => (
+              <TouchableOpacity
+                key={item.placeId}
+                style={styles.suggestionItem}
+                onPress={() => handleSelectSuggestion(item.placeId)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.suggestionMain}>{item.description}</Text>
+                {item.secondaryText ? (
+                  <Text style={styles.suggestionSecondary}>
+                    {item.secondaryText}
+                  </Text>
+                ) : null}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        ) : null}
+        {errors.locality ? (
+          <Text style={styles.fieldError}>{errors.locality}</Text>
+        ) : null}
+      </View>
 
+      {showSuggestions ? null : (
+        <>
         <View style={styles.row}>
           <View style={styles.half}>
             <InputGroup
@@ -467,23 +480,19 @@ export const StudentAddressStep: React.FC = () => {
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </>
+      )}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    overflow: 'hidden',
-  },
-  scroll: {
-    flex: 1,
-    padding: 24,
+    padding: 16,
   },
   inputGroup: {
     marginBottom: 16,
@@ -515,41 +524,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   localityWrap: {
-    position: 'relative',
     zIndex: 20,
   },
-  localityInput: {
-    height: 44,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 14,
-    color: '#143055',
-    backgroundColor: '#fff',
-  },
-  spinner: {
-    position: 'absolute',
-    right: 12,
-    top: '50%',
-    marginTop: -10,
-  },
   suggestions: {
-    position: 'absolute',
-    top: 44,
-    left: 0,
-    right: 0,
-    zIndex: 30,
-    maxHeight: 200,
+    marginTop: 4,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     borderRadius: 8,
     backgroundColor: '#fff',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
   },
   suggestionItem: {
     paddingHorizontal: 16,

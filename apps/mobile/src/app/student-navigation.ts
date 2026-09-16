@@ -9,6 +9,8 @@ export type AppView =
   | 'studentOnboarding'
   | 'studentHome'
   | 'studentProfile'
+  | 'studentTutorSearch'
+  | 'studentTutorPreview'
   | 'wallet'
   | 'home';
 
@@ -36,7 +38,12 @@ export function studentViewAfterProfile(
 }
 
 export function walletReturnFromPush(view: AppView): WalletReturnView | null {
-  if (view === 'studentHome' || view === 'studentOnboarding') {
+  if (
+    view === 'studentHome' ||
+    view === 'studentOnboarding' ||
+    view === 'studentTutorSearch' ||
+    view === 'studentTutorPreview'
+  ) {
     return 'studentHome';
   }
   if (view === 'studentProfile') {

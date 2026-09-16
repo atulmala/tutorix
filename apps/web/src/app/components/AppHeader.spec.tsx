@@ -53,6 +53,21 @@ describe('AppHeader', () => {
     expect(screen.queryByText('Ashton Kuchler')).toBeNull();
   });
 
+  it('can place the profile avatar on the right', () => {
+    const onProfilePress = jest.fn();
+    render(
+      <AppHeader
+        onLogout={jest.fn()}
+        onProfilePress={onProfilePress}
+        onOpenWallet={jest.fn()}
+        profileAlign="right"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open profile' }));
+    expect(onProfilePress).toHaveBeenCalledTimes(1);
+  });
+
   it('hides the profile avatar when back is shown', () => {
     render(
       <AppHeader

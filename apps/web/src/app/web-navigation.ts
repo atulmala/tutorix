@@ -13,6 +13,8 @@ export type WebView =
   | 'student-onboarding'
   | 'student-home'
   | 'student-profile'
+  | 'student-tutor-search'
+  | 'student-tutor-preview'
   | 'wallet'
   | 'privacy'
   | 'terms';
@@ -52,7 +54,12 @@ export function tutorViewAfterProfile(tutor: {
 }
 
 export function walletReturnFromView(view: WebView): WalletReturnView | null {
-  if (view === 'student-home' || view === 'student-onboarding') {
+  if (
+    view === 'student-home' ||
+    view === 'student-onboarding' ||
+    view === 'student-tutor-search' ||
+    view === 'student-tutor-preview'
+  ) {
     return 'student-home';
   }
   if (view === 'student-profile') {
