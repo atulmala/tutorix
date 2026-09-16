@@ -12,6 +12,17 @@ export const PAN_PATTERN = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 export const BANK_DETAILS_REQUIRED_FOR_RATE_CARD_MESSAGE =
   'Enter your bank details before setting up a rate card.';
 
+export const BANK_ACCOUNT_SETUP_HEADING = 'Account setup';
+
+export const BANK_ACCOUNT_SETUP_REQUIRED_MESSAGE =
+  'Please set up your bank account. Its where you will receive your payments';
+
+export function isBankDetailsMarkedComplete(
+  bankDetails?: { isComplete?: boolean | null } | null,
+): boolean {
+  return bankDetails?.isComplete === true;
+}
+
 export function normalizePanNumber(panNumber: string): string {
   return panNumber.trim().toUpperCase();
 }

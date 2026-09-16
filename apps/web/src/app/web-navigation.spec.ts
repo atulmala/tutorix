@@ -19,13 +19,36 @@ describe('studentViewAfterProfile', () => {
 });
 
 describe('tutorViewAfterProfile', () => {
-  it('sends onboarded tutors to tutor-home', () => {
+  it('sends onboarded tutors with bank details and a rate card to tutor-home', () => {
     expect(
       tutorViewAfterProfile({
         onBoardingComplete: true,
         onboardingCelebrationSeen: true,
+        bankDetailsComplete: true,
+        needsRateCardSetup: false,
       }),
     ).toBe('tutor-home');
+  });
+
+  it('sends certified tutors without bank details to account setup', () => {
+    expect(
+      tutorViewAfterProfile({
+        onBoardingComplete: true,
+        onboardingCelebrationSeen: true,
+        bankDetailsComplete: false,
+      }),
+    ).toBe('tutor-bank-setup');
+  });
+
+  it('sends certified tutors without a rate card to rate card setup', () => {
+    expect(
+      tutorViewAfterProfile({
+        onBoardingComplete: true,
+        onboardingCelebrationSeen: true,
+        bankDetailsComplete: true,
+        needsRateCardSetup: true,
+      }),
+    ).toBe('tutor-rate-card-setup');
   });
 
   it('keeps incomplete tutors on onboarding', () => {

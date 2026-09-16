@@ -1,5 +1,6 @@
 import {
   isBankDetailsComplete,
+  isBankDetailsMarkedComplete,
   normalizePanNumber,
   PAN_PATTERN,
   validateBankDetailsForm,
@@ -30,6 +31,14 @@ describe('bank-details-formatters', () => {
 
     it('returns false when PAN format is invalid', () => {
       expect(isBankDetailsComplete({ ...complete, panNumber: 'INVALID' })).toBe(false);
+    });
+  });
+
+  describe('isBankDetailsMarkedComplete', () => {
+    it('is true only when GraphQL isComplete is true', () => {
+      expect(isBankDetailsMarkedComplete({ isComplete: true })).toBe(true);
+      expect(isBankDetailsMarkedComplete({ isComplete: false })).toBe(false);
+      expect(isBankDetailsMarkedComplete(null)).toBe(false);
     });
   });
 

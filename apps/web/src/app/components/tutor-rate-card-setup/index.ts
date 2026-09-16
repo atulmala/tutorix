@@ -1,0 +1,1 @@
+export { TutorRateCardSetupPage } from './TutorRateCardSetupPage';

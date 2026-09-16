@@ -48,13 +48,36 @@ describe('walletReturnFromPush', () => {
 });
 
 describe('tutorViewAfterProfile', () => {
-  it('lands onboarded tutors on tutorHome', () => {
+  it('lands onboarded tutors with bank details and a rate card on tutorHome', () => {
     expect(
       tutorViewAfterProfile({
         onBoardingComplete: true,
         onboardingCelebrationSeen: true,
+        bankDetailsComplete: true,
+        needsRateCardSetup: false,
       }),
     ).toBe('tutorHome');
+  });
+
+  it('sends certified tutors without bank details to tutorBankSetup', () => {
+    expect(
+      tutorViewAfterProfile({
+        onBoardingComplete: true,
+        onboardingCelebrationSeen: true,
+        bankDetailsComplete: false,
+      }),
+    ).toBe('tutorBankSetup');
+  });
+
+  it('sends certified tutors without a rate card to tutorRateCardSetup', () => {
+    expect(
+      tutorViewAfterProfile({
+        onBoardingComplete: true,
+        onboardingCelebrationSeen: true,
+        bankDetailsComplete: true,
+        needsRateCardSetup: true,
+      }),
+    ).toBe('tutorRateCardSetup');
   });
 
   it('keeps incomplete tutors on onboarding', () => {

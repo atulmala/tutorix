@@ -31,6 +31,7 @@ import { UserRole } from '../../auth/enums/user-role.enum';
 import { TutorSearchService } from '../services/tutor-search.service';
 import { SearchTutorsInput } from '../dto/search-tutors.input';
 import { TutorSearchConnection, TutorSearchDetail } from '../dto/tutor-search.dto';
+import { UserBankDetailsService } from '../../user-bank-details/services/user-bank-details.service';
 
 @Resolver(() => Tutor)
 export class TutorResolver {
@@ -44,6 +45,7 @@ export class TutorResolver {
     private readonly ptFeeService: TutorOfferingPtFeeService,
     private readonly platformFeePaymentService: PlatformFeePaymentService,
     private readonly tutorSearchService: TutorSearchService,
+    private readonly userBankDetailsService: UserBankDetailsService,
   ) {}
 
   /**
@@ -74,6 +76,15 @@ export class TutorResolver {
     @Parent() tutor: Tutor,
   ): Promise<TutorQualificationEntity[]> {
     return this.tutorQualificationService.findByTutorId(tutor.id);
+  }
+
+  @ResolveField(() => Boolean, {
+    name: 'bankDetailsComplete',
+    nullable: true,
+    description: 'Whether the tutor has saved complete payout bank details',
+  })
+  async bankDetailsComplete(@Parent() tutor: Tutor): Promise<boolean> {
+    return this.userBankDetailsService.isCompleteForUser(tutor.userId);
   }
 
   @ResolveField(() => [TutorOfferingEntity], {

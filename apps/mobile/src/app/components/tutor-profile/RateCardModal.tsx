@@ -24,7 +24,7 @@ import {
   type RateCardFormInput,
   type RateCardFormValues,
   type RateCardLike,
-} from '@tutorix/shared-utils';
+} from '@tutorix/shared-utils/rate-card';
 
 const BASE_RATE_TIP = 'Price per class, per student.';
 const BATCH_SIZE_TIP = 'Maximum number of students you will teach in one class.';
@@ -315,7 +315,10 @@ export type RateCardModalProps = {
   initialValues?: RateCardLike | null;
   saving?: boolean;
   error?: string | null;
-  onClose: () => void;
+  required?: boolean;
+  heading?: string;
+  description?: string;
+  onClose?: () => void;
   onSubmit: (values: RateCardFormValues) => void;
 };
 
@@ -325,6 +328,9 @@ export function RateCardModal({
   initialValues,
   saving = false,
   error,
+  required = false,
+  heading,
+  description,
   onClose,
   onSubmit,
 }: RateCardModalProps) {
@@ -344,10 +350,12 @@ export function RateCardModal({
     );
   }, [visible, initialValues]);
 
-  const modalTitle = useMemo(
-    () => (isRateCardComplete(initialValues) ? 'Edit rate card' : 'Rate card'),
-    [initialValues],
-  );
+  const modalTitle = useMemo(() => {
+    if (heading) {
+      return heading;
+    }
+    return isRateCardComplete(initialValues) ? 'Edit rate card' : 'Rate card';
+  }, [heading, initialValues]);
 
   const handleSubmit = () => {
     const result = validateRateCardForm(form);
@@ -361,24 +369,32 @@ export function RateCardModal({
 
   const displayError = validationError ?? error;
 
-  return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <View style={styles.sheet}>
+  if (!visible) {
+    return null;
+  }
+
+  const formBody = (
+        <View style={required ? styles.embeddedSheet : styles.sheet}>
           <View style={styles.header}>
             <View style={styles.headerTextBlock}>
               <Text style={styles.title}>{modalTitle}</Text>
+              {description ? (
+                <Text style={styles.description} accessibilityRole="text">
+                  {description}
+                </Text>
+              ) : null}
               <Text style={styles.offeringName} numberOfLines={2}>
                 {offeringName}
               </Text>
-              <Text style={styles.subtitle}>Set how you charge for this offering.</Text>
+              {description ? null : (
+                <Text style={styles.subtitle}>Set how you charge for this offering.</Text>
+              )}
             </View>
-            <TouchableOpacity onPress={onClose} accessibilityLabel="Close" disabled={saving}>
-              <Text style={styles.close}>✕</Text>
-            </TouchableOpacity>
+            {required ? null : (
+              <TouchableOpacity onPress={onClose} accessibilityLabel="Close" disabled={saving}>
+                <Text style={styles.close}>✕</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <ScrollView
@@ -428,13 +444,15 @@ export function RateCardModal({
             ) : null}
 
             <View style={styles.actions}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={onClose}
-                disabled={saving}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
+              {required ? null : (
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={onClose}
+                  disabled={saving}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={[styles.saveButton, saving && styles.saveButtonDisabled]}
                 onPress={handleSubmit}
@@ -449,6 +467,26 @@ export function RateCardModal({
             </View>
           </ScrollView>
         </View>
+  );
+
+  if (required) {
+    return (
+      <KeyboardAvoidingView
+        style={styles.embedded}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        {formBody}
+      </KeyboardAvoidingView>
+    );
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        {formBody}
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -459,6 +497,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
+  },
+  embedded: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  embeddedSheet: {
+    flex: 1,
+    backgroundColor: '#fff',
   },
   sheet: {
     backgroundColor: '#fff',
@@ -479,6 +525,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '700', color: '#0f172a' },
   offeringName: { fontSize: 14, color: '#64748b', marginTop: 4 },
   subtitle: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
+  description: { fontSize: 14, color: '#143055', marginTop: 8, lineHeight: 20 },
   close: { fontSize: 22, color: '#64748b', paddingLeft: 8 },
   scroll: { maxHeight: '100%' },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 28 },

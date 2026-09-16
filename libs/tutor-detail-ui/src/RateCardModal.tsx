@@ -342,7 +342,10 @@ type RateCardModalProps = {
   readOnly?: boolean;
   saving?: boolean;
   error?: string | null;
-  onClose: () => void;
+  required?: boolean;
+  heading?: string;
+  description?: string;
+  onClose?: () => void;
   onSubmit?: (values: RateCardFormValues) => void;
 };
 
@@ -353,6 +356,9 @@ export function RateCardModal({
   readOnly = false,
   saving = false,
   error,
+  required = false,
+  heading,
+  description,
   onClose,
   onSubmit,
 }: RateCardModalProps) {
@@ -373,11 +379,14 @@ export function RateCardModal({
   }, [open, initialValues]);
 
   const modalTitle = useMemo(() => {
+    if (heading) {
+      return heading;
+    }
     if (readOnly) {
       return 'View rate card';
     }
     return isRateCardComplete(initialValues) ? 'Edit rate card' : 'Rate card';
-  }, [initialValues, readOnly]);
+  }, [heading, initialValues, readOnly]);
 
   const fieldsDisabled = readOnly || saving;
 
@@ -400,12 +409,13 @@ export function RateCardModal({
 
   const displayError = readOnly ? null : validationError ?? error;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
+  const card = (
       <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-lg"
-        role="dialog"
-        aria-modal="true"
+        className={`w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-lg${
+          required ? '' : ' max-h-[90vh]'
+        }`}
+        role={required ? 'region' : 'dialog'}
+        aria-modal={required ? undefined : true}
         aria-labelledby="rate-card-title"
       >
         <div className="flex items-start justify-between gap-4">
@@ -413,21 +423,30 @@ export function RateCardModal({
             <h3 id="rate-card-title" className="text-xl font-semibold text-primary">
               {modalTitle}
             </h3>
+            {description ? (
+              <p className="mt-3 text-sm text-primary" role="status">
+                {description}
+              </p>
+            ) : null}
             <p className="mt-1 text-sm text-muted">{offeringName}</p>
-            <p className="mt-0.5 text-xs text-muted">
-              {readOnly
-                ? 'How this tutor charges for this offering.'
-                : 'Set how you charge for this offering.'}
-            </p>
+            {description ? null : (
+              <p className="mt-0.5 text-xs text-muted">
+                {readOnly
+                  ? 'How this tutor charges for this offering.'
+                  : 'Set how you charge for this offering.'}
+              </p>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted transition hover:text-primary"
-            aria-label="Close"
-          >
-            ✕
-          </button>
+          {required ? null : (
+            <button
+              type="button"
+              onClick={() => onClose?.()}
+              className="text-muted transition hover:text-primary"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         <div className="mt-5 space-y-4">
@@ -497,21 +516,23 @@ export function RateCardModal({
             {readOnly ? (
               <button
                 type="button"
-                onClick={onClose}
+                onClick={() => onClose?.()}
                 className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
               >
                 Close
               </button>
             ) : (
               <>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="rounded-lg border border-subtle px-4 py-2 text-sm font-medium text-primary transition hover:bg-subtle"
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
+                {required ? null : (
+                  <button
+                    type="button"
+                    onClick={() => onClose?.()}
+                    className="rounded-lg border border-subtle px-4 py-2 text-sm font-medium text-primary transition hover:bg-subtle"
+                    disabled={saving}
+                  >
+                    Cancel
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleSubmit}
@@ -525,6 +546,15 @@ export function RateCardModal({
           </div>
         </div>
       </div>
+  );
+
+  if (required) {
+    return card;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
+      {card}
     </div>
   );
 }

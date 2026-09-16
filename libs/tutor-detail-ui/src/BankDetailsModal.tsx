@@ -19,7 +19,10 @@ type BankDetailsModalProps = {
   } | null;
   saving?: boolean;
   error?: string | null;
-  onClose: () => void;
+  required?: boolean;
+  heading?: string;
+  description?: string;
+  onClose?: () => void;
   onSubmit: (values: BankDetailsFormValues) => void;
 };
 
@@ -46,6 +49,9 @@ export function BankDetailsModal({
   initialValues,
   saving = false,
   error,
+  required = false,
+  heading,
+  description,
   onClose,
   onSubmit,
 }: BankDetailsModalProps) {
@@ -101,152 +107,171 @@ export function BankDetailsModal({
   };
 
   const displayError = validationError ?? error;
+  const title = heading ?? (required ? 'Account setup' : 'Bank details');
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div
-        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-lg"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="bank-details-title"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <h3 id="bank-details-title" className="text-xl font-semibold text-primary">
-            Bank details
-          </h3>
+  const card = (
+    <div
+      className="w-full max-w-md rounded-2xl bg-white p-6 shadow-lg"
+      role={required ? 'region' : 'dialog'}
+      aria-modal={required ? undefined : true}
+      aria-labelledby="bank-details-title"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <h3 id="bank-details-title" className="text-xl font-semibold text-primary">
+          {title}
+        </h3>
+        {required ? null : (
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => onClose?.()}
             className="text-muted transition hover:text-primary"
             aria-label="Close"
           >
             ✕
           </button>
+        )}
+      </div>
+
+      {description ? (
+        <p className="mt-3 text-sm text-primary" role="status">
+          {description}
+        </p>
+      ) : null}
+
+      <div className="mt-4 space-y-4">
+        <div className="space-y-1 text-left">
+          <label htmlFor="bank-select" className="text-sm font-medium text-primary">
+            Bank name
+          </label>
+          <select
+            id="bank-select"
+            value={bankSelect}
+            onChange={(e) => setBankSelect(e.target.value)}
+            className="w-full rounded-md border border-subtle bg-white px-md py-sm text-primary shadow-sm focus:border-primary focus:outline-none"
+          >
+            <option value="">Select a bank</option>
+            {INDIAN_BANKS.map((bank) => (
+              <option key={bank} value={bank}>
+                {bank}
+              </option>
+            ))}
+            <option value={OTHER_BANK_OPTION}>{OTHER_BANK_OPTION}</option>
+          </select>
         </div>
 
-        <div className="mt-4 space-y-4">
+        {bankSelect === OTHER_BANK_OPTION ? (
           <div className="space-y-1 text-left">
-            <label htmlFor="bank-select" className="text-sm font-medium text-primary">
-              Bank name
+            <label htmlFor="custom-bank-name" className="text-sm font-medium text-primary">
+              Enter bank name
             </label>
-            <select
-              id="bank-select"
-              value={bankSelect}
-              onChange={(e) => setBankSelect(e.target.value)}
+            <input
+              id="custom-bank-name"
+              type="text"
+              value={customBankName}
+              onChange={(e) => setCustomBankName(e.target.value)}
               className="w-full rounded-md border border-subtle bg-white px-md py-sm text-primary shadow-sm focus:border-primary focus:outline-none"
-            >
-              <option value="">Select a bank</option>
-              {INDIAN_BANKS.map((bank) => (
-                <option key={bank} value={bank}>
-                  {bank}
-                </option>
-              ))}
-              <option value={OTHER_BANK_OPTION}>{OTHER_BANK_OPTION}</option>
-            </select>
-          </div>
-
-          {bankSelect === OTHER_BANK_OPTION ? (
-            <div className="space-y-1 text-left">
-              <label htmlFor="custom-bank-name" className="text-sm font-medium text-primary">
-                Enter bank name
-              </label>
-              <input
-                id="custom-bank-name"
-                type="text"
-                value={customBankName}
-                onChange={(e) => setCustomBankName(e.target.value)}
-                className="w-full rounded-md border border-subtle bg-white px-md py-sm text-primary shadow-sm focus:border-primary focus:outline-none"
-                placeholder="Your bank name"
-              />
-            </div>
-          ) : null}
-
-          <div className="space-y-1 text-left">
-            <label htmlFor="account-number" className="text-sm font-medium text-primary">
-              Account number
-            </label>
-            <input
-              id="account-number"
-              type="text"
-              inputMode="numeric"
-              value={accountNumber}
-              onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
-              className="w-full rounded-md border border-subtle bg-white px-md py-sm text-primary shadow-sm focus:border-primary focus:outline-none"
-              placeholder={initialValues?.bankName ? 'Re-enter to update' : 'Enter account number'}
+              placeholder="Your bank name"
             />
           </div>
+        ) : null}
 
-          <div className="space-y-1 text-left">
-            <label htmlFor="ifsc-code" className="text-sm font-medium text-primary">
-              IFSC code
-            </label>
-            <input
-              id="ifsc-code"
-              type="text"
-              value={ifscCode}
-              onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
-              className="w-full rounded-md border border-subtle bg-white px-md py-sm uppercase text-primary shadow-sm focus:border-primary focus:outline-none"
-              placeholder="HDFC0001234"
-              maxLength={11}
-            />
-          </div>
+        <div className="space-y-1 text-left">
+          <label htmlFor="account-number" className="text-sm font-medium text-primary">
+            Account number
+          </label>
+          <input
+            id="account-number"
+            type="text"
+            inputMode="numeric"
+            value={accountNumber}
+            onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
+            className="w-full rounded-md border border-subtle bg-white px-md py-sm text-primary shadow-sm focus:border-primary focus:outline-none"
+            placeholder={initialValues?.bankName ? 'Re-enter to update' : 'Enter account number'}
+          />
+        </div>
 
-          <div className="space-y-1 text-left">
-            <label htmlFor="pan-number" className="text-sm font-medium text-primary">
-              PAN
-            </label>
-            <input
-              id="pan-number"
-              type="text"
-              value={panNumber}
-              onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
-              className="w-full rounded-md border border-subtle bg-white px-md py-sm uppercase text-primary shadow-sm focus:border-primary focus:outline-none"
-              placeholder="ABCDE1234F"
-              maxLength={10}
-            />
-          </div>
+        <div className="space-y-1 text-left">
+          <label htmlFor="ifsc-code" className="text-sm font-medium text-primary">
+            IFSC code
+          </label>
+          <input
+            id="ifsc-code"
+            type="text"
+            value={ifscCode}
+            onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
+            className="w-full rounded-md border border-subtle bg-white px-md py-sm uppercase text-primary shadow-sm focus:border-primary focus:outline-none"
+            placeholder="HDFC0001234"
+            maxLength={11}
+          />
+        </div>
 
-          <div className="space-y-1 text-left">
-            <label htmlFor="gst-number" className="text-sm font-medium text-primary">
-              GST number <span className="font-normal text-muted">(optional)</span>
-            </label>
-            <input
-              id="gst-number"
-              type="text"
-              value={gstNumber}
-              onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
-              className="w-full rounded-md border border-subtle bg-white px-md py-sm uppercase text-primary shadow-sm focus:border-primary focus:outline-none"
-              placeholder="Leave blank if not applicable"
-              maxLength={15}
-            />
-          </div>
+        <div className="space-y-1 text-left">
+          <label htmlFor="pan-number" className="text-sm font-medium text-primary">
+            PAN
+          </label>
+          <input
+            id="pan-number"
+            type="text"
+            value={panNumber}
+            onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+            className="w-full rounded-md border border-subtle bg-white px-md py-sm uppercase text-primary shadow-sm focus:border-primary focus:outline-none"
+            placeholder="ABCDE1234F"
+            maxLength={10}
+          />
+        </div>
 
-          {displayError ? (
-            <p className="text-sm text-red-600" role="alert">
-              {displayError}
-            </p>
-          ) : null}
+        <div className="space-y-1 text-left">
+          <label htmlFor="gst-number" className="text-sm font-medium text-primary">
+            GST number <span className="font-normal text-muted">(optional)</span>
+          </label>
+          <input
+            id="gst-number"
+            type="text"
+            value={gstNumber}
+            onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+            className="w-full rounded-md border border-subtle bg-white px-md py-sm uppercase text-primary shadow-sm focus:border-primary focus:outline-none"
+            placeholder="Leave blank if not applicable"
+            maxLength={15}
+          />
+        </div>
 
-          <div className="flex justify-end gap-3 pt-2">
+        {displayError ? (
+          <p className="text-sm text-red-600" role="alert">
+            {displayError}
+          </p>
+        ) : null}
+
+        <div className="flex justify-end gap-3 pt-2">
+          {required ? null : (
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => onClose?.()}
               className="rounded-lg border border-subtle px-4 py-2 text-sm font-medium text-primary transition hover:bg-subtle"
               disabled={saving}
             >
               Cancel
             </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={saving || !bankSelect}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-          </div>
+          )}
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={saving || !bankSelect}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
         </div>
       </div>
+    </div>
+  );
+
+  if (required) {
+    return card;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+      {card}
     </div>
   );
 }

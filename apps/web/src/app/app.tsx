@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLazyQuery, useMutation } from '@apollo/client';
-import { GET_MY_STUDENT_PROFILE, GET_MY_TUTOR_PROFILE, HEARTBEAT } from '@tutorix/shared-graphql';
+import { GET_MY_STUDENT_PROFILE, GET_MY_TUTOR_DETAIL, GET_MY_TUTOR_PROFILE, HEARTBEAT } from '@tutorix/shared-graphql';
 import { HomeScreen } from './components/HomeScreen';
 import { AudienceDetailPage } from './components/home/AudienceDetailPage';
 import { studentDetailCopy, tutorDetailCopy } from './components/home/audience-detail-copy';
@@ -11,6 +11,8 @@ import { ResetPassword } from './components/ResetPassword';
 import { PasswordResetAcknowledgement } from './components/PasswordResetAcknowledgement';
 import { TutorOnboarding } from './components/tutor-onboarding';
 import { TutorHomePage } from './components/tutor-home';
+import { TutorBankSetupPage } from './components/tutor-bank-setup';
+import { TutorRateCardSetupPage } from './components/tutor-rate-card-setup';
 import { TutorProfilePage } from './components/tutor-profile/TutorProfilePage';
 import { StudentOnboarding } from './components/student-onboarding';
 import { StudentHomePage } from './components/student-home';
@@ -30,6 +32,7 @@ import {
   type WalletReturnView,
   type WebView,
 } from './web-navigation';
+import { isBankDetailsMarkedComplete, needsRateCardSetup } from '@tutorix/shared-utils';
 
 function AppContent() {
   const { user: currentUser, refreshUser, logout } = useWebAuth();
@@ -89,6 +92,10 @@ function AppContent() {
     fetchPolicy: 'network-only',
   });
 
+  const [fetchMyTutorDetail] = useLazyQuery(GET_MY_TUTOR_DETAIL, {
+    fetchPolicy: 'network-only',
+  });
+
   const [fetchMyStudentProfile] = useLazyQuery(GET_MY_STUDENT_PROFILE, {
     fetchPolicy: 'network-only',
   });
@@ -96,6 +103,8 @@ function AppContent() {
   const routeTutorAfterProfile = useCallback((tutor: {
     onBoardingComplete?: boolean;
     onboardingCelebrationSeen?: boolean;
+    bankDetailsComplete?: boolean;
+    needsRateCardSetup?: boolean;
     certificationStage?: string | null;
   } | null | undefined) => {
     if (!tutor) {
@@ -183,14 +192,39 @@ function AppContent() {
         setCurrentView('home');
         return;
       }
-      routeTutorAfterProfile(data?.myTutorProfile);
+      const tutor = data?.myTutorProfile;
+      if (tutor?.onBoardingComplete && tutor.onboardingCelebrationSeen) {
+        let bankDetailsComplete = false;
+        let rateCardSetupNeeded = false;
+        try {
+          const detailResult = await fetchMyTutorDetail();
+          bankDetailsComplete = isBankDetailsMarkedComplete(
+            detailResult.data?.myTutorDetail?.user?.bankDetails,
+          );
+          rateCardSetupNeeded = needsRateCardSetup(
+            detailResult.data?.myTutorDetail?.offerings,
+          );
+        } catch (err) {
+          console.error('Error fetching tutor setup details:', err);
+        }
+        routeTutorAfterProfile({
+          ...tutor,
+          bankDetailsComplete,
+          needsRateCardSetup: rateCardSetupNeeded,
+        });
+        return;
+      }
+      routeTutorAfterProfile(tutor);
     } catch (err) {
       console.error('Error fetching tutor profile:', err);
       setCurrentView('home');
     }
-  }, [fetchMyStudentProfile, fetchMyTutorProfile, routeStudentAfterProfile, routeTutorAfterProfile, setCurrentView]);
+  }, [fetchMyStudentProfile, fetchMyTutorDetail, fetchMyTutorProfile, routeStudentAfterProfile, routeTutorAfterProfile, setCurrentView]);
 
   const handleOpenWallet = useCallback((from: WalletReturnView) => {
+    if (currentViewRef.current === 'tutor-bank-setup' || currentViewRef.current === 'tutor-rate-card-setup') {
+      return;
+    }
     setWalletReturnView(from);
     setCurrentView('wallet');
   }, [setCurrentView]);
@@ -361,9 +395,13 @@ function AppContent() {
     setCurrentView('tutor-onboarding');
   };
 
-  const handleOnboardingComplete = () => {
+  const handleOnboardingComplete = async () => {
     setTutorProfileForOnboarding(null);
-    setCurrentView('tutor-home');
+    try {
+      await routeAfterAuthenticatedUser(currentUser);
+    } catch {
+      setCurrentView('tutor-bank-setup');
+    }
   };
 
   const handleStudentOnboardingComplete = () => {
@@ -525,16 +563,42 @@ function AppContent() {
     );
   }
 
-  if (currentView === 'tutor-home') {
+  if (currentView === 'tutor-bank-setup') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader title="Account setup" onLogout={handleLogout} />
+        <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
+          <TutorBankSetupPage
+            onComplete={() => {
+              void routeAfterAuthenticatedUser(currentUser);
+            }}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'tutor-rate-card-setup') {
+    return (
+      <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader title="Rate card" onLogout={handleLogout} />
+        <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
+          <TutorRateCardSetupPage onComplete={() => setCurrentView('tutor-home')} />
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'tutor-home') {
+    return (
+      <div className="min-h-screen bg-[#e8f4ff] text-primary">
         <AppHeader
           title="Home"
           onLogout={handleLogout}
           onProfilePress={() => setCurrentView('tutor-profile')}
           onOpenWallet={() => handleOpenWallet('tutor-home')}
         />
-        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-8">
           <TutorHomePage />
         </main>
       </div>

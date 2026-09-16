@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { UserBankDetailsService } from './user-bank-details.service';
 import { UserBankDetailsEntity } from '../entities/user-bank-details.entity';
 
@@ -113,6 +112,24 @@ describe('UserBankDetailsService', () => {
           panNumber: SAMPLE_PAN,
         }),
       );
+    });
+  });
+
+  describe('isCompleteForUser', () => {
+    it('returns false when no bank details exist', async () => {
+      repo.findOne.mockResolvedValue(null);
+      await expect(service.isCompleteForUser(5)).resolves.toBe(false);
+    });
+
+    it('returns true when required fields including PAN are present', async () => {
+      repo.findOne.mockResolvedValue({
+        bankName: 'HDFC Bank',
+        accountNumber: '123456789012',
+        ifscCode: 'HDFC0001234',
+        panNumber: SAMPLE_PAN,
+        gstNumber: null,
+      });
+      await expect(service.isCompleteForUser(5)).resolves.toBe(true);
     });
   });
 

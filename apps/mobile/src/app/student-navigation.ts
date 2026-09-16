@@ -4,6 +4,8 @@ export type AppView =
   | 'forgotPassword'
   | 'signup'
   | 'tutorOnboarding'
+  | 'tutorBankSetup'
+  | 'tutorRateCardSetup'
   | 'tutorHome'
   | 'tutorProfile'
   | 'studentOnboarding'
@@ -49,7 +51,7 @@ export function walletReturnFromPush(view: AppView): WalletReturnView | null {
   if (view === 'studentProfile') {
     return 'studentProfile';
   }
-  if (view === 'tutorHome' || view === 'tutorOnboarding') {
+  if (view === 'tutorHome' || view === 'tutorOnboarding' || view === 'tutorBankSetup' || view === 'tutorRateCardSetup') {
     return 'tutorHome';
   }
   if (view === 'tutorProfile') {
@@ -61,15 +63,27 @@ export function walletReturnFromPush(view: AppView): WalletReturnView | null {
   return 'tutorHome';
 }
 
-export function tutorViewAfterProfile(tutor: {
+export type TutorRouteProfile = {
   onBoardingComplete?: boolean;
   onboardingCelebrationSeen?: boolean;
-} | null | undefined): AppView {
+  bankDetailsComplete?: boolean;
+  needsRateCardSetup?: boolean;
+};
+
+export function tutorViewAfterProfile(
+  tutor: TutorRouteProfile | null | undefined,
+): AppView {
   if (!tutor) {
     return 'home';
   }
   if (!tutor.onBoardingComplete || !tutor.onboardingCelebrationSeen) {
     return 'tutorOnboarding';
+  }
+  if (!tutor.bankDetailsComplete) {
+    return 'tutorBankSetup';
+  }
+  if (tutor.needsRateCardSetup) {
+    return 'tutorRateCardSetup';
   }
   return 'tutorHome';
 }

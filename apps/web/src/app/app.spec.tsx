@@ -5,6 +5,7 @@ const mockGetAuthToken = jest.fn().mockResolvedValue(null);
 const mockRemoveAuthToken = jest.fn().mockResolvedValue(undefined);
 const mockFetchMe = jest.fn();
 const mockFetchMyTutorProfile = jest.fn();
+const mockFetchMyTutorDetail = jest.fn();
 const mockFetchMyStudentProfile = jest.fn();
 const mockHeartbeat = jest.fn().mockResolvedValue(undefined);
 const mockUseLazyQuery = jest.fn();
@@ -20,6 +21,7 @@ jest.mock('@tutorix/shared-graphql', () => ({
   GET_CURRENT_USER: {},
   GET_MY_STUDENT_PROFILE: {},
   GET_MY_TUTOR_PROFILE: {},
+  GET_MY_TUTOR_DETAIL: {},
   HEARTBEAT: {},
 }));
 
@@ -38,6 +40,12 @@ jest.mock('./components/PasswordResetAcknowledgement', () => ({
   PasswordResetAcknowledgement: () => null,
 }));
 jest.mock('./components/tutor-onboarding', () => ({ TutorOnboarding: () => null }));
+jest.mock('./components/tutor-bank-setup', () => ({
+  TutorBankSetupPage: () => null,
+}));
+jest.mock('./components/tutor-rate-card-setup', () => ({
+  TutorRateCardSetupPage: () => null,
+}));
 jest.mock('./components/tutor-profile/TutorProfilePage', () => ({
   TutorProfilePage: () => null,
 }));
@@ -78,8 +86,13 @@ let mockLazyQueryCall = 0;
 function configureLazyQueries() {
   mockLazyQueryCall = 0;
   mockUseLazyQuery.mockImplementation(() => {
-    const handlers = [mockFetchMe, mockFetchMyTutorProfile, mockFetchMyStudentProfile];
-    const handler = handlers[mockLazyQueryCall % 3];
+    const handlers = [
+      mockFetchMe,
+      mockFetchMyTutorProfile,
+      mockFetchMyTutorDetail,
+      mockFetchMyStudentProfile,
+    ];
+    const handler = handlers[mockLazyQueryCall % 4];
     mockLazyQueryCall += 1;
     return [handler, { data: null }];
   });
@@ -91,6 +104,7 @@ describe('App', () => {
     mockGetAuthToken.mockResolvedValue(null);
     mockFetchMe.mockResolvedValue({ data: null });
     mockFetchMyTutorProfile.mockResolvedValue({ data: null });
+    mockFetchMyTutorDetail.mockResolvedValue({ data: null });
     mockFetchMyStudentProfile.mockResolvedValue({ data: null });
     mockHeartbeat.mockResolvedValue(undefined);
     configureLazyQueries();
