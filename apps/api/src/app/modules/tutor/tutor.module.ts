@@ -28,6 +28,10 @@ import { OfferingsModule } from '../offerings/offerings.module';
 import { PlatformFeeModule } from '../platform-fee/platform-fee.module';
 import { PaymentModule } from '../payment';
 import { WalletModule } from '../wallet/wallet.module';
+import { TutorCalendar } from '../tutor-calendar/entities/tutor-calendar.entity';
+import { StudentModule } from '../student/student.module';
+import { TutorSearchService } from './services/tutor-search.service';
+import './enums/tutor-search.enum';
 
 @Module({
   imports: [
@@ -40,6 +44,7 @@ import { WalletModule } from '../wallet/wallet.module';
       TutorOfferingEntity,
       TutorOfferingPtFeeEntity,
       User,
+      TutorCalendar,
     ]),
     CommunicationModule,
     DocumentModule,
@@ -52,6 +57,7 @@ import { WalletModule } from '../wallet/wallet.module';
     PlatformFeeModule,
     forwardRef(() => PaymentModule),
     WalletModule,
+    StudentModule,
   ],
   providers: [
     TutorResolver,
@@ -63,6 +69,7 @@ import { WalletModule } from '../wallet/wallet.module';
     TutorDetailService,
     TutorAddOfferingService,
     TutorOfferingPtFeeService,
+    TutorSearchService,
   ],
   exports: [
     TutorService,

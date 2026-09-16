@@ -1,5 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useQuery } from '@apollo/client';
 import { GET_MY_STUDENT_PROFILE } from '@tutorix/shared-graphql/queries';
 import {
@@ -14,6 +22,7 @@ import { StudentAddressStep } from './StudentAddressStep';
 import { StudentEducationStep } from './StudentEducationStep';
 import { StudentRegistrationPayment } from './StudentRegistrationPayment';
 import { NavHeader } from '../NavHeader';
+import { scrollFocusedInputToTop } from '../../lib/scrollFocusedInputIntoView';
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -53,6 +62,17 @@ export const StudentOnboarding: React.FC<StudentOnboardingProps> = ({
   const [currentStepIndex, setCurrentStepIndex] = useState(() =>
     stepIndexFromStage(initialProfile?.onboardingStage),
   );
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollOffsetY = useRef(0);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => {
+      requestAnimationFrame(() => {
+        scrollFocusedInputToTop(scrollRef, scrollOffsetY.current);
+      });
+    });
+    return () => show.remove();
+  }, []);
 
   const { data: profileData } = useQuery(GET_MY_STUDENT_PROFILE, {
     fetchPolicy: 'cache-and-network',
@@ -105,29 +125,45 @@ export const StudentOnboarding: React.FC<StudentOnboardingProps> = ({
         userInitials={studentName ? getInitials(studentName) : null}
         onLogout={onLogout}
       />
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <View style={styles.card}>
-          <View style={styles.header}>
-            <View style={styles.headerText}>
-              <Text style={styles.title}>Student Setup</Text>
-              <Text style={styles.subtitle}>
-                {stepLabel} · {stepConfig.title}
-              </Text>
-            </View>
-            {studentName && (
-              <View style={styles.nameBadge}>
-                <Text style={styles.nameBadgeText}>{studentName}</Text>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          ref={scrollRef}
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets
+          scrollEventThrottle={16}
+          onScroll={(event) => {
+            scrollOffsetY.current = event.nativeEvent.contentOffset.y;
+          }}
+        >
+          <View style={styles.card}>
+            <View style={styles.header}>
+              <View style={styles.headerText}>
+                <Text style={styles.title}>Student Setup</Text>
+                <Text style={styles.subtitle}>
+                  {stepLabel} · {stepConfig.title}
+                </Text>
               </View>
-            )}
-          </View>
+              {studentName ? (
+                <View style={styles.nameBadge}>
+                  <Text style={styles.nameBadgeText}>{studentName}</Text>
+                </View>
+              ) : null}
+            </View>
 
-          <View style={styles.stepperTray}>
-            <StudentOnboardingStepper currentStepIndex={currentStepIndex} />
-          </View>
+            <View style={styles.stepperTray}>
+              <StudentOnboardingStepper currentStepIndex={currentStepIndex} />
+            </View>
 
-          <StepComponent onComplete={handleStepComplete} />
-        </View>
-      </ScrollView>
+            <StepComponent onComplete={handleStepComplete} />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 };
@@ -137,11 +173,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
+  keyboardAvoid: {
+    flex: 1,
+  },
   scroll: {
     flex: 1,
   },
   content: {
     padding: 24,
+    paddingBottom: 48,
   },
   card: {
     backgroundColor: '#fff',

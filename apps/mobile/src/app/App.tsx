@@ -15,7 +15,13 @@ import { TutorOnboarding } from './components/tutor-onboarding';
 import { StudentOnboarding } from './components/student-onboarding';
 import { StudentDetailScreen } from './components/student-profile/StudentDetailScreen';
 import { StudentHomeScreen } from './components/student-home/StudentHomeScreen';
-import { StudentNavHeader } from './components/student-nav/StudentNavHeader';
+import { StudentTutorSearchScreen } from './components/student-tutor-search/StudentTutorSearchScreen';
+import { StudentTutorPreviewScreen } from './components/student-tutor-preview/StudentTutorPreviewScreen';
+import {
+  StudentHomeHeader,
+  StudentNavHeader,
+  StudentTabBar,
+} from './components/student-nav';
 import { TutorDetailScreen } from './components/tutor-profile/TutorDetailScreen';
 import { TutorHomeScreen } from './components/tutor-home/TutorHomeScreen';
 import { TutorNavHeader } from './components/tutor-nav/TutorNavHeader';
@@ -96,6 +102,10 @@ function AppContent() {
   const [studentProfileForOnboarding, setStudentProfileForOnboarding] = useState<{
     onboardingStage?: string;
   } | null>(null);
+  const [tutorPreview, setTutorPreview] = useState<{
+    tutorId: string;
+    offeringId: string;
+  } | null>(null);
   const [signupResume, setSignupResume] = useState<{
     userId?: number;
     verificationStatus?: {
@@ -117,6 +127,7 @@ function AppContent() {
     setCurrentView('login');
     setTutorProfileForOnboarding(null);
     setStudentProfileForOnboarding(null);
+    setTutorPreview(null);
     setSignupResume(null);
     setPushBanner(null);
     if (pushBannerTimerRef.current) {
@@ -132,6 +143,7 @@ function AppContent() {
     setCurrentView('login');
     setTutorProfileForOnboarding(null);
     setStudentProfileForOnboarding(null);
+    setTutorPreview(null);
     setSignupResume(null);
     setPushBanner(null);
     if (pushBannerTimerRef.current) {
@@ -362,14 +374,57 @@ function AppContent() {
     );
   } else if (currentView === 'studentHome') {
     screen = (
-      <View style={{ flex: 1 }}>
-        <StudentNavHeader
-          title="Home"
-          onLogout={handleLogout}
+      <View style={{ flex: 1, backgroundColor: '#e8f4ff' }}>
+        <StudentHomeHeader
           onProfilePress={() => setCurrentView('studentProfile')}
           onOpenWallet={() => handleOpenWallet('studentHome')}
         />
-        <StudentHomeScreen />
+        <StudentHomeScreen
+          onOpenTutorSearch={() => setCurrentView('studentTutorSearch')}
+        />
+        <StudentTabBar
+          active="home"
+          onHome={() => undefined}
+          onSearch={() => setCurrentView('studentTutorSearch')}
+          onProfile={() => setCurrentView('studentProfile')}
+        />
+      </View>
+    );
+  } else if (currentView === 'studentTutorSearch') {
+    screen = (
+      <View style={{ flex: 1 }}>
+        <StudentNavHeader
+          title="Search"
+          onLogout={handleLogout}
+          onOpenWallet={() => handleOpenWallet('studentHome')}
+        />
+        <StudentTutorSearchScreen
+          onOpenTutorPreview={(tutorId, offeringId) => {
+            setTutorPreview({ tutorId, offeringId });
+            setCurrentView('studentTutorPreview');
+          }}
+        />
+        <StudentTabBar
+          active="search"
+          onHome={() => setCurrentView('studentHome')}
+          onSearch={() => undefined}
+          onProfile={() => setCurrentView('studentProfile')}
+        />
+      </View>
+    );
+  } else if (currentView === 'studentTutorPreview' && tutorPreview) {
+    screen = (
+      <View style={{ flex: 1 }}>
+        <StudentNavHeader
+          title="Tutor"
+          onBack={() => setCurrentView('studentTutorSearch')}
+          onLogout={handleLogout}
+          onOpenWallet={() => handleOpenWallet('studentHome')}
+        />
+        <StudentTutorPreviewScreen
+          tutorId={tutorPreview.tutorId}
+          offeringId={tutorPreview.offeringId}
+        />
       </View>
     );
   } else if (currentView === 'studentProfile') {
@@ -377,7 +432,6 @@ function AppContent() {
       <View style={{ flex: 1 }}>
         <StudentNavHeader
           title="My profile"
-          onBack={() => setCurrentView('studentHome')}
           onLogout={handleLogout}
           onOpenWallet={() => handleOpenWallet('studentProfile')}
         />
@@ -385,6 +439,12 @@ function AppContent() {
           onAccountDeleted={() => {
             void handleAccountDeleted();
           }}
+        />
+        <StudentTabBar
+          active="profile"
+          onHome={() => setCurrentView('studentHome')}
+          onSearch={() => setCurrentView('studentTutorSearch')}
+          onProfile={() => undefined}
         />
       </View>
     );

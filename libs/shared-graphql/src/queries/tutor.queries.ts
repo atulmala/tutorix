@@ -221,3 +221,67 @@ export const GET_MY_TUTOR_DETAIL = gql`
     }
   }
 `;
+
+export const SEARCH_TUTORS = gql`
+  query SearchTutors($input: SearchTutorsInput!) {
+    searchTutors(input: $input) {
+      items {
+        tutorId
+        displayName
+        photoUrl
+        yearsOfExperience
+        offeringLabel
+        matchingOfferingId
+        onlineEnabled
+        offlineEnabled
+        individualAvailable
+        groupAvailable
+        groupSize
+        rateInr
+        deliveryModeShown
+        distanceKm
+        city
+        freeDemoOffered
+        hasAvailabilityThisWeek
+        slotsThisWeek
+      }
+      nextCursor
+      hasMore
+      originHasCoordinates
+      forcedOnlineOnly
+    }
+  }
+`;
+
+export const TUTOR_SEARCH_DETAIL = gql`
+  query TutorSearchDetail($tutorId: ID!, $offeringId: ID!) {
+    tutorSearchDetail(tutorId: $tutorId, offeringId: $offeringId) {
+      tutorId
+      displayName
+      photoUrl
+      yearsOfExperience
+      city
+      distanceKm
+      hasAvailabilityThisWeek
+      slotsThisWeek
+      matchingOffering {
+        offeringId
+        offeringLabel
+        onlineEnabled
+        offlineEnabled
+        onlineRateInr
+        offlineRateInr
+        freeDemoOffered
+      }
+      otherOfferings {
+        offeringId
+        offeringLabel
+        onlineEnabled
+        offlineEnabled
+        onlineRateInr
+        offlineRateInr
+        freeDemoOffered
+      }
+    }
+  }
+`;

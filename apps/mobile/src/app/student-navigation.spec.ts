@@ -26,9 +26,11 @@ describe('studentViewAfterProfile', () => {
 });
 
 describe('walletReturnFromPush', () => {
-  it('returns studentHome from student home or onboarding', () => {
+  it('returns studentHome from student home, onboarding, search, or tutor preview', () => {
     expect(walletReturnFromPush('studentHome')).toBe('studentHome');
     expect(walletReturnFromPush('studentOnboarding')).toBe('studentHome');
+    expect(walletReturnFromPush('studentTutorSearch')).toBe('studentHome');
+    expect(walletReturnFromPush('studentTutorPreview')).toBe('studentHome');
   });
 
   it('returns studentProfile when the student is already on profile', () => {

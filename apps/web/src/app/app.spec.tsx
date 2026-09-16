@@ -48,6 +48,12 @@ jest.mock('./components/student-onboarding', () => ({ StudentOnboarding: () => n
 jest.mock('./components/student-home', () => ({
   StudentHomePage: () => null,
 }));
+jest.mock('./components/student-tutor-preview/StudentTutorPreviewPage', () => ({
+  StudentTutorPreviewPage: () => null,
+}));
+jest.mock('./components/student-tutor-search/StudentTutorSearchPage', () => ({
+  StudentTutorSearchPage: () => null,
+}));
 jest.mock('./components/student-profile', () => ({
   StudentProfilePage: () => null,
 }));

@@ -18,6 +18,7 @@ import {
   type LocationSuggestion,
   type PlacePrediction,
 } from '../../../hooks/useGooglePlacesFetch';
+import { LocalityValueInput } from '../address/LocalityValueInput';
 
 type TutorAddress = TutorDetailRecord['addresses'][number];
 type RequiredAddressTextField = Exclude<keyof AddressFormValues, 'latitude' | 'longitude'>;
@@ -211,14 +212,21 @@ export function AddressModal({
               onChangeText={(value) => updateField('street', value)}
               editable={!saving}
             />
-            <Field
-              label="Locality"
-              value={form.subArea}
-              onChangeText={handleLocalityChange}
-              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-              editable={!saving}
-              trailing={isSearching ? <ActivityIndicator size="small" color="#0d9488" /> : null}
-            />
+            <View style={styles.field}>
+              <Text style={styles.label}>Locality</Text>
+              <LocalityValueInput
+                value={form.subArea}
+                onChangeText={handleLocalityChange}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                editable={!saving}
+                preview={!!selectedLocation && !showSuggestions}
+                trailing={
+                  isSearching ? (
+                    <ActivityIndicator size="small" color="#0d9488" />
+                  ) : null
+                }
+              />
+            </View>
             {showSuggestions && suggestions.length > 0 ? (
               <View style={styles.suggestions}>
                 {suggestions.map((item) => (

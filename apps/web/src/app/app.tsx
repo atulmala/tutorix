@@ -15,6 +15,8 @@ import { TutorProfilePage } from './components/tutor-profile/TutorProfilePage';
 import { StudentOnboarding } from './components/student-onboarding';
 import { StudentHomePage } from './components/student-home';
 import { StudentProfilePage } from './components/student-profile';
+import { StudentTutorSearchPage } from './components/student-tutor-search/StudentTutorSearchPage';
+import { StudentTutorPreviewPage } from './components/student-tutor-preview/StudentTutorPreviewPage';
 import { AppHeader } from './components/AppHeader';
 import { WalletPage } from './components/wallet';
 import { AnalyticsViewTracker } from '../components/AnalyticsViewTracker';
@@ -34,6 +36,10 @@ function AppContent() {
   const [currentView, setCurrentViewInternal] = useState<WebView>('home');
   const [walletReturnView, setWalletReturnView] =
     useState<WalletReturnView>('tutor-home');
+  const [tutorPreview, setTutorPreview] = useState<{
+    tutorId: string;
+    offeringId: string;
+  } | null>(null);
   const [resumeUserId, setResumeUserId] = useState<number | undefined>(undefined);
   const [resumeVerificationStatus, setResumeVerificationStatus] = useState<
     | {
@@ -326,6 +332,7 @@ function AppContent() {
 
     setTutorProfileForOnboarding(null);
     setStudentProfileForOnboarding(null);
+    setTutorPreview(null);
     setResumeUserId(undefined);
     setResumeVerificationStatus(undefined);
     setResetPasswordToken(undefined);
@@ -397,15 +404,58 @@ function AppContent() {
 
   if (currentView === 'student-home') {
     return (
-      <div className="min-h-screen bg-subtle text-primary">
+      <div className="min-h-screen bg-[#e8f4ff] text-primary">
         <AppHeader
-          title="Home"
           onLogout={handleLogout}
           onProfilePress={() => setCurrentView('student-profile')}
           onOpenWallet={() => handleOpenWallet('student-home')}
+          profileAlign="right"
+          flush
+        />
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-8">
+          <StudentHomePage
+            onOpenTutorSearch={() => setCurrentView('student-tutor-search')}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'student-tutor-search') {
+    return (
+      <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader
+          title="Search"
+          onLogout={handleLogout}
+          onBack={() => setCurrentView('student-home')}
+          onOpenWallet={() => handleOpenWallet('student-home')}
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
-          <StudentHomePage />
+          <StudentTutorSearchPage
+            onOpenTutorPreview={(tutorId, offeringId) => {
+              setTutorPreview({ tutorId, offeringId });
+              setCurrentView('student-tutor-preview');
+            }}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'student-tutor-preview' && tutorPreview) {
+    return (
+      <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader
+          title="Tutor"
+          onLogout={handleLogout}
+          onBack={() => setCurrentView('student-tutor-search')}
+          onOpenWallet={() => handleOpenWallet('student-home')}
+        />
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
+          <StudentTutorPreviewPage
+            tutorId={tutorPreview.tutorId}
+            offeringId={tutorPreview.offeringId}
+          />
         </main>
       </div>
     );
