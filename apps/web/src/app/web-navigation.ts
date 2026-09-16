@@ -8,6 +8,8 @@ export type WebView =
   | 'reset-password'
   | 'password-reset-ack'
   | 'tutor-onboarding'
+  | 'tutor-bank-setup'
+  | 'tutor-rate-card-setup'
   | 'tutor-home'
   | 'tutor-profile'
   | 'student-onboarding'
@@ -40,15 +42,27 @@ export function studentViewAfterProfile(
   return 'student-home';
 }
 
-export function tutorViewAfterProfile(tutor: {
+export type TutorRouteProfile = {
   onBoardingComplete?: boolean;
   onboardingCelebrationSeen?: boolean;
-} | null | undefined): WebView {
+  bankDetailsComplete?: boolean;
+  needsRateCardSetup?: boolean;
+};
+
+export function tutorViewAfterProfile(
+  tutor: TutorRouteProfile | null | undefined,
+): WebView {
   if (!tutor) {
     return 'home';
   }
   if (!tutor.onBoardingComplete || !tutor.onboardingCelebrationSeen) {
     return 'tutor-onboarding';
+  }
+  if (!tutor.bankDetailsComplete) {
+    return 'tutor-bank-setup';
+  }
+  if (tutor.needsRateCardSetup) {
+    return 'tutor-rate-card-setup';
   }
   return 'tutor-home';
 }
@@ -65,7 +79,7 @@ export function walletReturnFromView(view: WebView): WalletReturnView | null {
   if (view === 'student-profile') {
     return 'student-profile';
   }
-  if (view === 'tutor-home' || view === 'tutor-onboarding') {
+  if (view === 'tutor-home' || view === 'tutor-onboarding' || view === 'tutor-bank-setup' || view === 'tutor-rate-card-setup') {
     return 'tutor-home';
   }
   if (view === 'tutor-profile') {

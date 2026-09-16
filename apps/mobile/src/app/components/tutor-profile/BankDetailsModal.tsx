@@ -11,11 +11,8 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import {
-  INDIAN_BANKS,
-  OTHER_BANK_OPTION,
-  validateBankDetailsForm,
-} from '@tutorix/shared-utils';
+import { INDIAN_BANKS, OTHER_BANK_OPTION } from '@tutorix/shared-utils/indian-banks';
+import { validateBankDetailsForm } from '@tutorix/shared-utils/bank-details-formatters';
 import type { BankDetailsFormValues } from '@tutorix/tutor-detail-ui';
 
 type BankDetailsModalProps = {
@@ -28,7 +25,10 @@ type BankDetailsModalProps = {
   } | null;
   saving?: boolean;
   error?: string | null;
-  onClose: () => void;
+  required?: boolean;
+  heading?: string;
+  description?: string;
+  onClose?: () => void;
   onSubmit: (values: BankDetailsFormValues) => void;
 };
 
@@ -47,6 +47,9 @@ export function BankDetailsModal({
   initialValues,
   saving = false,
   error,
+  required = false,
+  heading,
+  description,
   onClose,
   onSubmit,
 }: BankDetailsModalProps) {
@@ -106,19 +109,21 @@ export function BankDetailsModal({
   };
 
   const displayError = validationError ?? error;
+  const title = heading ?? (required ? 'Account setup' : 'Bank details');
 
-  return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <View style={styles.sheet}>
+  if (!visible) {
+    return null;
+  }
+
+  const form = (
+        <View style={required ? styles.embeddedSheet : styles.sheet}>
           <View style={styles.header}>
-            <Text style={styles.title}>Bank details</Text>
-            <TouchableOpacity onPress={onClose} accessibilityLabel="Close" disabled={saving}>
-              <Text style={styles.close}>✕</Text>
-            </TouchableOpacity>
+            <Text style={styles.title}>{title}</Text>
+            {required ? null : (
+              <TouchableOpacity onPress={onClose} accessibilityLabel="Close" disabled={saving}>
+                <Text style={styles.close}>✕</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <ScrollView
@@ -126,6 +131,11 @@ export function BankDetailsModal({
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
+            {description ? (
+              <Text style={styles.description} accessibilityRole="text">
+                {description}
+              </Text>
+            ) : null}
             <Text style={styles.label}>Bank name</Text>
             <TouchableOpacity
               style={styles.selectButton}
@@ -207,13 +217,15 @@ export function BankDetailsModal({
             ) : null}
 
             <View style={styles.actions}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={onClose}
-                disabled={saving}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
+              {required ? null : (
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={onClose}
+                  disabled={saving}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={[styles.saveButton, (!bankSelect || saving) && styles.saveButtonDisabled]}
                 onPress={handleSubmit}
@@ -228,8 +240,9 @@ export function BankDetailsModal({
             </View>
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+  );
 
+  const picker = (
       <Modal transparent visible={showBankPicker} animationType="fade">
         <View style={styles.pickerOverlay}>
           <View style={styles.pickerCard}>
@@ -266,6 +279,29 @@ export function BankDetailsModal({
           </View>
         </View>
       </Modal>
+  );
+
+  if (required) {
+    return (
+      <KeyboardAvoidingView
+        style={styles.embedded}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        {form}
+        {picker}
+      </KeyboardAvoidingView>
+    );
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        {form}
+      </KeyboardAvoidingView>
+      {picker}
     </Modal>
   );
 }
@@ -275,6 +311,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
+  },
+  embedded: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  embeddedSheet: {
+    flex: 1,
+    backgroundColor: '#fff',
   },
   sheet: {
     backgroundColor: '#fff',
@@ -292,6 +336,12 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 20, fontWeight: '700', color: '#0f172a', flex: 1 },
   close: { fontSize: 22, color: '#64748b', paddingLeft: 12 },
+  description: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#0f172a',
+    marginBottom: 8,
+  },
   scroll: { maxHeight: '100%' },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 28 },
   label: {

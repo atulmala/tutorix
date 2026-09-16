@@ -24,6 +24,8 @@ import {
 } from './components/student-nav';
 import { TutorDetailScreen } from './components/tutor-profile/TutorDetailScreen';
 import { TutorHomeScreen } from './components/tutor-home/TutorHomeScreen';
+import { TutorBankSetupScreen } from './components/tutor-bank-setup/TutorBankSetupScreen';
+import { TutorRateCardSetupScreen } from './components/tutor-rate-card-setup/TutorRateCardSetupScreen';
 import { TutorNavHeader } from './components/tutor-nav/TutorNavHeader';
 import { WalletScreen } from './components/wallet';
 import { NavHeader } from './components/NavHeader';
@@ -40,7 +42,9 @@ import {
   removeAuthToken,
   setAuthToken,
 } from '@tutorix/shared-graphql/client/mobile/token-storage';
-import { GET_MY_STUDENT_PROFILE, GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
+import { isBankDetailsMarkedComplete } from '@tutorix/shared-utils/bank-details-formatters';
+import { needsRateCardSetup } from '@tutorix/shared-utils/rate-card';
+import { GET_MY_STUDENT_PROFILE, GET_MY_TUTOR_DETAIL, GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
 import { LOGIN } from '@tutorix/shared-graphql/mutations';
 import {
   registerPushNotifications,
@@ -176,31 +180,58 @@ function AppContent() {
   );
 
   const [getMyTutorProfile] = useLazyQuery(GET_MY_TUTOR_PROFILE, {
-    onCompleted: (data) => {
+    fetchPolicy: 'network-only',
+  });
+  const [getMyTutorDetail] = useLazyQuery(GET_MY_TUTOR_DETAIL, {
+    fetchPolicy: 'network-only',
+  });
+
+  const routeLoggedInTutor = useCallback(async () => {
+    try {
+      const { data } = await getMyTutorProfile();
       const tutor = data?.myTutorProfile;
       if (!tutor) {
         setTutorProfileForOnboarding(null);
         setCurrentView('home');
         return;
       }
-      if (!tutor.onBoardingComplete) {
+      if (!tutor.onBoardingComplete || !tutor.onboardingCelebrationSeen) {
         setTutorProfileForOnboarding({
-          certificationStage: tutor.certificationStage,
+          certificationStage: tutor.onBoardingComplete
+            ? 'complete'
+            : tutor.certificationStage,
         });
         setCurrentView('tutorOnboarding');
-      } else if (!tutor.onboardingCelebrationSeen) {
-        setTutorProfileForOnboarding({ certificationStage: 'complete' });
-        setCurrentView('tutorOnboarding');
-      } else {
-        setTutorProfileForOnboarding(null);
-        setCurrentView(tutorViewAfterProfile(tutor));
+        return;
       }
-    },
-    onError: () => {
+
+      setTutorProfileForOnboarding(null);
+      let bankDetailsComplete = false;
+      let rateCardSetupNeeded = false;
+      try {
+        const detailResult = await getMyTutorDetail();
+        bankDetailsComplete = isBankDetailsMarkedComplete(
+          detailResult.data?.myTutorDetail?.user?.bankDetails,
+        );
+        rateCardSetupNeeded = needsRateCardSetup(
+          detailResult.data?.myTutorDetail?.offerings,
+        );
+      } catch {
+        bankDetailsComplete = false;
+        rateCardSetupNeeded = false;
+      }
+      setCurrentView(
+        tutorViewAfterProfile({
+          onBoardingComplete: tutor.onBoardingComplete,
+          onboardingCelebrationSeen: tutor.onboardingCelebrationSeen,
+          bankDetailsComplete,
+          needsRateCardSetup: rateCardSetupNeeded,
+        }),
+      );
+    } catch {
       setCurrentView('home');
-    },
-    fetchPolicy: 'network-only',
-  });
+    }
+  }, [getMyTutorDetail, getMyTutorProfile]);
 
   const [getMyStudentProfile] = useLazyQuery(GET_MY_STUDENT_PROFILE, {
     onCompleted: (data) => {
@@ -222,7 +253,7 @@ function AppContent() {
     if (role === 'STUDENT') {
       getMyStudentProfile();
     } else if (role === 'TUTOR' || user === undefined) {
-      getMyTutorProfile();
+      void routeLoggedInTutor();
     } else {
       setCurrentView('home');
     }
@@ -267,7 +298,7 @@ function AppContent() {
 
   const handleTutorOnboardingComplete = () => {
     setTutorProfileForOnboarding(null);
-    setCurrentView('tutorHome');
+    void routeLoggedInTutor();
   };
 
   const handleStudentOnboardingComplete = () => {
@@ -276,6 +307,9 @@ function AppContent() {
   };
 
   const handleOpenWallet = useCallback((from: WalletReturnView) => {
+    if (currentViewRef.current === 'tutorBankSetup' || currentViewRef.current === 'tutorRateCardSetup') {
+      return;
+    }
     setWalletReturnView(from);
     setCurrentView('wallet');
   }, []);
@@ -285,6 +319,9 @@ function AppContent() {
   }, [walletReturnView]);
 
   const openWalletFromPush = useCallback(() => {
+    if (currentViewRef.current === 'tutorBankSetup' || currentViewRef.current === 'tutorRateCardSetup') {
+      return;
+    }
     const nextReturn = walletReturnFromPush(currentViewRef.current);
     if (nextReturn) {
       setWalletReturnView(nextReturn);
@@ -446,6 +483,20 @@ function AppContent() {
           onSearch={() => setCurrentView('studentTutorSearch')}
           onProfile={() => undefined}
         />
+      </View>
+    );
+  } else if (currentView === 'tutorBankSetup') {
+    screen = (
+      <View style={{ flex: 1, backgroundColor: '#fff' }}>
+        <NavHeader title="Account setup" onLogout={handleLogout} />
+        <TutorBankSetupScreen onComplete={() => void routeLoggedInTutor()} />
+      </View>
+    );
+  } else if (currentView === 'tutorRateCardSetup') {
+    screen = (
+      <View style={{ flex: 1, backgroundColor: '#fff' }}>
+        <NavHeader title="Rate card" onLogout={handleLogout} />
+        <TutorRateCardSetupScreen onComplete={() => setCurrentView('tutorHome')} />
       </View>
     );
   } else if (currentView === 'tutorHome') {

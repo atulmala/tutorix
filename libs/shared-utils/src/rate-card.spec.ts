@@ -5,6 +5,7 @@ import {
   getBatchSizeForMode,
   isRateCardComplete,
   MAX_BATCH_SIZE,
+  needsRateCardSetup,
   validateRateCardForm,
 } from './rate-card';
 
@@ -40,6 +41,33 @@ describe('rate-card', () => {
       expect(
         isRateCardComplete({ offlineEnabled: true, offlineBaseRate: 500, onlineEnabled: false }),
       ).toBe(true);
+    });
+  });
+
+  describe('needsRateCardSetup', () => {
+    it('is false when there are no passed offerings', () => {
+      expect(needsRateCardSetup([])).toBe(false);
+      expect(
+        needsRateCardSetup([{ status: 'pending_pt', rateCard: null }]),
+      ).toBe(false);
+    });
+
+    it('is true when a passed offering has no complete rate card', () => {
+      expect(
+        needsRateCardSetup([{ status: 'pt_passed', rateCard: null }]),
+      ).toBe(true);
+    });
+
+    it('is false when at least one passed offering has a complete rate card', () => {
+      expect(
+        needsRateCardSetup([
+          { status: 'pt_passed', rateCard: null },
+          {
+            status: 'pt_passed',
+            rateCard: { isComplete: true, offlineEnabled: true, offlineBaseRate: 400 },
+          },
+        ]),
+      ).toBe(false);
     });
   });
 

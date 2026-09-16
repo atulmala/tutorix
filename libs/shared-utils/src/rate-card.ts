@@ -83,6 +83,43 @@ export function isRateCardComplete(rateCard: RateCardLike | null | undefined): b
   return offlineOk || onlineOk;
 }
 
+export const RATE_CARD_SETUP_HEADING = 'Rate card';
+
+export const RATE_CARD_SETUP_REQUIRED_MESSAGE =
+  'Please set up a rate card for at least one offering. Students can find you once you set how you charge.';
+
+export const PT_PASSED_OFFERING_STATUS = 'pt_passed';
+
+export type RateCardOfferingLike = {
+  status?: string | null;
+  rateCard?: (RateCardLike & { isComplete?: boolean | null }) | null;
+};
+
+export function offeringHasCompleteRateCard(
+  offering: RateCardOfferingLike | null | undefined,
+): boolean {
+  if (!offering) {
+    return false;
+  }
+  if (offering.rateCard?.isComplete === true) {
+    return true;
+  }
+  return isRateCardComplete(offering.rateCard);
+}
+
+/** True when a tutor has at least one PT-passed offering with no complete rate card, so home must wait. */
+export function needsRateCardSetup(
+  offerings?: RateCardOfferingLike[] | null,
+): boolean {
+  const passed = (offerings ?? []).filter(
+    (offering) => String(offering.status ?? '').toLowerCase() === PT_PASSED_OFFERING_STATUS,
+  );
+  if (passed.length === 0) {
+    return false;
+  }
+  return !passed.some(offeringHasCompleteRateCard);
+}
+
 /** Max students per 1-hour session for a delivery mode (1 if mode disabled). */
 export function getBatchSizeForMode(
   rateCard: RateCardLike | null | undefined,

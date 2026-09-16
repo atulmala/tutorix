@@ -73,6 +73,11 @@ export class UserBankDetailsService {
     return this.mapEntityToGraphql(entity);
   }
 
+  async isCompleteForUser(userId: number): Promise<boolean> {
+    const entity = await this.findByUserId(userId);
+    return this.mapToGraphql(entity)?.isComplete === true;
+  }
+
   private mapEntityToGraphql(entity: UserBankDetailsEntity): UserBankDetails {
     return {
       bankName: entity.bankName,
