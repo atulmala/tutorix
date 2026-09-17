@@ -7,6 +7,7 @@ export type AppView =
   | 'tutorBankSetup'
   | 'tutorRateCardSetup'
   | 'tutorHome'
+  | 'tutorCalendar'
   | 'tutorProfile'
   | 'studentOnboarding'
   | 'studentHome'
@@ -51,7 +52,7 @@ export function walletReturnFromPush(view: AppView): WalletReturnView | null {
   if (view === 'studentProfile') {
     return 'studentProfile';
   }
-  if (view === 'tutorHome' || view === 'tutorOnboarding' || view === 'tutorBankSetup' || view === 'tutorRateCardSetup') {
+  if (view === 'tutorHome' || view === 'tutorOnboarding' || view === 'tutorBankSetup' || view === 'tutorRateCardSetup' || view === 'tutorCalendar') {
     return 'tutorHome';
   }
   if (view === 'tutorProfile') {

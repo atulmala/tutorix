@@ -12,7 +12,11 @@ import { PasswordResetAcknowledgement } from './components/PasswordResetAcknowle
 import { TutorOnboarding } from './components/tutor-onboarding';
 import { TutorHomePage } from './components/tutor-home';
 import { TutorBankSetupPage } from './components/tutor-bank-setup';
-import { TutorRateCardSetupPage } from './components/tutor-rate-card-setup';
+import {
+  TutorRateCardSetupPage,
+  confirmRateCardLater,
+} from './components/tutor-rate-card-setup';
+import { TutorCalendarPage } from './components/tutor-calendar';
 import { TutorProfilePage } from './components/tutor-profile/TutorProfilePage';
 import { StudentOnboarding } from './components/student-onboarding';
 import { StudentHomePage } from './components/student-home';
@@ -56,6 +60,7 @@ function AppContent() {
   const [tutorProfileForOnboarding, setTutorProfileForOnboarding] = useState<{ certificationStage?: string } | null>(null);
   const [studentProfileForOnboarding, setStudentProfileForOnboarding] = useState<{ onboardingStage?: string } | null>(null);
   const [signupSuccessMessage, setSignupSuccessMessage] = useState<string | null>(null);
+  const [rateCardCanDefer, setRateCardCanDefer] = useState(false);
 
   const skipSessionRestoreRef = useRef(false);
   const hasRoutedBootstrapRef = useRef(false);
@@ -581,9 +586,21 @@ function AppContent() {
   if (currentView === 'tutor-rate-card-setup') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
-        <AppHeader title="Rate card" onLogout={handleLogout} />
+        <AppHeader
+          title="Rate card"
+          onLogout={handleLogout}
+          onBack={
+            rateCardCanDefer
+              ? () => confirmRateCardLater(() => setCurrentView('tutor-profile'))
+              : undefined
+          }
+        />
         <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
-          <TutorRateCardSetupPage onComplete={() => setCurrentView('tutor-home')} />
+          <TutorRateCardSetupPage
+            onComplete={() => setCurrentView('tutor-home')}
+            onLater={() => setCurrentView('tutor-profile')}
+            onDeferChange={setRateCardCanDefer}
+          />
         </main>
       </div>
     );
@@ -599,7 +616,26 @@ function AppContent() {
           onOpenWallet={() => handleOpenWallet('tutor-home')}
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-8">
-          <TutorHomePage />
+          <TutorHomePage
+            onSetRateCard={() => setCurrentView('tutor-rate-card-setup')}
+            onUpdateCalendar={() => setCurrentView('tutor-calendar')}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'tutor-calendar') {
+    return (
+      <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader
+          title="Calendar"
+          onLogout={handleLogout}
+          onBack={() => setCurrentView('tutor-home')}
+          onOpenWallet={() => handleOpenWallet('tutor-home')}
+        />
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
+          <TutorCalendarPage />
         </main>
       </div>
     );

@@ -10,6 +10,7 @@ import { UserRole } from '../../auth/enums/user-role.enum';
 import { ProfilePictureService } from '../../auth/services/profile-picture.service';
 import { OfferingService } from '../../offerings/services/offering.service';
 import { StudentService } from '../../student/services/student.service';
+import { ProficiencyTestService } from '../../proficiency/services/proficiency-test.service';
 import { TutorCalendar } from '../../tutor-calendar/entities/tutor-calendar.entity';
 import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
 import { TutorOfferingEntity } from '../entities/tutor-offering.entity';
@@ -26,6 +27,7 @@ describe('TutorSearchService', () => {
   let findOfferings: jest.Mock;
   let findRateCards: jest.Mock;
   let findAllOfferings: jest.Mock;
+  let findCoveringTest: jest.Mock;
   let findStudent: jest.Mock;
   let calendarGetRawMany: jest.Mock;
   let calendarAndWhere: jest.Mock;
@@ -53,16 +55,20 @@ describe('TutorSearchService', () => {
       latitude?: number;
       longitude?: number;
       deleted?: boolean;
+      offeringId?: number;
+      proficiencyTestId?: number;
     },
   ) {
+    const offeringId = overrides?.offeringId ?? 33;
     return {
       id,
-      offeringId: 33,
+      offeringId,
+      proficiencyTestId: overrides?.proficiencyTestId ?? 70,
       tutorId: id,
       status: overrides?.status ?? TutorOfferingStatusEnum.pt_passed,
       deleted: false,
       offering: {
-        id: 33,
+        id: offeringId,
         displayName: 'Mathematics',
         level: 3,
         parentOffering: { id: 3 },
@@ -113,7 +119,22 @@ describe('TutorSearchService', () => {
         parentOffering: { id: 3 },
         rootOffering: { id: 1, displayName: 'School Education' },
       },
+      {
+        id: 4,
+        displayName: 'Class 11',
+        level: 2,
+        parentOffering: { id: 2 },
+        rootOffering: { id: 1, displayName: 'School Education' },
+      },
+      {
+        id: 34,
+        displayName: 'Mathematics',
+        level: 3,
+        parentOffering: { id: 4 },
+        rootOffering: { id: 1, displayName: 'School Education' },
+      },
     ]);
+    findCoveringTest = jest.fn().mockResolvedValue(null);
     findStudent = jest.fn().mockResolvedValue({
       id: 1,
       addresses: [
@@ -152,9 +173,13 @@ describe('TutorSearchService', () => {
         },
         {
           provide: TutorRateCardService,
-          useValue: { findByTutorOfferingIds: findRateCards },
+          useValue: { resolveCompleteRateCards: findRateCards },
         },
         { provide: OfferingService, useValue: { findAll: findAllOfferings } },
+        {
+          provide: ProficiencyTestService,
+          useValue: { findActiveTestForOffering: findCoveringTest },
+        },
         {
           provide: ProfilePictureService,
           useValue: { resolveDisplayUrl },
@@ -331,5 +356,39 @@ describe('TutorSearchService', () => {
     await expect(
       service.getTutorSearchDetail(studentUser as never, 1, 33),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('includes a tutor who passed a shared PT for a sibling class', async () => {
+    findCoveringTest.mockResolvedValue({ id: 70 });
+    findOfferings.mockResolvedValue([
+      tutorRow(1, { offeringId: 33, proficiencyTestId: 70 }),
+    ]);
+    findRateCards.mockResolvedValue(new Map([[1, completeCard]]));
+
+    const result = await service.searchTutors(studentUser as never, {
+      offeringId: 34,
+    });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].tutorId).toBe(1);
+    expect(result.items[0].matchingOfferingId).toBe(34);
+    expect(result.items[0].offeringLabel).toContain('Classes 11');
+  });
+
+  it('opens preview for a sibling class covered by the same PT', async () => {
+    findCoveringTest.mockResolvedValue({ id: 70 });
+    findOfferings.mockResolvedValue([
+      tutorRow(1, { offeringId: 33, proficiencyTestId: 70 }),
+    ]);
+    findRateCards.mockResolvedValue(new Map([[1, completeCard]]));
+
+    const detail = await service.getTutorSearchDetail(
+      studentUser as never,
+      1,
+      34,
+    );
+
+    expect(detail.matchingOffering.offeringId).toBe(34);
+    expect(detail.matchingOffering.offeringLabel).toContain('Classes 11');
   });
 });

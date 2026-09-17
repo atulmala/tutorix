@@ -345,6 +345,8 @@ type RateCardModalProps = {
   required?: boolean;
   heading?: string;
   description?: string;
+  /** Shown instead of Cancel when provided (including on required forms). */
+  laterLabel?: string;
   onClose?: () => void;
   onSubmit?: (values: RateCardFormValues) => void;
 };
@@ -359,6 +361,7 @@ export function RateCardModal({
   required = false,
   heading,
   description,
+  laterLabel,
   onClose,
   onSubmit,
 }: RateCardModalProps) {
@@ -523,14 +526,14 @@ export function RateCardModal({
               </button>
             ) : (
               <>
-                {required ? null : (
+                {required && !laterLabel ? null : (
                   <button
                     type="button"
                     onClick={() => onClose?.()}
                     className="rounded-lg border border-subtle px-4 py-2 text-sm font-medium text-primary transition hover:bg-subtle"
                     disabled={saving}
                   >
-                    Cancel
+                    {laterLabel ?? 'Cancel'}
                   </button>
                 )}
                 <button

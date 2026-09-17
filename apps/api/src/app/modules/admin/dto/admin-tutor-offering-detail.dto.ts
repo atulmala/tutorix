@@ -5,10 +5,16 @@ import { TutorOfferingRateCard } from '../../tutor-rate-card/dto/tutor-offering-
 @ObjectType()
 export class AdminTutorOfferingDetail {
   @Field(() => Int)
-  id: number;
+  id!: number;
 
   @Field(() => Int, { description: 'Catalog leaf offering id' })
-  offeringId: number;
+  offeringId!: number;
+
+  @Field(() => Int, {
+    nullable: true,
+    description: 'Proficiency test id shared by overlapping class-level offerings',
+  })
+  proficiencyTestId?: number;
 
   @Field({ nullable: true })
   offeringName?: string;
@@ -24,13 +30,13 @@ export class AdminTutorOfferingDetail {
   offeringFullLabel?: string;
 
   @Field(() => TutorOfferingStatusEnum)
-  status: TutorOfferingStatusEnum;
+  status!: TutorOfferingStatusEnum;
 
   @Field(() => Int)
-  attemptsUsed: number;
+  attemptsUsed!: number;
 
   @Field(() => Int, { description: 'Remaining PT attempts (max 2 minus used)' })
-  attemptsRemaining: number;
+  attemptsRemaining!: number;
 
   @Field(() => Int, { nullable: true })
   lastScore?: number;

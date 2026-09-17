@@ -1,14 +1,101 @@
 import React, { useMemo, useState } from 'react';
-import { istMondayWeekDays } from '@tutorix/shared-utils';
+import { useQuery } from '@apollo/client';
+import {
+  GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
+  GET_MY_TUTOR_DETAIL,
+} from '@tutorix/shared-graphql';
+import {
+  hasIncompleteRateCardOfferings,
+  istMondayWeekDays,
+  needsCalendarUpdateThroughSunday,
+  PENDING_CALENDAR_TASK_ACTION,
+  PENDING_CALENDAR_TASK_MESSAGE,
+  PENDING_RATE_CARD_TASK_ACTION,
+  PENDING_RATE_CARD_TASK_MESSAGE,
+  type RateCardOfferingLike,
+} from '@tutorix/shared-utils';
 
-export const TutorHomePage: React.FC = () => {
+type TutorHomePageProps = {
+  onSetRateCard?: () => void;
+  onUpdateCalendar?: () => void;
+};
+
+type MyTutorDetailData = {
+  myTutorDetail?: {
+    offerings?: RateCardOfferingLike[] | null;
+  } | null;
+};
+
+type CalendarUpdatedTillData = {
+  myTutorCalendarUpdatedTill?: string | Date | null;
+};
+
+export const TutorHomePage: React.FC<TutorHomePageProps> = ({
+  onSetRateCard,
+  onUpdateCalendar,
+}) => {
   const weekDays = useMemo(() => istMondayWeekDays(), []);
   const todayKey = weekDays.find((d) => d.isToday)?.key ?? weekDays[0]?.key;
   const [selectedKey, setSelectedKey] = useState(todayKey);
   const selected = weekDays.find((d) => d.key === selectedKey) ?? weekDays[0];
 
+  const { data: detailData, loading: detailLoading } = useQuery<MyTutorDetailData>(
+    GET_MY_TUTOR_DETAIL,
+    { fetchPolicy: 'cache-and-network' },
+  );
+  const { data: tillData, loading: tillLoading } = useQuery<CalendarUpdatedTillData>(
+    GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
+    { fetchPolicy: 'cache-and-network' },
+  );
+
+  const showRateCardTask =
+    !detailLoading &&
+    hasIncompleteRateCardOfferings(detailData?.myTutorDetail?.offerings);
+  const showCalendarTask =
+    !tillLoading &&
+    needsCalendarUpdateThroughSunday(tillData?.myTutorCalendarUpdatedTill);
+  const showPendingTasks = showRateCardTask || showCalendarTask;
+
   return (
     <div className="w-full max-w-xl space-y-4">
+      {showPendingTasks ? (
+        <section className="space-y-2.5">
+          <h2 className="text-[15px] font-extrabold text-[#143055]">Pending tasks</h2>
+          {showRateCardTask ? (
+            <div className="rounded-[20px] border border-amber-200 bg-white p-5">
+              <p className="text-sm leading-6 text-slate-600">
+                {PENDING_RATE_CARD_TASK_MESSAGE}
+              </p>
+              {onSetRateCard ? (
+                <button
+                  type="button"
+                  onClick={onSetRateCard}
+                  className="mt-3 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white"
+                >
+                  {PENDING_RATE_CARD_TASK_ACTION}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {showCalendarTask ? (
+            <div className="rounded-[20px] border border-amber-200 bg-white p-5">
+              <p className="text-sm leading-6 text-slate-600">
+                {PENDING_CALENDAR_TASK_MESSAGE}
+              </p>
+              {onUpdateCalendar ? (
+                <button
+                  type="button"
+                  onClick={onUpdateCalendar}
+                  className="mt-3 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white"
+                >
+                  {PENDING_CALENDAR_TASK_ACTION}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       <div className="flex items-center justify-between">
         <h1 className="text-[26px] font-extrabold text-[#143055]">My schedule</h1>
         <span className="rounded-full border border-sky-100 bg-white px-3 py-1.5 text-sm font-semibold text-[#2563eb]">

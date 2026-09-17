@@ -318,6 +318,7 @@ export type RateCardModalProps = {
   required?: boolean;
   heading?: string;
   description?: string;
+  laterLabel?: string;
   onClose?: () => void;
   onSubmit: (values: RateCardFormValues) => void;
 };
@@ -331,6 +332,7 @@ export function RateCardModal({
   required = false,
   heading,
   description,
+  laterLabel,
   onClose,
   onSubmit,
 }: RateCardModalProps) {
@@ -444,13 +446,14 @@ export function RateCardModal({
             ) : null}
 
             <View style={styles.actions}>
-              {required ? null : (
+              {required && !laterLabel ? null : (
                 <TouchableOpacity
                   style={styles.cancelButton}
                   onPress={onClose}
                   disabled={saving}
+                  accessibilityLabel={laterLabel ?? 'Cancel'}
                 >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                  <Text style={styles.cancelButtonText}>{laterLabel ?? 'Cancel'}</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity

@@ -147,6 +147,34 @@ export function currentIstWeekRange(now = new Date()): {
 
 export const MIN_SLOTS_THIS_WEEK = 1;
 
+export const PENDING_CALENDAR_TASK_MESSAGE =
+  'Your availability calendar is not updated. With updated calendar you have higer chances of getting bookings';
+
+export const PENDING_CALENDAR_TASK_ACTION = 'Update calendar';
+
+/** IST midnight of the coming Sunday (today when today is Sunday). */
+export function comingSundayStartUtc(now = new Date()): Date {
+  const todayStart = istTodayStartUtc(now);
+  const dow = new Date(todayStart.getTime() + IST_OFFSET_MS).getUTCDay();
+  const daysUntilSunday = (7 - dow) % 7;
+  return addIstDaysUtc(todayStart, daysUntilSunday);
+}
+
+/** True when there is no slot, or the latest slot starts before coming Sunday 00:00 IST. */
+export function needsCalendarUpdateThroughSunday(
+  updatedTill: Date | string | null | undefined,
+  now = new Date(),
+): boolean {
+  if (updatedTill == null || updatedTill === '') {
+    return true;
+  }
+  const till = updatedTill instanceof Date ? updatedTill : new Date(updatedTill);
+  if (Number.isNaN(till.getTime())) {
+    return true;
+  }
+  return till < comingSundayStartUtc(now);
+}
+
 export function maxHorizonEndUtc(now = new Date()): Date {
   return addIstDaysUtc(istTodayStartUtc(now), MAX_WEEKS_AHEAD * 7);
 }
@@ -184,7 +212,6 @@ export function validateSlotInstant(
   ) {
     return { ok: false, message: 'Slot start must be exact to the minute.' };
   }
-  const todayStart = istTodayStartUtc(now);
   if (startsAt < now) {
     return { ok: false, message: 'Cannot set availability in the past.' };
   }
@@ -216,7 +243,6 @@ export function buildVisibleDayStarts(viewStartUtc: Date, mode: CalendarViewMode
     return days;
   }
   const p = toIstParts(viewStartUtc);
-  const firstOfMonth = istDayStartUtc(p.year, p.month, 1);
   const month = p.month;
   const year = p.year;
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();

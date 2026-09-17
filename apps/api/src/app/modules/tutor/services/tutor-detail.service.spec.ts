@@ -46,6 +46,7 @@ describe('TutorDetailService', () => {
   let tutorRateCardService: {
     findByTutorOfferingIds: jest.Mock;
     mapToGraphql: jest.Mock;
+    resolveCardFromLoadedOfferings: jest.Mock;
   };
   let offeringService: { findAll: jest.Mock };
   let proficiencyTestService: { findByIdsWithOfferings: jest.Mock };
@@ -75,6 +76,10 @@ describe('TutorDetailService', () => {
     tutorRateCardService = {
       findByTutorOfferingIds: jest.fn().mockResolvedValue(new Map()),
       mapToGraphql: jest.fn().mockReturnValue(null),
+      resolveCardFromLoadedOfferings: jest.fn(
+        (offering: { id: number }, _offerings: unknown, map: Map<number, unknown>) =>
+          map.get(offering.id) ?? null,
+      ),
     };
     offeringService = { findAll: jest.fn().mockResolvedValue([]) };
     proficiencyTestService = {

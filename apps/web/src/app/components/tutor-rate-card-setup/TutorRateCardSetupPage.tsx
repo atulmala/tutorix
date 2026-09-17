@@ -6,18 +6,28 @@ import {
   SAVE_MY_TUTOR_OFFERING_RATE_CARD,
 } from '@tutorix/shared-graphql';
 import {
+  PENDING_RATE_CARD_TASK_MESSAGE,
+  RATE_CARD_LATER_ACTION,
+  RATE_CARD_LATER_WARNING,
   RATE_CARD_SETUP_HEADING,
   RATE_CARD_SETUP_REQUIRED_MESSAGE,
+  canDeferRateCardSetup,
   needsRateCardSetup,
-  offeringHasCompleteRateCard,
-  PT_PASSED_OFFERING_STATUS,
+  offeringsNeedingRateCardSetup,
   type RateCardFormValues,
   type RateCardLike,
 } from '@tutorix/shared-utils';
 import { RateCardModal } from '@tutorix/tutor-detail-ui';
 
+export function confirmRateCardLater(onConfirm: () => void) {
+  if (typeof window !== 'undefined' && window.confirm(RATE_CARD_LATER_WARNING)) {
+    onConfirm();
+  }
+}
+
 type SetupOffering = {
   id: number;
+  proficiencyTestId?: number | null;
   offeringDisplayName?: string | null;
   offeringFullLabel?: string | null;
   offeringName?: string | null;
@@ -33,6 +43,8 @@ type MyTutorDetailData = {
 
 type TutorRateCardSetupPageProps = {
   onComplete: () => void;
+  onLater?: () => void;
+  onDeferChange?: (canDefer: boolean) => void;
 };
 
 function offeringLabel(offering: SetupOffering): string {
@@ -65,6 +77,8 @@ function rateCardInput(tutorOfferingId: number, values: RateCardFormValues) {
 
 export const TutorRateCardSetupPage: React.FC<TutorRateCardSetupPageProps> = ({
   onComplete,
+  onLater,
+  onDeferChange,
 }) => {
   const { data, loading } = useQuery<MyTutorDetailData>(GET_MY_TUTOR_DETAIL, {
     fetchPolicy: 'cache-and-network',
@@ -77,22 +91,26 @@ export const TutorRateCardSetupPage: React.FC<TutorRateCardSetupPageProps> = ({
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const pendingOfferings = useMemo(() => {
-    const offerings = data?.myTutorDetail?.offerings ?? [];
-    return offerings.filter(
-      (offering) =>
-        String(offering.status ?? '').toLowerCase() === PT_PASSED_OFFERING_STATUS &&
-        !offeringHasCompleteRateCard(offering),
-    );
+    return offeringsNeedingRateCardSetup(data?.myTutorDetail?.offerings ?? []);
   }, [data?.myTutorDetail?.offerings]);
+  const canDefer = canDeferRateCardSetup(data?.myTutorDetail?.offerings);
+
+  useEffect(() => {
+    onDeferChange?.(canDefer);
+  }, [canDefer, onDeferChange]);
+
+  useEffect(() => {
+    return () => onDeferChange?.(false);
+  }, [onDeferChange]);
 
   useEffect(() => {
     if (loading) {
       return;
     }
-    if (!needsRateCardSetup(data?.myTutorDetail?.offerings)) {
+    if (pendingOfferings.length === 0) {
       onComplete();
     }
-  }, [data?.myTutorDetail?.offerings, loading, onComplete]);
+  }, [loading, onComplete, pendingOfferings.length]);
 
   useEffect(() => {
     if (pendingOfferings.length === 0) {
@@ -116,7 +134,6 @@ export const TutorRateCardSetupPage: React.FC<TutorRateCardSetupPageProps> = ({
       await saveRateCard({
         variables: { input: rateCardInput(selected.id, values) },
       });
-      onComplete();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save rate card.');
     }
@@ -153,11 +170,19 @@ export const TutorRateCardSetupPage: React.FC<TutorRateCardSetupPageProps> = ({
         open
         required
         heading={RATE_CARD_SETUP_HEADING}
-        description={RATE_CARD_SETUP_REQUIRED_MESSAGE}
+        description={
+          needsRateCardSetup(data?.myTutorDetail?.offerings)
+            ? RATE_CARD_SETUP_REQUIRED_MESSAGE
+            : PENDING_RATE_CARD_TASK_MESSAGE
+        }
         offeringName={offeringLabel(selected)}
         initialValues={selected.rateCard}
         saving={saving}
         error={error}
+        laterLabel={canDefer ? RATE_CARD_LATER_ACTION : undefined}
+        onClose={
+          canDefer && onLater ? () => confirmRateCardLater(onLater) : undefined
+        }
         onSubmit={(values) => {
           void handleSubmit(values);
         }}

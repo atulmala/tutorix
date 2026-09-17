@@ -5,7 +5,14 @@ import {
   getBatchSizeForMode,
   isRateCardComplete,
   MAX_BATCH_SIZE,
+  canDeferRateCardSetup,
+  hasIncompleteRateCardOfferings,
   needsRateCardSetup,
+  offeringsNeedingRateCardSetup,
+  offeringCoveredBySharedRateCard,
+  ptPassResultMessage,
+  PT_PASSED_ONBOARDING_MESSAGE,
+  PT_PASSED_RATE_CARD_MESSAGE,
   validateRateCardForm,
 } from './rate-card';
 
@@ -68,6 +75,121 @@ describe('rate-card', () => {
           },
         ]),
       ).toBe(false);
+    });
+  });
+
+  describe('hasIncompleteRateCardOfferings', () => {
+    it('is false when every passed offering has a complete rate card', () => {
+      expect(hasIncompleteRateCardOfferings([])).toBe(false);
+      expect(
+        hasIncompleteRateCardOfferings([
+          {
+            status: 'pt_passed',
+            rateCard: { isComplete: true, offlineEnabled: true, offlineBaseRate: 400 },
+          },
+        ]),
+      ).toBe(false);
+    });
+
+    it('is true when a passed offering still lacks a complete rate card', () => {
+      expect(
+        hasIncompleteRateCardOfferings([
+          { status: 'pt_passed', rateCard: null },
+          {
+            status: 'pt_passed',
+            rateCard: { isComplete: true, offlineEnabled: true, offlineBaseRate: 400 },
+          },
+        ]),
+      ).toBe(true);
+    });
+
+    it('is false when a sibling offering sharing the same PT already has a card', () => {
+      expect(
+        hasIncompleteRateCardOfferings([
+          {
+            id: 1,
+            proficiencyTestId: 70,
+            status: 'pt_passed',
+            rateCard: { isComplete: true, offlineEnabled: true, offlineBaseRate: 400 },
+          },
+          { id: 2, proficiencyTestId: 70, status: 'pt_passed', rateCard: null },
+        ]),
+      ).toBe(false);
+    });
+  });
+
+  describe('canDeferRateCardSetup', () => {
+    it('is false for the first rate card', () => {
+      expect(
+        canDeferRateCardSetup([{ status: 'pt_passed', rateCard: null }]),
+      ).toBe(false);
+    });
+
+    it('is true when another offering still needs a card after one is complete', () => {
+      expect(
+        canDeferRateCardSetup([
+          {
+            status: 'pt_passed',
+            rateCard: { isComplete: true, offlineEnabled: true, offlineBaseRate: 400 },
+          },
+          { status: 'pt_passed', rateCard: null },
+        ]),
+      ).toBe(true);
+    });
+  });
+
+  describe('offeringsNeedingRateCardSetup', () => {
+    it('asks for one card when two classes share a PT and neither has a card', () => {
+      const pending = offeringsNeedingRateCardSetup([
+        { id: 1, proficiencyTestId: 70, status: 'pt_passed', rateCard: null },
+        { id: 2, proficiencyTestId: 70, status: 'pt_passed', rateCard: null },
+      ]);
+      expect(pending).toEqual([
+        { id: 1, proficiencyTestId: 70, status: 'pt_passed', rateCard: null },
+      ]);
+    });
+
+    it('still requires a card for a different proficiency test', () => {
+      const pending = offeringsNeedingRateCardSetup([
+        {
+          id: 1,
+          proficiencyTestId: 70,
+          status: 'pt_passed',
+          rateCard: { isComplete: true, offlineEnabled: true, offlineBaseRate: 400 },
+        },
+        { id: 2, proficiencyTestId: 70, status: 'pt_passed', rateCard: null },
+        { id: 3, proficiencyTestId: 71, status: 'pt_passed', rateCard: null },
+      ]);
+      expect(pending.map((offering) => offering.id)).toEqual([3]);
+    });
+  });
+
+  describe('offeringCoveredBySharedRateCard', () => {
+    it('covers a class XI offering when class XII already has the shared card', () => {
+      const class12 = {
+        id: 1,
+        proficiencyTestId: 70,
+        status: 'pt_passed',
+        rateCard: { isComplete: true, offlineEnabled: true, offlineBaseRate: 400 },
+      };
+      const class11 = {
+        id: 2,
+        proficiencyTestId: 70,
+        status: 'pt_passed',
+        rateCard: null,
+      };
+      expect(offeringCoveredBySharedRateCard([class12, class11], class11)).toBe(true);
+      expect(offeringCoveredBySharedRateCard([class12, class11], class12)).toBe(true);
+    });
+  });
+
+  describe('ptPassResultMessage', () => {
+    it('keeps onboarding congratulations copy during onboarding', () => {
+      expect(ptPassResultMessage(false)).toBe(PT_PASSED_ONBOARDING_MESSAGE);
+    });
+
+    it('advises rate card setup after a post-onboarding pass', () => {
+      expect(ptPassResultMessage(true)).toBe(PT_PASSED_RATE_CARD_MESSAGE);
     });
   });
 

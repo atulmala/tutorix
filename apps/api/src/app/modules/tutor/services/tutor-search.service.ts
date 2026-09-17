@@ -25,6 +25,7 @@ import { AddressType } from '../../address/enums/address-type.enum';
 import { AddressEntity } from '../../address/entities/address.entity';
 import { OfferingService } from '../../offerings/services/offering.service';
 import { OfferingEntity } from '../../offerings/entities/offering.entity';
+import { ProficiencyTestService } from '../../proficiency/services/proficiency-test.service';
 import { StudentService } from '../../student/services/student.service';
 import { TutorCalendar } from '../../tutor-calendar/entities/tutor-calendar.entity';
 import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
@@ -59,6 +60,7 @@ export class TutorSearchService {
     private readonly calendarRepo: Repository<TutorCalendar>,
     private readonly rateCardService: TutorRateCardService,
     private readonly offeringService: OfferingService,
+    private readonly proficiencyTestService: ProficiencyTestService,
     private readonly profilePictureService: ProfilePictureService,
   ) {}
 
@@ -84,25 +86,30 @@ export class TutorSearchService {
     );
     const forcedOnlineOnly = !originHasCoordinates;
 
-    const offerings = await this.tutorOfferingRepo.find({
-      where: {
-        offeringId,
-        status: TutorOfferingStatusEnum.pt_passed,
-        deleted: false,
-      },
-      relations: ['tutor', 'tutor.user', 'tutor.addresses', 'offering'],
-    });
+    const coveringTest =
+      await this.proficiencyTestService.findActiveTestForOffering(offeringId);
+    const offerings = coveringTest
+      ? await this.tutorOfferingRepo.find({
+          where: {
+            proficiencyTestId: coveringTest.id,
+            status: TutorOfferingStatusEnum.pt_passed,
+            deleted: false,
+          },
+          relations: ['tutor', 'tutor.user', 'tutor.addresses', 'offering'],
+        })
+      : await this.tutorOfferingRepo.find({
+          where: {
+            offeringId,
+            status: TutorOfferingStatusEnum.pt_passed,
+            deleted: false,
+          },
+          relations: ['tutor', 'tutor.user', 'tutor.addresses', 'offering'],
+        });
 
-    const eligible = offerings.filter(
-      (row) =>
-        row.status === TutorOfferingStatusEnum.pt_passed &&
-        row.tutor &&
-        !row.tutor.deleted &&
-        row.tutor.onBoardingComplete === true,
-    );
+    const eligible = this.uniquePassedOfferingsForSearch(offerings, offeringId);
 
-    const rateCards = await this.rateCardService.findByTutorOfferingIds(
-      eligible.map((row) => row.id),
+    const rateCards = await this.rateCardService.resolveCompleteRateCards(
+      eligible,
     );
     const slotCounts = await this.loadSlotsThisWeek(
       eligible.map((row) => row.tutorId),
@@ -126,7 +133,8 @@ export class TutorSearchService {
         originHasCoordinates && origin
           ? this.distanceKmBetween(origin, tutorPoint)
           : null;
-      const leaf = offeringsById.get(row.offeringId) ??
+      const leaf = offeringsById.get(offeringId) ??
+        offeringsById.get(row.offeringId) ??
         (row.offering
           ? {
               id: row.offering.id,
@@ -146,7 +154,7 @@ export class TutorSearchService {
         photoUrl,
         yearsOfExperienceRank: Number(tutor.yearsOfExperience) || 1,
         offeringLabel: formatTutorOfferingFullLabel(leaf, offeringsById),
-        matchingOfferingId: row.offeringId,
+        matchingOfferingId: offeringId,
         rateCard,
         distanceKm,
         city: tutorPoint?.city ?? null,
@@ -208,13 +216,21 @@ export class TutorSearchService {
       throw new NotFoundException('Tutor not found');
     }
 
-    const matching = offerings.find((row) => row.offeringId === offeringId);
+    const coveringTest =
+      await this.proficiencyTestService.findActiveTestForOffering(offeringId);
+    const matching =
+      offerings.find((row) => row.offeringId === offeringId) ??
+      (coveringTest
+        ? offerings.find(
+            (row) => row.proficiencyTestId === coveringTest.id,
+          )
+        : undefined);
     if (!matching) {
       throw new NotFoundException('Tutor does not teach this subject');
     }
 
-    const rateCards = await this.rateCardService.findByTutorOfferingIds(
-      offerings.map((row) => row.id),
+    const rateCards = await this.rateCardService.resolveCompleteRateCards(
+      offerings,
     );
     if (!isRateCardComplete(rateCards.get(matching.id))) {
       throw new NotFoundException('Tutor is not available for this subject');
@@ -244,7 +260,8 @@ export class TutorSearchService {
       distanceKm,
       hasAvailabilityThisWeek: slotsThisWeek >= MIN_SLOTS_THIS_WEEK,
       slotsThisWeek,
-      matchingOffering: this.toOfferingSummary(
+      matchingOffering: this.toOfferingSummaryForCatalog(
+        offeringId,
         matching,
         rateCards.get(matching.id) ?? null,
         offeringsById,
@@ -283,6 +300,46 @@ export class TutorSearchService {
       freeDemoOffered: hit.freeDemoOffered,
       hasAvailabilityThisWeek: hit.hasAvailabilityThisWeek,
       slotsThisWeek: hit.slotsThisWeek,
+    };
+  }
+
+  private uniquePassedOfferingsForSearch(
+    offerings: TutorOfferingEntity[],
+    searchedOfferingId: number,
+  ): TutorOfferingEntity[] {
+    const byTutor = new Map<number, TutorOfferingEntity>();
+    for (const row of offerings) {
+      if (
+        row.status !== TutorOfferingStatusEnum.pt_passed ||
+        !row.tutor ||
+        row.tutor.deleted ||
+        row.tutor.onBoardingComplete !== true
+      ) {
+        continue;
+      }
+      const existing = byTutor.get(row.tutorId);
+      if (!existing || row.offeringId === searchedOfferingId) {
+        byTutor.set(row.tutorId, row);
+      }
+    }
+    return [...byTutor.values()];
+  }
+
+  private toOfferingSummaryForCatalog(
+    offeringId: number,
+    row: TutorOfferingEntity,
+    rateCard: TutorOfferingRateCardEntity | null,
+    offeringsById: Map<number, OfferingNodeForLabel>,
+  ): TutorSearchOfferingSummary {
+    const leaf = offeringsById.get(offeringId) ?? offeringsById.get(row.offeringId);
+    return {
+      offeringId,
+      offeringLabel: formatTutorOfferingFullLabel(leaf, offeringsById),
+      onlineEnabled: rateCard?.onlineEnabled === true,
+      offlineEnabled: rateCard?.offlineEnabled === true,
+      onlineRateInr: rateCard ? starterRateForMode(rateCard, 'online') : null,
+      offlineRateInr: rateCard ? starterRateForMode(rateCard, 'offline') : null,
+      freeDemoOffered: rateCard?.freeDemoOffered === true,
     };
   }
 

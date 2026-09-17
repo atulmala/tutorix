@@ -1,1 +1,4 @@
-export { TutorRateCardSetupPage } from './TutorRateCardSetupPage';
+export {
+  TutorRateCardSetupPage,
+  confirmRateCardLater,
+} from './TutorRateCardSetupPage';

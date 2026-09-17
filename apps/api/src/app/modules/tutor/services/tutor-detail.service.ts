@@ -119,7 +119,11 @@ export class TutorDetailService {
       offerings: offerings.map((offering) =>
         this.mapOfferingDetail(
           offering,
-          rateCardMap.get(offering.id) ?? null,
+          this.tutorRateCardService.resolveCardFromLoadedOfferings(
+            offering,
+            offerings,
+            rateCardMap,
+          ),
           offeringsById,
           ptOfferingIdsByPtId.get(offering.proficiencyTestId),
         ),
@@ -241,6 +245,7 @@ export class TutorDetailService {
     return {
       id: offering.id,
       offeringId: offering.offeringId,
+      proficiencyTestId: offering.proficiencyTestId,
       offeringName: offering.offering?.name,
       offeringDisplayName: offering.offering?.displayName,
       offeringFullLabel,

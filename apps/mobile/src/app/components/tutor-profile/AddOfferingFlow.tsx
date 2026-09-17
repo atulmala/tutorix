@@ -10,9 +10,10 @@ import {
 } from 'react-native';
 import { useMutation, useQuery } from '@apollo/client';
 import { GET_OFFERINGS, GET_MY_TUTOR_DETAIL, GET_PLATFORM_FEE } from '@tutorix/shared-graphql/queries';
-import { ADD_MY_TUTOR_OFFERING } from '@tutorix/shared-graphql/mutations';
-import { STUDY_AREAS, STUDY_AREAS_OPTIONS, formatProficiencyTestFeeMessage } from '@tutorix/shared-utils';
+import { ADD_MY_TUTOR_OFFERING, CREDIT_OVERLAPPING_PT_PASS } from '@tutorix/shared-graphql/mutations';
+import { STUDY_AREAS, STUDY_AREAS_OPTIONS, formatProficiencyTestFeeMessage, hasPassedOverlappingPt, type PtOverlapOfferingLike } from '@tutorix/shared-utils';
 import { TutorPT } from '../tutor-onboarding/tutor-pt/TutorPT';
+import { PtAlreadyClearedPrompt } from '../tutor-onboarding/tutor-pt/PtAlreadyClearedPrompt';
 
 type OfferingNode = {
   id: number;
@@ -23,10 +24,11 @@ type OfferingNode = {
   parentOffering?: { id: number } | null;
 };
 
-type Step = 'select' | 'confirm' | 'pt';
+type Step = 'select' | 'confirm' | 'pt' | 'alreadyCleared';
 
 type Props = {
   excludeOfferingIds: number[];
+  existingOfferings?: PtOverlapOfferingLike[];
   testTutor?: boolean;
   onClose: () => void;
   onComplete: () => void;
@@ -38,6 +40,7 @@ function capitalize(s: string): string {
 
 export const AddOfferingFlow: React.FC<Props> = ({
   excludeOfferingIds,
+  existingOfferings = [],
   testTutor,
   onClose,
   onComplete,
@@ -52,7 +55,9 @@ export const AddOfferingFlow: React.FC<Props> = ({
     tutorOfferingId: number;
     offeringName?: string;
     ptFeeLabel: string;
+    proficiencyTestId?: number | null;
   } | null>(null);
+  const [overlapError, setOverlapError] = useState<string | null>(null);
 
   const excludeSet = useMemo(() => new Set(excludeOfferingIds), [excludeOfferingIds]);
 
@@ -79,6 +84,10 @@ export const AddOfferingFlow: React.FC<Props> = ({
   const [addOffering, { loading: adding }] = useMutation(ADD_MY_TUTOR_OFFERING, {
     refetchQueries: [{ query: GET_MY_TUTOR_DETAIL }],
   });
+  const [creditOverlappingPtPass, { loading: creditingOverlap }] = useMutation(
+    CREDIT_OVERLAPPING_PT_PASS,
+    { refetchQueries: [{ query: GET_MY_TUTOR_DETAIL }] },
+  );
 
   const offerings = useMemo(() => data?.offerings ?? [], [data?.offerings]);
 
@@ -168,11 +177,17 @@ export const AddOfferingFlow: React.FC<Props> = ({
       });
       const payload = result.data?.addMyTutorOffering;
       if (!payload) return;
+      const tutorOffering = payload.tutorOffering;
       setAddResult({
-        tutorOfferingId: payload.tutorOffering.id,
-        offeringName: payload.tutorOffering.offering?.displayName,
+        tutorOfferingId: tutorOffering.id,
+        offeringName: tutorOffering.offering?.displayName,
         ptFeeLabel: payload.ptFee.displayLabel,
+        proficiencyTestId: tutorOffering.proficiencyTestId,
       });
+      if (hasPassedOverlappingPt(existingOfferings, tutorOffering)) {
+        setStep('alreadyCleared');
+        return;
+      }
       setStep('pt');
     } catch (err) {
       setSubmitError(
@@ -180,6 +195,36 @@ export const AddOfferingFlow: React.FC<Props> = ({
       );
     }
   };
+
+  const handleAcknowledgeClearedPt = async () => {
+    if (!addResult) {
+      return;
+    }
+    setOverlapError(null);
+    try {
+      await creditOverlappingPtPass({
+        variables: { tutorOfferingId: addResult.tutorOfferingId },
+      });
+      onComplete();
+      onClose();
+    } catch (err) {
+      setOverlapError(
+        err instanceof Error ? err.message : 'Could not update this offering.',
+      );
+    }
+  };
+
+  if (step === 'alreadyCleared' && addResult) {
+    return (
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        <PtAlreadyClearedPrompt
+          onAcknowledge={() => void handleAcknowledgeClearedPt()}
+          acknowledging={creditingOverlap}
+          error={overlapError}
+        />
+      </ScrollView>
+    );
+  }
 
   if (step === 'pt' && addResult) {
     return (
@@ -189,6 +234,14 @@ export const AddOfferingFlow: React.FC<Props> = ({
           tutorOfferingId={addResult.tutorOfferingId}
           offeringDisplayName={addResult.offeringName}
           testTutor={testTutor}
+          tutorOfferings={[
+            ...existingOfferings,
+            {
+              id: addResult.tutorOfferingId,
+              proficiencyTestId: addResult.proficiencyTestId,
+              status: 'pending_pt',
+            },
+          ]}
           onComplete={() => {
             onComplete();
             onClose();

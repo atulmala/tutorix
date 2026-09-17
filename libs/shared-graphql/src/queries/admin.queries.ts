@@ -154,6 +154,8 @@ export const GET_ADMIN_TUTOR_DETAIL = gql`
       }
       offerings {
         id
+        offeringId
+        proficiencyTestId
         offeringName
         offeringDisplayName
         offeringFullLabel

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   BANK_DETAILS_REQUIRED_FOR_RATE_CARD_MESSAGE,
+  offeringCoveredBySharedRateCard,
   RATE_CARD_REQUIRED_MESSAGE,
   tutorHasAtLeastOneCompleteRateCard,
 } from '@tutorix/shared-utils';
@@ -20,6 +21,8 @@ export type TutorAvailabilitySectionProps = {
   title?: string;
   /** When true, hide the section entirely if rate card / offering requirements are not met. */
   hideWhenLocked?: boolean;
+  /** Open the collapsible calendar on first render. */
+  defaultOpen?: boolean;
 };
 
 const CALENDAR_STYLES = {
@@ -115,6 +118,7 @@ export function TutorAvailabilitySection({
   readOnly = false,
   title,
   hideWhenLocked = false,
+  defaultOpen = false,
 }: TutorAvailabilitySectionProps) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [updatedTillLabel, setUpdatedTillLabel] = useState<string | null>(null);
@@ -132,7 +136,7 @@ export function TutorAvailabilitySection({
 
   const firstOfferingNeedingRate = offerings.find(
     (o: TutorDetailOffering) =>
-      o.status === 'pt_passed' && !tutorHasAtLeastOneCompleteRateCard([o]),
+      o.status === 'pt_passed' && !offeringCoveredBySharedRateCard(offerings, o),
   );
 
   if (!unlocked) {
@@ -140,7 +144,11 @@ export function TutorAvailabilitySection({
       return null;
     }
     return (
-      <CollapsibleSectionCard title={sectionTitle} variant="locked">
+      <CollapsibleSectionCard
+        title={sectionTitle}
+        variant="locked"
+        defaultOpen={defaultOpen}
+      >
         <p className="text-sm text-amber-900/90">{RATE_CARD_REQUIRED_MESSAGE}</p>
         {!bankDetailsComplete ? (
           <>
@@ -173,7 +181,7 @@ export function TutorAvailabilitySection({
   return (
     <CollapsibleSectionCard
       title={sectionTitle}
-      defaultOpen={false}
+      defaultOpen={defaultOpen}
       updatedTillLabel={updatedTillLabel}
       updatedTillLoading={updatedTillLoading}
     >

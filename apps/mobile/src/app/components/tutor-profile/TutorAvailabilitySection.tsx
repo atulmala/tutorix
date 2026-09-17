@@ -18,6 +18,7 @@ import {
   formatAvailabilityUpdatedTill,
   formatIstDayHeader,
   formatSlotTimeLabel,
+  offeringCoveredBySharedRateCard,
   RATE_CARD_REQUIRED_MESSAGE,
   tutorHasAtLeastOneCompleteRateCard,
 } from '@tutorix/shared-utils';
@@ -34,6 +35,7 @@ type Props = {
   bankDetailsComplete?: boolean;
   onOpenBankDetails?: () => void;
   onOpenRateCard: (offering: Offering) => void;
+  defaultOpen?: boolean;
 };
 
 function CollapsibleHeader({
@@ -91,11 +93,12 @@ export function TutorAvailabilitySection({
   bankDetailsComplete = true,
   onOpenBankDetails,
   onOpenRateCard,
+  defaultOpen = false,
 }: Props) {
   const canSet = tutor.canSetAvailability === true;
   const hasRateCard = tutorHasAtLeastOneCompleteRateCard(tutor.offerings);
   const unlocked = canSet && hasRateCard;
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const rangeEditor = useAvailabilityEditor({ loadedSlots: [], loading: false });
@@ -168,7 +171,7 @@ export function TutorAvailabilitySection({
   );
 
   const firstNeedingRate = tutor.offerings.find(
-    (o) => o.status === 'pt_passed' && !o.rateCard?.isComplete,
+    (o) => o.status === 'pt_passed' && !offeringCoveredBySharedRateCard(tutor.offerings, o),
   );
 
   if (!unlocked) {

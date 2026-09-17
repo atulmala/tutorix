@@ -11,24 +11,54 @@ import {
 import {
   COMPLETE_WALLET_PURCHASE,
   CONFIRM_WALLET_TOP_UP,
+  CREDIT_OVERLAPPING_PT_PASS,
   INITIATE_WALLET_TOP_UP,
+  SAVE_MY_TUTOR_OFFERING_RATE_CARD,
   SUBMIT_PROFICIENCY_TEST,
 } from '@tutorix/shared-graphql/mutations';
 import type { StepComponentProps } from '@tutorix/shared-utils';
 import {
   formatProficiencyTestFeeMessage,
+  hasPassedOverlappingPt,
   isPtFeePaymentRequired,
+  PT_PASSED_RATE_CARD_MESSAGE,
+  PT_PASSED_RATE_CARD_LATER_ACTION,
+  RATE_CARD_SETUP_HEADING,
   runWalletAwarePurchaseCheckout,
   type PtFeeInfo,
+  type PtOverlapOfferingLike,
+  type RateCardFormValues,
   type WalletPurchaseIntent,
   type WalletPurchasePreview,
 } from '@tutorix/shared-utils';
 import { PTIntroScreen } from './PTIntroScreen';
 import { PTTestScreen } from './PTTestScreen';
+import { TutorPTResult } from './TutorPTResult';
+import { PtAlreadyClearedPrompt } from './PtAlreadyClearedPrompt';
+import { RateCardModal } from '../../tutor-profile/RateCardModal';
 import { openMobilePaymentCheckout } from '../../../../lib/mobile-payment-checkout';
 import { WalletLowBalanceModal } from '../../wallet';
 
 type Screen = 'intro' | 'test' | 'result';
+
+function rateCardInput(tutorOfferingId: number, values: RateCardFormValues) {
+  return {
+    tutorOfferingId,
+    freeDemoOffered: values.freeDemoOffered,
+    offlineEnabled: values.offlineEnabled,
+    offlineBaseRate: values.offlineEnabled ? values.offlineBaseRate : null,
+    offlineBaseDiscountPct: values.offlineEnabled ? values.offlineBaseDiscountPct : null,
+    offlineSlab2DiscountPct: values.offlineEnabled ? values.offlineSlab2DiscountPct : null,
+    offlineSlab3DiscountPct: values.offlineEnabled ? values.offlineSlab3DiscountPct : null,
+    offlineBatchSize: values.offlineEnabled ? values.offlineBatchSize : null,
+    onlineEnabled: values.onlineEnabled,
+    onlineBaseRate: values.onlineEnabled ? values.onlineBaseRate : null,
+    onlineBaseDiscountPct: values.onlineEnabled ? values.onlineBaseDiscountPct : null,
+    onlineSlab2DiscountPct: values.onlineEnabled ? values.onlineSlab2DiscountPct : null,
+    onlineSlab3DiscountPct: values.onlineEnabled ? values.onlineSlab3DiscountPct : null,
+    onlineBatchSize: values.onlineEnabled ? values.onlineBatchSize : null,
+  };
+}
 
 export type TutorPTProps = StepComponentProps & {
   context?: 'onboarding' | 'addOffering' | 'profile';
@@ -37,6 +67,7 @@ export type TutorPTProps = StepComponentProps & {
   ptFeeDisplayLabel?: string | null;
   testTutor?: boolean;
   attemptsUsed?: number;
+  tutorOfferings?: PtOverlapOfferingLike[];
 };
 
 export const TutorPT: React.FC<TutorPTProps> = ({
@@ -48,6 +79,7 @@ export const TutorPT: React.FC<TutorPTProps> = ({
   ptFeeDisplayLabel,
   testTutor: testTutorProp,
   attemptsUsed: attemptsUsedProp = 0,
+  tutorOfferings: tutorOfferingsProp,
 }) => {
   const [screen, setScreen] = useState<Screen>('intro');
   const [activeTutorOfferingId, setActiveTutorOfferingId] = useState<number | null>(
@@ -60,6 +92,8 @@ export const TutorPT: React.FC<TutorPTProps> = ({
     attemptsUsed: number;
     passPercentage?: number;
   } | null>(null);
+  const [showRateCardSetup, setShowRateCardSetup] = useState(false);
+  const [rateCardError, setRateCardError] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [payLoading, setPayLoading] = useState(false);
   const [startLoading, setStartLoading] = useState(false);
@@ -67,6 +101,8 @@ export const TutorPT: React.FC<TutorPTProps> = ({
   const [topUpAmount, setTopUpAmount] = useState(0);
   const [showTopUpDialog, setShowTopUpDialog] = useState(false);
   const [topUpError, setTopUpError] = useState<string | null>(null);
+  const [overlapError, setOverlapError] = useState<string | null>(null);
+  const [overlapLoading, setOverlapLoading] = useState(false);
 
   const isPostOnboardingPt =
     (context === 'addOffering' || context === 'profile') && tutorOfferingIdProp != null;
@@ -100,9 +136,36 @@ export const TutorPT: React.FC<TutorPTProps> = ({
   const resolvedOfferingId = pendingOffering?.id ?? tutorOfferingIdProp;
   const isOnboardingPt = context === 'onboarding';
 
+  const { data: detailData } = useQuery(GET_MY_TUTOR_DETAIL, {
+    skip: isOnboardingPt || tutorOfferingsProp != null,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const offeringsForOverlap = useMemo((): PtOverlapOfferingLike[] => {
+    if (tutorOfferingsProp) {
+      return tutorOfferingsProp;
+    }
+    if (isOnboardingPt) {
+      return profileData?.myTutorProfile?.tutorOfferings ?? [];
+    }
+    return detailData?.myTutorDetail?.offerings ?? [];
+  }, [
+    tutorOfferingsProp,
+    isOnboardingPt,
+    profileData?.myTutorProfile?.tutorOfferings,
+    detailData?.myTutorDetail?.offerings,
+  ]);
+
+  const overlappingPass = hasPassedOverlappingPt(
+    offeringsForOverlap,
+    offeringsForOverlap.find((offering) => offering.id === resolvedOfferingId) ?? {
+      id: resolvedOfferingId,
+    },
+  );
+
   const { data: ptFeeData, refetch: refetchPtFee } = useQuery(GET_PT_FEE_INFO, {
     variables: { tutorOfferingId: resolvedOfferingId },
-    skip: isOnboardingPt || !resolvedOfferingId,
+    skip: isOnboardingPt || !resolvedOfferingId || overlappingPass,
     fetchPolicy: 'cache-and-network',
   });
 
@@ -134,13 +197,23 @@ export const TutorPT: React.FC<TutorPTProps> = ({
     GET_PROFICIENCY_TEST_FOR_TAKER,
     {
       variables: { tutorOfferingId: resolvedOfferingId },
-      skip: !resolvedOfferingId,
+      skip: !resolvedOfferingId || overlappingPass,
       fetchPolicy: isTestTutor ? 'network-only' : 'cache-first',
     },
   );
 
   const [submitTest] = useMutation(SUBMIT_PROFICIENCY_TEST, {
     refetchQueries: isPostOnboardingPt ? [{ query: GET_MY_TUTOR_DETAIL }] : undefined,
+  });
+  const [saveRateCard, { loading: savingRateCard }] = useMutation(
+    SAVE_MY_TUTOR_OFFERING_RATE_CARD,
+    {
+      refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }, { query: GET_MY_TUTOR_DETAIL }],
+      awaitRefetchQueries: true,
+    },
+  );
+  const [creditOverlappingPtPass] = useMutation(CREDIT_OVERLAPPING_PT_PASS, {
+    refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }, { query: GET_MY_TUTOR_DETAIL }],
   });
 
   const offeringName =
@@ -255,8 +328,51 @@ export const TutorPT: React.FC<TutorPTProps> = ({
     }
   };
 
+  const finishPtFlow = () => {
+    if (!skipProfile) {
+      void refetchProfile();
+    }
+    onComplete?.();
+  };
+
+  const handleAcknowledgeOverlap = async () => {
+    if (!resolvedOfferingId) {
+      return;
+    }
+    setOverlapError(null);
+    setOverlapLoading(true);
+    try {
+      await creditOverlappingPtPass({
+        variables: { tutorOfferingId: resolvedOfferingId },
+      });
+      finishPtFlow();
+    } catch (err) {
+      setOverlapError(
+        err instanceof Error ? err.message : 'Could not update this offering.',
+      );
+    } finally {
+      setOverlapLoading(false);
+    }
+  };
+
+  const handleSaveRateCard = async (values: RateCardFormValues) => {
+    const tutorOfferingId = activeTutorOfferingId ?? resolvedOfferingId;
+    if (!tutorOfferingId) {
+      return;
+    }
+    setRateCardError(null);
+    try {
+      await saveRateCard({
+        variables: { input: rateCardInput(tutorOfferingId, values) },
+      });
+      finishPtFlow();
+    } catch (err) {
+      setRateCardError(err instanceof Error ? err.message : 'Could not save rate card.');
+    }
+  };
+
   const handleStart = async () => {
-    if (!resolvedOfferingId) return;
+    if (!resolvedOfferingId || overlappingPass) return;
     setPaymentError(null);
     setStartLoading(true);
     try {
@@ -341,85 +457,62 @@ export const TutorPT: React.FC<TutorPTProps> = ({
     );
   }
 
+  if (overlappingPass && screen === 'intro') {
+    return (
+      <PtAlreadyClearedPrompt
+        onAcknowledge={() => void handleAcknowledgeOverlap()}
+        acknowledging={overlapLoading}
+        error={overlapError}
+      />
+    );
+  }
+
   if (screen === 'result' && lastResult) {
-    const hasMoreAttempts = lastResult.attemptsUsed < 2;
-    const passed = lastResult.passed;
+    if (showRateCardSetup && isPostOnboardingPt && lastResult.passed) {
+      return (
+        <RateCardModal
+          visible
+          required
+          heading={RATE_CARD_SETUP_HEADING}
+          description={PT_PASSED_RATE_CARD_MESSAGE}
+          laterLabel={PT_PASSED_RATE_CARD_LATER_ACTION}
+          offeringName={offeringName ?? 'this offering'}
+          saving={savingRateCard}
+          error={rateCardError}
+          onClose={finishPtFlow}
+          onSubmit={(values) => {
+            void handleSaveRateCard(values);
+          }}
+        />
+      );
+    }
 
     return (
-      <View style={styles.block}>
-        <View style={styles.resultCard}>
-          <Text style={styles.resultTitle}>
-            {passed
-              ? 'Passed!'
-              : hasMoreAttempts
-                ? 'Not passed this time'
-                : 'All attempts used'}
-          </Text>
-          <Text style={styles.mutedText}>
-            Score: {lastResult.score} / {lastResult.maxScore}
-          </Text>
-          {lastResult.passPercentage != null && (
-            <Text style={styles.mutedText}>
-              Passing marks:{' '}
-              {Math.ceil(
-                (lastResult.passPercentage / 100) * lastResult.maxScore
-              )}{' '}
-              ({lastResult.passPercentage}%)
-            </Text>
-          )}
-          <Text style={styles.mutedText}>
-            Attempts used: {lastResult.attemptsUsed} / 2
-          </Text>
-        </View>
-        <Text style={styles.mutedText}>
-          {passed
+      <TutorPTResult
+        passed={lastResult.passed}
+        score={lastResult.score}
+        maxScore={lastResult.maxScore}
+        passPercentage={lastResult.passPercentage}
+        attemptsUsed={lastResult.attemptsUsed}
+        isPostOnboardingPt={isPostOnboardingPt}
+        onContinue={finishPtFlow}
+        onSetRateCard={() => {
+          setRateCardError(null);
+          setShowRateCardSetup(true);
+        }}
+        onRetry={() => {
+          setScreen('intro');
+          setLastResult(null);
+          setShowRateCardSetup(false);
+        }}
+        onExhaustedContinue={
+          onReturnToOfferings || isPostOnboardingPt
             ? isPostOnboardingPt
-              ? 'You can now set a rate card for this offering from your profile.'
-              : 'Congratulations! You have passed the proficiency test.'
-            : hasMoreAttempts
-              ? 'You have one more attempt. Tap Retry to try again.'
-              : isPostOnboardingPt
-                ? 'Return to your profile to try again later.'
-                : 'Please select another offering to continue.'}
-        </Text>
-        <View style={styles.buttonRow}>
-          {passed ? (
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => {
-                if (!skipProfile) refetchProfile();
-                onComplete?.();
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.primaryButtonText}>
-                {isPostOnboardingPt ? 'Back to profile' : 'Continue'}
-              </Text>
-            </TouchableOpacity>
-          ) : hasMoreAttempts ? (
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => {
-                setScreen('intro');
-                setLastResult(null);
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.primaryButtonText}>Retry</Text>
-            </TouchableOpacity>
-          ) : (onReturnToOfferings || isPostOnboardingPt) ? (
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={isPostOnboardingPt ? onComplete : onReturnToOfferings}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.primaryButtonText}>
-                {isPostOnboardingPt ? 'Back to profile' : 'Continue'}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      </View>
+              ? finishPtFlow
+              : onReturnToOfferings
+            : undefined
+        }
+      />
     );
   }
 
@@ -526,19 +619,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
-  },
-  resultCard: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 16,
-    gap: 8,
-  },
-  resultTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#0f172a',
   },
   buttonRow: {
     flexDirection: 'row',
