@@ -106,13 +106,19 @@ export class ProficiencyTestService {
     });
   }
 
-  async getTestForOffering(offeringId: number): Promise<ProficiencyTestEntity> {
-    const test = await this.proficiencyTestRepository
+  async findActiveTestForOffering(
+    offeringId: number,
+  ): Promise<ProficiencyTestEntity | null> {
+    return this.proficiencyTestRepository
       .createQueryBuilder('pt')
       .innerJoin('pt.offerings', 'o', 'o.id = :offeringId', { offeringId })
       .where('pt.deleted = :deleted', { deleted: false })
       .andWhere('pt.active = :active', { active: true })
       .getOne();
+  }
+
+  async getTestForOffering(offeringId: number): Promise<ProficiencyTestEntity> {
+    const test = await this.findActiveTestForOffering(offeringId);
 
     if (!test) {
       throw new NotFoundException(

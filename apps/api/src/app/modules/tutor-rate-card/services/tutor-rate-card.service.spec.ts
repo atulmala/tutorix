@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import {
   BANK_DETAILS_REQUIRED_FOR_RATE_CARD_MESSAGE,
+  isRateCardComplete,
 } from '@tutorix/shared-utils';
 import { UserBankDetailsService } from '../../user-bank-details/services/user-bank-details.service';
 import { TutorOfferingStatusEnum } from '../../tutor/enums/tutor.enums';
@@ -43,7 +44,7 @@ describe('TutorRateCardService', () => {
     save: jest.Mock;
     find: jest.Mock;
   };
-  let tutorOfferingRepo: { findOne: jest.Mock };
+  let tutorOfferingRepo: { findOne: jest.Mock; find: jest.Mock };
   let tutorRepo: { findOne: jest.Mock };
   let userBankDetailsService: { findByUserId: jest.Mock };
 
@@ -58,9 +59,11 @@ describe('TutorRateCardService', () => {
       findOne: jest.fn().mockResolvedValue({
         id: 10,
         tutorId: 1,
+        proficiencyTestId: 70,
         status: TutorOfferingStatusEnum.pt_passed,
         deleted: false,
       } as TutorOfferingEntity),
+      find: jest.fn().mockResolvedValue([]),
     };
     tutorRepo = {
       findOne: jest.fn().mockResolvedValue({ id: 1, userId: 5, deleted: false } as Tutor),
@@ -112,6 +115,52 @@ describe('TutorRateCardService', () => {
       expect(rateCardRepo.save).toHaveBeenCalled();
       expect(result.offlineEnabled).toBe(true);
       expect(result.isComplete).toBe(true);
+    });
+
+    it('copies the rate card onto other passed offerings that share the PT', async () => {
+      tutorOfferingRepo.find.mockResolvedValue([
+        {
+          id: 10,
+          tutorId: 1,
+          proficiencyTestId: 70,
+          status: TutorOfferingStatusEnum.pt_passed,
+        },
+        {
+          id: 11,
+          tutorId: 1,
+          proficiencyTestId: 70,
+          status: TutorOfferingStatusEnum.pt_passed,
+        },
+      ]);
+
+      await service.saveForTutorUser(5, VALID_INPUT);
+
+      expect(rateCardRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ tutorOfferingId: 11, offlineBaseRate: 500 }),
+      );
+    });
+  });
+
+  describe('resolveCompleteRateCards', () => {
+    it('inherits a sibling complete card for the same proficiency test', async () => {
+      rateCardRepo.find.mockResolvedValueOnce([]);
+      tutorOfferingRepo.find.mockResolvedValue([
+        {
+          id: 11,
+          tutorId: 1,
+          proficiencyTestId: 70,
+          status: TutorOfferingStatusEnum.pt_passed,
+        },
+      ]);
+      rateCardRepo.find.mockResolvedValueOnce([
+        { tutorOfferingId: 11, offlineEnabled: true, offlineBaseRate: 500 },
+      ]);
+
+      const resolved = await service.resolveCompleteRateCards([
+        { id: 10, tutorId: 1, proficiencyTestId: 70 },
+      ]);
+
+      expect(isRateCardComplete(resolved.get(10))).toBe(true);
     });
   });
 });

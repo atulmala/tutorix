@@ -11,6 +11,7 @@ export type WebView =
   | 'tutor-bank-setup'
   | 'tutor-rate-card-setup'
   | 'tutor-home'
+  | 'tutor-calendar'
   | 'tutor-profile'
   | 'student-onboarding'
   | 'student-home'
@@ -79,7 +80,7 @@ export function walletReturnFromView(view: WebView): WalletReturnView | null {
   if (view === 'student-profile') {
     return 'student-profile';
   }
-  if (view === 'tutor-home' || view === 'tutor-onboarding' || view === 'tutor-bank-setup' || view === 'tutor-rate-card-setup') {
+  if (view === 'tutor-home' || view === 'tutor-onboarding' || view === 'tutor-bank-setup' || view === 'tutor-rate-card-setup' || view === 'tutor-calendar') {
     return 'tutor-home';
   }
   if (view === 'tutor-profile') {

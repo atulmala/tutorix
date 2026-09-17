@@ -121,3 +121,21 @@ export const ACKNOWLEDGE_ONBOARDING_CELEBRATION = gql`
     }
   }
 `;
+
+/**
+ * Copy a passed proficiency test onto another offering that shares the same test.
+ */
+export const CREDIT_OVERLAPPING_PT_PASS = gql`
+  mutation CreditOverlappingPtPass($tutorOfferingId: ID!) {
+    creditOverlappingPtPass(tutorOfferingId: $tutorOfferingId) {
+      id
+      offeringId
+      proficiencyTestId
+      status
+      lastScore
+      lastMaxScore
+      passedAt
+    }
+  }
+`;
+

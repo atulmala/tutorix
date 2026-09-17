@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import {
   CREATE_TUTOR_ADDRESS,
+  CREDIT_OVERLAPPING_PT_PASS,
   GET_CURRENT_USER,
   GET_MY_TUTOR_DETAIL,
   SAVE_MY_BANK_DETAILS,
@@ -12,6 +13,7 @@ import {
 import {
   buildExperienceMutationInput,
   buildQualificationMutationInput,
+  hasPassedOverlappingPt,
   normalizeYearsOfExperience,
   pinExperienceRowToMonthDay,
   type ExperienceFormRow,
@@ -27,6 +29,7 @@ import {
 } from '@tutorix/tutor-detail-ui';
 import { AddOfferingFlow } from './AddOfferingFlow';
 import { TutorPT } from '../tutor-onboarding/tutor-pt/TutorPT';
+import { PtAlreadyClearedPrompt } from '../tutor-onboarding/tutor-pt/PtAlreadyClearedPrompt';
 import { useGooglePlacesAutocomplete } from '../../../hooks/useGooglePlacesAutocomplete';
 import { useWebAuth } from '../../auth/useWebAuth';
 import { HeaderProfileAvatar } from '../HeaderProfileAvatar';
@@ -59,6 +62,10 @@ export const TutorProfilePage: React.FC = () => {
   const [ptOffering, setPtOffering] = useState<
     TutorDetailRecord['offerings'][number] | null
   >(null);
+  const [clearedOffering, setClearedOffering] = useState<
+    TutorDetailRecord['offerings'][number] | null
+  >(null);
+  const [overlapError, setOverlapError] = useState<string | null>(null);
 
   const [saveAddress, { loading: savingAddress }] = useMutation(CREATE_TUTOR_ADDRESS);
   const [saveBankDetails, { loading: savingBankDetails }] = useMutation(SAVE_MY_BANK_DETAILS);
@@ -66,6 +73,9 @@ export const TutorProfilePage: React.FC = () => {
   const [saveExperiences, { loading: savingExperiences }] = useMutation(SAVE_TUTOR_EXPERIENCES);
   const [saveQualifications, { loading: savingQualifications }] = useMutation(
     SAVE_TUTOR_QUALIFICATIONS,
+  );
+  const [creditOverlappingPtPass, { loading: creditingOverlap }] = useMutation(
+    CREDIT_OVERLAPPING_PT_PASS,
   );
   const places = useGooglePlacesAutocomplete();
   const {
@@ -84,6 +94,35 @@ export const TutorProfilePage: React.FC = () => {
         .filter((id): id is number => id != null),
     [tutor?.offerings],
   );
+
+  const handleStartProficiencyTest = (
+    offering: TutorDetailRecord['offerings'][number],
+  ) => {
+    if (hasPassedOverlappingPt(tutor?.offerings, offering)) {
+      setOverlapError(null);
+      setClearedOffering(offering);
+      return;
+    }
+    setPtOffering(offering);
+  };
+
+  const handleAcknowledgeClearedPt = async () => {
+    if (!clearedOffering) {
+      return;
+    }
+    setOverlapError(null);
+    try {
+      await creditOverlappingPtPass({
+        variables: { tutorOfferingId: clearedOffering.id },
+      });
+      setClearedOffering(null);
+      await refetch();
+    } catch (err) {
+      setOverlapError(
+        err instanceof Error ? err.message : 'Could not update this offering.',
+      );
+    }
+  };
 
   const mapPlaceToLocation = useCallback((place: unknown): AddressLocationSuggestion => {
     const p = place as {
@@ -318,6 +357,7 @@ export const TutorProfilePage: React.FC = () => {
             offeringDisplayName={offeringLabel}
             attemptsUsed={ptOffering.attemptsUsed}
             testTutor={tutor.testTutor}
+            tutorOfferings={tutor.offerings}
             onComplete={async () => {
               setPtOffering(null);
               await refetch();
@@ -333,6 +373,7 @@ export const TutorProfilePage: React.FC = () => {
       <div className="w-full max-w-5xl">
         <AddOfferingFlow
           excludeOfferingIds={excludeOfferingIds}
+          existingOfferings={tutor.offerings}
           testTutor={tutor.testTutor}
           onClose={() => setShowAddOffering(false)}
           onComplete={async () => {
@@ -363,7 +404,7 @@ export const TutorProfilePage: React.FC = () => {
           ) : null
         }
         onAddOffering={() => setShowAddOffering(true)}
-        onStartProficiencyTest={(offering) => setPtOffering(offering)}
+        onStartProficiencyTest={handleStartProficiencyTest}
         onSaveBankDetails={handleSaveBankDetails}
         savingBankDetails={savingBankDetails}
         bankDetailsSaveError={bankDetailsSaveError}
@@ -381,6 +422,17 @@ export const TutorProfilePage: React.FC = () => {
         savingQualifications={savingQualifications}
         qualificationSaveError={qualificationSaveError}
       />
+      {clearedOffering ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-purple-200 bg-white p-6 shadow-lg">
+            <PtAlreadyClearedPrompt
+              onAcknowledge={() => void handleAcknowledgeClearedPt()}
+              acknowledging={creditingOverlap}
+              error={overlapError}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

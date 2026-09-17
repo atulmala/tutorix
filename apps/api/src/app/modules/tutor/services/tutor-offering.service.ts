@@ -14,6 +14,8 @@ import { SubmitProficiencyTestInput } from '../../proficiency/dto/submit-profici
 import { SubmitProficiencyTestResult } from '../../proficiency/dto/submit-proficiency-test.result';
 import { filterQuestionsWithoutImages } from '../../proficiency/proficiency.utils';
 import { TutorOfferingPtFeeService } from './tutor-offering-pt-fee.service';
+import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
+import { PT_ALREADY_CLEARED_MESSAGE } from '@tutorix/shared-utils';
 
 const PT_MAX_ATTEMPTS = 2;
 
@@ -25,6 +27,7 @@ export class TutorOfferingService {
     private readonly proficiencyTestService: ProficiencyTestService,
     private readonly tutorService: TutorService,
     private readonly ptFeeService: TutorOfferingPtFeeService,
+    private readonly tutorRateCardService: TutorRateCardService,
   ) {}
 
   /**
@@ -37,6 +40,14 @@ export class TutorOfferingService {
       throw new BadRequestException(
         'Proficiency test already passed for this offering',
       );
+    }
+
+    const overlappingPass = await this.findPassedSiblingForSamePt(
+      tutorOffering.tutorId,
+      tutorOffering,
+    );
+    if (overlappingPass) {
+      throw new BadRequestException(PT_ALREADY_CLEARED_MESSAGE);
     }
 
     const canRetryFailed =
@@ -253,6 +264,9 @@ export class TutorOfferingService {
     }
 
     await this.tutorOfferingRepository.save(tutorOffering);
+    if (passed) {
+      await this.creditSamePtOfferings(tutorId, tutorOffering);
+    }
 
     return {
       passed,
@@ -262,5 +276,92 @@ export class TutorOfferingService {
       passPercentage: test.passPercentage,
       tutorOfferingId: tutorOffering.id,
     };
+  }
+
+  async creditOverlappingPtPass(
+    tutorId: number,
+    tutorOfferingId: number,
+  ): Promise<TutorOfferingEntity> {
+    const tutorOffering = await this.findByIdForTutor(tutorOfferingId, tutorId);
+    if (tutorOffering.status === TutorOfferingStatusEnum.pt_passed) {
+      return tutorOffering;
+    }
+    const sibling = await this.findPassedSiblingForSamePt(tutorId, tutorOffering);
+    if (!sibling) {
+      throw new BadRequestException(
+        'No overlapping passed proficiency test found for this offering',
+      );
+    }
+    this.copyPassFromSource(tutorOffering, sibling);
+    const saved = await this.tutorOfferingRepository.save(tutorOffering);
+    await this.tutorRateCardService.copyRateCardToOffering(
+      sibling.id,
+      saved.id,
+    );
+    return saved;
+  }
+
+  private async findPassedSiblingForSamePt(
+    tutorId: number,
+    tutorOffering: TutorOfferingEntity,
+  ): Promise<TutorOfferingEntity | null> {
+    if (tutorOffering.proficiencyTestId == null) {
+      return null;
+    }
+    const siblings = await this.tutorOfferingRepository.find({
+      where: {
+        tutorId,
+        proficiencyTestId: tutorOffering.proficiencyTestId,
+        status: TutorOfferingStatusEnum.pt_passed,
+        deleted: false,
+      },
+    });
+    return (
+      siblings.find(
+        (offering) =>
+          offering.id !== tutorOffering.id &&
+          offering.status === TutorOfferingStatusEnum.pt_passed,
+      ) ?? null
+    );
+  }
+
+  private async creditSamePtOfferings(
+    tutorId: number,
+    passedOffering: TutorOfferingEntity,
+  ): Promise<void> {
+    const siblings = await this.tutorOfferingRepository.find({
+      where: {
+        tutorId,
+        proficiencyTestId: passedOffering.proficiencyTestId,
+        deleted: false,
+      },
+    });
+    for (const sibling of siblings) {
+      if (
+        sibling.id === passedOffering.id ||
+        sibling.status === TutorOfferingStatusEnum.pt_passed
+      ) {
+        continue;
+      }
+      this.copyPassFromSource(sibling, passedOffering);
+      await this.tutorOfferingRepository.save(sibling);
+      await this.tutorRateCardService.copyRateCardToOffering(
+        passedOffering.id,
+        sibling.id,
+      );
+    }
+  }
+
+  private copyPassFromSource(
+    target: TutorOfferingEntity,
+    source: TutorOfferingEntity,
+  ): void {
+    target.status = TutorOfferingStatusEnum.pt_passed;
+    target.passedAt = source.passedAt ?? new Date();
+    target.lastScore = source.lastScore;
+    target.lastMaxScore = source.lastMaxScore;
+    target.lastAttemptAt = source.lastAttemptAt;
+    target.lastTimeTakenSeconds = source.lastTimeTakenSeconds;
+    target.attemptsUsed = source.attemptsUsed;
   }
 }

@@ -1,7 +1,38 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { useQuery } from '@apollo/client';
+import {
+  GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
+  GET_MY_TUTOR_DETAIL,
+} from '@tutorix/shared-graphql/queries';
 import { istMondayWeekDays } from '@tutorix/shared-utils/student-schedule';
+import {
+  hasIncompleteRateCardOfferings,
+  PENDING_RATE_CARD_TASK_ACTION,
+  PENDING_RATE_CARD_TASK_MESSAGE,
+  type RateCardOfferingLike,
+} from '@tutorix/shared-utils/rate-card';
+import {
+  needsCalendarUpdateThroughSunday,
+  PENDING_CALENDAR_TASK_ACTION,
+  PENDING_CALENDAR_TASK_MESSAGE,
+} from '@tutorix/shared-utils/tutor-calendar';
+
+type TutorHomeScreenProps = {
+  onSetRateCard?: () => void;
+  onUpdateCalendar?: () => void;
+};
+
+type MyTutorDetailData = {
+  myTutorDetail?: {
+    offerings?: RateCardOfferingLike[] | null;
+  } | null;
+};
+
+type CalendarUpdatedTillData = {
+  myTutorCalendarUpdatedTill?: string | Date | null;
+};
 
 function CalendarIcon() {
   return (
@@ -29,11 +60,31 @@ function ClockIcon() {
   );
 }
 
-export const TutorHomeScreen: React.FC = () => {
+export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
+  onSetRateCard,
+  onUpdateCalendar,
+}) => {
   const weekDays = useMemo(() => istMondayWeekDays(), []);
   const todayKey = weekDays.find((d) => d.isToday)?.key ?? weekDays[0]?.key;
   const [selectedKey, setSelectedKey] = useState(todayKey);
   const selected = weekDays.find((d) => d.key === selectedKey) ?? weekDays[0];
+
+  const { data: detailData, loading: detailLoading } = useQuery<MyTutorDetailData>(
+    GET_MY_TUTOR_DETAIL,
+    { fetchPolicy: 'cache-and-network' },
+  );
+  const { data: tillData, loading: tillLoading } = useQuery<CalendarUpdatedTillData>(
+    GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
+    { fetchPolicy: 'cache-and-network' },
+  );
+
+  const showRateCardTask =
+    !detailLoading &&
+    hasIncompleteRateCardOfferings(detailData?.myTutorDetail?.offerings);
+  const showCalendarTask =
+    !tillLoading &&
+    needsCalendarUpdateThroughSunday(tillData?.myTutorCalendarUpdatedTill);
+  const showPendingTasks = showRateCardTask || showCalendarTask;
 
   return (
     <ScrollView
@@ -41,6 +92,42 @@ export const TutorHomeScreen: React.FC = () => {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
+      {showPendingTasks ? (
+        <View style={styles.pendingBlock}>
+          <Text style={styles.pendingHeading}>Pending tasks</Text>
+          {showRateCardTask ? (
+            <View style={styles.pendingCard}>
+              <Text style={styles.pendingCopy}>{PENDING_RATE_CARD_TASK_MESSAGE}</Text>
+              {onSetRateCard ? (
+                <Pressable
+                  style={styles.pendingButton}
+                  onPress={onSetRateCard}
+                  accessibilityRole="button"
+                  accessibilityLabel={PENDING_RATE_CARD_TASK_ACTION}
+                >
+                  <Text style={styles.pendingButtonText}>{PENDING_RATE_CARD_TASK_ACTION}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
+          {showCalendarTask ? (
+            <View style={styles.pendingCard}>
+              <Text style={styles.pendingCopy}>{PENDING_CALENDAR_TASK_MESSAGE}</Text>
+              {onUpdateCalendar ? (
+                <Pressable
+                  style={styles.pendingButton}
+                  onPress={onUpdateCalendar}
+                  accessibilityRole="button"
+                  accessibilityLabel={PENDING_CALENDAR_TASK_ACTION}
+                >
+                  <Text style={styles.pendingButtonText}>{PENDING_CALENDAR_TASK_ACTION}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
       <View style={styles.titleRow}>
         <Text style={styles.title}>My schedule</Text>
         <View style={styles.weekChip}>
@@ -109,6 +196,25 @@ export const TutorHomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: '#e8f4ff' },
   content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28, gap: 14 },
+  pendingBlock: { gap: 10 },
+  pendingHeading: { fontSize: 15, fontWeight: '800', color: '#143055' },
+  pendingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  pendingCopy: { fontSize: 13, lineHeight: 20, color: '#475569' },
+  pendingButton: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  pendingButtonText: { fontSize: 14, fontWeight: '600', color: '#fff' },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',

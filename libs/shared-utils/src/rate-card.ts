@@ -88,9 +88,33 @@ export const RATE_CARD_SETUP_HEADING = 'Rate card';
 export const RATE_CARD_SETUP_REQUIRED_MESSAGE =
   'Please set up a rate card for at least one offering. Students can find you once you set how you charge.';
 
+export const PENDING_RATE_CARD_TASK_MESSAGE =
+  'You have not set up the rate card for your offerings. Unless you do this, you will not get class bookings for these offerings';
+
+export const PENDING_RATE_CARD_TASK_ACTION = 'Set up rate card';
+
+export const RATE_CARD_LATER_ACTION = 'I will do later';
+
+export const RATE_CARD_LATER_WARNING =
+  'Unless you set the rate card, you will not be searched by students to book classes for this offering';
+
+export const PT_PASSED_ONBOARDING_MESSAGE =
+  'Congratulations! You have passed the proficiency test.';
+
+export const PT_PASSED_RATE_CARD_MESSAGE =
+  'Congratulations on passing the proficiency test. Now set up rate card for this offering. Unless you set the rate card, you will not be able to get class bookings from students';
+
+export const PT_PASSED_RATE_CARD_LATER_ACTION = 'I will do it later';
+
+export function ptPassResultMessage(isPostOnboardingPt: boolean): string {
+  return isPostOnboardingPt ? PT_PASSED_RATE_CARD_MESSAGE : PT_PASSED_ONBOARDING_MESSAGE;
+}
+
 export const PT_PASSED_OFFERING_STATUS = 'pt_passed';
 
 export type RateCardOfferingLike = {
+  id?: number | null;
+  proficiencyTestId?: number | null;
   status?: string | null;
   rateCard?: (RateCardLike & { isComplete?: boolean | null }) | null;
 };
@@ -107,17 +131,104 @@ export function offeringHasCompleteRateCard(
   return isRateCardComplete(offering.rateCard);
 }
 
+function ptPassedOfferings(
+  offerings?: RateCardOfferingLike[] | null,
+): RateCardOfferingLike[] {
+  return (offerings ?? []).filter(
+    (offering) => String(offering.status ?? '').toLowerCase() === PT_PASSED_OFFERING_STATUS,
+  );
+}
+
 /** True when a tutor has at least one PT-passed offering with no complete rate card, so home must wait. */
 export function needsRateCardSetup(
   offerings?: RateCardOfferingLike[] | null,
 ): boolean {
-  const passed = (offerings ?? []).filter(
-    (offering) => String(offering.status ?? '').toLowerCase() === PT_PASSED_OFFERING_STATUS,
-  );
+  const passed = ptPassedOfferings(offerings);
   if (passed.length === 0) {
     return false;
   }
   return !passed.some(offeringHasCompleteRateCard);
+}
+
+function coveredProficiencyTestIds(
+  offerings: RateCardOfferingLike[],
+): Set<number> {
+  const covered = new Set<number>();
+  for (const offering of offerings) {
+    if (
+      offering.proficiencyTestId != null &&
+      offeringHasCompleteRateCard(offering)
+    ) {
+      covered.add(offering.proficiencyTestId);
+    }
+  }
+  return covered;
+}
+
+export function offeringCoveredBySharedRateCard(
+  offerings: RateCardOfferingLike[] | null | undefined,
+  target: RateCardOfferingLike | null | undefined,
+): boolean {
+  if (!target) {
+    return false;
+  }
+  if (offeringHasCompleteRateCard(target)) {
+    return true;
+  }
+  const ptId = target.proficiencyTestId;
+  if (ptId == null) {
+    return false;
+  }
+  return (offerings ?? []).some(
+    (offering) =>
+      offering.id !== target.id &&
+      offering.proficiencyTestId === ptId &&
+      offeringHasCompleteRateCard(offering),
+  );
+}
+
+/**
+ * PT-passed offerings that still need a rate card, one per shared proficiency test.
+ * A sibling complete card covers the rest of that test.
+ */
+export function offeringsNeedingRateCardSetup<T extends RateCardOfferingLike>(
+  offerings?: T[] | null,
+): T[] {
+  const passed = ptPassedOfferings(offerings) as T[];
+  const coveredPtIds = coveredProficiencyTestIds(passed);
+  const seenUncoveredPtIds = new Set<number>();
+  const pending: T[] = [];
+  for (const offering of passed) {
+    if (offeringHasCompleteRateCard(offering)) {
+      continue;
+    }
+    const ptId = offering.proficiencyTestId;
+    if (ptId != null && coveredPtIds.has(ptId)) {
+      continue;
+    }
+    if (ptId != null) {
+      if (seenUncoveredPtIds.has(ptId)) {
+        continue;
+      }
+      seenUncoveredPtIds.add(ptId);
+    }
+    pending.push(offering);
+  }
+  return pending;
+}
+
+/** True when any PT-passed offering still lacks a complete rate card (home pending task). */
+export function hasIncompleteRateCardOfferings(
+  offerings?: RateCardOfferingLike[] | null,
+): boolean {
+  return offeringsNeedingRateCardSetup(offerings).length > 0;
+}
+
+/** True when a later skip is allowed: at least one complete card already exists. */
+export function canDeferRateCardSetup(
+  offerings?: RateCardOfferingLike[] | null,
+): boolean {
+  return !needsRateCardSetup(offerings) && hasIncompleteRateCardOfferings(offerings);
 }
 
 /** Max students per 1-hour session for a delivery mode (1 if mode disabled). */

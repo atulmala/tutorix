@@ -40,6 +40,7 @@ describe('walletReturnFromPush', () => {
   it('returns tutorHome from tutor home or onboarding', () => {
     expect(walletReturnFromPush('tutorHome')).toBe('tutorHome');
     expect(walletReturnFromPush('tutorOnboarding')).toBe('tutorHome');
+    expect(walletReturnFromPush('tutorCalendar')).toBe('tutorHome');
   });
 
   it('returns tutorProfile when the tutor is already on profile', () => {

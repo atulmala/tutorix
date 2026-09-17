@@ -25,7 +25,11 @@ import {
 import { TutorDetailScreen } from './components/tutor-profile/TutorDetailScreen';
 import { TutorHomeScreen } from './components/tutor-home/TutorHomeScreen';
 import { TutorBankSetupScreen } from './components/tutor-bank-setup/TutorBankSetupScreen';
-import { TutorRateCardSetupScreen } from './components/tutor-rate-card-setup/TutorRateCardSetupScreen';
+import {
+  TutorRateCardSetupScreen,
+  confirmRateCardLater,
+} from './components/tutor-rate-card-setup/TutorRateCardSetupScreen';
+import { TutorCalendarScreen } from './components/tutor-calendar/TutorCalendarScreen';
 import { TutorNavHeader } from './components/tutor-nav/TutorNavHeader';
 import { WalletScreen } from './components/wallet';
 import { NavHeader } from './components/NavHeader';
@@ -118,6 +122,7 @@ function AppContent() {
       mobileVerificationRequired?: boolean;
     };
   } | null>(null);
+  const [rateCardCanDefer, setRateCardCanDefer] = useState(false);
   const [pushBanner, setPushBanner] = useState<PushPayload | null>(null);
   const currentViewRef = useRef(currentView);
   currentViewRef.current = currentView;
@@ -495,8 +500,20 @@ function AppContent() {
   } else if (currentView === 'tutorRateCardSetup') {
     screen = (
       <View style={{ flex: 1, backgroundColor: '#fff' }}>
-        <NavHeader title="Rate card" onLogout={handleLogout} />
-        <TutorRateCardSetupScreen onComplete={() => setCurrentView('tutorHome')} />
+        <NavHeader
+          title="Rate card"
+          onLogout={handleLogout}
+          onBack={
+            rateCardCanDefer
+              ? () => confirmRateCardLater(() => setCurrentView('tutorProfile'))
+              : undefined
+          }
+        />
+        <TutorRateCardSetupScreen
+          onComplete={() => setCurrentView('tutorHome')}
+          onLater={() => setCurrentView('tutorProfile')}
+          onDeferChange={setRateCardCanDefer}
+        />
       </View>
     );
   } else if (currentView === 'tutorHome') {
@@ -508,7 +525,22 @@ function AppContent() {
           onProfilePress={() => setCurrentView('tutorProfile')}
           onOpenWallet={() => handleOpenWallet('tutorHome')}
         />
-        <TutorHomeScreen />
+        <TutorHomeScreen
+          onSetRateCard={() => setCurrentView('tutorRateCardSetup')}
+          onUpdateCalendar={() => setCurrentView('tutorCalendar')}
+        />
+      </View>
+    );
+  } else if (currentView === 'tutorCalendar') {
+    screen = (
+      <View style={{ flex: 1 }}>
+        <TutorNavHeader
+          title="Calendar"
+          onBack={() => setCurrentView('tutorHome')}
+          onLogout={handleLogout}
+          onOpenWallet={() => handleOpenWallet('tutorHome')}
+        />
+        <TutorCalendarScreen />
       </View>
     );
   } else if (currentView === 'tutorProfile') {

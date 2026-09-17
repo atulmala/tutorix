@@ -6,6 +6,7 @@ export const ADD_MY_TUTOR_OFFERING = gql`
       tutorOffering {
         id
         offeringId
+        proficiencyTestId
         status
         attemptsUsed
         offering {

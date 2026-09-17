@@ -23,6 +23,7 @@ import {
   sortQualificationsHighestFirst,
   sumExperienceDurations,
   BANK_DETAILS_REQUIRED_FOR_RATE_CARD_MESSAGE,
+  offeringCoveredBySharedRateCard,
   tutorHasAtLeastOneCompleteRateCard,
   profilePictureAvatarUrl,
 } from '@tutorix/shared-utils';
@@ -356,7 +357,10 @@ function OfferingsSection({
             </thead>
             <tbody>
               {sortedOfferings.map((offering, index) => {
-                const hasRateCard = Boolean(offering.rateCard?.isComplete);
+              const hasRateCard = offeringCoveredBySharedRateCard(
+                offerings,
+                offering,
+              );
                 const ptPassed = offering.status === 'pt_passed';
                 const ptPending = offering.status === 'pending_pt';
                 const canEditRateCard = ptPassed && Boolean(onOpenRateCard);

@@ -1,6 +1,6 @@
 ---
 title: Tutor home and mandatory rate card
-status: in-progress
+status: done
 jira: TUTORIX-83
 created: 2026-09-16
 labels:

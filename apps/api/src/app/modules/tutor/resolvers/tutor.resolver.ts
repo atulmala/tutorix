@@ -278,6 +278,25 @@ export class TutorResolver {
     return this.tutorOfferingService.submitProficiencyTest(tutor.id, input);
   }
 
+  @Mutation(() => TutorOfferingEntity, {
+    description:
+      'Mark a pending offering as passed when the tutor already cleared the same proficiency test on another offering',
+  })
+  @UseGuards(JwtAuthGuard)
+  async creditOverlappingPtPass(
+    @CurrentUser() user: User,
+    @Args('tutorOfferingId', { type: () => ID }) tutorOfferingId: number,
+  ): Promise<TutorOfferingEntity> {
+    const tutor = await this.tutorService.findByUserId(user.id);
+    if (!tutor) {
+      throw new BadRequestException('Tutor profile not found for this user');
+    }
+    return this.tutorOfferingService.creditOverlappingPtPass(
+      tutor.id,
+      tutorOfferingId,
+    );
+  }
+
   /**
    * Mutation: Complete experience step (advance to offerings)
    * Valid only when tutor is at experience stage.

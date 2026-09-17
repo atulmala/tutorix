@@ -18,6 +18,7 @@ import { GET_MY_TUTOR_DETAIL } from '@tutorix/shared-graphql/queries';
 import {
   CONFIRM_PROFILE_PICTURE_UPLOAD,
   CREATE_TUTOR_ADDRESS,
+  CREDIT_OVERLAPPING_PT_PASS,
   REQUEST_PROFILE_PICTURE_UPLOAD_URL,
   SAVE_MY_BANK_DETAILS,
   SAVE_MY_TUTOR_OFFERING_RATE_CARD,
@@ -50,6 +51,9 @@ import {
   sortQualificationsHighestFirst,
   sumExperienceDurations,
   formatOfferingLabelForDisplay,
+  hasPassedOverlappingPt,
+  offeringCoveredBySharedRateCard,
+  PT_ALREADY_CLEARED_MESSAGE,
   ptStatusLabel,
   sortTutorOfferingsForDisplay,
   profilePictureAvatarUrl,
@@ -278,6 +282,7 @@ export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
   const [saveQualifications, { loading: savingQualifications }] = useMutation(
     SAVE_TUTOR_QUALIFICATIONS,
   );
+  const [creditOverlappingPtPass] = useMutation(CREDIT_OVERLAPPING_PT_PASS);
   const { width: windowWidth } = useWindowDimensions();
   const stackProfileSections = windowWidth < 768;
   const offeringFieldsInRow = windowWidth >= 400;
@@ -327,6 +332,33 @@ export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
         .map((o) => o.offeringId)
         .filter((id): id is number => id != null),
     [tutor?.offerings],
+  );
+
+  const startOrCreditPt = useCallback(
+    (offering: TutorOffering) => {
+      if (hasPassedOverlappingPt(tutor?.offerings, offering)) {
+        Alert.alert('Proficiency test', PT_ALREADY_CLEARED_MESSAGE, [
+          {
+            text: 'OK',
+            onPress: () => {
+              void creditOverlappingPtPass({
+                variables: { tutorOfferingId: offering.id },
+              })
+                .then(() => refetch())
+                .catch((err: unknown) => {
+                  Alert.alert(
+                    'Could not update offering',
+                    err instanceof Error ? err.message : 'Please try again.',
+                  );
+                });
+            },
+          },
+        ]);
+        return;
+      }
+      setPtOffering(offering);
+    },
+    [creditOverlappingPtPass, refetch, tutor?.offerings],
   );
   const primaryAddress = tutor?.addresses[0] ?? null;
 
@@ -700,6 +732,7 @@ export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
     return (
       <AddOfferingFlow
         excludeOfferingIds={excludeOfferingIds}
+        existingOfferings={tutor.offerings}
         testTutor={tutor.testTutor}
         onClose={() => setShowAddOffering(false)}
         onComplete={handleAddOfferingComplete}
@@ -723,6 +756,7 @@ export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
           offeringDisplayName={offeringLabel}
           attemptsUsed={ptOffering.attemptsUsed}
           testTutor={tutor.testTutor}
+          tutorOfferings={tutor.offerings}
           onComplete={async () => {
             setPtOffering(null);
             await refetch();
@@ -832,7 +866,7 @@ export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
         ) : (
           <View style={styles.offeringsList}>
             {sortedOfferings.map((o) => {
-              const hasRateCard = Boolean(o.rateCard?.isComplete);
+              const hasRateCard = offeringCoveredBySharedRateCard(tutor.offerings, o);
               const ptPassed = o.status === 'pt_passed';
               const ptPending = o.status === 'pending_pt';
               const isExpanded = expandedOfferingId === o.id;
@@ -899,7 +933,7 @@ export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
                     {ptPending ? (
                       <TouchableOpacity
                         style={styles.rateCardButton}
-                        onPress={() => setPtOffering(o)}
+                        onPress={() => startOrCreditPt(o)}
                         activeOpacity={0.7}
                       >
                         <Text style={styles.rateCardButtonText}>

@@ -45,12 +45,16 @@ jest.mock('./components/tutor-bank-setup', () => ({
 }));
 jest.mock('./components/tutor-rate-card-setup', () => ({
   TutorRateCardSetupPage: () => null,
+  confirmRateCardLater: (onConfirm: () => void) => onConfirm(),
 }));
 jest.mock('./components/tutor-profile/TutorProfilePage', () => ({
   TutorProfilePage: () => null,
 }));
 jest.mock('./components/tutor-home', () => ({
   TutorHomePage: () => null,
+}));
+jest.mock('./components/tutor-calendar', () => ({
+  TutorCalendarPage: () => null,
 }));
 jest.mock('./components/student-onboarding', () => ({ StudentOnboarding: () => null }));
 jest.mock('./components/student-home', () => ({
