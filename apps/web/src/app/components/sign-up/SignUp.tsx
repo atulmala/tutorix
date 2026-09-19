@@ -17,6 +17,7 @@ export type SignupVerificationStatus = {
 type SignUpProps = {
   onBackHome: () => void;
   onLogin?: () => void;
+  onAlreadyRegistered?: () => void;
   onSignUpSuccess?: () => void;
   onTutorOnboarding?: () => void;
   resumeUserId?: number;
@@ -51,6 +52,7 @@ function nextSignupStep(
 export const SignUp: React.FC<SignUpProps> = ({ 
   onBackHome, 
   onLogin,
+  onAlreadyRegistered,
   onSignUpSuccess,
   onTutorOnboarding,
   resumeUserId, 
@@ -276,6 +278,7 @@ export const SignUp: React.FC<SignUpProps> = ({
             onSubmit={handleBasicSubmit}
             onBackHome={onBackHome}
             onLogin={onLogin}
+            onAlreadyRegistered={onAlreadyRegistered}
             mobileVerificationRequired={mobileVerificationRequired}
           />
         )}

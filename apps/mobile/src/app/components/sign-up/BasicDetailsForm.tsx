@@ -15,7 +15,10 @@ import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 import { REGISTER_USER } from '@tutorix/shared-graphql/mutations';
-import { getPhoneCountryCode } from '@tutorix/shared-utils';
+import {
+  getPhoneCountryCode,
+  isAlreadyRegisteredError,
+} from '@tutorix/shared-utils';
 import { useRegistrationFlags } from '../../feature-flags/FeatureFlagsContext';
 import { LegalLinks } from '../LegalLinks';
 
@@ -52,6 +55,7 @@ type BasicDetailsFormProps = {
     userId: number,
     user?: { isMobileVerified: boolean; isEmailVerified: boolean }
   ) => void;
+  onAlreadyRegistered?: () => void;
   mobileVerificationRequired?: boolean;
 };
 
@@ -98,6 +102,7 @@ const getDefaultDobDate = () => {
 export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
   initialValue,
   onSubmit,
+  onAlreadyRegistered,
   mobileVerificationRequired = false,
 }) => {
   const submitLabel = mobileVerificationRequired ? 'Verify Phone' : 'Verify Email';
@@ -119,6 +124,10 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
 
   const [registerUser, { loading: isSubmitting }] = useMutation(REGISTER_USER, {
     onError: (error) => {
+      if (isAlreadyRegisteredError(error)) {
+        onAlreadyRegistered?.();
+        return;
+      }
       setHasError(true);
       const errorMessage =
         error.graphQLErrors?.[0]?.message ||
@@ -248,7 +257,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
     }
 
     try {
-      const { data } = await registerUser({
+      const result = await registerUser({
         variables: {
           role: form.isTutor ? 'TUTOR' : 'STUDENT',
           mobileCountryCode: getPhoneCountryCode(form.countryCode),
@@ -262,19 +271,29 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
         },
       });
 
-      if (hasError) {
+      if (isAlreadyRegisteredError(result) || isAlreadyRegisteredError(result.errors)) {
+        onAlreadyRegistered?.();
         return;
       }
 
-      if (data?.registerUser?.id) {
-        onSubmit(form, data.registerUser.id, {
-          isMobileVerified: data.registerUser.isMobileVerified || false,
-          isEmailVerified: data.registerUser.isEmailVerified || false,
+      if (result.data?.registerUser?.id) {
+        onSubmit(form, result.data.registerUser.id, {
+          isMobileVerified: result.data.registerUser.isMobileVerified || false,
+          isEmailVerified: result.data.registerUser.isEmailVerified || false,
         });
-      } else {
-        setSubmitError('Registration successful but user ID not received.');
+        return;
       }
+
+      if (result.errors?.length || hasError) {
+        return;
+      }
+
+      setSubmitError('Failed to create account. Please try again.');
     } catch (error) {
+      if (isAlreadyRegisteredError(error)) {
+        onAlreadyRegistered?.();
+        return;
+      }
       if (!hasError) {
         let errorMessage = 'An unexpected error occurred. Please try again.';
         

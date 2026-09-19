@@ -21,6 +21,7 @@ type SignUpProps = {
   onVerificationComplete?: (email: string, password: string) => Promise<void>;
   /** Fallback shown if auto-login fails so the user can log in manually. */
   onFallbackToLogin?: () => void;
+  onAlreadyRegistered?: () => void;
 };
 
 type Step = 'basic' | 'phone' | 'email';
@@ -53,6 +54,7 @@ export const SignUpScreen: React.FC<SignUpProps> = ({
   resumeVerificationStatus,
   onVerificationComplete,
   onFallbackToLogin,
+  onAlreadyRegistered,
 }) => {
   const [step, setStep] = useState<Step>('basic');
   const [basicDetails, setBasicDetails] = useState<BasicDetails>(createEmptyDetails());
@@ -219,6 +221,7 @@ export const SignUpScreen: React.FC<SignUpProps> = ({
               <BasicDetailsForm
                 initialValue={basicDetails}
                 onSubmit={handleBasicSubmit}
+                onAlreadyRegistered={onAlreadyRegistered}
                 mobileVerificationRequired={mobileVerificationRequired}
               />
             )}

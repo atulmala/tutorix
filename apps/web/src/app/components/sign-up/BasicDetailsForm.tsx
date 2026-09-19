@@ -5,7 +5,7 @@ import {
   GET_REGISTRATION_SETTINGS,
   REGISTER_USER,
 } from '@tutorix/shared-graphql';
-import { getPhoneCountryCode } from '@tutorix/shared-utils';
+import { getPhoneCountryCode, isAlreadyRegisteredError } from '@tutorix/shared-utils';
 import { LegalFooter } from '../LegalFooter';
 
 const DEFAULT_DISABLED_MESSAGE =
@@ -42,6 +42,7 @@ type BasicDetailsFormProps = {
   onSubmit: (value: BasicDetails, userId: number, user?: { isMobileVerified: boolean; isEmailVerified: boolean }) => void;
   onBackHome?: () => void;
   onLogin?: () => void;
+  onAlreadyRegistered?: () => void;
   mobileVerificationRequired?: boolean;
 };
 
@@ -52,6 +53,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
   onSubmit,
   onBackHome,
   onLogin,
+  onAlreadyRegistered,
   mobileVerificationRequired = false,
 }) => {
   const [form, setForm] = useState<BasicDetails>(initialValue);
@@ -92,6 +94,11 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
 
   const [registerUser, { loading: isSubmitting }] = useMutation(REGISTER_USER, {
     onError: (error) => {
+      if (isAlreadyRegisteredError(error)) {
+        hasErrorRef.current = true;
+        onAlreadyRegistered?.();
+        return;
+      }
       hasErrorRef.current = true;
       // Extract the specific error message from GraphQL errors
       const errorMessage = 
@@ -255,7 +262,7 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
     }
 
     try {
-      const { data } = await registerUser({
+      const result = await registerUser({
         variables: {
           role: form.isTutor ? 'TUTOR' : 'STUDENT',
           mobileCountryCode: getPhoneCountryCode(form.countryCode),
@@ -269,25 +276,39 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
         },
       });
 
+      if (isAlreadyRegisteredError(result) || isAlreadyRegisteredError(result.errors)) {
+        onAlreadyRegistered?.();
+        return;
+      }
+
       // Only check data if there was no error (onError callback sets hasErrorRef)
       if (hasErrorRef.current) {
         // Error was already handled by onError callback
         return;
       }
 
-      if (data?.registerUser?.id) {
+      if (result.data?.registerUser?.id) {
         onSubmit(
           form, 
-          data.registerUser.id,
+          result.data.registerUser.id,
           {
-            isMobileVerified: data.registerUser.isMobileVerified || false,
-            isEmailVerified: data.registerUser.isEmailVerified || false,
+            isMobileVerified: result.data.registerUser.isMobileVerified || false,
+            isEmailVerified: result.data.registerUser.isEmailVerified || false,
           }
         );
-      } else {
-        setSubmitError('Registration successful but user ID not received.');
+        return;
       }
+
+      if (result.errors?.length) {
+        return;
+      }
+
+      setSubmitError('Failed to create account. Please try again.');
     } catch (error) {
+      if (isAlreadyRegisteredError(error)) {
+        onAlreadyRegistered?.();
+        return;
+      }
       // Error is handled by onError callback
       // This catch block is for unexpected errors only
       if (!hasErrorRef.current) {
