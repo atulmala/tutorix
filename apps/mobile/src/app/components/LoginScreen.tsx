@@ -42,6 +42,8 @@ type LoginScreenProps = {
       mobileVerificationRequired?: boolean;
     }
   ) => void;
+  noticeMessage?: string | null;
+  onNoticeConsumed?: () => void;
 };
 
 type IncompleteSignupError = {
@@ -59,15 +61,23 @@ const COUNTRY_OPTIONS = [
   { code: 'AU', label: 'AUS (+61)' },
 ];
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onForgotPassword, onSignUp }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({
+  onLoginSuccess,
+  onForgotPassword,
+  onSignUp,
+  noticeMessage,
+  onNoticeConsumed,
+}) => {
   const [email, setEmail] = useState('');
   const [countryCode, setCountryCode] = useState('IN');
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showNoticeModal, setShowNoticeModal] = useState(false);
   const [showCountryModal, setShowCountryModal] = useState(false);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loginMethodRef = useRef<'email' | 'mobile' | 'biometric' | 'unknown'>('unknown');
   const [biometryType, setBiometryType] = useState<'FaceID' | 'TouchID' | 'Biometrics' | null>(null);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
@@ -334,8 +344,31 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onForg
       if (successTimerRef.current) {
         clearTimeout(successTimerRef.current);
       }
+      if (noticeTimerRef.current) {
+        clearTimeout(noticeTimerRef.current);
+      }
     };
   }, []);
+
+  useEffect(() => {
+    if (!noticeMessage) {
+      setShowNoticeModal(false);
+      return;
+    }
+    setShowNoticeModal(true);
+    if (noticeTimerRef.current) {
+      clearTimeout(noticeTimerRef.current);
+    }
+    noticeTimerRef.current = setTimeout(() => {
+      setShowNoticeModal(false);
+      onNoticeConsumed?.();
+    }, 2000);
+    return () => {
+      if (noticeTimerRef.current) {
+        clearTimeout(noticeTimerRef.current);
+      }
+    };
+  }, [noticeMessage, onNoticeConsumed]);
 
   useEffect(() => {
     let mounted = true;
@@ -552,6 +585,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onForg
             <Text style={styles.modalMessage}>
               You have logged in successfully.
             </Text>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={showNoticeModal} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{noticeMessage}</Text>
           </View>
         </View>
       </Modal>

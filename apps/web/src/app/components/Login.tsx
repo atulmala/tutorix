@@ -18,6 +18,8 @@ type LoginProps = {
   ) => void;
   onLoginSuccess?: (user?: { id: number; role: string }) => void;
   onForgotPassword?: () => void;
+  noticeMessage?: string | null;
+  onNoticeConsumed?: () => void;
 };
 
 type IncompleteSignupError = {
@@ -28,7 +30,7 @@ type IncompleteSignupError = {
   mobileVerificationRequired?: boolean;
 };
 
-export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSuccess, onForgotPassword }) => {
+export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSuccess, onForgotPassword, noticeMessage, onNoticeConsumed }) => {
   const [email, setEmail] = useState('');
   const [countryCode, setCountryCode] = useState('IN'); // Default to India
   const [mobile, setMobile] = useState('');
@@ -38,7 +40,9 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
   const [incompleteSignupError, setIncompleteSignupError] = useState<IncompleteSignupError | null>(null);
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showNoticeModal, setShowNoticeModal] = useState(false);
   const successTimerRef = useRef<number | null>(null);
+  const noticeTimerRef = useRef<number | null>(null);
 
   const [login, { loading }] = useMutation(LOGIN, {
     onCompleted: async (data) => {
@@ -215,8 +219,31 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
       if (successTimerRef.current) {
         window.clearTimeout(successTimerRef.current);
       }
+      if (noticeTimerRef.current) {
+        window.clearTimeout(noticeTimerRef.current);
+      }
     };
   }, []);
+
+  useEffect(() => {
+    if (!noticeMessage) {
+      setShowNoticeModal(false);
+      return;
+    }
+    setShowNoticeModal(true);
+    if (noticeTimerRef.current) {
+      window.clearTimeout(noticeTimerRef.current);
+    }
+    noticeTimerRef.current = window.setTimeout(() => {
+      setShowNoticeModal(false);
+      onNoticeConsumed?.();
+    }, 2000);
+    return () => {
+      if (noticeTimerRef.current) {
+        window.clearTimeout(noticeTimerRef.current);
+      }
+    };
+  }, [noticeMessage, onNoticeConsumed]);
 
   return (
     <>
@@ -488,6 +515,16 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
           </div>
         </div>
       )}
+
+      {showNoticeModal && noticeMessage ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-subtle bg-white p-6 shadow-xl">
+            <p className="text-lg font-semibold text-primary text-center">
+              {noticeMessage}
+            </p>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 };

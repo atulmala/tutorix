@@ -4,6 +4,7 @@ import {
   comingSundayStartUtc,
   formatAvailabilityUpdatedTill,
   formatIstDayHeader,
+  formatSlotTimeLabel,
   istSlotToUtc,
   listDailySlotStarts,
   needsCalendarUpdateThroughSunday,
@@ -25,9 +26,17 @@ describe('tutor-calendar', () => {
     expect(formatIstDayHeader(day)).toBe('02/06 Tu');
   });
 
+  it('formats slot times in 24-hour IST without AM/PM', () => {
+    expect(formatSlotTimeLabel(7, 0)).toBe('07:00');
+    expect(formatSlotTimeLabel(9, 30)).toBe('09:30');
+    expect(formatSlotTimeLabel(12, 0)).toBe('12:00');
+    expect(formatSlotTimeLabel(15, 0)).toBe('15:00');
+    expect(formatSlotTimeLabel(21, 30)).toBe('21:30');
+  });
+
   it('formats availability updated till label in IST', () => {
     const slot = istSlotToUtc(2026, 5, 3, 15, 0);
-    expect(formatAvailabilityUpdatedTill(slot)).toBe('3rd June 3:00 PM');
+    expect(formatAvailabilityUpdatedTill(slot)).toBe('3rd June 15:00');
   });
 
   it('round-trips slot keys through UTC', () => {

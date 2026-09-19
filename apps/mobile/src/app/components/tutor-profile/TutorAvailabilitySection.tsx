@@ -241,13 +241,13 @@ export function TutorAvailabilitySection({
 
           <View style={styles.legendRow}>
             <View style={styles.legendItem}>
-              <View style={[styles.cell, styles.cellSelected]}>
+              <View style={[styles.legendCell, styles.cellSelected]}>
                 <Text style={styles.cellLetter}>A</Text>
               </View>
               <Text style={styles.legendText}>Available</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.cell, styles.cellEmpty]} />
+              <View style={[styles.legendCell, styles.cellEmpty]} />
               <Text style={styles.legendText}>Not available</Text>
             </View>
           </View>
@@ -255,62 +255,77 @@ export function TutorAvailabilitySection({
           {loading ? (
             <ActivityIndicator style={{ marginVertical: 16 }} />
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator>
-              <View>
-                <View style={styles.headerRow}>
-                  <View style={styles.dateCol}>
+            <ScrollView
+              style={styles.gridVScroll}
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+            >
+              <View style={styles.gridWrap}>
+                <View style={styles.dateColSticky}>
+                  <View style={styles.dateHeaderCell}>
                     <Text style={styles.dateColLabel}>Date</Text>
                   </View>
-                  {editor.timeSlots.map((slot, timeIndex) => (
-                    <TouchableOpacity
-                      key={`${slot.hour}-${slot.minute}`}
-                      style={styles.timeColHeader}
-                      onPress={() => editor.toggleTimeColumn(timeIndex)}
-                    >
-                      <Text style={styles.timeLabel} numberOfLines={1}>
-                        {formatSlotTimeLabel(slot.hour, slot.minute)}
-                      </Text>
-                    </TouchableOpacity>
+                  {editor.grid.days.map((day, dayIndex) => (
+                    <View key={day.toISOString()} style={styles.dateRowCell}>
+                      <TouchableOpacity onPress={() => editor.toggleDayRow(dayIndex)}>
+                        <Text style={styles.dayLabel} numberOfLines={1}>
+                          {formatIstDayHeader(day)}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => editor.clearDay(dayIndex)}>
+                        <Text style={styles.clearDay}>Clear</Text>
+                      </TouchableOpacity>
+                    </View>
                   ))}
                 </View>
-                <ScrollView style={{ maxHeight: 280 }}>
-                  {editor.grid.days.map((day, dayIndex) => {
-                    const dayCells = editor.grid.cells[dayIndex] ?? [];
-                    return (
-                      <View key={day.toISOString()} style={styles.slotRow}>
-                        <View style={styles.dateCol}>
-                          <TouchableOpacity onPress={() => editor.toggleDayRow(dayIndex)}>
-                            <Text style={styles.dayLabel} numberOfLines={1}>
-                              {formatIstDayHeader(day)}
-                            </Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity onPress={() => editor.clearDay(dayIndex)}>
-                            <Text style={styles.clearDay}>Clear</Text>
-                          </TouchableOpacity>
+                <ScrollView
+                  horizontal
+                  nestedScrollEnabled
+                  showsHorizontalScrollIndicator
+                  style={styles.slotsHScroll}
+                >
+                  <View>
+                    <View style={styles.headerRow}>
+                      {editor.timeSlots.map((slot, timeIndex) => (
+                        <TouchableOpacity
+                          key={`${slot.hour}-${slot.minute}`}
+                          style={styles.timeColHeader}
+                          onPress={() => editor.toggleTimeColumn(timeIndex)}
+                        >
+                          <Text style={styles.timeLabel} numberOfLines={1}>
+                            {formatSlotTimeLabel(slot.hour, slot.minute)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    {editor.grid.days.map((day, dayIndex) => {
+                      const dayCells = editor.grid.cells[dayIndex] ?? [];
+                      return (
+                        <View key={day.toISOString()} style={styles.slotRow}>
+                          {dayCells.map((cell) => {
+                            const selected = editor.selectedKeys.has(cell.key);
+                            return (
+                              <TouchableOpacity
+                                key={cell.key}
+                                disabled={cell.disabled}
+                                style={[
+                                  styles.cell,
+                                  cell.disabled && styles.cellDisabled,
+                                  selected && styles.cellSelected,
+                                  !selected && !cell.disabled && styles.cellEmpty,
+                                ]}
+                                onPress={() => toggleCell(cell.key, cell.disabled)}
+                              >
+                                {selected ? (
+                                  <Text style={styles.cellLetter}>A</Text>
+                                ) : null}
+                              </TouchableOpacity>
+                            );
+                          })}
                         </View>
-                        {dayCells.map((cell) => {
-                          const selected = editor.selectedKeys.has(cell.key);
-                          return (
-                            <TouchableOpacity
-                              key={cell.key}
-                              disabled={cell.disabled}
-                              style={[
-                                styles.cell,
-                                cell.disabled && styles.cellDisabled,
-                                selected && styles.cellSelected,
-                                !selected && !cell.disabled && styles.cellEmpty,
-                              ]}
-                              onPress={() => toggleCell(cell.key, cell.disabled)}
-                            >
-                              {selected ? (
-                                <Text style={styles.cellLetter}>A</Text>
-                              ) : null}
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                    );
-                  })}
+                      );
+                    })}
+                  </View>
                 </ScrollView>
               </View>
             </ScrollView>
@@ -334,6 +349,11 @@ export function TutorAvailabilitySection({
     </View>
   );
 }
+
+const SLOT_COL_WIDTH = 40;
+const DATE_COL_WIDTH = 56;
+const GRID_HEADER_HEIGHT = 28;
+const GRID_ROW_HEIGHT = 44;
 
 const styles = StyleSheet.create({
   section: {
@@ -439,18 +459,63 @@ const styles = StyleSheet.create({
   legendRow: { flexDirection: 'row', gap: 16, marginBottom: 8 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendText: { fontSize: 11, color: '#64748b' },
-  headerRow: { flexDirection: 'row', borderBottomWidth: 1, borderColor: '#e2e8f0' },
-  slotRow: { flexDirection: 'row', alignItems: 'center' },
-  dateCol: { width: 56, paddingVertical: 4, paddingRight: 4 },
+  gridVScroll: { maxHeight: 280 },
+  gridWrap: { flexDirection: 'row', alignItems: 'flex-start' },
+  dateColSticky: {
+    width: DATE_COL_WIDTH,
+    zIndex: 2,
+    backgroundColor: '#f0fdfa',
+    borderRightWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  dateHeaderCell: {
+    height: GRID_HEADER_HEIGHT,
+    justifyContent: 'center',
+    paddingRight: 4,
+    borderBottomWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  dateRowCell: {
+    height: GRID_ROW_HEIGHT,
+    justifyContent: 'center',
+    paddingRight: 4,
+  },
+  slotsHScroll: { flex: 1 },
+  headerRow: {
+    flexDirection: 'row',
+    height: GRID_HEADER_HEIGHT,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  slotRow: {
+    flexDirection: 'row',
+    height: GRID_ROW_HEIGHT,
+    alignItems: 'center',
+  },
   dateColLabel: { fontSize: 9, fontWeight: '600', color: '#64748b' },
-  timeColHeader: { width: 40, alignItems: 'center', paddingVertical: 4 },
+  timeColHeader: {
+    width: SLOT_COL_WIDTH,
+    height: GRID_HEADER_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   dayLabel: { fontSize: 10, fontWeight: '600', color: '#334155' },
   clearDay: { fontSize: 8, color: '#0284c7', marginTop: 2 },
-  timeLabel: { fontSize: 8, color: '#64748b', textAlign: 'center' },
+  timeLabel: { fontSize: 8, color: '#64748b', textAlign: 'center', width: '100%' },
   cell: {
+    width: SLOT_COL_WIDTH,
+    height: 22,
+    marginVertical: 2,
+    marginHorizontal: 0,
+    borderRadius: 4,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  legendCell: {
     width: 22,
     height: 22,
-    margin: 2,
     borderRadius: 4,
     borderWidth: 1,
     alignItems: 'center',

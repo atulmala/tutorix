@@ -5,6 +5,7 @@
  */
 
 export * from './country-code';
+export * from './already-registered';
 export * from './education-qualification.enum';
 export * from './grade-type.enum';
 export * from './employment-type.enum';
