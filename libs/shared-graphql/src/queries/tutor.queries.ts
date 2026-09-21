@@ -13,6 +13,7 @@ export const GET_MY_TUTOR_PROFILE = gql`
       onboardingCelebrationSeen
       certificationStage
       testTutor
+      bankDetailsComplete
       user {
         id
         firstName

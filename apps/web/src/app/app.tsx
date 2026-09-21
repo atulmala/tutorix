@@ -22,6 +22,7 @@ import { StudentOnboarding } from './components/student-onboarding';
 import { StudentHomePage } from './components/student-home';
 import { StudentProfilePage } from './components/student-profile';
 import { StudentTutorSearchPage } from './components/student-tutor-search/StudentTutorSearchPage';
+import { clearStudentTutorSearchDraft } from './components/student-tutor-search/student-tutor-search-draft';
 import { StudentTutorPreviewPage } from './components/student-tutor-preview/StudentTutorPreviewPage';
 import { AppHeader } from './components/AppHeader';
 import { WalletPage } from './components/wallet';
@@ -36,7 +37,7 @@ import {
   type WalletReturnView,
   type WebView,
 } from './web-navigation';
-import { isBankDetailsMarkedComplete, needsRateCardSetup } from '@tutorix/shared-utils';
+import { ALREADY_REGISTERED_LOGIN_MESSAGE, isBankDetailsMarkedComplete, needsRateCardSetup } from '@tutorix/shared-utils';
 
 function AppContent() {
   const { user: currentUser, refreshUser, logout } = useWebAuth();
@@ -60,6 +61,7 @@ function AppContent() {
   const [tutorProfileForOnboarding, setTutorProfileForOnboarding] = useState<{ certificationStage?: string } | null>(null);
   const [studentProfileForOnboarding, setStudentProfileForOnboarding] = useState<{ onboardingStage?: string } | null>(null);
   const [signupSuccessMessage, setSignupSuccessMessage] = useState<string | null>(null);
+  const [loginNotice, setLoginNotice] = useState<string | null>(null);
   const [rateCardCanDefer, setRateCardCanDefer] = useState(false);
 
   const skipSessionRestoreRef = useRef(false);
@@ -199,16 +201,18 @@ function AppContent() {
       }
       const tutor = data?.myTutorProfile;
       if (tutor?.onBoardingComplete && tutor.onboardingCelebrationSeen) {
-        let bankDetailsComplete = false;
+        let bankDetailsComplete = tutor.bankDetailsComplete === true;
         let rateCardSetupNeeded = false;
         try {
           const detailResult = await fetchMyTutorDetail();
-          bankDetailsComplete = isBankDetailsMarkedComplete(
-            detailResult.data?.myTutorDetail?.user?.bankDetails,
-          );
-          rateCardSetupNeeded = needsRateCardSetup(
-            detailResult.data?.myTutorDetail?.offerings,
-          );
+          if (detailResult.data?.myTutorDetail) {
+            bankDetailsComplete = isBankDetailsMarkedComplete(
+              detailResult.data.myTutorDetail.user?.bankDetails,
+            );
+            rateCardSetupNeeded = needsRateCardSetup(
+              detailResult.data.myTutorDetail.offerings,
+            );
+          }
         } catch (err) {
           console.error('Error fetching tutor setup details:', err);
         }
@@ -351,8 +355,19 @@ function AppContent() {
 
   const handleLogin = () => {
     setSignupSuccessMessage(null);
+    setLoginNotice(null);
     setCurrentView('login');
   };
+
+  const handleAlreadyRegistered = () => {
+    setSignupSuccessMessage(null);
+    setLoginNotice(ALREADY_REGISTERED_LOGIN_MESSAGE);
+    setCurrentView('login');
+  };
+
+  const handleLoginNoticeConsumed = useCallback(() => {
+    setLoginNotice(null);
+  }, []);
 
   const handleLoginSuccess = async (user?: { id: number; role?: string; firstName?: string; lastName?: string; email?: string }) => {
     const refreshed = await refreshUser();
@@ -372,6 +387,7 @@ function AppContent() {
     setTutorProfileForOnboarding(null);
     setStudentProfileForOnboarding(null);
     setTutorPreview(null);
+    clearStudentTutorSearchDraft();
     setResumeUserId(undefined);
     setResumeVerificationStatus(undefined);
     setResetPasswordToken(undefined);
@@ -457,27 +473,9 @@ function AppContent() {
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-8">
           <StudentHomePage
-            onOpenTutorSearch={() => setCurrentView('student-tutor-search')}
-          />
-        </main>
-      </div>
-    );
-  }
-
-  if (currentView === 'student-tutor-search') {
-    return (
-      <div className="min-h-screen bg-subtle text-primary">
-        <AppHeader
-          title="Search"
-          onLogout={handleLogout}
-          onBack={() => setCurrentView('student-home')}
-          onOpenWallet={() => handleOpenWallet('student-home')}
-        />
-        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
-          <StudentTutorSearchPage
-            onOpenTutorPreview={(tutorId, offeringId) => {
-              setTutorPreview({ tutorId, offeringId });
-              setCurrentView('student-tutor-preview');
+            onOpenTutorSearch={() => {
+              clearStudentTutorSearchDraft();
+              setCurrentView('student-tutor-search');
             }}
           />
         </main>
@@ -485,20 +483,36 @@ function AppContent() {
     );
   }
 
-  if (currentView === 'student-tutor-preview' && tutorPreview) {
+  if (
+    currentView === 'student-tutor-search' ||
+    (currentView === 'student-tutor-preview' && tutorPreview)
+  ) {
+    const onSearch = currentView === 'student-tutor-search';
     return (
       <div className="min-h-screen bg-subtle text-primary">
         <AppHeader
-          title="Tutor"
+          title={onSearch ? 'Search' : 'Tutor'}
           onLogout={handleLogout}
-          onBack={() => setCurrentView('student-tutor-search')}
+          onBack={() =>
+            setCurrentView(onSearch ? 'student-home' : 'student-tutor-search')
+          }
           onOpenWallet={() => handleOpenWallet('student-home')}
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
-          <StudentTutorPreviewPage
-            tutorId={tutorPreview.tutorId}
-            offeringId={tutorPreview.offeringId}
-          />
+          <div className={onSearch ? 'w-full' : 'hidden'}>
+            <StudentTutorSearchPage
+              onOpenTutorPreview={(tutorId, offeringId) => {
+                setTutorPreview({ tutorId, offeringId });
+                setCurrentView('student-tutor-preview');
+              }}
+            />
+          </div>
+          {!onSearch && tutorPreview ? (
+            <StudentTutorPreviewPage
+              tutorId={tutorPreview.tutorId}
+              offeringId={tutorPreview.offeringId}
+            />
+          ) : null}
         </main>
       </div>
     );
@@ -544,6 +558,7 @@ function AppContent() {
           <SignUp 
             onBackHome={handleBackHome} 
             onLogin={handleLogin}
+            onAlreadyRegistered={handleAlreadyRegistered}
             onSignUpSuccess={handleSignUpSuccess}
             onTutorOnboarding={handleTutorOnboarding}
             resumeUserId={resumeUserId}
@@ -701,6 +716,8 @@ function AppContent() {
             onSignUp={handleSignUp} 
             onLoginSuccess={handleLoginSuccess}
             onForgotPassword={handleForgotPassword}
+            noticeMessage={loginNotice}
+            onNoticeConsumed={handleLoginNoticeConsumed}
           />
         </main>
       </div>

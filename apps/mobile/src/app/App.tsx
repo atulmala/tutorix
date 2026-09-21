@@ -48,6 +48,7 @@ import {
 } from '@tutorix/shared-graphql/client/mobile/token-storage';
 import { isBankDetailsMarkedComplete } from '@tutorix/shared-utils/bank-details-formatters';
 import { needsRateCardSetup } from '@tutorix/shared-utils/rate-card';
+import { ALREADY_REGISTERED_LOGIN_MESSAGE } from '@tutorix/shared-utils/already-registered';
 import { GET_MY_STUDENT_PROFILE, GET_MY_TUTOR_DETAIL, GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
 import { LOGIN } from '@tutorix/shared-graphql/mutations';
 import {
@@ -122,6 +123,7 @@ function AppContent() {
       mobileVerificationRequired?: boolean;
     };
   } | null>(null);
+  const [loginNotice, setLoginNotice] = useState<string | null>(null);
   const [rateCardCanDefer, setRateCardCanDefer] = useState(false);
   const [pushBanner, setPushBanner] = useState<PushPayload | null>(null);
   const currentViewRef = useRef(currentView);
@@ -211,18 +213,19 @@ function AppContent() {
       }
 
       setTutorProfileForOnboarding(null);
-      let bankDetailsComplete = false;
+      let bankDetailsComplete = tutor.bankDetailsComplete === true;
       let rateCardSetupNeeded = false;
       try {
         const detailResult = await getMyTutorDetail();
-        bankDetailsComplete = isBankDetailsMarkedComplete(
-          detailResult.data?.myTutorDetail?.user?.bankDetails,
-        );
-        rateCardSetupNeeded = needsRateCardSetup(
-          detailResult.data?.myTutorDetail?.offerings,
-        );
+        if (detailResult.data?.myTutorDetail) {
+          bankDetailsComplete = isBankDetailsMarkedComplete(
+            detailResult.data.myTutorDetail.user?.bankDetails,
+          );
+          rateCardSetupNeeded = needsRateCardSetup(
+            detailResult.data.myTutorDetail.offerings,
+          );
+        }
       } catch {
-        bankDetailsComplete = false;
         rateCardSetupNeeded = false;
       }
       setCurrentView(
@@ -265,6 +268,15 @@ function AppContent() {
   };
 
   const handleForgotPassword = () => setCurrentView('forgotPassword');
+
+  const handleAlreadyRegistered = useCallback(() => {
+    setLoginNotice(ALREADY_REGISTERED_LOGIN_MESSAGE);
+    setCurrentView('login');
+  }, []);
+
+  const handleLoginNoticeConsumed = useCallback(() => {
+    setLoginNotice(null);
+  }, []);
 
   const handleSignUp = (
     userId?: number,
@@ -394,6 +406,7 @@ function AppContent() {
         resumeVerificationStatus={signupResume?.verificationStatus}
         onVerificationComplete={handleSignupComplete}
         onFallbackToLogin={() => setCurrentView('login')}
+        onAlreadyRegistered={handleAlreadyRegistered}
       />
     );
   } else if (currentView === 'forgotPassword') {
@@ -599,6 +612,8 @@ function AppContent() {
         onLoginSuccess={handleLoginSuccess}
         onForgotPassword={handleForgotPassword}
         onSignUp={handleSignUp}
+        noticeMessage={loginNotice}
+        onNoticeConsumed={handleLoginNoticeConsumed}
       />
     );
   }

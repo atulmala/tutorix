@@ -204,7 +204,7 @@ export function validateSlotInstant(
 ): { ok: true } | { ok: false; message: string } {
   const p = toIstParts(startsAt);
   if (!isOnDailyGrid(p.hour, p.minute)) {
-    return { ok: false, message: 'Slot must align to the 30-minute teaching grid (7:00 AM–9:30 PM IST).' };
+    return { ok: false, message: 'Slot must align to the 30-minute teaching grid (07:00–21:30 IST).' };
   }
   if (
     startsAt.getUTCSeconds() !== 0 ||
@@ -312,9 +312,7 @@ export function clampViewStartUtc(
 }
 
 export function formatSlotTimeLabel(hour: number, minute: number): string {
-  const h12 = hour % 12 === 0 ? 12 : hour % 12;
-  const ampm = hour < 12 ? 'AM' : 'PM';
-  return `${h12}:${pad2(minute)} ${ampm}`;
+  return `${pad2(hour)}:${pad2(minute)}`;
 }
 
 const IST_MONTH_NAMES = [
@@ -346,7 +344,7 @@ function ordinalIstDay(day: number): string {
   }
 }
 
-/** e.g. `3rd June 3:00 PM` for the latest saved availability slot (IST). */
+/** e.g. `3rd June 15:00` for the latest saved availability slot (IST). */
 export function formatAvailabilityUpdatedTill(instant: Date): string {
   const p = toIstParts(instant);
   const month = IST_MONTH_NAMES[p.month] ?? 'Unknown';

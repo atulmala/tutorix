@@ -38,7 +38,7 @@ export const TutorBankSetupPage: React.FC<TutorBankSetupPageProps> = ({
     fetchPolicy: 'cache-and-network',
   });
   const [saveBankDetails, { loading }] = useMutation(SAVE_MY_BANK_DETAILS, {
-    refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }, { query: GET_MY_TUTOR_DETAIL }],
+    refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }],
     awaitRefetchQueries: true,
   });
   const [error, setError] = useState<string | null>(null);
