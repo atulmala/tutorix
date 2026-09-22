@@ -15,11 +15,11 @@ import {
 } from './tutor-calendar';
 
 describe('tutor-calendar', () => {
-  it('lists 30 daily slot starts from 7:00 to 21:30', () => {
+  it('lists 25 daily slot starts from 8:00 to 20:00', () => {
     const rows = listDailySlotStarts();
-    expect(rows).toHaveLength(30);
-    expect(rows[0]).toEqual({ hour: 7, minute: 0 });
-    expect(rows[rows.length - 1]).toEqual({ hour: 21, minute: 30 });
+    expect(rows).toHaveLength(25);
+    expect(rows[0]).toEqual({ hour: 8, minute: 0 });
+    expect(rows[rows.length - 1]).toEqual({ hour: 20, minute: 0 });
   });
 
   it('formats day header as dd/mm weekday', () => {
@@ -108,8 +108,8 @@ describe('tutor-calendar', () => {
       now,
     });
     expect(days).toHaveLength(7);
-    expect(timeSlots).toHaveLength(30);
+    expect(timeSlots).toHaveLength(25);
     expect(cells).toHaveLength(7);
-    expect(cells[0]).toHaveLength(30);
+    expect(cells[0]).toHaveLength(25);
   });
 });

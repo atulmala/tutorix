@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
+  formatDailyGridRangeLabel,
   isOnDailyGrid,
   isRateCardComplete,
   materializedAvailableSlotStarts,
@@ -288,7 +289,7 @@ export class TutorCalendarService {
       }
       if (!isOnDailyGrid(hour, minute)) {
         throw new BadRequestException(
-          'Unavailable slots must align to the 30-minute teaching grid (07:00–21:30 IST).',
+          `Unavailable slots must align to the 30-minute teaching grid (${formatDailyGridRangeLabel()}).`,
         );
       }
       const key = `${dayOfWeek}-${hour}-${minute}`;

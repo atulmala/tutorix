@@ -1,6 +1,6 @@
 ---
 title: Tutor weekly recurring calendar
-status: in-progress
+status: done
 jira: null
 ---
 
