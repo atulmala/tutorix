@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useMutation } from '@apollo/client';
-import { ADMIN_REVIEW_DOCUMENT } from '@tutorix/shared-graphql';
+import { ADMIN_REVIEW_DOCUMENT } from '@tutorix/shared-graphql/mutations';
 import {
   documentStatusBadgeClass,
   documentStatusLabel,

@@ -105,6 +105,8 @@ function AppContent() {
   const [currentView, setCurrentView] = useState<AppView>('splash');
   const [walletReturnView, setWalletReturnView] =
     useState<WalletReturnView>('tutorHome');
+  const [tutorCalendarReturnView, setTutorCalendarReturnView] =
+    useState<AppView>('tutorHome');
   const [tutorProfileForOnboarding, setTutorProfileForOnboarding] = useState<{
     certificationStage?: string;
   } | null>(null);
@@ -146,6 +148,11 @@ function AppContent() {
       pushBannerTimerRef.current = null;
     }
   }, [apolloClient]);
+
+  const openTutorCalendar = useCallback((returnTo: AppView) => {
+    setTutorCalendarReturnView(returnTo);
+    setCurrentView('tutorCalendar');
+  }, []);
 
   const handleAccountDeleted = useCallback(async () => {
     await clearBiometricToken();
@@ -215,15 +222,18 @@ function AppContent() {
       setTutorProfileForOnboarding(null);
       let bankDetailsComplete = tutor.bankDetailsComplete === true;
       let rateCardSetupNeeded = false;
+      let needsWeeklyAvailabilitySetup = false;
       try {
         const detailResult = await getMyTutorDetail();
-        if (detailResult.data?.myTutorDetail) {
+        const detail = detailResult.data?.myTutorDetail;
+        if (detail) {
           bankDetailsComplete = isBankDetailsMarkedComplete(
-            detailResult.data.myTutorDetail.user?.bankDetails,
+            detail.user?.bankDetails,
           );
-          rateCardSetupNeeded = needsRateCardSetup(
-            detailResult.data.myTutorDetail.offerings,
-          );
+          rateCardSetupNeeded = needsRateCardSetup(detail.offerings);
+          needsWeeklyAvailabilitySetup =
+            detail.canSetAvailability === true &&
+            detail.availabilityConfiguredAt == null;
         }
       } catch {
         rateCardSetupNeeded = false;
@@ -234,6 +244,7 @@ function AppContent() {
           onboardingCelebrationSeen: tutor.onboardingCelebrationSeen,
           bankDetailsComplete,
           needsRateCardSetup: rateCardSetupNeeded,
+          needsWeeklyAvailabilitySetup,
         }),
       );
     } catch {
@@ -540,7 +551,7 @@ function AppContent() {
         />
         <TutorHomeScreen
           onSetRateCard={() => setCurrentView('tutorRateCardSetup')}
-          onUpdateCalendar={() => setCurrentView('tutorCalendar')}
+          onUpdateCalendar={() => openTutorCalendar('tutorHome')}
         />
       </View>
     );
@@ -549,11 +560,15 @@ function AppContent() {
       <View style={{ flex: 1 }}>
         <TutorNavHeader
           title="Calendar"
-          onBack={() => setCurrentView('tutorHome')}
+          onBack={() => setCurrentView(tutorCalendarReturnView)}
           onLogout={handleLogout}
           onOpenWallet={() => handleOpenWallet('tutorHome')}
         />
-        <TutorCalendarScreen />
+        <TutorCalendarScreen
+          onSetupComplete={() => {
+            void routeLoggedInTutor();
+          }}
+        />
       </View>
     );
   } else if (currentView === 'tutorProfile') {
@@ -566,6 +581,7 @@ function AppContent() {
           onOpenWallet={() => handleOpenWallet('tutorProfile')}
         />
         <TutorDetailScreen
+          onOpenCalendar={() => openTutorCalendar('tutorProfile')}
           onAccountDeleted={() => {
             void handleAccountDeleted();
           }}

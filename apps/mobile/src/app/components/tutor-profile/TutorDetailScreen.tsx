@@ -89,6 +89,7 @@ type TutorOffering = TutorDetailRecord['offerings'][number];
 
 type TutorDetailScreenProps = {
   onAccountDeleted?: () => void;
+  onOpenCalendar?: () => void;
 };
 
 type MyTutorDetailData = {
@@ -244,6 +245,7 @@ function DocumentViewerModal({
 
 export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
   onAccountDeleted,
+  onOpenCalendar,
 }) => {
   const { data, loading, error, refetch } = useQuery<MyTutorDetailData>(GET_MY_TUTOR_DETAIL, {
     fetchPolicy: 'cache-and-network',
@@ -843,6 +845,8 @@ export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
           setRateCardSaveError(null);
           setRateCardOffering(offering);
         }}
+        mode="summary"
+        onOpenCalendar={onOpenCalendar}
       />
 
       <View style={styles.offeringsSection}>

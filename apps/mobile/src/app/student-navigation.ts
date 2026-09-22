@@ -69,6 +69,7 @@ export type TutorRouteProfile = {
   onboardingCelebrationSeen?: boolean;
   bankDetailsComplete?: boolean;
   needsRateCardSetup?: boolean;
+  needsWeeklyAvailabilitySetup?: boolean;
 };
 
 export function tutorViewAfterProfile(
@@ -85,6 +86,9 @@ export function tutorViewAfterProfile(
   }
   if (tutor.needsRateCardSetup) {
     return 'tutorRateCardSetup';
+  }
+  if (tutor.needsWeeklyAvailabilitySetup) {
+    return 'tutorCalendar';
   }
   return 'tutorHome';
 }

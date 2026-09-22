@@ -23,6 +23,7 @@ export type TutorAvailabilitySectionProps = {
   hideWhenLocked?: boolean;
   /** Open the collapsible calendar on first render. */
   defaultOpen?: boolean;
+  onSaved?: () => void;
 };
 
 const CALENDAR_STYLES = {
@@ -119,6 +120,7 @@ export function TutorAvailabilitySection({
   title,
   hideWhenLocked = false,
   defaultOpen = false,
+  onSaved,
 }: TutorAvailabilitySectionProps) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [updatedTillLabel, setUpdatedTillLabel] = useState<string | null>(null);
@@ -185,20 +187,11 @@ export function TutorAvailabilitySection({
       updatedTillLabel={updatedTillLabel}
       updatedTillLoading={updatedTillLoading}
     >
-      {!readOnly ? (
-        <p className="mb-4 text-sm text-teal-900/80">
-          Click a slot to mark available (A). Empty slots are not offered to students.
-          Each slot is a 1-hour class.
-        </p>
-      ) : (
-        <p className="mb-4 text-sm text-teal-900/80">
-          View-only schedule. Green slots (A) are when this tutor is available for classes.
-        </p>
-      )}
       <TutorAvailabilityCalendar
         tutorId={tutorId}
         readOnly={readOnly}
         onSaveError={setSaveError}
+        onSaved={onSaved}
         onUpdatedTill={({ label, loading }) => {
           setUpdatedTillLabel(label);
           setUpdatedTillLoading(loading);

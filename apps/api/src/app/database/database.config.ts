@@ -24,6 +24,7 @@ import { UserBankDetailsEntity } from '../modules/user-bank-details/entities/use
 import { TutorOfferingRateCardEntity } from '../modules/tutor-rate-card/entities/tutor-offering-rate-card.entity';
 import { TutorOfferingPtFeeEntity } from '../modules/tutor/entities/tutor-offering-pt-fee.entity';
 import { TutorCalendar } from '../modules/tutor-calendar/entities/tutor-calendar.entity';
+import { TutorWeeklyUnavailability } from '../modules/tutor-calendar/entities/tutor-weekly-unavailability.entity';
 import { TutorClassSessionEntity } from '../modules/tutor-class-session/entities/tutor-class-session.entity';
 import { TutorClassSessionEnrollmentEntity } from '../modules/tutor-class-session/entities/tutor-class-session-enrollment.entity';
 import { Student } from '../modules/student/entities/student.entity';
@@ -84,6 +85,7 @@ export function createDatabaseOptions(
       TutorOfferingRateCardEntity,
       TutorOfferingPtFeeEntity,
       TutorCalendar,
+      TutorWeeklyUnavailability,
       TutorClassSessionEntity,
       TutorClassSessionEnrollmentEntity,
       Student,

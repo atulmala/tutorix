@@ -21,6 +21,7 @@ export * from './tutor-qualification-form';
 export * from './rate-card';
 export * from './tutor-offering-display';
 export * from './tutor-calendar';
+export * from './tutor-weekly-calendar';
 export * from './tutor-search';
 export * from './student-education-offering';
 export * from './student-schedule';

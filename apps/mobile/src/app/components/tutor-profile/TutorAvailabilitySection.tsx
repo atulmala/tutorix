@@ -1,32 +1,23 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
 } from 'react-native';
-import { useMutation, useQuery } from '@apollo/client';
+import { useQuery } from '@apollo/client';
 import {
-  GET_MY_TUTOR_CALENDAR,
   GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
 } from '@tutorix/shared-graphql/queries';
-import { SAVE_MY_TUTOR_CALENDAR } from '@tutorix/shared-graphql/mutations';
 import {
   BANK_DETAILS_REQUIRED_FOR_RATE_CARD_MESSAGE,
   formatAvailabilityUpdatedTill,
-  formatIstDayHeader,
-  formatSlotTimeLabel,
   offeringCoveredBySharedRateCard,
   RATE_CARD_REQUIRED_MESSAGE,
   tutorHasAtLeastOneCompleteRateCard,
 } from '@tutorix/shared-utils';
-import {
-  useAvailabilityEditor,
-  type CalendarSlotRow,
-} from '../../hooks/useAvailabilityEditor';
 import type { TutorDetailRecord } from '@tutorix/tutor-detail-ui';
+import { WeeklyAvailabilityEditor } from './WeeklyAvailabilityEditor';
 
 type Offering = TutorDetailRecord['offerings'][number];
 
@@ -35,7 +26,10 @@ type Props = {
   bankDetailsComplete?: boolean;
   onOpenBankDetails?: () => void;
   onOpenRateCard: (offering: Offering) => void;
-  defaultOpen?: boolean;
+  /** Profile: link to calendar screen. Calendar screen: full editor. */
+  mode?: 'summary' | 'editor';
+  onOpenCalendar?: () => void;
+  onSaved?: () => void;
 };
 
 function CollapsibleHeader({
@@ -93,25 +87,20 @@ export function TutorAvailabilitySection({
   bankDetailsComplete = true,
   onOpenBankDetails,
   onOpenRateCard,
-  defaultOpen = false,
+  mode = 'summary',
+  onOpenCalendar,
+  onSaved,
 }: Props) {
   const canSet = tutor.canSetAvailability === true;
   const hasRateCard = tutorHasAtLeastOneCompleteRateCard(tutor.offerings);
   const unlocked = canSet && hasRateCard;
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(mode === 'editor');
   const [saveError, setSaveError] = useState<string | null>(null);
-
-  const rangeEditor = useAvailabilityEditor({ loadedSlots: [], loading: false });
-  const { data, loading, refetch } = useQuery(GET_MY_TUTOR_CALENDAR, {
-    variables: { from: rangeEditor.rangeStart, to: rangeEditor.rangeEnd },
-    skip: !unlocked,
-    fetchPolicy: 'network-only',
-  });
+  const isEditor = mode === 'editor';
 
   const {
     data: updatedTillData,
     loading: updatedTillLoading,
-    refetch: refetchUpdatedTill,
   } = useQuery(GET_MY_TUTOR_CALENDAR_UPDATED_TILL, {
     skip: !unlocked,
     fetchPolicy: 'network-only',
@@ -124,51 +113,6 @@ export function TutorAvailabilitySection({
           new Date(updatedTillData.myTutorCalendarUpdatedTill),
         )
       : null;
-
-  const loadedSlots: CalendarSlotRow[] = data?.myTutorCalendar ?? [];
-
-  const editor = useAvailabilityEditor({ loadedSlots, loading });
-  const [saveCalendar, { loading: saving }] = useMutation(SAVE_MY_TUTOR_CALENDAR);
-
-  const navigateWeek = {
-    goPrev: () => {
-      editor.goPrev();
-      rangeEditor.goPrev();
-    },
-    goNext: () => {
-      editor.goNext();
-      rangeEditor.goNext();
-    },
-  };
-
-  const handleSave = async () => {
-    setSaveError(null);
-    try {
-      await saveCalendar({
-        variables: {
-          input: {
-            rangeStart: editor.rangeStart,
-            rangeEnd: editor.rangeEnd,
-            slotStarts: editor.slotStartsForSave,
-          },
-        },
-      });
-      await Promise.all([refetch(), refetchUpdatedTill()]);
-      editor.markBaselineSaved();
-    } catch (err) {
-      setSaveError(
-        err instanceof Error ? err.message : 'Could not save availability.',
-      );
-    }
-  };
-
-  const toggleCell = useCallback(
-    (key: string, disabled: boolean) => {
-      if (disabled) return;
-      editor.toggleKey(key);
-    },
-    [editor],
-  );
 
   const firstNeedingRate = tutor.offerings.find(
     (o) => o.status === 'pt_passed' && !offeringCoveredBySharedRateCard(tutor.offerings, o),
@@ -214,137 +158,48 @@ export function TutorAvailabilitySection({
     );
   }
 
+  if (isEditor) {
+    return (
+      <View style={styles.editorRoot}>
+        {updatedTillLoading ? (
+          <Text style={[styles.updatedTill, styles.updatedTillUnlocked]}>
+            Loading update status…
+          </Text>
+        ) : updatedTillLabel ? (
+          <Text style={[styles.updatedTill, styles.updatedTillUnlocked]}>
+            Updated till {updatedTillLabel}
+          </Text>
+        ) : null}
+        <WeeklyAvailabilityEditor onSaveError={setSaveError} onSaved={onSaved} />
+        {saveError ? <Text style={styles.error}>{saveError}</Text> : null}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.section}>
-      <CollapsibleHeader
-        title="My Calendar"
-        open={open}
-        onToggle={() => setOpen((v) => !v)}
-        updatedTillLabel={updatedTillLabel}
-        updatedTillLoading={updatedTillLoading}
-      />
-      {open ? (
-        <View style={styles.collapseBody}>
-          <Text style={styles.hint}>
-            Tap a slot for available (A). Empty means not available. 1-hour classes.
-          </Text>
-
-          <View style={styles.navRow}>
-            <TouchableOpacity onPress={navigateWeek.goPrev} style={styles.navBtn}>
-              <Text style={styles.navBtnText}>←</Text>
-            </TouchableOpacity>
-            <Text style={styles.rangeLabel}>{editor.viewLabel}</Text>
-            <TouchableOpacity onPress={navigateWeek.goNext} style={styles.navBtn}>
-              <Text style={styles.navBtnText}>→</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.legendRow}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendCell, styles.cellSelected]}>
-                <Text style={styles.cellLetter}>A</Text>
-              </View>
-              <Text style={styles.legendText}>Available</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendCell, styles.cellEmpty]} />
-              <Text style={styles.legendText}>Not available</Text>
-            </View>
-          </View>
-
-          {loading ? (
-            <ActivityIndicator style={{ marginVertical: 16 }} />
-          ) : (
-            <ScrollView
-              style={styles.gridVScroll}
-              nestedScrollEnabled
-              showsVerticalScrollIndicator
-            >
-              <View style={styles.gridWrap}>
-                <View style={styles.dateColSticky}>
-                  <View style={styles.dateHeaderCell}>
-                    <Text style={styles.dateColLabel}>Date</Text>
-                  </View>
-                  {editor.grid.days.map((day, dayIndex) => (
-                    <View key={day.toISOString()} style={styles.dateRowCell}>
-                      <TouchableOpacity onPress={() => editor.toggleDayRow(dayIndex)}>
-                        <Text style={styles.dayLabel} numberOfLines={1}>
-                          {formatIstDayHeader(day)}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => editor.clearDay(dayIndex)}>
-                        <Text style={styles.clearDay}>Clear</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-                <ScrollView
-                  horizontal
-                  nestedScrollEnabled
-                  showsHorizontalScrollIndicator
-                  style={styles.slotsHScroll}
-                >
-                  <View>
-                    <View style={styles.headerRow}>
-                      {editor.timeSlots.map((slot, timeIndex) => (
-                        <TouchableOpacity
-                          key={`${slot.hour}-${slot.minute}`}
-                          style={styles.timeColHeader}
-                          onPress={() => editor.toggleTimeColumn(timeIndex)}
-                        >
-                          <Text style={styles.timeLabel} numberOfLines={1}>
-                            {formatSlotTimeLabel(slot.hour, slot.minute)}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                    {editor.grid.days.map((day, dayIndex) => {
-                      const dayCells = editor.grid.cells[dayIndex] ?? [];
-                      return (
-                        <View key={day.toISOString()} style={styles.slotRow}>
-                          {dayCells.map((cell) => {
-                            const selected = editor.selectedKeys.has(cell.key);
-                            return (
-                              <TouchableOpacity
-                                key={cell.key}
-                                disabled={cell.disabled}
-                                style={[
-                                  styles.cell,
-                                  cell.disabled && styles.cellDisabled,
-                                  selected && styles.cellSelected,
-                                  !selected && !cell.disabled && styles.cellEmpty,
-                                ]}
-                                onPress={() => toggleCell(cell.key, cell.disabled)}
-                              >
-                                {selected ? (
-                                  <Text style={styles.cellLetter}>A</Text>
-                                ) : null}
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-                      );
-                    })}
-                  </View>
-                </ScrollView>
-              </View>
-            </ScrollView>
-          )}
-
-          <View style={styles.footer}>
-            <Text style={editor.isDirty ? styles.dirty : styles.saved}>
-              {editor.isDirty ? 'Unsaved changes' : 'All changes saved'}
-            </Text>
-            <TouchableOpacity
-              style={[styles.saveBtn, (!editor.isDirty || saving) && styles.saveBtnDisabled]}
-              disabled={!editor.isDirty || saving || loading}
-              onPress={() => void handleSave()}
-            >
-              <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
-            </TouchableOpacity>
-          </View>
-          {saveError ? <Text style={styles.error}>{saveError}</Text> : null}
-        </View>
+      <Text style={styles.sectionTitle}>My Calendar</Text>
+      {updatedTillLoading ? (
+        <Text style={[styles.updatedTill, styles.updatedTillUnlocked]}>
+          Loading update status…
+        </Text>
+      ) : updatedTillLabel ? (
+        <Text style={[styles.updatedTill, styles.updatedTillUnlocked]}>
+          Updated till {updatedTillLabel}
+        </Text>
+      ) : (
+        <Text style={styles.summaryHint}>Set your repeating weekly availability.</Text>
+      )}
+      {onOpenCalendar ? (
+        <TouchableOpacity
+          style={styles.openCalendarBtn}
+          onPress={onOpenCalendar}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Manage weekly schedule"
+        >
+          <Text style={styles.openCalendarBtnText}>Manage weekly schedule</Text>
+        </TouchableOpacity>
       ) : null}
     </View>
   );
@@ -356,6 +211,9 @@ const GRID_HEADER_HEIGHT = 28;
 const GRID_ROW_HEIGHT = 44;
 
 const styles = StyleSheet.create({
+  editorRoot: {
+    gap: 8,
+  },
   section: {
     marginTop: 16,
     padding: 14,
@@ -363,6 +221,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#99f6e4',
     backgroundColor: '#f0fdfa',
+    gap: 8,
+  },
+  summaryHint: {
+    fontSize: 13,
+    color: '#115e59',
+    lineHeight: 18,
+  },
+  openCalendarBtn: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    backgroundColor: '#0284c7',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  openCalendarBtnText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
   },
   lockedBox: {
     marginTop: 16,

@@ -4,6 +4,11 @@ import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../../auth/entities/user.entity';
 import { SaveMyTutorCalendarInput } from '../dto/save-my-tutor-calendar.input';
+import {
+  SaveMyWeeklyUnavailabilityInput,
+  SaveMyWeeklyUnavailabilityResult,
+  WeeklyUnavailabilitySlot,
+} from '../dto/weekly-unavailability.dto';
 import { TutorCalendar } from '../entities/tutor-calendar.entity';
 import { TutorCalendarService } from '../services/tutor-calendar.service';
 
@@ -46,5 +51,28 @@ export class TutorCalendarResolver {
     @Args('input') input: SaveMyTutorCalendarInput,
   ): Promise<TutorCalendar[]> {
     return this.tutorCalendarService.saveMyCalendar(user.id, input);
+  }
+
+  @Query(() => [WeeklyUnavailabilitySlot], {
+    description:
+      'Weekly IST slots marked unavailable for the authenticated tutor (default available)',
+  })
+  @UseGuards(JwtAuthGuard)
+  async myWeeklyUnavailability(
+    @CurrentUser() user: User,
+  ): Promise<WeeklyUnavailabilitySlot[]> {
+    return this.tutorCalendarService.getMyWeeklyUnavailability(user.id);
+  }
+
+  @Mutation(() => SaveMyWeeklyUnavailabilityResult, {
+    description:
+      'Save weekly unavailability and materialize available slots through the booking horizon',
+  })
+  @UseGuards(JwtAuthGuard)
+  async saveMyWeeklyUnavailability(
+    @CurrentUser() user: User,
+    @Args('input') input: SaveMyWeeklyUnavailabilityInput,
+  ): Promise<SaveMyWeeklyUnavailabilityResult> {
+    return this.tutorCalendarService.saveMyWeeklyUnavailability(user.id, input);
   }
 }

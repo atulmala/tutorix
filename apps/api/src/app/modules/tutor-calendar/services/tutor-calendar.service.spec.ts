@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { TutorCalendarService } from './tutor-calendar.service';
 import { TutorCalendar } from '../entities/tutor-calendar.entity';
+import { TutorWeeklyUnavailability } from '../entities/tutor-weekly-unavailability.entity';
 import { Tutor } from '../../tutor/entities/tutor.entity';
 import { TutorOfferingEntity } from '../../tutor/entities/tutor-offering.entity';
 import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
@@ -22,6 +23,12 @@ describe('TutorCalendarService', () => {
   let tutorRateCardService: {
     findByTutorOfferingIds: jest.Mock;
     tutorHasCompleteRateCard?: jest.Mock;
+  };
+  let weeklyRepo: {
+    find: jest.Mock;
+    findOne: jest.Mock;
+    save: jest.Mock;
+    create: jest.Mock;
   };
 
   const qbChain = {
@@ -47,11 +54,21 @@ describe('TutorCalendarService', () => {
     tutorRateCardService = {
       findByTutorOfferingIds: jest.fn().mockResolvedValue(new Map()),
     };
+    weeklyRepo = {
+      find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn(),
+      save: jest.fn().mockImplementation((x) => Promise.resolve(x)),
+      create: jest.fn().mockImplementation((x) => x),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TutorCalendarService,
         { provide: getRepositoryToken(TutorCalendar), useValue: calendarRepo },
+        {
+          provide: getRepositoryToken(TutorWeeklyUnavailability),
+          useValue: weeklyRepo,
+        },
         { provide: getRepositoryToken(Tutor), useValue: tutorRepo },
         {
           provide: getRepositoryToken(TutorOfferingEntity),

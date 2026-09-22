@@ -9,7 +9,13 @@ type MyTutorDetailData = {
   myTutorDetail?: TutorDetailRecord | null;
 };
 
-export const TutorCalendarScreen: React.FC = () => {
+type TutorCalendarScreenProps = {
+  onSetupComplete?: () => void;
+};
+
+export const TutorCalendarScreen: React.FC<TutorCalendarScreenProps> = ({
+  onSetupComplete,
+}) => {
   const { data, loading, error } = useQuery<MyTutorDetailData>(GET_MY_TUTOR_DETAIL, {
     fetchPolicy: 'cache-and-network',
   });
@@ -32,11 +38,18 @@ export const TutorCalendarScreen: React.FC = () => {
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      {!tutor.availabilityConfiguredAt ? (
+        <Text style={styles.setupHint}>
+          Set your usual weekly hours once. We apply them to all upcoming weeks; you can change
+          them anytime.
+        </Text>
+      ) : null}
       <TutorAvailabilitySection
         tutor={tutor}
         bankDetailsComplete={Boolean(tutor.user?.bankDetails?.isComplete)}
         onOpenRateCard={() => undefined}
-        defaultOpen
+        mode="editor"
+        onSaved={onSetupComplete}
       />
     </ScrollView>
   );
@@ -47,4 +60,5 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 32 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e8f4ff' },
   error: { color: '#b91c1c', fontSize: 14 },
+  setupHint: { fontSize: 14, color: '#475569', marginBottom: 12, lineHeight: 20 },
 });

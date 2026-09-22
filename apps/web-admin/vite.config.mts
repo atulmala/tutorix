@@ -52,8 +52,20 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@tutorix/shared-utils': path.resolve(
-          path.dirname(fileURLToPath(import.meta.url)),
-          '../../libs/shared-utils/src/index.ts',
+          workspaceRoot,
+          'libs/shared-utils/src/index.ts',
+        ),
+        '@tutorix/shared-graphql/queries': path.resolve(
+          workspaceRoot,
+          'libs/shared-graphql/src/queries/index.ts',
+        ),
+        '@tutorix/shared-graphql/mutations': path.resolve(
+          workspaceRoot,
+          'libs/shared-graphql/src/mutations/index.ts',
+        ),
+        '@tutorix/shared-graphql/fragments': path.resolve(
+          workspaceRoot,
+          'libs/shared-graphql/src/fragments/index.ts',
         ),
       },
     },
