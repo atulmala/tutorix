@@ -10,8 +10,10 @@ export const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
 export const SLOT_DURATION_MINUTES = 60;
 export const SLOT_INTERVAL_MINUTES = 30;
-export const DAY_START_HOUR = 7;
-export const DAY_END_HOUR = 22;
+/** First allowed slot start (IST). */
+export const DAY_START_HOUR = 8;
+/** Exclusive upper hour for the grid; last start is 20:00 (8 PM). */
+export const DAY_END_HOUR = 21;
 export const MAX_WEEKS_AHEAD = 8;
 
 export const RATE_CARD_REQUIRED_MESSAGE =
@@ -179,12 +181,14 @@ export function maxHorizonEndUtc(now = new Date()): Date {
   return addIstDaysUtc(istTodayStartUtc(now), MAX_WEEKS_AHEAD * 7);
 }
 
-/** Daily row labels from 7:00 through 21:30. */
+/** Daily slot starts from 8:00 AM through 8:00 PM (30-minute steps). */
 export function listDailySlotStarts(): Array<{ hour: number; minute: number }> {
   const rows: Array<{ hour: number; minute: number }> = [];
   for (let h = DAY_START_HOUR; h < DAY_END_HOUR; h++) {
     rows.push({ hour: h, minute: 0 });
-    rows.push({ hour: h, minute: 30 });
+    if (h < DAY_END_HOUR - 1) {
+      rows.push({ hour: h, minute: 30 });
+    }
   }
   return rows;
 }
@@ -195,7 +199,9 @@ export function isValidSlotMinute(minute: number): boolean {
 
 export function isOnDailyGrid(hour: number, minute: number): boolean {
   if (!isValidSlotMinute(minute)) return false;
-  return hour >= DAY_START_HOUR && hour <= DAY_END_HOUR - 1;
+  if (hour < DAY_START_HOUR || hour > DAY_END_HOUR - 1) return false;
+  if (hour === DAY_END_HOUR - 1 && minute !== 0) return false;
+  return true;
 }
 
 export function validateSlotInstant(
@@ -204,7 +210,10 @@ export function validateSlotInstant(
 ): { ok: true } | { ok: false; message: string } {
   const p = toIstParts(startsAt);
   if (!isOnDailyGrid(p.hour, p.minute)) {
-    return { ok: false, message: 'Slot must align to the 30-minute teaching grid (07:00–21:30 IST).' };
+    return {
+      ok: false,
+      message: `Slot must align to the 30-minute teaching grid (${formatDailyGridRangeLabel()}).`,
+    };
   }
   if (
     startsAt.getUTCSeconds() !== 0 ||
@@ -313,6 +322,11 @@ export function clampViewStartUtc(
 
 export function formatSlotTimeLabel(hour: number, minute: number): string {
   return `${pad2(hour)}:${pad2(minute)}`;
+}
+
+/** Human-readable IST teaching grid window for errors and copy. */
+export function formatDailyGridRangeLabel(): string {
+  return `${formatSlotTimeLabel(DAY_START_HOUR, 0)}–${formatSlotTimeLabel(DAY_END_HOUR - 1, 0)} IST`;
 }
 
 /** 12-hour IST slot label for weekly availability UI (e.g. 7:00 AM, 9:30 PM). */
