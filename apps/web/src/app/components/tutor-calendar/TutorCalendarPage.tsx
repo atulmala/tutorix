@@ -8,7 +8,13 @@ type MyTutorDetailData = {
   myTutorDetail?: TutorDetailRecord | null;
 };
 
-export const TutorCalendarPage: React.FC = () => {
+type TutorCalendarPageProps = {
+  onSetupComplete?: () => void;
+};
+
+export const TutorCalendarPage: React.FC<TutorCalendarPageProps> = ({
+  onSetupComplete,
+}) => {
   const { data, loading, error } = useQuery<MyTutorDetailData>(GET_MY_TUTOR_DETAIL, {
     fetchPolicy: 'cache-and-network',
   });
@@ -27,11 +33,18 @@ export const TutorCalendarPage: React.FC = () => {
 
   return (
     <div className="w-full max-w-4xl">
+      {!tutor.availabilityConfiguredAt ? (
+        <p className="mb-4 text-sm text-slate-600">
+          Set your usual weekly hours once. We apply them to all upcoming weeks; you can
+          change them anytime.
+        </p>
+      ) : null}
       <TutorAvailabilitySection
         canSetAvailability={tutor.canSetAvailability === true}
         offerings={tutor.offerings}
         bankDetailsComplete={Boolean(tutor.user?.bankDetails?.isComplete)}
         defaultOpen
+        onSaved={onSetupComplete}
       />
     </div>
   );

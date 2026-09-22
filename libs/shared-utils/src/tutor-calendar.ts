@@ -315,6 +315,13 @@ export function formatSlotTimeLabel(hour: number, minute: number): string {
   return `${pad2(hour)}:${pad2(minute)}`;
 }
 
+/** 12-hour IST slot label for weekly availability UI (e.g. 7:00 AM, 9:30 PM). */
+export function formatSlotTimeAmPmLabel(hour: number, minute: number): string {
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${hour12}:${pad2(minute)} ${period}`;
+}
+
 const IST_MONTH_NAMES = [
   'January',
   'February',

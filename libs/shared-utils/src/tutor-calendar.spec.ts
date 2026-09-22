@@ -4,6 +4,7 @@ import {
   comingSundayStartUtc,
   formatAvailabilityUpdatedTill,
   formatIstDayHeader,
+  formatSlotTimeAmPmLabel,
   formatSlotTimeLabel,
   istSlotToUtc,
   listDailySlotStarts,
@@ -32,6 +33,14 @@ describe('tutor-calendar', () => {
     expect(formatSlotTimeLabel(12, 0)).toBe('12:00');
     expect(formatSlotTimeLabel(15, 0)).toBe('15:00');
     expect(formatSlotTimeLabel(21, 30)).toBe('21:30');
+  });
+
+  it('formats slot times in 12-hour AM/PM for weekly UI', () => {
+    expect(formatSlotTimeAmPmLabel(7, 0)).toBe('7:00 AM');
+    expect(formatSlotTimeAmPmLabel(9, 30)).toBe('9:30 AM');
+    expect(formatSlotTimeAmPmLabel(12, 0)).toBe('12:00 PM');
+    expect(formatSlotTimeAmPmLabel(15, 0)).toBe('3:00 PM');
+    expect(formatSlotTimeAmPmLabel(21, 30)).toBe('9:30 PM');
   });
 
   it('formats availability updated till label in IST', () => {

@@ -5,14 +5,15 @@ import {
   GET_ADMIN_TUTOR_CALENDAR_UPDATED_TILL,
   GET_MY_TUTOR_CALENDAR,
   GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
-  SAVE_MY_TUTOR_CALENDAR,
-} from '@tutorix/shared-graphql';
+} from '@tutorix/shared-graphql/queries';
+import { SAVE_MY_TUTOR_CALENDAR } from '@tutorix/shared-graphql/mutations';
 import {
   formatAvailabilityUpdatedTill,
   formatIstDayHeader,
   formatSlotTimeLabel,
 } from '@tutorix/shared-utils';
 import { useAvailabilityEditor, type CalendarSlotRow } from './useAvailabilityEditor';
+import { WeeklyTutorAvailabilityCalendar } from './WeeklyTutorAvailabilityCalendar';
 
 export type TutorAvailabilityCalendarProps = {
   /** When set, loads calendar for this tutor via admin queries (read-only in admin UI). */
@@ -20,6 +21,7 @@ export type TutorAvailabilityCalendarProps = {
   readOnly?: boolean;
   onSaveError?: (message: string | null) => void;
   onUpdatedTill?: (info: { label: string | null; loading: boolean }) => void;
+  onSaved?: () => void;
 };
 
 export function TutorAvailabilityCalendar({
@@ -27,8 +29,21 @@ export function TutorAvailabilityCalendar({
   readOnly = false,
   onSaveError,
   onUpdatedTill,
+  onSaved,
 }: TutorAvailabilityCalendarProps) {
   const isAdminView = tutorId != null && Number.isFinite(tutorId);
+
+  if (!isAdminView) {
+    return (
+      <WeeklyTutorAvailabilityCalendar
+        readOnly={readOnly}
+        onSaveError={onSaveError}
+        onUpdatedTill={onUpdatedTill}
+        onSaved={onSaved}
+      />
+    );
+  }
+
   const interactive = !readOnly;
   const adminTutorId = isAdminView ? tutorId : undefined;
 

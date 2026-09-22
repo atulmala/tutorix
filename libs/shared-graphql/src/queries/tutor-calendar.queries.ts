@@ -16,6 +16,16 @@ export const GET_MY_TUTOR_CALENDAR_UPDATED_TILL = gql`
   }
 `;
 
+export const GET_MY_WEEKLY_UNAVAILABILITY = gql`
+  query GetMyWeeklyUnavailability {
+    myWeeklyUnavailability {
+      dayOfWeek
+      hour
+      minute
+    }
+  }
+`;
+
 export const GET_ADMIN_TUTOR_CALENDAR = gql`
   query GetAdminTutorCalendar($tutorId: Int!, $from: DateTime!, $to: DateTime!) {
     adminTutorCalendar(tutorId: $tutorId, from: $from, to: $to) {

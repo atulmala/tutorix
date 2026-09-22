@@ -81,6 +81,18 @@ describe('tutorViewAfterProfile', () => {
     ).toBe('tutorRateCardSetup');
   });
 
+  it('sends tutors without weekly availability to tutorCalendar', () => {
+    expect(
+      tutorViewAfterProfile({
+        onBoardingComplete: true,
+        onboardingCelebrationSeen: true,
+        bankDetailsComplete: true,
+        needsRateCardSetup: false,
+        needsWeeklyAvailabilitySetup: true,
+      }),
+    ).toBe('tutorCalendar');
+  });
+
   it('keeps incomplete tutors on onboarding', () => {
     expect(
       tutorViewAfterProfile({

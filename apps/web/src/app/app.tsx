@@ -112,6 +112,7 @@ function AppContent() {
     onboardingCelebrationSeen?: boolean;
     bankDetailsComplete?: boolean;
     needsRateCardSetup?: boolean;
+    needsWeeklyAvailabilitySetup?: boolean;
     certificationStage?: string | null;
   } | null | undefined) => {
     if (!tutor) {
@@ -203,15 +204,22 @@ function AppContent() {
       if (tutor?.onBoardingComplete && tutor.onboardingCelebrationSeen) {
         let bankDetailsComplete = tutor.bankDetailsComplete === true;
         let rateCardSetupNeeded = false;
+        let detail:
+          | {
+              canSetAvailability?: boolean;
+              availabilityConfiguredAt?: string | null;
+              offerings?: Parameters<typeof needsRateCardSetup>[0];
+              user?: { bankDetails?: Parameters<typeof isBankDetailsMarkedComplete>[0] };
+            }
+          | undefined;
         try {
           const detailResult = await fetchMyTutorDetail();
-          if (detailResult.data?.myTutorDetail) {
+          detail = detailResult.data?.myTutorDetail;
+          if (detail) {
             bankDetailsComplete = isBankDetailsMarkedComplete(
-              detailResult.data.myTutorDetail.user?.bankDetails,
+              detail.user?.bankDetails,
             );
-            rateCardSetupNeeded = needsRateCardSetup(
-              detailResult.data.myTutorDetail.offerings,
-            );
+            rateCardSetupNeeded = needsRateCardSetup(detail.offerings);
           }
         } catch (err) {
           console.error('Error fetching tutor setup details:', err);
@@ -220,6 +228,9 @@ function AppContent() {
           ...tutor,
           bankDetailsComplete,
           needsRateCardSetup: rateCardSetupNeeded,
+          needsWeeklyAvailabilitySetup:
+            detail?.canSetAvailability === true &&
+            detail?.availabilityConfiguredAt == null,
         });
         return;
       }
@@ -650,7 +661,11 @@ function AppContent() {
           onOpenWallet={() => handleOpenWallet('tutor-home')}
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
-          <TutorCalendarPage />
+          <TutorCalendarPage
+            onSetupComplete={() => {
+              void routeAfterAuthenticatedUser(currentUser);
+            }}
+          />
         </main>
       </div>
     );

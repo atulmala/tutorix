@@ -9,3 +9,17 @@ export const SAVE_MY_TUTOR_CALENDAR = gql`
     }
   }
 `;
+
+export const SAVE_MY_WEEKLY_UNAVAILABILITY = gql`
+  mutation SaveMyWeeklyUnavailability($input: SaveMyWeeklyUnavailabilityInput!) {
+    saveMyWeeklyUnavailability(input: $input) {
+      unavailableSlots {
+        dayOfWeek
+        hour
+        minute
+      }
+      materializedThrough
+      availabilityConfiguredAt
+    }
+  }
+`;
