@@ -2,6 +2,7 @@ import React from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import {
   GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
+  GET_MY_TUTOR_DETAIL,
   GET_MY_WEEKLY_UNAVAILABILITY,
 } from '@tutorix/shared-graphql/queries';
 import { SAVE_MY_WEEKLY_UNAVAILABILITY } from '@tutorix/shared-graphql/mutations';
@@ -30,6 +31,11 @@ export function WeeklyTutorAvailabilityCalendar({
   const { data, loading, refetch } = useQuery(GET_MY_WEEKLY_UNAVAILABILITY, {
     fetchPolicy: 'network-only',
   });
+
+  const { data: tutorData, refetch: refetchTutorDetail } = useQuery(GET_MY_TUTOR_DETAIL, {
+    fetchPolicy: 'cache-first',
+  });
+  const schedulePersisted = Boolean(tutorData?.myTutorDetail?.availabilityConfiguredAt);
 
   const {
     data: updatedTillData,
@@ -65,7 +71,7 @@ export function WeeklyTutorAvailabilityCalendar({
           input: { unavailableSlots: ui.unavailableSlotsForSave },
         },
       });
-      await Promise.all([refetch(), refetchUpdatedTill()]);
+      await Promise.all([refetch(), refetchUpdatedTill(), refetchTutorDetail()]);
       ui.markBaselineSaved();
       onSaved?.();
     } catch (err) {
@@ -185,16 +191,20 @@ export function WeeklyTutorAvailabilityCalendar({
         <div className="flex flex-wrap items-center gap-3">
           {ui.isDirty ? (
             <span className="text-sm text-amber-700">Unsaved changes</span>
-          ) : (
+          ) : schedulePersisted ? (
             <span className="text-sm text-slate-500">All changes saved</span>
+          ) : (
+            <span className="text-sm text-slate-600">
+              Review your schedule, then save to confirm.
+            </span>
           )}
           <button
             type="button"
-            disabled={!ui.isDirty || saving || loading}
+            disabled={!ui.hydrated || saving || loading}
             onClick={() => void handleSave()}
             className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {saving ? 'Saving…' : 'Save weekly schedule'}
+            {saving ? 'Saving…' : 'Save my schedule'}
           </button>
         </div>
       ) : null}

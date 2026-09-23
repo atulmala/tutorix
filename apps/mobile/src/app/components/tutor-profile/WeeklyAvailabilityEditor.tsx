@@ -10,6 +10,7 @@ import {
 import { useMutation, useQuery } from '@apollo/client';
 import {
   GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
+  GET_MY_TUTOR_DETAIL,
   GET_MY_WEEKLY_UNAVAILABILITY,
 } from '@tutorix/shared-graphql/queries';
 import { SAVE_MY_WEEKLY_UNAVAILABILITY } from '@tutorix/shared-graphql/mutations';
@@ -28,6 +29,11 @@ export function WeeklyAvailabilityEditor({
     fetchPolicy: 'network-only',
   });
 
+  const { data: tutorData, refetch: refetchTutorDetail } = useQuery(GET_MY_TUTOR_DETAIL, {
+    fetchPolicy: 'cache-first',
+  });
+  const schedulePersisted = Boolean(tutorData?.myTutorDetail?.availabilityConfiguredAt);
+
   useQuery(GET_MY_TUTOR_CALENDAR_UPDATED_TILL, { fetchPolicy: 'network-only' });
 
   const ui = useWeeklyAvailabilityEditor({
@@ -45,7 +51,7 @@ export function WeeklyAvailabilityEditor({
           input: { unavailableSlots: ui.unavailableSlotsForSave },
         },
       });
-      await refetch();
+      await Promise.all([refetch(), refetchTutorDetail()]);
       ui.markBaselineSaved();
       onSaved?.();
     } catch (err) {
@@ -114,14 +120,18 @@ export function WeeklyAvailabilityEditor({
 
       <View style={styles.footer}>
         <Text style={ui.isDirty ? styles.dirty : styles.saved}>
-          {ui.isDirty ? 'Unsaved changes' : 'All changes saved'}
+          {ui.isDirty
+            ? 'Unsaved changes'
+            : schedulePersisted
+              ? 'All changes saved'
+              : 'Review your schedule, then save to confirm.'}
         </Text>
         <Pressable
-          style={[styles.saveBtn, (!ui.isDirty || saving) && styles.saveBtnDisabled]}
-          disabled={!ui.isDirty || saving}
+          style={[styles.saveBtn, (saving || loading || !ui.hydrated) && styles.saveBtnDisabled]}
+          disabled={saving || loading || !ui.hydrated}
           onPress={() => void handleSave()}
         >
-          <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save weekly schedule'}</Text>
+          <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save my schedule'}</Text>
         </Pressable>
       </View>
     </View>
