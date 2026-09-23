@@ -19,8 +19,11 @@ import {
   GradeType,
   GRADE_TYPE_LIST,
   GRADE_TYPE_LABELS,
+  patchQualificationRowForGradeTypeChange,
+  validateQualificationRow,
 } from '@tutorix/shared-utils';
 import type { StepComponentProps } from '@tutorix/shared-utils';
+import { QualificationGradeValueField } from '../../tutor-qualification/QualificationGradeValueField';
 
 interface QualificationRow {
   qualificationType: EducationalQualification;
@@ -265,19 +268,9 @@ export const TutorQualification: React.FC<StepComponentProps> = () => {
       setFormError(null);
       const row = qualifications[index];
       if (!row) return false;
-      const e: Partial<Record<keyof QualificationRow, string>> = {};
-      if (!row.boardOrUniversity.trim()) e.boardOrUniversity = 'Required';
-      if (!row.gradeValue.trim()) e.gradeValue = 'Required';
-      if (!row.fieldOfStudy.trim()) e.fieldOfStudy = 'Required';
-      const year = parseInt(row.yearObtained, 10);
-      if (!row.yearObtained.trim()) e.yearObtained = 'Required';
-      else if (Number.isNaN(year) || year < 1950 || year > currentYear)
-        e.yearObtained = `Enter a year between 1950 and ${currentYear}`;
-      if (row.qualificationType !== EducationalQualification.HIGHER_SECONDARY) {
-        if (!row.degreeName.trim()) e.degreeName = 'Required';
-      }
-      if (Object.keys(e).length) {
-        setErrors((prev) => ({ ...prev, [index]: e }));
+      const result = validateQualificationRow(row, new Date());
+      if (result.ok === false) {
+        setErrors((prev) => ({ ...prev, [index]: result.fieldErrors }));
         return false;
       }
       setErrors((prev) => {
@@ -302,19 +295,9 @@ export const TutorQualification: React.FC<StepComponentProps> = () => {
       valid = false;
     }
     qualifications.forEach((row, index) => {
-      const e: Partial<Record<keyof QualificationRow, string>> = {};
-      if (!row.boardOrUniversity.trim()) e.boardOrUniversity = 'Required';
-      if (!row.gradeValue.trim()) e.gradeValue = 'Required';
-      if (!row.fieldOfStudy.trim()) e.fieldOfStudy = 'Required';
-      const year = parseInt(row.yearObtained, 10);
-      if (!row.yearObtained.trim()) e.yearObtained = 'Required';
-      else if (Number.isNaN(year) || year < 1950 || year > currentYear)
-        e.yearObtained = `Enter a year between 1950 and ${currentYear}`;
-      if (row.qualificationType !== EducationalQualification.HIGHER_SECONDARY) {
-        if (!row.degreeName.trim()) e.degreeName = 'Required';
-      }
-      if (Object.keys(e).length) {
-        next[index] = { ...next[index], ...e };
+      const result = validateQualificationRow(row, new Date());
+      if (result.ok === false) {
+        next[index] = { ...next[index], ...result.fieldErrors };
         valid = false;
       }
     });
@@ -535,19 +518,11 @@ export const TutorQualification: React.FC<StepComponentProps> = () => {
                 <Text style={styles.label}>
                   Grade value <Text style={styles.required}>*</Text>
                 </Text>
-                <TextInput
-                  style={[styles.input, !!errors[index]?.gradeValue && styles.inputError]}
+                <QualificationGradeValueField
+                  gradeType={row.gradeType}
                   value={row.gradeValue}
-                  onChangeText={(v) => updateRow(index, { gradeValue: v })}
-                  placeholder={
-                    row.gradeType === GradeType.CGPA
-                      ? 'e.g. 8.5'
-                      : row.gradeType === GradeType.PERCENTAGE
-                        ? 'e.g. 85'
-                        : 'e.g. First Division'
-                  }
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="decimal-pad"
+                  onChange={(gradeValue) => updateRow(index, { gradeValue })}
+                  hasError={!!errors[index]?.gradeValue}
                 />
                 {!!errors[index]?.gradeValue && (
                   <Text style={styles.fieldError}>{errors[index].gradeValue}</Text>
@@ -652,7 +627,14 @@ export const TutorQualification: React.FC<StepComponentProps> = () => {
                   key={t}
                   style={styles.modalOption}
                   onPress={() => {
-                    updateRow(gradeTypeModal.rowIndex, { gradeType: t });
+                    const rowIndex = gradeTypeModal.rowIndex;
+                    const current = qualifications[rowIndex];
+                    if (current) {
+                      updateRow(
+                        rowIndex,
+                        patchQualificationRowForGradeTypeChange(current, t),
+                      );
+                    }
                     setGradeTypeModal(null);
                   }}
                   activeOpacity={0.7}

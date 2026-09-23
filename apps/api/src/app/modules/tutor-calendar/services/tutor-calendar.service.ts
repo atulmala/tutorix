@@ -10,11 +10,13 @@ import {
   formatDailyGridRangeLabel,
   isOnDailyGrid,
   isRateCardComplete,
+  defaultWeeklyUnavailableKeys,
   materializedAvailableSlotStarts,
+  unavailableKeysFromBlocks,
+  unavailableKeysToBlocks,
   maxHorizonEndUtc,
   RATE_CARD_REQUIRED_MESSAGE,
   SLOT_DURATION_MINUTES,
-  unavailableKeysFromBlocks,
   validateSlotInstant,
 } from '@tutorix/shared-utils';
 import { Tutor } from '../../tutor/entities/tutor.entity';
@@ -143,6 +145,9 @@ export class TutorCalendarService {
       where: { tutorId: tutor.id, deleted: false },
       order: { istDayOfWeek: 'ASC', startHour: 'ASC', startMinute: 'ASC' },
     });
+    if (rows.length === 0 && tutor.availabilityConfiguredAt == null) {
+      return unavailableKeysToBlocks(defaultWeeklyUnavailableKeys());
+    }
     return rows.map((row) => ({
       dayOfWeek: row.istDayOfWeek,
       hour: row.startHour,

@@ -18,6 +18,7 @@ export {
 export { ExperienceModal, type ExperienceFormRow } from './ExperienceModal';
 export { MonthYearPickerField } from './MonthYearPickerField';
 export { QualificationModal, type QualificationFormRow } from './QualificationModal';
+export { QualificationGradeValueField } from './QualificationGradeValueField';
 export { RateCardModal, type RateCardFormValuesExport as RateCardFormValues } from './RateCardModal';
 export { OfferingLabel } from './OfferingLabel';
 export {

@@ -2,7 +2,11 @@ import {
   EDUCATIONAL_QUALIFICATION_LIST,
   EducationalQualification,
 } from './education-qualification.enum';
-import { GradeType } from './grade-type.enum';
+import {
+  DIVISION_GRADE_VALUES,
+  GradeType,
+  type DivisionGradeValue,
+} from './grade-type.enum';
 
 export type QualificationFormRow = {
   qualificationType: EducationalQualification;
@@ -30,7 +34,10 @@ export function mapQualificationToFormRow(qual: {
     qualificationType,
     boardOrUniversity: qual.boardOrUniversity ?? '',
     gradeType: qual.gradeType as GradeType,
-    gradeValue: String(qual.gradeValue ?? ''),
+    gradeValue:
+      (qual.gradeType as GradeType) === GradeType.DIVISION
+        ? normalizeDivisionGradeValue(String(qual.gradeValue ?? ''))
+        : String(qual.gradeValue ?? ''),
     yearObtained: qual.yearObtained != null ? String(qual.yearObtained) : '',
     fieldOfStudy: qual.fieldOfStudy ?? '',
     degreeName:
@@ -106,7 +113,48 @@ export function getQualificationFieldOfStudyPlaceholder(
 export function getQualificationGradeValuePlaceholder(gradeType: GradeType): string {
   if (gradeType === GradeType.CGPA) return 'e.g. 8.5';
   if (gradeType === GradeType.PERCENTAGE) return 'e.g. 85';
-  return 'e.g. First Division';
+  return '';
+}
+
+/** Maps stored/API division text to I, II, or III when possible. */
+export function normalizeDivisionGradeValue(value: string): DivisionGradeValue | '' {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  const upper = trimmed.toUpperCase();
+  if (upper === 'I' || upper === '1') return 'I';
+  if (upper === 'II' || upper === '2') return 'II';
+  if (upper === 'III' || upper === '3') return 'III';
+  if (/first/i.test(trimmed)) return 'I';
+  if (/second/i.test(trimmed)) return 'II';
+  if (/third/i.test(trimmed)) return 'III';
+  if (DIVISION_GRADE_VALUES.includes(upper as DivisionGradeValue)) {
+    return upper as DivisionGradeValue;
+  }
+  return '';
+}
+
+export function isValidDivisionGradeValue(value: string): value is DivisionGradeValue {
+  return DIVISION_GRADE_VALUES.includes(value as DivisionGradeValue);
+}
+
+/** Updates grade value when the user changes grade type. */
+export function patchQualificationRowForGradeTypeChange(
+  row: QualificationFormRow,
+  gradeType: GradeType,
+): Partial<QualificationFormRow> {
+  if (gradeType === GradeType.DIVISION) {
+    return {
+      gradeType,
+      gradeValue: normalizeDivisionGradeValue(row.gradeValue),
+    };
+  }
+  if (
+    row.gradeType === GradeType.DIVISION &&
+    isValidDivisionGradeValue(row.gradeValue)
+  ) {
+    return { gradeType, gradeValue: '' };
+  }
+  return { gradeType };
 }
 
 export function validateQualificationRow(
@@ -117,7 +165,14 @@ export function validateQualificationRow(
   const currentYear = now.getFullYear();
 
   if (!row.boardOrUniversity.trim()) fieldErrors.boardOrUniversity = 'Required';
-  if (!row.gradeValue.trim()) fieldErrors.gradeValue = 'Required';
+  if (row.gradeType === GradeType.DIVISION) {
+    const division = normalizeDivisionGradeValue(row.gradeValue);
+    if (!isValidDivisionGradeValue(division)) {
+      fieldErrors.gradeValue = 'Select a division';
+    }
+  } else if (!row.gradeValue.trim()) {
+    fieldErrors.gradeValue = 'Required';
+  }
   if (!row.fieldOfStudy.trim()) fieldErrors.fieldOfStudy = 'Required';
 
   const year = parseInt(row.yearObtained, 10);
@@ -135,12 +190,17 @@ export function validateQualificationRow(
     return { ok: false, fieldErrors };
   }
 
+  const gradeValue =
+    row.gradeType === GradeType.DIVISION
+      ? normalizeDivisionGradeValue(row.gradeValue)
+      : row.gradeValue.trim();
+
   return {
     ok: true,
     normalized: {
       ...row,
       boardOrUniversity: row.boardOrUniversity.trim(),
-      gradeValue: row.gradeValue.trim(),
+      gradeValue,
       fieldOfStudy: row.fieldOfStudy.trim(),
       yearObtained: row.yearObtained.trim(),
       degreeName:

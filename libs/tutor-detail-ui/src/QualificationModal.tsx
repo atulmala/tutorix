@@ -8,11 +8,12 @@ import {
   getQualificationDegreeLabel,
   getQualificationDegreePlaceholder,
   getQualificationFieldOfStudyPlaceholder,
-  getQualificationGradeValuePlaceholder,
+  patchQualificationRowForGradeTypeChange,
   validateQualificationRow,
   type QualificationFormRow,
   type QualificationRowFieldErrors,
 } from '@tutorix/shared-utils';
+import { QualificationGradeValueField } from './QualificationGradeValueField';
 
 export type { QualificationFormRow };
 
@@ -185,7 +186,14 @@ export function QualificationModal({
               </label>
               <select
                 value={row.gradeType}
-                onChange={(e) => updateRow({ gradeType: e.target.value as GradeType })}
+                onChange={(e) =>
+                  updateRow(
+                    patchQualificationRowForGradeTypeChange(
+                      row,
+                      e.target.value as GradeType,
+                    ),
+                  )
+                }
                 className={inputCls(false)}
               >
                 {GRADE_TYPE_LIST.map((t) => (
@@ -199,12 +207,13 @@ export function QualificationModal({
               <label className="text-sm font-medium text-primary">
                 Grade value <span className="text-danger">*</span>
               </label>
-              <input
-                type="text"
+              <QualificationGradeValueField
+                gradeType={row.gradeType}
                 value={row.gradeValue}
-                onChange={(e) => updateRow({ gradeValue: e.target.value })}
-                className={inputCls(!!fieldErrors.gradeValue)}
-                placeholder={getQualificationGradeValuePlaceholder(row.gradeType)}
+                onChange={(gradeValue) => updateRow({ gradeValue })}
+                hasError={!!fieldErrors.gradeValue}
+                disabled={saving}
+                inputClassName={inputCls}
               />
               {fieldErrors.gradeValue ? (
                 <p className="text-xs text-danger">{fieldErrors.gradeValue}</p>

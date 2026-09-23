@@ -7,7 +7,7 @@ import {
   weeklyUnavailabilityKey,
   uiWeekdayIndexToIstDow,
   istDowToUiWeekdayIndex,
-  presetMonFriFourToEightPmUnavailable,
+  defaultWeeklyUnavailableKeys,
 } from '@tutorix/shared-utils';
 
 export type WeeklySlotRow = WeeklyUnavailabilityBlock;
@@ -60,8 +60,8 @@ export function useWeeklyAvailabilityEditor(options: {
     setUnavailableKeys(new Set());
   }, []);
 
-  const applyMonFriFourToEightPreset = useCallback(() => {
-    setUnavailableKeys(presetMonFriFourToEightPmUnavailable());
+  const applyDefaultWeeklyPreset = useCallback(() => {
+    setUnavailableKeys(defaultWeeklyUnavailableKeys());
   }, []);
 
   const copyMondayToWeekdays = useCallback(() => {
@@ -149,7 +149,7 @@ export function useWeeklyAvailabilityEditor(options: {
     isDirty,
     toggleSlot,
     clearAllUnavailable,
-    applyMonFriFourToEightPreset,
+    applyDefaultWeeklyPreset,
     copyMondayToWeekdays,
     unavailableSlotsForSave,
     markBaselineSaved,

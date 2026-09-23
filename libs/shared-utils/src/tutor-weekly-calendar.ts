@@ -118,18 +118,33 @@ export function materializedAvailableSlotStarts(
   return starts;
 }
 
-/** Mon–Fri available 16:00–20:00 starts (4–8 PM). */
-export function presetMonFriFourToEightPmUnavailable(): Set<string> {
+/** Mon–Fri: unavailable before 14:00 (school hours). Sat–Sun: fully available. */
+export function defaultWeeklyUnavailableKeys(): Set<string> {
   const keys = new Set<string>();
   for (const dow of [1, 2, 3, 4, 5]) {
     for (const slot of listDailySlotStarts()) {
-      const available =
-        slot.hour >= 16 &&
-        (slot.hour < 20 || (slot.hour === 20 && slot.minute === 0));
-      if (!available) {
+      if (slot.hour < 14) {
         keys.add(weeklyUnavailabilityKey(dow, slot.hour, slot.minute));
       }
     }
   }
   return keys;
 }
+
+export function unavailableKeysToBlocks(
+  keys: Set<string>,
+): WeeklyUnavailabilityBlock[] {
+  const blocks: WeeklyUnavailabilityBlock[] = [];
+  for (const key of keys) {
+    const parsed = parseWeeklyUnavailabilityKey(key);
+    if (parsed) blocks.push(parsed);
+  }
+  blocks.sort(
+    (a, b) =>
+      a.dayOfWeek - b.dayOfWeek ||
+      a.hour - b.hour ||
+      a.minute - b.minute,
+  );
+  return blocks;
+}
+

@@ -16,14 +16,15 @@ import {
   getQualificationDegreeLabel,
   getQualificationDegreePlaceholder,
   getQualificationFieldOfStudyPlaceholder,
-  getQualificationGradeValuePlaceholder,
   mapQualificationToFormRow,
+  patchQualificationRowForGradeTypeChange,
   validateQualificationList,
   validateQualificationRow,
   type QualificationFormRow,
   type QualificationRowFieldErrors,
 } from '@tutorix/shared-utils';
 import type { StepComponentProps } from '../types';
+import { QualificationGradeValueField } from '@tutorix/tutor-detail-ui';
 
 type MyTutorProfileQualification = Parameters<typeof mapQualificationToFormRow>[0];
 
@@ -379,7 +380,15 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
               </label>
               <select
                 value={row.gradeType}
-                onChange={(e) => updateRow(index, { gradeType: e.target.value as GradeType })}
+                onChange={(e) =>
+                  updateRow(
+                    index,
+                    patchQualificationRowForGradeTypeChange(
+                      row,
+                      e.target.value as GradeType,
+                    ),
+                  )
+                }
                 className={inputCls(false)}
               >
                 {GRADE_TYPE_LIST.map((t) => (
@@ -394,12 +403,12 @@ export const TutorQualification: React.FC<StepComponentProps> = ({
               <label className="text-sm font-medium text-primary">
                 Grade value <span className="text-danger">*</span>
               </label>
-              <input
-                type="text"
+              <QualificationGradeValueField
+                gradeType={row.gradeType}
                 value={row.gradeValue}
-                onChange={(e) => updateRow(index, { gradeValue: e.target.value })}
-                className={inputCls(!!errors[index]?.gradeValue)}
-                placeholder={getQualificationGradeValuePlaceholder(row.gradeType)}
+                onChange={(gradeValue) => updateRow(index, { gradeValue })}
+                hasError={!!errors[index]?.gradeValue}
+                inputClassName={inputCls}
               />
               {errors[index]?.gradeValue && (
                 <p className="text-xs text-danger">{errors[index].gradeValue}</p>

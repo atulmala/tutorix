@@ -34,6 +34,25 @@ describe('tutor-qualification-form', () => {
       expect(result).toEqual({ ok: false, fieldErrors: { degreeName: 'Required' } });
     });
 
+    it('requires division radio selection when grade type is division', () => {
+      const result = validateQualificationRow(
+        { ...validRow, gradeType: GradeType.DIVISION, gradeValue: '' },
+        new Date('2024-01-01'),
+      );
+      expect(result).toEqual({ ok: false, fieldErrors: { gradeValue: 'Select a division' } });
+    });
+
+    it('accepts roman division grade values', () => {
+      const result = validateQualificationRow(
+        { ...validRow, gradeType: GradeType.DIVISION, gradeValue: 'II' },
+        new Date('2024-01-01'),
+      );
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.normalized.gradeValue).toBe('II');
+      }
+    });
+
     it('allows empty degree name for higher secondary', () => {
       const result = validateQualificationRow(
         {

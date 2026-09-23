@@ -21,3 +21,7 @@ export const GRADE_TYPE_LABELS: Record<GradeType, string> = {
   [GradeType.PERCENTAGE]: 'Percentage',
   [GradeType.DIVISION]: 'Division',
 };
+
+/** Roman-numeral division grades when grade type is Division. */
+export const DIVISION_GRADE_VALUES = ['I', 'II', 'III'] as const;
+export type DivisionGradeValue = (typeof DIVISION_GRADE_VALUES)[number];

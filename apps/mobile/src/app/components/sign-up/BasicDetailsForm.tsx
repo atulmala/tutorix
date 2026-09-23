@@ -236,7 +236,6 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
   }, [form, tutorEnabled, studentEnabled, disabledMessage]);
 
   const canSubmit =
-    Object.keys(validationErrors).length === 0 &&
     form.firstName &&
     form.lastName &&
     form.phone &&
@@ -315,8 +314,16 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
 
   const showPhoneError = (submitAttempted && errors.phone) || errors.phone;
   const showEmailError = (submitAttempted && errors.email) || errors.email;
-  const showPasswordError = (submitAttempted && errors.password) || errors.password;
-  const showConfirmError = (submitAttempted && errors.confirmPassword) || errors.confirmPassword;
+  const passwordsDoNotMatch =
+    Boolean(form.password) &&
+    Boolean(form.confirmPassword) &&
+    form.password !== form.confirmPassword;
+  const passwordErrorMessage =
+    (submitAttempted && errors.password) || errors.password || undefined;
+  const confirmErrorMessage =
+    passwordsDoNotMatch
+      ? 'Passwords do not match'
+      : (submitAttempted && errors.confirmPassword) || errors.confirmPassword || undefined;
   const showDobError = (submitAttempted && errors.dob) || errors.dob;
   const parsedDob = parseDobValue(form.dob);
   const currentDobDate = parsedDob ?? getDefaultDobDate();
@@ -463,7 +470,11 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
           <Text style={styles.label}>Create Password</Text>
           <View style={styles.passwordContainer}>
             <TextInput
-              style={[styles.input, styles.passwordInput, showPasswordError && styles.inputError]}
+              style={[
+                styles.input,
+                styles.passwordInput,
+                (passwordErrorMessage || passwordsDoNotMatch) && styles.inputError,
+              ]}
               value={form.password}
               onChangeText={(value) => updateField('password', value)}
               placeholder="Create password"
@@ -508,13 +519,19 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
               )}
             </TouchableOpacity>
           </View>
-          {showPasswordError && <Text style={styles.fieldError}>{errors.password}</Text>}
+          {passwordErrorMessage ? (
+            <Text style={styles.fieldError}>{passwordErrorMessage}</Text>
+          ) : null}
         </View>
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Confirm Password</Text>
           <View style={styles.passwordContainer}>
             <TextInput
-              style={[styles.input, styles.passwordInput, showConfirmError && styles.inputError]}
+              style={[
+                styles.input,
+                styles.passwordInput,
+                confirmErrorMessage && styles.inputError,
+              ]}
               value={form.confirmPassword}
               onChangeText={(value) => updateField('confirmPassword', value)}
               placeholder="Confirm password"
@@ -559,7 +576,9 @@ export const BasicDetailsForm: React.FC<BasicDetailsFormProps> = ({
               )}
             </TouchableOpacity>
           </View>
-          {showConfirmError && <Text style={styles.fieldError}>{errors.confirmPassword}</Text>}
+          {confirmErrorMessage ? (
+            <Text style={styles.fieldError}>{confirmErrorMessage}</Text>
+          ) : null}
         </View>
       </View>
 

@@ -1,7 +1,7 @@
 import { istSlotToUtc } from './tutor-calendar';
 import {
   materializedAvailableSlotStarts,
-  presetMonFriFourToEightPmUnavailable,
+  defaultWeeklyUnavailableKeys,
   unavailableKeysFromBlocks,
   weeklyUnavailabilityKey,
 } from './tutor-weekly-calendar';
@@ -26,10 +26,12 @@ describe('tutor-weekly-calendar', () => {
     );
   });
 
-  it('builds Mon–Fri 4–8 PM preset as unavailable outside window', () => {
-    const keys = presetMonFriFourToEightPmUnavailable();
+  it('default weekly pattern blocks Mon–Fri before 2 PM; weekends open', () => {
+    const keys = defaultWeeklyUnavailableKeys();
     expect(keys.has(weeklyUnavailabilityKey(1, 8, 0))).toBe(true);
-    expect(keys.has(weeklyUnavailabilityKey(1, 16, 0))).toBe(false);
-    expect(keys.has(weeklyUnavailabilityKey(6, 16, 0))).toBe(true);
+    expect(keys.has(weeklyUnavailabilityKey(1, 13, 30))).toBe(true);
+    expect(keys.has(weeklyUnavailabilityKey(1, 14, 0))).toBe(false);
+    expect(keys.has(weeklyUnavailabilityKey(6, 8, 0))).toBe(false);
+    expect(keys.has(weeklyUnavailabilityKey(0, 13, 30))).toBe(false);
   });
 });

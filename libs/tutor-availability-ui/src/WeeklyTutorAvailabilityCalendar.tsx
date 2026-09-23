@@ -81,8 +81,8 @@ export function WeeklyTutorAvailabilityCalendar({
       <div>
         <h2 className="text-lg font-bold text-slate-900">Weekly schedule</h2>
         <p className="mt-1 text-sm text-slate-600">
-          All times are open by default. Tap to mark unavailable (U). This pattern repeats every
-          week.
+          Weekdays default to unavailable before 2 PM (school hours); weekends are open. Tap to
+          toggle unavailable (U). This pattern repeats every week.
         </p>
       </div>
 
@@ -91,9 +91,9 @@ export function WeeklyTutorAvailabilityCalendar({
           <button
             type="button"
             className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700"
-            onClick={() => ui.applyMonFriFourToEightPreset()}
+            onClick={() => ui.applyDefaultWeeklyPreset()}
           >
-            Mon–Fri 4–8 PM
+            School-day default
           </button>
           <button
             type="button"

@@ -62,13 +62,13 @@ export function WeeklyAvailabilityEditor({
   return (
     <View>
       <Text style={styles.hint}>
-        All times are open by default. Tap to mark unavailable (U). This pattern repeats every
-        week.
+        Weekdays default to unavailable before 2 PM; weekends are open. Tap to toggle unavailable
+        (U). This repeats every week.
       </Text>
 
       <View style={styles.presetRow}>
-        <Pressable style={styles.presetBtn} onPress={() => ui.applyMonFriFourToEightPreset()}>
-          <Text style={styles.presetText}>Mon–Fri 4–8 PM</Text>
+        <Pressable style={styles.presetBtn} onPress={() => ui.applyDefaultWeeklyPreset()}>
+          <Text style={styles.presetText}>School-day default</Text>
         </Pressable>
         <Pressable style={styles.presetBtn} onPress={() => ui.copyMondayToWeekdays()}>
           <Text style={styles.presetText}>Copy Mon → weekdays</Text>

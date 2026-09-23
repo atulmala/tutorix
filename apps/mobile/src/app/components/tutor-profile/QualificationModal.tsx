@@ -20,11 +20,12 @@ import {
   getQualificationDegreeLabel,
   getQualificationDegreePlaceholder,
   getQualificationFieldOfStudyPlaceholder,
-  getQualificationGradeValuePlaceholder,
+  patchQualificationRowForGradeTypeChange,
   validateQualificationRow,
   type QualificationFormRow,
   type QualificationRowFieldErrors,
 } from '@tutorix/shared-utils';
+import { QualificationGradeValueField } from '../tutor-qualification/QualificationGradeValueField';
 
 export type { QualificationFormRow };
 
@@ -196,13 +197,12 @@ export function QualificationModal({
             <Text style={styles.label}>
               Grade value <Text style={styles.required}>*</Text>
             </Text>
-            <TextInput
-              style={[styles.input, fieldErrors.gradeValue ? styles.inputError : null]}
+            <QualificationGradeValueField
+              gradeType={row.gradeType}
               value={row.gradeValue}
-              onChangeText={(v) => updateRow({ gradeValue: v })}
-              placeholder={getQualificationGradeValuePlaceholder(row.gradeType)}
-              placeholderTextColor="#9ca3af"
-              editable={!saving}
+              onChange={(gradeValue) => updateRow({ gradeValue })}
+              hasError={!!fieldErrors.gradeValue}
+              disabled={saving}
             />
             {fieldErrors.gradeValue ? (
               <Text style={styles.fieldError}>{fieldErrors.gradeValue}</Text>
@@ -253,7 +253,9 @@ export function QualificationModal({
                   key={t}
                   style={styles.pickerOption}
                   onPress={() => {
-                    updateRow({ gradeType: t as GradeType });
+                    updateRow(
+                      patchQualificationRowForGradeTypeChange(row, t as GradeType),
+                    );
                     setGradeTypePickerVisible(false);
                   }}
                 >
