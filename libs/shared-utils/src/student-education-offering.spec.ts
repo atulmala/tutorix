@@ -29,4 +29,16 @@ describe('mapStudentEducationToOfferingPath', () => {
       classOfferingId: 3,
     });
   });
+
+  it('matches board from parent offering when rootOffering is missing', () => {
+    const path = mapStudentEducationToOfferingPath('CBSE', 8, [
+      { id: 1, displayName: 'School Education', level: 0 },
+      { id: 2, displayName: 'CBSE', level: 1, parentOffering: { id: 1 } },
+      { id: 3, displayName: 'Class 8', level: 2, parentOffering: { id: 2 } },
+    ]);
+    expect(path).toMatchObject({
+      boardOfferingId: 2,
+      classOfferingId: 3,
+    });
+  });
 });

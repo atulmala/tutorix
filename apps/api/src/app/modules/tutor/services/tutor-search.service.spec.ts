@@ -20,6 +20,8 @@ import {
   TutorSearchDeliveryMode,
   TutorSearchSort,
 } from '../enums/tutor-search.enum';
+import { ExperienceService } from '../../experience/services/experience.service';
+import { TutorQualificationService } from './tutor-qualification.service';
 import { TutorSearchService } from './tutor-search.service';
 
 describe('TutorSearchService', () => {
@@ -32,6 +34,9 @@ describe('TutorSearchService', () => {
   let calendarGetRawMany: jest.Mock;
   let calendarAndWhere: jest.Mock;
   let resolveDisplayUrl: jest.Mock;
+  let findExperiencesByTutorIds: jest.Mock;
+  let findExperiencesByTutorId: jest.Mock;
+  let findQualificationsByTutorId: jest.Mock;
 
   const studentUser = { id: 9, role: UserRole.STUDENT };
 
@@ -149,6 +154,9 @@ describe('TutorSearchService', () => {
     calendarGetRawMany = jest.fn().mockResolvedValue([]);
     calendarAndWhere = jest.fn().mockReturnThis();
     resolveDisplayUrl = jest.fn().mockResolvedValue(null);
+    findExperiencesByTutorIds = jest.fn().mockResolvedValue([]);
+    findExperiencesByTutorId = jest.fn().mockResolvedValue([]);
+    findQualificationsByTutorId = jest.fn().mockResolvedValue([]);
 
     const calendarQb = {
       select: jest.fn().mockReturnThis(),
@@ -183,6 +191,17 @@ describe('TutorSearchService', () => {
         {
           provide: ProfilePictureService,
           useValue: { resolveDisplayUrl },
+        },
+        {
+          provide: ExperienceService,
+          useValue: {
+            findByTutorIds: findExperiencesByTutorIds,
+            findByTutorId: findExperiencesByTutorId,
+          },
+        },
+        {
+          provide: TutorQualificationService,
+          useValue: { findByTutorId: findQualificationsByTutorId },
         },
       ],
     }).compile();
@@ -276,6 +295,23 @@ describe('TutorSearchService', () => {
     expect(result.items.map((h) => h.tutorId)).toEqual([2, 1]);
   });
 
+  it('adds calculated experience months from employment dates', async () => {
+    findOfferings.mockResolvedValue([tutorRow(1)]);
+    findRateCards.mockResolvedValue(new Map([[1, completeCard]]));
+    findExperiencesByTutorIds.mockResolvedValue([
+      {
+        startDate: '2020-01-01',
+        endDate: '2022-01-01',
+        isCurrent: false,
+        tutor: { id: 1 },
+      },
+    ]);
+    const result = await service.searchTutors(studentUser as never, {
+      offeringId: 33,
+    });
+    expect(result.items[0].totalExperienceMonths).toBe(24);
+  });
+
   it('excludes tutors without a complete rate card', async () => {
     findOfferings.mockResolvedValue([tutorRow(1)]);
     findRateCards.mockResolvedValue(new Map());
@@ -348,6 +384,67 @@ describe('TutorSearchService', () => {
     expect(detail.slotsThisWeek).toBe(2);
     expect(detail).not.toHaveProperty('bankDetails');
     expect(detail).not.toHaveProperty('documents');
+    expect(detail.totalExperienceMonths).toBe(0);
+    expect(detail.recentExperiences).toEqual([]);
+    expect(detail.topQualifications).toEqual([]);
+  });
+
+  it('returns calculated experience and the latest profile details', async () => {
+    findOfferings.mockResolvedValue([tutorRow(1)]);
+    findRateCards.mockResolvedValue(new Map([[1, completeCard]]));
+    findExperiencesByTutorId.mockResolvedValue([
+      {
+        jobTitle: 'Math teacher',
+        employerName: 'Oak School',
+        startDate: '2020-01-01',
+        endDate: '2022-07-01',
+        isCurrent: false,
+        tutor: { id: 1 },
+      },
+      {
+        jobTitle: 'Lead tutor',
+        employerName: 'Tutorix',
+        startDate: '2023-01-01',
+        isCurrent: true,
+        tutor: { id: 1 },
+      },
+    ]);
+    findQualificationsByTutorId.mockResolvedValue([
+      {
+        qualificationType: 'HIGHER_SECONDARY',
+        degreeName: null,
+        gradeType: 'PERCENTAGE',
+        gradeValue: '88',
+        boardOrUniversity: 'CBSE',
+        yearObtained: 2014,
+      },
+      {
+        qualificationType: 'BACHELORS',
+        degreeName: 'B.Sc Mathematics',
+        gradeType: 'CGPA',
+        gradeValue: '8.2',
+        boardOrUniversity: 'Delhi University',
+        yearObtained: 2018,
+      },
+      {
+        qualificationType: 'MASTERS',
+        degreeName: 'M.Sc Mathematics',
+        gradeType: 'PERCENTAGE',
+        gradeValue: '76',
+        boardOrUniversity: 'JNU',
+        yearObtained: 2020,
+      },
+    ]);
+
+    const detail = await service.getTutorSearchDetail(studentUser as never, 1, 33);
+
+    expect(detail.recentExperiences[0]?.jobTitle).toBe('Lead tutor');
+    expect(detail.recentExperiences).toHaveLength(2);
+    expect(detail.topQualifications.map((q) => q.qualificationType)).toEqual([
+      'MASTERS',
+      'BACHELORS',
+    ]);
+    expect(detail.totalExperienceMonths).toBeGreaterThan(24);
   });
 
   it('rejects preview when the matching offering is not available', async () => {

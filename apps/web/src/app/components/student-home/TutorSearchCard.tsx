@@ -1,11 +1,15 @@
 import React from 'react';
-import { formatInr, YEARS_OF_EXPERIENCE_LABELS, YearsOfExperienceEnum } from '@tutorix/shared-utils';
+import {
+  formatExperienceDuration,
+  formatInr,
+  monthsToExperienceDuration,
+} from '@tutorix/shared-utils';
 
 export type TutorSearchCardHit = {
   tutorId: number | string;
   displayName: string;
   photoUrl?: string | null;
-  yearsOfExperience?: string;
+  totalExperienceMonths?: number;
   offeringLabel: string;
   matchingOfferingId: number | string;
   rateInr: number;
@@ -22,13 +26,11 @@ type TutorSearchCardProps = {
   onView: () => void;
 };
 
-function yearsLabel(value?: string): string {
-  if (!value) return '';
-  const key = value as YearsOfExperienceEnum;
-  return YEARS_OF_EXPERIENCE_LABELS[key] ?? '';
-}
-
 export const TutorSearchCard: React.FC<TutorSearchCardProps> = ({ hit, onView }) => {
+  const experience =
+    hit.totalExperienceMonths && hit.totalExperienceMonths > 0
+      ? formatExperienceDuration(monthsToExperienceDuration(hit.totalExperienceMonths))
+      : '';
   const mode =
     hit.deliveryModeShown === 'OFFLINE'
       ? hit.distanceKm != null
@@ -60,8 +62,8 @@ export const TutorSearchCard: React.FC<TutorSearchCardProps> = ({ hit, onView })
               </span>
             ) : null}
           </div>
-          {yearsLabel(hit.yearsOfExperience) ? (
-            <p className="mt-0.5 text-xs text-muted">{yearsLabel(hit.yearsOfExperience)}</p>
+          {experience ? (
+            <p className="mt-0.5 text-xs text-muted">{experience}</p>
           ) : null}
           <p className="mt-1 text-sm text-primary/80">{hit.offeringLabel}</p>
         </div>

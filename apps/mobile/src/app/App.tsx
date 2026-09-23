@@ -16,6 +16,8 @@ import { StudentOnboarding } from './components/student-onboarding';
 import { StudentDetailScreen } from './components/student-profile/StudentDetailScreen';
 import { StudentHomeScreen } from './components/student-home/StudentHomeScreen';
 import { StudentTutorSearchScreen } from './components/student-tutor-search/StudentTutorSearchScreen';
+import { StudentTutorSearchResultsScreen } from './components/student-tutor-search/StudentTutorSearchResultsScreen';
+import type { StudentTutorSearchParams } from './components/student-tutor-search/student-tutor-search-params';
 import { StudentTutorPreviewScreen } from './components/student-tutor-preview/StudentTutorPreviewScreen';
 import {
   StudentHomeHeader,
@@ -117,6 +119,8 @@ function AppContent() {
     tutorId: string;
     offeringId: string;
   } | null>(null);
+  const [tutorSearchParams, setTutorSearchParams] =
+    useState<StudentTutorSearchParams | null>(null);
   const [signupResume, setSignupResume] = useState<{
     userId?: number;
     verificationStatus?: {
@@ -141,6 +145,7 @@ function AppContent() {
     setTutorProfileForOnboarding(null);
     setStudentProfileForOnboarding(null);
     setTutorPreview(null);
+    setTutorSearchParams(null);
     setSignupResume(null);
     setPushBanner(null);
     if (pushBannerTimerRef.current) {
@@ -162,6 +167,7 @@ function AppContent() {
     setTutorProfileForOnboarding(null);
     setStudentProfileForOnboarding(null);
     setTutorPreview(null);
+    setTutorSearchParams(null);
     setSignupResume(null);
     setPushBanner(null);
     if (pushBannerTimerRef.current) {
@@ -456,24 +462,43 @@ function AppContent() {
         />
       </View>
     );
-  } else if (currentView === 'studentTutorSearch') {
+  } else if (
+    currentView === 'studentTutorSearch' ||
+    currentView === 'studentTutorSearchResults'
+  ) {
+    const showResults =
+      currentView === 'studentTutorSearchResults' && tutorSearchParams != null;
     screen = (
       <View style={{ flex: 1 }}>
         <StudentNavHeader
-          title="Search"
+          title={showResults ? 'Tutors' : 'Search'}
+          onBack={showResults ? () => setCurrentView('studentTutorSearch') : undefined}
           onLogout={handleLogout}
           onOpenWallet={() => handleOpenWallet('studentHome')}
         />
-        <StudentTutorSearchScreen
-          onOpenTutorPreview={(tutorId, offeringId) => {
-            setTutorPreview({ tutorId, offeringId });
-            setCurrentView('studentTutorPreview');
-          }}
-        />
+        {showResults && tutorSearchParams ? (
+          <StudentTutorSearchResultsScreen
+            searchParams={tutorSearchParams}
+            onRefineSearch={setTutorSearchParams}
+            onOpenTutorPreview={(tutorId, offeringId) => {
+              setTutorPreview({ tutorId, offeringId });
+              setCurrentView('studentTutorPreview');
+            }}
+          />
+        ) : (
+          <StudentTutorSearchScreen
+            onSearch={(params) => {
+              setTutorSearchParams(params);
+              setCurrentView('studentTutorSearchResults');
+            }}
+          />
+        )}
         <StudentTabBar
           active="search"
           onHome={() => setCurrentView('studentHome')}
-          onSearch={() => undefined}
+          onSearch={
+            showResults ? () => setCurrentView('studentTutorSearch') : () => undefined
+          }
           onProfile={() => setCurrentView('studentProfile')}
         />
       </View>
@@ -483,7 +508,11 @@ function AppContent() {
       <View style={{ flex: 1 }}>
         <StudentNavHeader
           title="Tutor"
-          onBack={() => setCurrentView('studentTutorSearch')}
+          onBack={() =>
+            setCurrentView(
+              tutorSearchParams ? 'studentTutorSearchResults' : 'studentTutorSearch',
+            )
+          }
           onLogout={handleLogout}
           onOpenWallet={() => handleOpenWallet('studentHome')}
         />

@@ -30,6 +30,7 @@ describe('walletReturnFromPush', () => {
     expect(walletReturnFromPush('studentHome')).toBe('studentHome');
     expect(walletReturnFromPush('studentOnboarding')).toBe('studentHome');
     expect(walletReturnFromPush('studentTutorSearch')).toBe('studentHome');
+    expect(walletReturnFromPush('studentTutorSearchResults')).toBe('studentHome');
     expect(walletReturnFromPush('studentTutorPreview')).toBe('studentHome');
   });
 

@@ -35,12 +35,18 @@ export function mapStudentEducationToOfferingPath(
 
   const boardLabel = normalizeBoardLabel(board, boardOther);
   const boardNode = boardLabel
-    ? offerings.find(
-        (o) =>
+    ? offerings.find((o) => {
+        const underRoot =
+          o.rootOffering?.id === root.id ||
+          o.rootOfferingId === root.id ||
+          o.parentOffering?.id === root.id ||
+          o.parentOfferingId === root.id;
+        return (
           o.level === 1 &&
-          (o.rootOffering?.id === root.id || o.rootOfferingId === root.id) &&
-          o.displayName.trim().toUpperCase() === boardLabel.toUpperCase(),
-      )
+          underRoot &&
+          o.displayName.trim().toUpperCase() === boardLabel.toUpperCase()
+        );
+      })
     : undefined;
 
   const classNode =

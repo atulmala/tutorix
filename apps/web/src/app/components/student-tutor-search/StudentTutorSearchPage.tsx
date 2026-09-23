@@ -73,7 +73,10 @@ export const StudentTutorSearchPage: React.FC<StudentTutorSearchPageProps> = ({
   });
 
   const student = profileData?.myStudentProfile;
-  const offerings = offeringsData?.offerings ?? [];
+  const offerings = useMemo(
+    () => offeringsData?.offerings ?? [],
+    [offeringsData?.offerings],
+  );
 
   const educationPath = useMemo(
     () =>
@@ -87,6 +90,10 @@ export const StudentTutorSearchPage: React.FC<StudentTutorSearchPageProps> = ({
   );
 
   const restored = readStudentTutorSearchDraft();
+  const restoredHasUserCascade = Boolean(
+    restored &&
+      (restored.studyArea !== 'SCHOOL_EDUCATION' || restored.selectedIds.length > 0),
+  );
   const [studyArea, setStudyArea] = useState(restored?.studyArea ?? 'SCHOOL_EDUCATION');
   const [selectedIds, setSelectedIds] = useState<number[]>(restored?.selectedIds ?? []);
   const [deliveryMode, setDeliveryMode] = useState<'ANY' | 'ONLINE' | 'OFFLINE'>(
@@ -97,7 +104,7 @@ export const StudentTutorSearchPage: React.FC<StudentTutorSearchPageProps> = ({
   );
   const [maxRateInr, setMaxRateInr] = useState<number | ''>(restored?.maxRateInr ?? '');
   const [radiusKm, setRadiusKm] = useState(restored?.radiusKm ?? 10);
-  const educationAppliedRef = useRef(Boolean(restored));
+  const educationAppliedRef = useRef(restoredHasUserCascade);
 
   useEffect(() => {
     writeStudentTutorSearchDraft({
@@ -111,6 +118,11 @@ export const StudentTutorSearchPage: React.FC<StudentTutorSearchPageProps> = ({
   }, [classFormat, deliveryMode, maxRateInr, radiusKm, selectedIds, studyArea]);
 
   useEffect(() => {
+    if (student == null) return;
+    if (student.studentType !== 'SCHOOL') {
+      educationAppliedRef.current = true;
+      return;
+    }
     if (!educationPath || educationAppliedRef.current) return;
     educationAppliedRef.current = true;
     setStudyArea(educationPath.studyAreaKey);
@@ -119,7 +131,7 @@ export const StudentTutorSearchPage: React.FC<StudentTutorSearchPageProps> = ({
         (id): id is number => id != null,
       ),
     );
-  }, [educationPath]);
+  }, [educationPath, student]);
 
   const levelsConfig = studyArea ? STUDY_AREAS[studyArea] ?? [] : [];
   const offeringId =

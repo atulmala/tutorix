@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -10,24 +9,21 @@ import {
   View,
 } from 'react-native';
 import { useQuery } from '@apollo/client';
-import {
-  GET_MY_STUDENT_PROFILE,
-  GET_OFFERINGS,
-  SEARCH_TUTORS,
-} from '@tutorix/shared-graphql/queries';
+import { GET_MY_STUDENT_PROFILE, GET_OFFERINGS } from '@tutorix/shared-graphql/queries';
+import { mapStudentEducationToOfferingPath } from '@tutorix/shared-utils/student-education-offering';
 import {
   cascadeFieldLabel,
-  formatInr,
-  mapStudentEducationToOfferingPath,
   STUDY_AREAS,
   STUDY_AREAS_OPTIONS,
-  YEARS_OF_EXPERIENCE_LABELS,
-  YearsOfExperienceEnum,
-} from '@tutorix/shared-utils';
-import { analytics } from '../../../lib/analytics';
+} from '@tutorix/shared-utils/study-areas.constants';
+import {
+  readStudentTutorSearchDraft,
+  writeStudentTutorSearchDraft,
+} from './student-tutor-search-draft';
+import type { StudentTutorSearchParams } from './student-tutor-search-params';
 
 type StudentTutorSearchScreenProps = {
-  onOpenTutorPreview: (tutorId: string, offeringId: string) => void;
+  onSearch: (params: StudentTutorSearchParams) => void;
 };
 
 type OfferingNode = {
@@ -61,8 +57,51 @@ function sortOfferings(nodes: OfferingNode[]): OfferingNode[] {
   });
 }
 
+type DropdownFieldProps = {
+  label: string;
+  value?: string;
+  placeholder: string;
+  disabled?: boolean;
+  onPress: () => void;
+};
+
+const DropdownField: React.FC<DropdownFieldProps> = ({
+  label,
+  value,
+  placeholder,
+  disabled,
+  onPress,
+}) => (
+  <View style={styles.field}>
+    <Text style={styles.fieldLabel}>{label}</Text>
+    <Pressable
+      style={[styles.dropdown, disabled && styles.dropdownDisabled]}
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Text
+        style={[styles.dropdownText, !value && styles.dropdownPlaceholder]}
+        numberOfLines={1}
+      >
+        {value ?? placeholder}
+      </Text>
+      <Text style={styles.chevron}>▼</Text>
+    </Pressable>
+  </View>
+);
+
+function pairFields<T>(items: T[]): T[][] {
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += 2) {
+    rows.push(items.slice(i, i + 2));
+  }
+  return rows;
+}
+
 export const StudentTutorSearchScreen: React.FC<StudentTutorSearchScreenProps> = ({
-  onOpenTutorPreview,
+  onSearch,
 }) => {
   const { data: profileData } = useQuery(GET_MY_STUDENT_PROFILE, {
     fetchPolicy: 'cache-and-network',
@@ -72,7 +111,10 @@ export const StudentTutorSearchScreen: React.FC<StudentTutorSearchScreenProps> =
   });
 
   const student = profileData?.myStudentProfile;
-  const offerings = offeringsData?.offerings ?? [];
+  const offerings = useMemo(
+    () => offeringsData?.offerings ?? [],
+    [offeringsData?.offerings],
+  );
 
   const educationPath = useMemo(
     () =>
@@ -85,16 +127,41 @@ export const StudentTutorSearchScreen: React.FC<StudentTutorSearchScreenProps> =
     [offerings, student?.board, student?.boardOther, student?.schoolClass],
   );
 
-  const [studyArea, setStudyArea] = useState('SCHOOL_EDUCATION');
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const restored = readStudentTutorSearchDraft();
+  const restoredHasUserCascade = Boolean(
+    restored &&
+      (restored.studyArea !== 'SCHOOL_EDUCATION' || restored.selectedIds.length > 0),
+  );
+  const [studyArea, setStudyArea] = useState(restored?.studyArea ?? 'SCHOOL_EDUCATION');
+  const [selectedIds, setSelectedIds] = useState<number[]>(restored?.selectedIds ?? []);
   const [picker, setPicker] = useState<PickerTarget | null>(null);
-  const [deliveryMode, setDeliveryMode] = useState<'ANY' | 'ONLINE' | 'OFFLINE'>('ANY');
-  const [classFormat, setClassFormat] = useState<'ANY' | 'INDIVIDUAL' | 'GROUP'>('ANY');
-  const [maxRateText, setMaxRateText] = useState('');
-  const [radiusKm, setRadiusKm] = useState(10);
-  const educationAppliedRef = useRef(false);
+  const [deliveryMode, setDeliveryMode] = useState<'ANY' | 'ONLINE' | 'OFFLINE'>(
+    restored?.deliveryMode ?? 'ANY',
+  );
+  const [classFormat, setClassFormat] = useState<'ANY' | 'INDIVIDUAL' | 'GROUP'>(
+    restored?.classFormat ?? 'ANY',
+  );
+  const [maxRateText, setMaxRateText] = useState(restored?.maxRateText ?? '');
+  const [radiusKm, setRadiusKm] = useState(restored?.radiusKm ?? 10);
+  const educationAppliedRef = useRef(restoredHasUserCascade);
 
   useEffect(() => {
+    writeStudentTutorSearchDraft({
+      studyArea,
+      selectedIds,
+      deliveryMode,
+      classFormat,
+      maxRateText,
+      radiusKm,
+    });
+  }, [classFormat, deliveryMode, maxRateText, radiusKm, selectedIds, studyArea]);
+
+  useEffect(() => {
+    if (student == null) return;
+    if (student.studentType !== 'SCHOOL') {
+      educationAppliedRef.current = true;
+      return;
+    }
     if (!educationPath || educationAppliedRef.current) return;
     educationAppliedRef.current = true;
     setStudyArea(educationPath.studyAreaKey);
@@ -103,39 +170,13 @@ export const StudentTutorSearchScreen: React.FC<StudentTutorSearchScreenProps> =
         (id): id is number => id != null,
       ),
     );
-  }, [educationPath]);
+  }, [educationPath, student]);
 
   const levelsConfig = studyArea ? STUDY_AREAS[studyArea] ?? [] : [];
   const offeringId =
     levelsConfig.length > 0 && selectedIds.length === levelsConfig.length
       ? selectedIds[levelsConfig.length - 1]
       : null;
-
-  const searchInput = offeringId
-    ? {
-        offeringId: String(offeringId),
-        deliveryMode,
-        classFormat,
-        maxRateInr: maxRateText ? Number(maxRateText) : undefined,
-        radiusKm,
-        sortBy: 'BEST_MATCH',
-      }
-    : undefined;
-
-  const { data: searchData, loading } = useQuery(SEARCH_TUTORS, {
-    variables: { input: searchInput },
-    skip: !searchInput,
-    fetchPolicy: 'network-only',
-  });
-  const connection = searchData?.searchTutors;
-  const hits = connection?.items ?? [];
-  const subjectLabel =
-    offerings.find((o) => o.id === offeringId)?.displayName ?? 'Choose a subject';
-
-  useEffect(() => {
-    if (!offeringId || !connection) return;
-    analytics.trackTutorSearch(subjectLabel, { deliveryMode, classFormat, radiusKm }, hits.length);
-  }, [classFormat, connection, deliveryMode, hits.length, offeringId, radiusKm, subjectLabel]);
 
   const rootOfferings = offerings.filter((o) => o.parentOffering == null);
   const studyOpt = STUDY_AREAS_OPTIONS.find((o) => o.key === studyArea);
@@ -192,50 +233,65 @@ export const StudentTutorSearchScreen: React.FC<StudentTutorSearchScreenProps> =
           })()
         : [];
 
+  const handleSearch = () => {
+    if (!offeringId) return;
+    onSearch({
+      offeringId: String(offeringId),
+      deliveryMode,
+      classFormat,
+      maxRateInr: maxRateText ? Number(maxRateText) : undefined,
+      radiusKm,
+      sortBy: 'BEST_MATCH',
+    });
+  };
+
+  const cascadeFields = levelsConfig.map((level, index) => {
+    const parentReady = index === 0 ? Boolean(rootOffering) : Boolean(selectedIds[index - 1]);
+    const selected = offerings.find((o) => o.id === selectedIds[index]);
+    const label = cascadeFieldLabel(studyArea, level.name);
+    return {
+      key: level.name,
+      label,
+      value: selected?.displayName,
+      placeholder: `Select ${label.toLowerCase()}`,
+      disabled: !parentReady,
+      onPress: () => parentReady && setPicker({ kind: 'level', index }),
+    };
+  });
+
+  const fieldRows = pairFields([
+    {
+      key: 'studyArea',
+      label: 'Study area',
+      value: studyAreaLabel,
+      placeholder: 'Select study area',
+      disabled: false,
+      onPress: () => setPicker({ kind: 'studyArea' }),
+    },
+    ...cascadeFields,
+  ]);
+
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       <Text style={styles.welcomeTitle}>Find a tutor</Text>
       <Text style={styles.subtitle}>
-        We start from your class details. Choose a subject to see tutors.
+        We start from your class details. Choose a subject, then search.
       </Text>
 
-      <Text style={styles.fieldLabel}>Study area</Text>
-      <Pressable
-        style={styles.dropdown}
-        onPress={() => setPicker({ kind: 'studyArea' })}
-        accessibilityRole="button"
-        accessibilityLabel="Study area"
-      >
-        <Text style={styles.dropdownText}>{studyAreaLabel}</Text>
-        <Text style={styles.chevron}>▼</Text>
-      </Pressable>
-
-      {levelsConfig.map((level, index) => {
-        const parentReady = index === 0 ? Boolean(rootOffering) : Boolean(selectedIds[index - 1]);
-        const selected = offerings.find((o) => o.id === selectedIds[index]);
-        const label = cascadeFieldLabel(studyArea, level.name);
-        const placeholder = `Select ${label.toLowerCase()}`;
-        return (
-          <View key={level.name}>
-            <Text style={styles.fieldLabel}>{label}</Text>
-            <Pressable
-              style={[styles.dropdown, !parentReady && styles.dropdownDisabled]}
-              onPress={() => parentReady && setPicker({ kind: 'level', index })}
-              disabled={!parentReady}
-              accessibilityRole="button"
-              accessibilityLabel={label}
-            >
-              <Text
-                style={[styles.dropdownText, !selected && styles.dropdownPlaceholder]}
-                numberOfLines={1}
-              >
-                {selected?.displayName ?? placeholder}
-              </Text>
-              <Text style={styles.chevron}>▼</Text>
-            </Pressable>
-          </View>
-        );
-      })}
+      {fieldRows.map((row) => (
+        <View key={row.map((field) => field.key).join('-')} style={styles.fieldRow}>
+          {row.map((field) => (
+            <DropdownField
+              key={field.key}
+              label={field.label}
+              value={field.value}
+              placeholder={field.placeholder}
+              disabled={field.disabled}
+              onPress={field.onPress}
+            />
+          ))}
+        </View>
+      ))}
 
       <Text style={styles.fieldLabel}>Study Mode</Text>
       <View style={styles.segmentRow}>
@@ -244,6 +300,9 @@ export const StudentTutorSearchScreen: React.FC<StudentTutorSearchScreenProps> =
             key={opt.value}
             style={[styles.segment, deliveryMode === opt.value && styles.segmentOn]}
             onPress={() => setDeliveryMode(opt.value)}
+            accessibilityRole="button"
+            accessibilityLabel={opt.label}
+            accessibilityState={{ selected: deliveryMode === opt.value }}
           >
             <Text style={[styles.segmentText, deliveryMode === opt.value && styles.segmentTextOn]}>
               {opt.label}
@@ -259,6 +318,9 @@ export const StudentTutorSearchScreen: React.FC<StudentTutorSearchScreenProps> =
             key={opt.value}
             style={[styles.segment, classFormat === opt.value && styles.segmentOn]}
             onPress={() => setClassFormat(opt.value)}
+            accessibilityRole="button"
+            accessibilityLabel={opt.label}
+            accessibilityState={{ selected: classFormat === opt.value }}
           >
             <Text style={[styles.segmentText, classFormat === opt.value && styles.segmentTextOn]}>
               {opt.label}
@@ -276,6 +338,8 @@ export const StudentTutorSearchScreen: React.FC<StudentTutorSearchScreenProps> =
                 key={km}
                 style={[styles.segment, radiusKm === km && styles.segmentOn]}
                 onPress={() => setRadiusKm(km)}
+                accessibilityRole="button"
+                accessibilityLabel={`${km} km`}
               >
                 <Text style={[styles.segmentText, radiusKm === km && styles.segmentTextOn]}>
                   {km} km
@@ -294,80 +358,23 @@ export const StudentTutorSearchScreen: React.FC<StudentTutorSearchScreenProps> =
         placeholderTextColor="#9ca3af"
         value={maxRateText}
         onChangeText={setMaxRateText}
+        accessibilityLabel="Budget"
       />
 
-      {connection?.forcedOnlineOnly ? (
-        <Text style={styles.hint}>
-          Add a mapped home address to search nearby offline tutors. Showing online matches.
-        </Text>
+      {!offeringId ? (
+        <Text style={styles.hint}>Choose a subject to search for certified tutors.</Text>
       ) : null}
 
-      {!offeringId ? (
-        <Text style={styles.hint}>Choose a subject to see certified tutors.</Text>
-      ) : loading ? (
-        <Text style={styles.hint}>Finding tutors…</Text>
-      ) : hits.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.hint}>No tutors match these filters yet.</Text>
-          {deliveryMode === 'OFFLINE' ? (
-            <Pressable onPress={() => setDeliveryMode('ANY')}>
-              <Text style={styles.link}>Include online tutors</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      ) : (
-        hits.map(
-          (hit: {
-            tutorId: string;
-            displayName: string;
-            photoUrl?: string | null;
-            yearsOfExperience?: string;
-            offeringLabel: string;
-            matchingOfferingId: string;
-            rateInr: number;
-            deliveryModeShown: string;
-            distanceKm?: number | null;
-            freeDemoOffered: boolean;
-            hasAvailabilityThisWeek: boolean;
-            groupSize: number;
-          }) => (
-            <Pressable
-              key={String(hit.tutorId)}
-              style={styles.card}
-              onPress={() => {
-                analytics.trackTutorViewed(hit.tutorId);
-                onOpenTutorPreview(String(hit.tutorId), String(hit.matchingOfferingId));
-              }}
-            >
-              {hit.photoUrl ? (
-                <Image source={{ uri: hit.photoUrl }} style={styles.photo} />
-              ) : null}
-              <Text style={styles.cardName}>{hit.displayName}</Text>
-              {hit.hasAvailabilityThisWeek ? (
-                <Text style={styles.available}>Available this week</Text>
-              ) : null}
-              <Text style={styles.cardMeta}>{hit.offeringLabel}</Text>
-              <Text style={styles.cardMeta}>
-                {hit.deliveryModeShown === 'OFFLINE'
-                  ? hit.distanceKm != null
-                    ? `${hit.distanceKm.toFixed(1)} km`
-                    : 'Offline'
-                  : 'Online'}
-                {' · '}
-                {hit.groupSize > 1 ? `Group of ${hit.groupSize}` : '1:1'}
-                {hit.freeDemoOffered ? ' · Free demo' : ''}
-              </Text>
-              {hit.yearsOfExperience ? (
-                <Text style={styles.cardMeta}>
-                  {YEARS_OF_EXPERIENCE_LABELS[hit.yearsOfExperience as YearsOfExperienceEnum] ?? ''}
-                </Text>
-              ) : null}
-              <Text style={styles.rate}>{formatInr(hit.rateInr)} / class</Text>
-              <Text style={styles.link}>View profile</Text>
-            </Pressable>
-          ),
-        )
-      )}
+      <Pressable
+        style={[styles.searchButton, !offeringId && styles.searchButtonDisabled]}
+        onPress={handleSearch}
+        disabled={!offeringId}
+        accessibilityRole="button"
+        accessibilityLabel="Search"
+        accessibilityState={{ disabled: !offeringId }}
+      >
+        <Text style={styles.searchButtonText}>Search</Text>
+      </Pressable>
 
       <Modal visible={picker !== null} animationType="slide" transparent>
         <View style={styles.sheetWrap}>
@@ -383,6 +390,8 @@ export const StudentTutorSearchScreen: React.FC<StudentTutorSearchScreenProps> =
                     key={opt.key}
                     style={[styles.option, opt.selected && styles.optionOn]}
                     onPress={opt.onSelect}
+                    accessibilityRole="button"
+                    accessibilityLabel={opt.label}
                   >
                     <Text style={styles.optionText}>{opt.label}</Text>
                   </Pressable>
@@ -404,6 +413,8 @@ const styles = StyleSheet.create({
   content: { padding: 24, paddingBottom: 48 },
   welcomeTitle: { fontSize: 22, fontWeight: '700', color: '#143055' },
   subtitle: { marginTop: 6, marginBottom: 16, fontSize: 14, color: '#6b7280', lineHeight: 20 },
+  fieldRow: { flexDirection: 'row', gap: 10 },
+  field: { flex: 1, minWidth: 0 },
   fieldLabel: {
     fontSize: 14,
     fontWeight: '600',
@@ -451,21 +462,15 @@ const styles = StyleSheet.create({
     color: '#143055',
   },
   hint: { color: '#6b7280', fontSize: 14, textAlign: 'center', marginTop: 8 },
-  link: { color: '#4a97f5', fontWeight: '700', marginTop: 8 },
-  empty: { padding: 24, alignItems: 'center' },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    padding: 16,
-    marginBottom: 12,
+  searchButton: {
+    marginTop: 16,
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
   },
-  photo: { width: 64, height: 64, borderRadius: 32, marginBottom: 10 },
-  cardName: { fontSize: 18, fontWeight: '700', color: '#143055' },
-  available: { color: '#16a34a', fontWeight: '700', marginTop: 4, fontSize: 12 },
-  cardMeta: { color: '#6b7280', marginTop: 4, fontSize: 13 },
-  rate: { marginTop: 8, fontWeight: '700', color: '#143055' },
+  searchButtonDisabled: { opacity: 0.5 },
+  searchButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   sheetWrap: { flex: 1, justifyContent: 'flex-end' },
   sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
   sheet: {

@@ -2,15 +2,34 @@ import React, { useEffect } from 'react';
 import { useQuery } from '@apollo/client';
 import { TUTOR_SEARCH_DETAIL } from '@tutorix/shared-graphql';
 import {
+  formatExperienceDuration,
+  formatExperiencePeriod,
   formatInr,
-  YEARS_OF_EXPERIENCE_LABELS,
-  YearsOfExperienceEnum,
+  formatQualificationInstitutionGrade,
+  formatQualificationTitle,
+  monthsToExperienceDuration,
 } from '@tutorix/shared-utils';
 import { analytics } from '../../../lib/analytics';
 
 type StudentTutorPreviewPageProps = {
   tutorId: string;
   offeringId: string;
+};
+
+type PreviewExperience = {
+  jobTitle: string;
+  employerName?: string | null;
+  startDate: string;
+  endDate?: string | null;
+  isCurrent: boolean;
+};
+
+type PreviewQualification = {
+  qualificationType: string;
+  degreeName?: string | null;
+  gradeType: string;
+  gradeValue: string;
+  boardOrUniversity: string;
 };
 
 export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = ({
@@ -37,8 +56,12 @@ export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = (
     return <p className="text-sm text-danger">Could not load this tutor.</p>;
   }
 
-  const years =
-    YEARS_OF_EXPERIENCE_LABELS[detail.yearsOfExperience as YearsOfExperienceEnum] ?? '';
+  const experience =
+    detail.totalExperienceMonths > 0
+      ? formatExperienceDuration(monthsToExperienceDuration(detail.totalExperienceMonths))
+      : '';
+  const recentExperiences = (detail.recentExperiences ?? []) as PreviewExperience[];
+  const topQualifications = (detail.topQualifications ?? []) as PreviewQualification[];
 
   return (
     <div className="w-full max-w-5xl space-y-6">
@@ -53,7 +76,7 @@ export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = (
           )}
           <div>
             <h1 className="text-2xl font-bold text-primary">{detail.displayName}</h1>
-            {years ? <p className="mt-1 text-sm text-muted">{years}</p> : null}
+            {experience ? <p className="mt-1 text-sm text-muted">{experience}</p> : null}
             <p className="mt-1 text-sm text-muted">
               {[detail.city, detail.distanceKm != null ? `${detail.distanceKm.toFixed(1)} km` : null]
                 .filter(Boolean)
@@ -92,6 +115,46 @@ export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = (
           ) : null}
         </div>
       </section>
+
+      {recentExperiences.length > 0 ? (
+        <section className="rounded-2xl border border-primary/10 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-primary">Experience</h2>
+          <ul className="mt-3 space-y-3">
+            {recentExperiences.map((exp, index) => (
+              <li key={`${exp.jobTitle}-${index}`}>
+                <p className="font-semibold text-primary">{exp.jobTitle}</p>
+                <p className="text-sm text-muted">{exp.employerName || 'Self-employed'}</p>
+                <p className="text-sm text-muted">{formatExperiencePeriod(exp)}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {topQualifications.length > 0 ? (
+        <section className="rounded-2xl border border-primary/10 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-primary">Education</h2>
+          <ul className="mt-3 space-y-3">
+            {topQualifications.map((qual, index) => {
+              const institutionGrade = formatQualificationInstitutionGrade(
+                qual.boardOrUniversity,
+                qual.gradeType,
+                qual.gradeValue,
+              );
+              return (
+                <li key={`${qual.qualificationType}-${index}`}>
+                  <p className="font-semibold text-primary">
+                    {formatQualificationTitle(qual.qualificationType, qual.degreeName)}
+                  </p>
+                  {institutionGrade ? (
+                    <p className="text-sm text-muted">{institutionGrade}</p>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
 
       {detail.otherOfferings.length > 0 ? (
         <section className="rounded-2xl border border-primary/10 bg-white p-6 shadow-sm">

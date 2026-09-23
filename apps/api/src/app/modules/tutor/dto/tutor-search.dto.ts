@@ -57,6 +57,9 @@ export class TutorSearchHit {
 
   @Field(() => Int)
   slotsThisWeek!: number;
+
+  @Field(() => Int)
+  totalExperienceMonths!: number;
 }
 
 @ObjectType()
@@ -102,6 +105,45 @@ export class TutorSearchOfferingSummary {
 }
 
 @ObjectType()
+export class TutorSearchExperience {
+  @Field()
+  jobTitle!: string;
+
+  @Field(() => String, { nullable: true })
+  employerName?: string | null;
+
+  @Field()
+  startDate!: string;
+
+  @Field(() => String, { nullable: true })
+  endDate?: string | null;
+
+  @Field()
+  isCurrent!: boolean;
+}
+
+@ObjectType()
+export class TutorSearchQualification {
+  @Field()
+  qualificationType!: string;
+
+  @Field(() => String, { nullable: true })
+  degreeName?: string | null;
+
+  @Field()
+  gradeType!: string;
+
+  @Field()
+  gradeValue!: string;
+
+  @Field()
+  boardOrUniversity!: string;
+
+  @Field(() => Int)
+  yearObtained!: number;
+}
+
+@ObjectType()
 export class TutorSearchDetail {
   @Field(() => ID)
   tutorId!: number;
@@ -126,6 +168,15 @@ export class TutorSearchDetail {
 
   @Field(() => Int)
   slotsThisWeek!: number;
+
+  @Field(() => Int)
+  totalExperienceMonths!: number;
+
+  @Field(() => [TutorSearchExperience])
+  recentExperiences!: TutorSearchExperience[];
+
+  @Field(() => [TutorSearchQualification])
+  topQualifications!: TutorSearchQualification[];
 
   @Field(() => TutorSearchOfferingSummary)
   matchingOffering!: TutorSearchOfferingSummary;

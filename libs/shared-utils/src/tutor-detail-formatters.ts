@@ -3,6 +3,10 @@ import {
   EDUCATIONAL_QUALIFICATION_LIST,
   EducationalQualification,
 } from './education-qualification.enum';
+import { GradeType } from './grade-type.enum';
+
+export const STUDENT_TUTOR_RECENT_EXPERIENCE_LIMIT = 3;
+export const STUDENT_TUTOR_TOP_QUALIFICATION_LIMIT = 2;
 
 export type DocumentScreeningStatus =
   | 'PASSED_AUTOMATED'
@@ -123,8 +127,8 @@ export type ExperienceDuration = {
 };
 
 export type ExperienceDateRange = {
-  startDate?: string | null;
-  endDate?: string | null;
+  startDate?: string | Date | null;
+  endDate?: string | Date | null;
   isCurrent?: boolean;
 };
 
@@ -250,4 +254,74 @@ export function sumExperienceDurations(
   }
 
   return monthsToExperienceDuration(totalMonths);
+}
+
+export function formatMonthYear(value?: string | Date | null): string {
+  if (!value) return '—';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+  });
+}
+
+export function formatExperiencePeriod(
+  experience: ExperienceDateRange,
+): string {
+  const start = formatMonthYear(experience.startDate);
+  const end = experience.isCurrent
+    ? 'Present'
+    : formatMonthYear(experience.endDate);
+  if (start === '—' && end === '—') return '';
+  return `${start} – ${end}`;
+}
+
+function experienceRecencyParts(
+  experience: ExperienceDateRange,
+): [number, number] {
+  const start = experience.startDate
+    ? new Date(experience.startDate).getTime()
+    : 0;
+  if (experience.isCurrent) {
+    return [1, Number.isNaN(start) ? 0 : start];
+  }
+  const end = experience.endDate
+    ? new Date(experience.endDate).getTime()
+    : start;
+  return [0, Number.isNaN(end) ? 0 : end];
+}
+
+/** Current roles first, then most recently ended. */
+export function sortExperiencesLatestFirst<T extends ExperienceDateRange>(
+  experiences: T[],
+): T[] {
+  return [...experiences].sort((a, b) => {
+    const [aCurrent, aWhen] = experienceRecencyParts(a);
+    const [bCurrent, bWhen] = experienceRecencyParts(b);
+    if (aCurrent !== bCurrent) return bCurrent - aCurrent;
+    return bWhen - aWhen;
+  });
+}
+
+export function formatQualificationGrade(
+  gradeType?: string | null,
+  gradeValue?: string | null,
+): string {
+  const value = gradeValue?.trim();
+  if (!value) return '';
+  if (gradeType === GradeType.PERCENTAGE) return `${value}%`;
+  if (gradeType === GradeType.CGPA) return `CGPA: ${value}`;
+  if (gradeType === GradeType.DIVISION) return `Division: ${value}`;
+  return value;
+}
+
+export function formatQualificationInstitutionGrade(
+  institution?: string | null,
+  gradeType?: string | null,
+  gradeValue?: string | null,
+): string {
+  return [institution?.trim(), formatQualificationGrade(gradeType, gradeValue)]
+    .filter(Boolean)
+    .join(' · ');
 }

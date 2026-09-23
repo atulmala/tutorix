@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Tutor } from '../../tutor/entities/tutor.entity';
 import { ExperienceEntity } from '../entities/experience.entity';
 import { TutorCertificationStageEnum } from '../../tutor/enums/tutor.enums';
@@ -96,6 +96,16 @@ export class ExperienceService {
     return this.experienceRepository.find({
       where: { tutor: { id: tutorId }, deleted: false },
       order: { startDate: 'DESC', id: 'ASC' },
+    });
+  }
+
+  async findByTutorIds(tutorIds: number[]): Promise<ExperienceEntity[]> {
+    if (tutorIds.length === 0) {
+      return [];
+    }
+    return this.experienceRepository.find({
+      where: { tutor: { id: In(tutorIds) }, deleted: false },
+      relations: ['tutor'],
     });
   }
 }

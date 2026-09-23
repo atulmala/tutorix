@@ -14,7 +14,12 @@ import {
   MIN_SLOTS_THIS_WEEK,
   paginateHits,
   rankTutorSearchHits,
+  sortExperiencesLatestFirst,
+  sortQualificationsHighestFirst,
   starterRateForMode,
+  STUDENT_TUTOR_RECENT_EXPERIENCE_LIMIT,
+  STUDENT_TUTOR_TOP_QUALIFICATION_LIMIT,
+  sumExperienceDurations,
   type OfferingNodeForLabel,
   type TutorSearchCandidate,
 } from '@tutorix/shared-utils';
@@ -28,9 +33,13 @@ import { OfferingEntity } from '../../offerings/entities/offering.entity';
 import { ProficiencyTestService } from '../../proficiency/services/proficiency-test.service';
 import { StudentService } from '../../student/services/student.service';
 import { TutorCalendar } from '../../tutor-calendar/entities/tutor-calendar.entity';
+import { ExperienceService } from '../../experience/services/experience.service';
+import { ExperienceEntity } from '../../experience/entities/experience.entity';
 import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
 import { TutorOfferingRateCardEntity } from '../../tutor-rate-card/entities/tutor-offering-rate-card.entity';
 import { TutorOfferingEntity } from '../entities/tutor-offering.entity';
+import { TutorQualificationEntity } from '../entities/tutor-qualification.entity';
+import { TutorQualificationService } from './tutor-qualification.service';
 import { Tutor } from '../entities/tutor.entity';
 import { TutorOfferingStatusEnum } from '../enums/tutor.enums';
 import { YearsOfExperienceEnum } from '../enums/years-of-experience.enum';
@@ -43,8 +52,10 @@ import { SearchTutorsInput } from '../dto/search-tutors.input';
 import {
   TutorSearchConnection,
   TutorSearchDetail,
+  TutorSearchExperience,
   TutorSearchHit,
   TutorSearchOfferingSummary,
+  TutorSearchQualification,
 } from '../dto/tutor-search.dto';
 
 const DEFAULT_RADIUS_KM = 10;
@@ -62,6 +73,8 @@ export class TutorSearchService {
     private readonly offeringService: OfferingService,
     private readonly proficiencyTestService: ProficiencyTestService,
     private readonly profilePictureService: ProfilePictureService,
+    private readonly experienceService: ExperienceService,
+    private readonly tutorQualificationService: TutorQualificationService,
   ) {}
 
   async searchTutors(
@@ -162,6 +175,10 @@ export class TutorSearchService {
       });
     }
 
+    const experiencesByTutor = await this.loadExperiencesByTutor(
+      eligible.map((row) => row.tutorId),
+    );
+
     const ranked = rankTutorSearchHits(candidates, {
       deliveryMode:
         input.deliveryMode ??
@@ -182,7 +199,9 @@ export class TutorSearchService {
     );
 
     return {
-      items: page.items.map((hit) => this.toGraphqlHit(hit, eligible)),
+      items: page.items.map((hit) =>
+        this.toGraphqlHit(hit, eligible, experiencesByTutor.get(hit.tutorId) ?? []),
+      ),
       nextCursor: page.nextCursor,
       hasMore: page.hasMore,
       originHasCoordinates,
@@ -247,6 +266,13 @@ export class TutorSearchService {
       tutor.user?.profilePicture ?? tutor.user?.profilePictureThumbnailMedium,
     );
     const slotsThisWeek = slotCounts.get(tutor.id) ?? 0;
+    const [experiences, qualifications] = await Promise.all([
+      this.experienceService.findByTutorId(tutor.id),
+      this.tutorQualificationService.findByTutorId(tutor.id),
+    ]);
+    const totalExperience = sumExperienceDurations(
+      experiences.map((exp) => this.toExperienceRange(exp)),
+    );
 
     return {
       tutorId: tutor.id,
@@ -260,6 +286,13 @@ export class TutorSearchService {
       distanceKm,
       hasAvailabilityThisWeek: slotsThisWeek >= MIN_SLOTS_THIS_WEEK,
       slotsThisWeek,
+      totalExperienceMonths: totalExperience.years * 12 + totalExperience.months,
+      recentExperiences: sortExperiencesLatestFirst(experiences)
+        .slice(0, STUDENT_TUTOR_RECENT_EXPERIENCE_LIMIT)
+        .map((exp) => this.toSearchExperience(exp)),
+      topQualifications: sortQualificationsHighestFirst(qualifications)
+        .slice(0, STUDENT_TUTOR_TOP_QUALIFICATION_LIMIT)
+        .map((qual) => this.toSearchQualification(qual)),
       matchingOffering: this.toOfferingSummaryForCatalog(
         offeringId,
         matching,
@@ -277,8 +310,12 @@ export class TutorSearchService {
   private toGraphqlHit(
     hit: ReturnType<typeof rankTutorSearchHits>[number],
     offerings: TutorOfferingEntity[],
+    experiences: ExperienceEntity[],
   ): TutorSearchHit {
     const row = offerings.find((o) => o.tutorId === hit.tutorId);
+    const totalExperience = sumExperienceDurations(
+      experiences.map((exp) => this.toExperienceRange(exp)),
+    );
     return {
       tutorId: hit.tutorId,
       displayName: hit.displayName,
@@ -300,7 +337,67 @@ export class TutorSearchService {
       freeDemoOffered: hit.freeDemoOffered,
       hasAvailabilityThisWeek: hit.hasAvailabilityThisWeek,
       slotsThisWeek: hit.slotsThisWeek,
+      totalExperienceMonths: totalExperience.years * 12 + totalExperience.months,
     };
+  }
+
+  private async loadExperiencesByTutor(
+    tutorIds: number[],
+  ): Promise<Map<number, ExperienceEntity[]>> {
+    const grouped = new Map<number, ExperienceEntity[]>();
+    const rows = await this.experienceService.findByTutorIds(tutorIds);
+    for (const row of rows) {
+      const tutorId = row.tutor?.id;
+      if (tutorId == null) continue;
+      const list = grouped.get(tutorId) ?? [];
+      list.push(row);
+      grouped.set(tutorId, list);
+    }
+    return grouped;
+  }
+
+  private toExperienceRange(exp: ExperienceEntity) {
+    return {
+      startDate: this.toIsoDate(exp.startDate),
+      endDate: this.toIsoDate(exp.endDate),
+      isCurrent: exp.isCurrent,
+    };
+  }
+
+  private toSearchExperience(exp: ExperienceEntity): TutorSearchExperience {
+    return {
+      jobTitle: exp.jobTitle,
+      employerName: exp.employerName ?? null,
+      startDate: this.toIsoDate(exp.startDate) ?? '',
+      endDate: this.toIsoDate(exp.endDate),
+      isCurrent: exp.isCurrent,
+    };
+  }
+
+  private toSearchQualification(
+    qual: TutorQualificationEntity,
+  ): TutorSearchQualification {
+    return {
+      qualificationType: String(qual.qualificationType),
+      degreeName: qual.degreeName ?? null,
+      gradeType: String(qual.gradeType),
+      gradeValue: qual.gradeValue,
+      boardOrUniversity: qual.boardOrUniversity,
+      yearObtained: qual.yearObtained,
+    };
+  }
+
+  private toIsoDate(value?: Date | string | null): string | null {
+    if (!value) return null;
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+      return value.slice(0, 10);
+    }
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   private uniquePassedOfferingsForSearch(
