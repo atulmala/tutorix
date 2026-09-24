@@ -20,6 +20,7 @@ type StudentTutorPreviewScreenProps = {
 type PreviewExperience = {
   jobTitle: string;
   employerName?: string | null;
+  employerAddress?: string | null;
   startDate: string;
   endDate?: string | null;
   isCurrent: boolean;
@@ -118,8 +119,10 @@ export const StudentTutorPreviewScreen: React.FC<StudentTutorPreviewScreenProps>
           <Text style={styles.section}>Experience</Text>
           {recentExperiences.map((exp, index) => (
             <View key={`${exp.jobTitle}-${index}`} style={styles.item}>
-              <Text style={styles.itemTitle}>{exp.jobTitle}</Text>
-              <Text style={styles.meta}>{exp.employerName || 'Self-employed'}</Text>
+              <Text style={styles.itemTitle}>{exp.employerName || 'Self-employed'}</Text>
+              {exp.employerAddress ? (
+                <Text style={styles.meta}>{exp.employerAddress}</Text>
+              ) : null}
               <Text style={styles.meta}>{formatExperiencePeriod(exp)}</Text>
             </View>
           ))}

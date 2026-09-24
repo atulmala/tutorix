@@ -19,6 +19,7 @@ type StudentTutorPreviewPageProps = {
 type PreviewExperience = {
   jobTitle: string;
   employerName?: string | null;
+  employerAddress?: string | null;
   startDate: string;
   endDate?: string | null;
   isCurrent: boolean;
@@ -122,8 +123,12 @@ export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = (
           <ul className="mt-3 space-y-3">
             {recentExperiences.map((exp, index) => (
               <li key={`${exp.jobTitle}-${index}`}>
-                <p className="font-semibold text-primary">{exp.jobTitle}</p>
-                <p className="text-sm text-muted">{exp.employerName || 'Self-employed'}</p>
+                <p className="font-semibold text-primary">
+                  {exp.employerName || 'Self-employed'}
+                </p>
+                {exp.employerAddress ? (
+                  <p className="text-sm text-muted">{exp.employerAddress}</p>
+                ) : null}
                 <p className="text-sm text-muted">{formatExperiencePeriod(exp)}</p>
               </li>
             ))}

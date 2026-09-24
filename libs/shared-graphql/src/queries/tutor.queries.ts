@@ -271,6 +271,7 @@ export const TUTOR_SEARCH_DETAIL = gql`
       recentExperiences {
         jobTitle
         employerName
+        employerAddress
         startDate
         endDate
         isCurrent

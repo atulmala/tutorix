@@ -368,6 +368,7 @@ export class TutorSearchService {
     return {
       jobTitle: exp.jobTitle,
       employerName: exp.employerName ?? null,
+      employerAddress: exp.employerAddress ?? null,
       startDate: this.toIsoDate(exp.startDate) ?? '',
       endDate: this.toIsoDate(exp.endDate),
       isCurrent: exp.isCurrent,

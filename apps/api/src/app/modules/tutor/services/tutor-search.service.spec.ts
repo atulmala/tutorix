@@ -396,6 +396,7 @@ describe('TutorSearchService', () => {
       {
         jobTitle: 'Math teacher',
         employerName: 'Oak School',
+        employerAddress: 'Hills Public School, Bhopal',
         startDate: '2020-01-01',
         endDate: '2022-07-01',
         isCurrent: false,
@@ -439,6 +440,9 @@ describe('TutorSearchService', () => {
     const detail = await service.getTutorSearchDetail(studentUser as never, 1, 33);
 
     expect(detail.recentExperiences[0]?.jobTitle).toBe('Lead tutor');
+    expect(detail.recentExperiences[1]?.employerAddress).toBe(
+      'Hills Public School, Bhopal',
+    );
     expect(detail.recentExperiences).toHaveLength(2);
     expect(detail.topQualifications.map((q) => q.qualificationType)).toEqual([
       'MASTERS',

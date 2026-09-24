@@ -112,6 +112,9 @@ export class TutorSearchExperience {
   @Field(() => String, { nullable: true })
   employerName?: string | null;
 
+  @Field(() => String, { nullable: true })
+  employerAddress?: string | null;
+
   @Field()
   startDate!: string;
 
