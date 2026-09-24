@@ -1,51 +1,86 @@
 import React, { useMemo, useState } from 'react';
-import { istMondayWeekDays } from '@tutorix/shared-utils';
+import { useQuery } from '@apollo/client';
+import { STUDENT_BOOKED_CLASS_SESSIONS } from '@tutorix/shared-graphql';
+import {
+  formatIstBookingTimeRange,
+  istDayKey,
+  istHomeScheduleDays,
+  istHomeScheduleRange,
+} from '@tutorix/shared-utils';
 
 type StudentHomePageProps = {
   onOpenTutorSearch: () => void;
 };
 
+type BookedClass = {
+  enrollmentId: string;
+  startsAt: string;
+  durationMinutes: number;
+  deliveryMode: 'online' | 'offline';
+  offeringLabel: string;
+  tutorName: string;
+};
+
 export const StudentHomePage: React.FC<StudentHomePageProps> = ({
   onOpenTutorSearch,
 }) => {
-  const weekDays = useMemo(() => istMondayWeekDays(), []);
+  const weekDays = useMemo(() => istHomeScheduleDays(), []);
+  const scheduleRange = useMemo(() => istHomeScheduleRange(), []);
   const todayKey = weekDays.find((d) => d.isToday)?.key ?? weekDays[0]?.key;
   const [selectedKey, setSelectedKey] = useState(todayKey);
   const selected = weekDays.find((d) => d.key === selectedKey) ?? weekDays[0];
+
+  const { data } = useQuery(STUDENT_BOOKED_CLASS_SESSIONS, {
+    variables: {
+      from: scheduleRange.from.toISOString(),
+      to: scheduleRange.to.toISOString(),
+    },
+    fetchPolicy: 'network-only',
+  });
+  const booked = (data?.studentBookedClassSessions ?? []) as BookedClass[];
+  const selectedClasses = booked.filter(
+    (row) => istDayKey(new Date(row.startsAt)) === selected?.key,
+  );
+  const todayClasses = booked.filter((row) => istDayKey(new Date(row.startsAt)) === todayKey);
 
   return (
     <div className="w-full max-w-xl space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-[26px] font-extrabold text-[#143055]">My schedule</h1>
         <span className="rounded-full border border-sky-100 bg-white px-3 py-1.5 text-sm font-semibold text-[#2563eb]">
-          This week
+          Next 2 weeks
         </span>
       </div>
 
-      <div className="flex gap-1 rounded-[18px] bg-white p-2">
-        {weekDays.map((day) => {
-          const on = day.key === selected?.key;
-          return (
-            <button
-              key={day.key}
-              type="button"
-              onClick={() => setSelectedKey(day.key)}
-              aria-pressed={on}
-              className={`flex flex-1 flex-col items-center rounded-xl py-2 ${
-                on ? 'bg-[#2563eb] text-white' : 'text-[#143055]'
-              }`}
-            >
-              <span
-                className={`text-[10px] font-bold tracking-wide ${
-                  on ? 'text-white' : 'text-slate-400'
+      <div className="overflow-x-auto rounded-[18px] bg-white p-2">
+        <div className="flex w-max gap-1">
+          {weekDays.map((day) => {
+            const on = day.key === selected?.key;
+            return (
+              <button
+                key={day.key}
+                type="button"
+                onClick={() => setSelectedKey(day.key)}
+                aria-label={`${day.abbr} ${day.day} ${day.monthAbbr}`}
+                aria-pressed={on}
+                className={`flex min-w-[4.25rem] flex-col items-center rounded-xl px-2 py-2 ${
+                  on ? 'bg-[#2563eb] text-white' : 'text-[#143055]'
                 }`}
               >
-                {day.abbr}
-              </span>
-              <span className="mt-1 text-base font-extrabold">{day.day}</span>
-            </button>
-          );
-        })}
+                <span
+                  className={`text-[10px] font-bold tracking-wide ${
+                    on ? 'text-white' : 'text-slate-400'
+                  }`}
+                >
+                  {day.abbr}
+                </span>
+                <span className="mt-1 text-sm font-extrabold">
+                  {day.day} {day.monthAbbr}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
@@ -62,7 +97,9 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
           </div>
           <div>
             <p className="text-[11px] font-semibold text-slate-500">Today's classes</p>
-            <p className="text-[15px] font-extrabold text-[#143055]">0 classes</p>
+            <p className="text-[15px] font-extrabold text-[#143055]">
+              {todayClasses.length} {todayClasses.length === 1 ? 'class' : 'classes'}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2.5 rounded-2xl bg-white p-3">
@@ -83,24 +120,44 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
           </div>
           <div>
             <p className="text-[11px] font-semibold text-slate-500">Learning hours</p>
-            <p className="text-[15px] font-extrabold text-[#143055]">0 hours</p>
+            <p className="text-[15px] font-extrabold text-[#143055]">
+              {selectedClasses.length} {selectedClasses.length === 1 ? 'hour' : 'hours'}
+            </p>
           </div>
         </div>
       </div>
 
       <section className="rounded-[20px] bg-white p-5">
-        <h2 className="text-base font-extrabold text-[#143055]">No classes on this day</h2>
-        <p className="mt-1.5 text-sm leading-6 text-slate-500">
-          Book a certified tutor and your upcoming sessions will appear here, with time,
-          subject, and a join action when it is time to start.
-        </p>
-        <button
-          type="button"
-          onClick={onOpenTutorSearch}
-          className="mt-4 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
-        >
-          Find a tutor
-        </button>
+        {selectedClasses.length === 0 ? (
+          <>
+            <h2 className="text-base font-extrabold text-[#143055]">No classes on this day</h2>
+            <p className="mt-1.5 text-sm leading-6 text-slate-500">
+              Book a certified tutor and your upcoming sessions will appear here, with time,
+              subject, and a join action when it is time to start.
+            </p>
+            <button
+              type="button"
+              onClick={onOpenTutorSearch}
+              className="mt-4 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+            >
+              Find a tutor
+            </button>
+          </>
+        ) : (
+          <ul className="space-y-3">
+            {selectedClasses.map((row) => (
+              <li key={row.enrollmentId} className="rounded-2xl bg-sky-50 px-4 py-3">
+                <p className="text-sm font-extrabold text-[#143055]">
+                  {formatIstBookingTimeRange(new Date(row.startsAt), row.durationMinutes)}
+                </p>
+                <p className="mt-1 text-sm text-[#143055]">{row.offeringLabel}</p>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  {row.deliveryMode === 'online' ? 'Online' : 'Offline'} · {row.tutorName}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="rounded-[20px] bg-white p-5">

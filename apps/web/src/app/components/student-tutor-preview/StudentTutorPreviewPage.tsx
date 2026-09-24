@@ -14,6 +14,7 @@ import { analytics } from '../../../lib/analytics';
 type StudentTutorPreviewPageProps = {
   tutorId: string;
   offeringId: string;
+  onBookClass: () => void;
 };
 
 type PreviewExperience = {
@@ -36,6 +37,7 @@ type PreviewQualification = {
 export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = ({
   tutorId,
   offeringId,
+  onBookClass,
 }) => {
   const { data, loading, error } = useQuery(TUTOR_SEARCH_DETAIL, {
     variables: { tutorId, offeringId },
@@ -115,6 +117,13 @@ export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = (
             </span>
           ) : null}
         </div>
+        <button
+          type="button"
+          onClick={onBookClass}
+          className="mt-4 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+        >
+          Book class
+        </button>
       </section>
 
       {recentExperiences.length > 0 ? (

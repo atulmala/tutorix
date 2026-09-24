@@ -18,6 +18,8 @@ export type WebView =
   | 'student-profile'
   | 'student-tutor-search'
   | 'student-tutor-preview'
+  | 'student-tutor-booking'
+  | 'student-tutor-booking-confirm'
   | 'wallet'
   | 'privacy'
   | 'terms';
@@ -26,7 +28,8 @@ export type WalletReturnView =
   | 'tutor-home'
   | 'tutor-profile'
   | 'student-home'
-  | 'student-profile';
+  | 'student-profile'
+  | 'student-tutor-booking-confirm';
 
 export function studentViewAfterProfile(
   student: {
@@ -77,9 +80,13 @@ export function walletReturnFromView(view: WebView): WalletReturnView | null {
     view === 'student-home' ||
     view === 'student-onboarding' ||
     view === 'student-tutor-search' ||
-    view === 'student-tutor-preview'
+    view === 'student-tutor-preview' ||
+    view === 'student-tutor-booking'
   ) {
     return 'student-home';
+  }
+  if (view === 'student-tutor-booking-confirm') {
+    return 'student-tutor-booking-confirm';
   }
   if (view === 'student-profile') {
     return 'student-profile';

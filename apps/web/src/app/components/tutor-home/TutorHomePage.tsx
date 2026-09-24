@@ -6,7 +6,7 @@ import {
 } from '@tutorix/shared-graphql';
 import {
   hasIncompleteRateCardOfferings,
-  istMondayWeekDays,
+  istHomeScheduleDays,
   needsCalendarUpdateThroughSunday,
   PENDING_CALENDAR_TASK_ACTION,
   PENDING_CALENDAR_TASK_MESSAGE,
@@ -34,7 +34,7 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
   onSetRateCard,
   onUpdateCalendar,
 }) => {
-  const weekDays = useMemo(() => istMondayWeekDays(), []);
+  const weekDays = useMemo(() => istHomeScheduleDays(), []);
   const todayKey = weekDays.find((d) => d.isToday)?.key ?? weekDays[0]?.key;
   const [selectedKey, setSelectedKey] = useState(todayKey);
   const selected = weekDays.find((d) => d.key === selectedKey) ?? weekDays[0];
@@ -99,34 +99,39 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
       <div className="flex items-center justify-between">
         <h1 className="text-[26px] font-extrabold text-[#143055]">My schedule</h1>
         <span className="rounded-full border border-sky-100 bg-white px-3 py-1.5 text-sm font-semibold text-[#2563eb]">
-          This week
+          Next 2 weeks
         </span>
       </div>
 
-      <div className="flex gap-1 rounded-[18px] bg-white p-2">
-        {weekDays.map((day) => {
-          const on = day.key === selected?.key;
-          return (
-            <button
-              key={day.key}
-              type="button"
-              onClick={() => setSelectedKey(day.key)}
-              aria-pressed={on}
-              className={`flex flex-1 flex-col items-center rounded-xl py-2 ${
-                on ? 'bg-[#2563eb] text-white' : 'text-[#143055]'
-              }`}
-            >
-              <span
-                className={`text-[10px] font-bold tracking-wide ${
-                  on ? 'text-white' : 'text-slate-400'
+      <div className="overflow-x-auto rounded-[18px] bg-white p-2">
+        <div className="flex w-max gap-1">
+          {weekDays.map((day) => {
+            const on = day.key === selected?.key;
+            return (
+              <button
+                key={day.key}
+                type="button"
+                onClick={() => setSelectedKey(day.key)}
+                aria-label={`${day.abbr} ${day.day} ${day.monthAbbr}`}
+                aria-pressed={on}
+                className={`flex min-w-[4.25rem] flex-col items-center rounded-xl px-2 py-2 ${
+                  on ? 'bg-[#2563eb] text-white' : 'text-[#143055]'
                 }`}
               >
-                {day.abbr}
-              </span>
-              <span className="mt-1 text-base font-extrabold">{day.day}</span>
-            </button>
-          );
-        })}
+                <span
+                  className={`text-[10px] font-bold tracking-wide ${
+                    on ? 'text-white' : 'text-slate-400'
+                  }`}
+                >
+                  {day.abbr}
+                </span>
+                <span className="mt-1 text-sm font-extrabold">
+                  {day.day} {day.monthAbbr}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">

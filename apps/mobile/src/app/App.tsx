@@ -19,6 +19,8 @@ import { StudentTutorSearchScreen } from './components/student-tutor-search/Stud
 import { StudentTutorSearchResultsScreen } from './components/student-tutor-search/StudentTutorSearchResultsScreen';
 import type { StudentTutorSearchParams } from './components/student-tutor-search/student-tutor-search-params';
 import { StudentTutorPreviewScreen } from './components/student-tutor-preview/StudentTutorPreviewScreen';
+import { StudentTutorBookingScreen } from './components/student-tutor-booking/StudentTutorBookingScreen';
+import { StudentTutorBookingConfirmScreen } from './components/student-tutor-booking/StudentTutorBookingConfirmScreen';
 import {
   StudentHomeHeader,
   StudentNavHeader,
@@ -50,6 +52,10 @@ import {
 } from '@tutorix/shared-graphql/client/mobile/token-storage';
 import { isBankDetailsMarkedComplete } from '@tutorix/shared-utils/bank-details-formatters';
 import { needsRateCardSetup } from '@tutorix/shared-utils/rate-card';
+import {
+  isStudentBookingDraftReady,
+  type StudentBookingDraft,
+} from '@tutorix/shared-utils/student-booking';
 import { ALREADY_REGISTERED_LOGIN_MESSAGE } from '@tutorix/shared-utils/already-registered';
 import { GET_MY_STUDENT_PROFILE, GET_MY_TUTOR_DETAIL, GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
 import { LOGIN } from '@tutorix/shared-graphql/mutations';
@@ -119,6 +125,7 @@ function AppContent() {
     tutorId: string;
     offeringId: string;
   } | null>(null);
+  const [bookingDraft, setBookingDraft] = useState<StudentBookingDraft | null>(null);
   const [tutorSearchParams, setTutorSearchParams] =
     useState<StudentTutorSearchParams | null>(null);
   const [signupResume, setSignupResume] = useState<{
@@ -474,6 +481,7 @@ function AppContent() {
           title={showResults ? 'Tutors' : 'Search'}
           onBack={showResults ? () => setCurrentView('studentTutorSearch') : undefined}
           onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('studentProfile')}
           onOpenWallet={() => handleOpenWallet('studentHome')}
         />
         {showResults && tutorSearchParams ? (
@@ -514,11 +522,63 @@ function AppContent() {
             )
           }
           onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('studentProfile')}
           onOpenWallet={() => handleOpenWallet('studentHome')}
         />
         <StudentTutorPreviewScreen
           tutorId={tutorPreview.tutorId}
           offeringId={tutorPreview.offeringId}
+          onBookClass={() => {
+            setBookingDraft({
+              tutorId: tutorPreview.tutorId,
+              offeringId: tutorPreview.offeringId,
+            });
+            setCurrentView('studentTutorBooking');
+          }}
+        />
+      </View>
+    );
+  } else if (currentView === 'studentTutorBooking' && tutorPreview) {
+    screen = (
+      <View style={{ flex: 1 }}>
+        <StudentNavHeader
+          title="Book class"
+          onBack={() => setCurrentView('studentTutorPreview')}
+          onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('studentProfile')}
+          onOpenWallet={() => handleOpenWallet('studentHome')}
+        />
+        <StudentTutorBookingScreen
+          tutorId={tutorPreview.tutorId}
+          offeringId={tutorPreview.offeringId}
+          draft={bookingDraft}
+          onContinue={(draft) => {
+            setBookingDraft(draft);
+            setCurrentView('studentTutorBookingConfirm');
+          }}
+        />
+      </View>
+    );
+  } else if (
+    currentView === 'studentTutorBookingConfirm' &&
+    isStudentBookingDraftReady(bookingDraft)
+  ) {
+    screen = (
+      <View style={{ flex: 1 }}>
+        <StudentNavHeader
+          title="Confirm class"
+          onBack={() => setCurrentView('studentTutorBooking')}
+          onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('studentProfile')}
+          onOpenWallet={() => handleOpenWallet('studentTutorBookingConfirm')}
+        />
+        <StudentTutorBookingConfirmScreen
+          draft={bookingDraft}
+          onBooked={() => {
+            setBookingDraft(null);
+            setCurrentView('studentHome');
+          }}
+          onOpenWallet={() => handleOpenWallet('studentTutorBookingConfirm')}
         />
       </View>
     );
@@ -528,6 +588,7 @@ function AppContent() {
         <StudentNavHeader
           title="My profile"
           onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('studentProfile')}
           onOpenWallet={() => handleOpenWallet('studentProfile')}
         />
         <StudentDetailScreen
@@ -620,7 +681,8 @@ function AppContent() {
   } else if (currentView === 'wallet') {
     const studentWallet =
       walletReturnView === 'studentHome' ||
-      walletReturnView === 'studentProfile';
+      walletReturnView === 'studentProfile' ||
+      walletReturnView === 'studentTutorBookingConfirm';
     const tutorWallet =
       walletReturnView === 'tutorHome' || walletReturnView === 'tutorProfile';
     screen = (
@@ -630,6 +692,7 @@ function AppContent() {
             title="Wallet"
             onBack={handleWalletBack}
             onLogout={handleLogout}
+            onProfilePress={() => setCurrentView('studentProfile')}
             onOpenWallet={() => undefined}
           />
         ) : tutorWallet ? (

@@ -1,10 +1,26 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { istMondayWeekDays } from '@tutorix/shared-utils/student-schedule';
+import { useQuery } from '@apollo/client';
+import { STUDENT_BOOKED_CLASS_SESSIONS } from '@tutorix/shared-graphql/queries';
+import { formatIstBookingTimeRange } from '@tutorix/shared-utils/student-booking';
+import {
+  istDayKey,
+  istHomeScheduleDays,
+  istHomeScheduleRange,
+} from '@tutorix/shared-utils/student-schedule';
 
 type StudentHomeScreenProps = {
   onOpenTutorSearch: () => void;
+};
+
+type BookedClass = {
+  enrollmentId: string;
+  startsAt: string;
+  durationMinutes: number;
+  deliveryMode: 'online' | 'offline';
+  offeringLabel: string;
+  tutorName: string;
 };
 
 function CalendarIcon() {
@@ -36,10 +52,23 @@ function ClockIcon() {
 export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
   onOpenTutorSearch,
 }) => {
-  const weekDays = useMemo(() => istMondayWeekDays(), []);
+  const weekDays = useMemo(() => istHomeScheduleDays(), []);
+  const scheduleRange = useMemo(() => istHomeScheduleRange(), []);
   const todayKey = weekDays.find((d) => d.isToday)?.key ?? weekDays[0]?.key;
   const [selectedKey, setSelectedKey] = useState(todayKey);
   const selected = weekDays.find((d) => d.key === selectedKey) ?? weekDays[0];
+  const { data } = useQuery(STUDENT_BOOKED_CLASS_SESSIONS, {
+    variables: {
+      from: scheduleRange.from.toISOString(),
+      to: scheduleRange.to.toISOString(),
+    },
+    fetchPolicy: 'network-only',
+  });
+  const booked = (data?.studentBookedClassSessions ?? []) as BookedClass[];
+  const selectedClasses = booked.filter(
+    (row) => istDayKey(new Date(row.startsAt)) === selected?.key,
+  );
+  const todayClasses = booked.filter((row) => istDayKey(new Date(row.startsAt)) === todayKey);
 
   return (
     <ScrollView
@@ -50,27 +79,36 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
       <View style={styles.titleRow}>
         <Text style={styles.title}>My schedule</Text>
         <View style={styles.weekChip}>
-          <Text style={styles.weekChipText}>This week</Text>
+          <Text style={styles.weekChipText}>Next 2 weeks</Text>
         </View>
       </View>
 
       <View style={styles.weekStrip}>
-        {weekDays.map((day) => {
-          const on = day.key === selected?.key;
-          return (
-            <Pressable
-              key={day.key}
-              style={[styles.dayCell, on && styles.dayCellOn]}
-              onPress={() => setSelectedKey(day.key)}
-              accessibilityRole="button"
-              accessibilityLabel={`${day.abbr} ${day.day}`}
-              accessibilityState={{ selected: on }}
-            >
-              <Text style={[styles.dayAbbr, on && styles.dayTextOn]}>{day.abbr}</Text>
-              <Text style={[styles.dayNum, on && styles.dayTextOn]}>{day.day}</Text>
-            </Pressable>
-          );
-        })}
+        <ScrollView
+          horizontal
+          nestedScrollEnabled
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.weekStripInner}
+        >
+          {weekDays.map((day) => {
+            const on = day.key === selected?.key;
+            return (
+              <Pressable
+                key={day.key}
+                style={[styles.dayCell, on && styles.dayCellOn]}
+                onPress={() => setSelectedKey(day.key)}
+                accessibilityRole="button"
+                accessibilityLabel={`${day.abbr} ${day.day} ${day.monthAbbr}`}
+                accessibilityState={{ selected: on }}
+              >
+                <Text style={[styles.dayAbbr, on && styles.dayTextOn]}>{day.abbr}</Text>
+                <Text style={[styles.dayNum, on && styles.dayTextOn]}>
+                  {day.day} {day.monthAbbr}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </View>
 
       <View style={styles.statsRow}>
@@ -80,7 +118,9 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
           </View>
           <View style={styles.statCopy}>
             <Text style={styles.statLabel}>Today's classes</Text>
-            <Text style={styles.statValue}>0 classes</Text>
+            <Text style={styles.statValue}>
+              {todayClasses.length} {todayClasses.length === 1 ? 'class' : 'classes'}
+            </Text>
           </View>
         </View>
         <View style={styles.statCard}>
@@ -89,25 +129,43 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
           </View>
           <View style={styles.statCopy}>
             <Text style={styles.statLabel}>Learning hours</Text>
-            <Text style={styles.statValue}>0 hours</Text>
+            <Text style={styles.statValue}>
+              {selectedClasses.length} {selectedClasses.length === 1 ? 'hour' : 'hours'}
+            </Text>
           </View>
         </View>
       </View>
 
       <View style={styles.listCard}>
-        <Text style={styles.listEmptyTitle}>No classes on this day</Text>
-        <Text style={styles.listEmptyCopy}>
-          Book a certified tutor and your upcoming sessions will appear here, with time,
-          subject, and a join action when it is time to start.
-        </Text>
-        <Pressable
-          style={styles.findButton}
-          onPress={onOpenTutorSearch}
-          accessibilityRole="button"
-          accessibilityLabel="Find a tutor"
-        >
-          <Text style={styles.findButtonText}>Find a tutor</Text>
-        </Pressable>
+        {selectedClasses.length === 0 ? (
+          <>
+            <Text style={styles.listEmptyTitle}>No classes on this day</Text>
+            <Text style={styles.listEmptyCopy}>
+              Book a certified tutor and your upcoming sessions will appear here, with time,
+              subject, and a join action when it is time to start.
+            </Text>
+            <Pressable
+              style={styles.findButton}
+              onPress={onOpenTutorSearch}
+              accessibilityRole="button"
+              accessibilityLabel="Find a tutor"
+            >
+              <Text style={styles.findButtonText}>Find a tutor</Text>
+            </Pressable>
+          </>
+        ) : (
+          selectedClasses.map((row) => (
+            <View key={row.enrollmentId} style={styles.classRow}>
+              <Text style={styles.classTime}>
+                {formatIstBookingTimeRange(new Date(row.startsAt), row.durationMinutes)}
+              </Text>
+              <Text style={styles.classSubject}>{row.offeringLabel}</Text>
+              <Text style={styles.listEmptyCopy}>
+                {row.deliveryMode === 'online' ? 'Online' : 'Offline'} · {row.tutorName}
+              </Text>
+            </View>
+          ))
+        )}
       </View>
 
       <View style={styles.concludedCard}>
@@ -139,21 +197,21 @@ const styles = StyleSheet.create({
   },
   weekChipText: { fontSize: 13, fontWeight: '600', color: '#2563eb' },
   weekStrip: {
-    flexDirection: 'row',
     backgroundColor: '#fff',
     borderRadius: 18,
     padding: 8,
-    gap: 4,
   },
+  weekStripInner: { flexDirection: 'row', gap: 4 },
   dayCell: {
-    flex: 1,
+    minWidth: 68,
+    paddingHorizontal: 8,
     alignItems: 'center',
     borderRadius: 12,
     paddingVertical: 8,
   },
   dayCellOn: { backgroundColor: '#2563eb' },
   dayAbbr: { fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 0.3 },
-  dayNum: { marginTop: 4, fontSize: 16, fontWeight: '800', color: '#143055' },
+  dayNum: { marginTop: 4, fontSize: 13, fontWeight: '800', color: '#143055' },
   dayTextOn: { color: '#fff' },
   statsRow: { flexDirection: 'row', gap: 10 },
   statCard: {
@@ -191,6 +249,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   findButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  classRow: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 10,
+  },
+  classTime: { fontSize: 14, fontWeight: '800', color: '#143055' },
+  classSubject: { marginTop: 4, fontSize: 14, color: '#143055' },
   concludedCard: {
     backgroundColor: '#fff',
     borderRadius: 20,

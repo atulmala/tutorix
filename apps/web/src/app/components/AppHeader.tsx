@@ -29,8 +29,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     return null;
   }
 
-  const showLeftProfile = Boolean(onProfilePress) && !onBack && profileAlign === 'left';
-  const showRightProfile = Boolean(onProfilePress) && !onBack && profileAlign === 'right';
+  const showProfile = Boolean(onProfilePress);
+  const showLeftProfile = showProfile && !onBack && profileAlign === 'left';
+  const showRightProfile = showProfile && (Boolean(onBack) || profileAlign === 'right');
 
   return (
     <header

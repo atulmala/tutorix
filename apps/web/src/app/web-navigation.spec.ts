@@ -77,6 +77,10 @@ describe('walletReturnFromView', () => {
   it('returns home or profile for the current student or tutor screen', () => {
     expect(walletReturnFromView('student-tutor-search')).toBe('student-home');
     expect(walletReturnFromView('student-tutor-preview')).toBe('student-home');
+    expect(walletReturnFromView('student-tutor-booking')).toBe('student-home');
+    expect(walletReturnFromView('student-tutor-booking-confirm')).toBe(
+      'student-tutor-booking-confirm',
+    );
     expect(walletReturnFromView('student-profile')).toBe('student-profile');
     expect(walletReturnFromView('tutor-home')).toBe('tutor-home');
     expect(walletReturnFromView('tutor-calendar')).toBe('tutor-home');

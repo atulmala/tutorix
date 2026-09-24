@@ -25,6 +25,7 @@ export * from './tutor-weekly-calendar';
 export * from './tutor-search';
 export * from './student-education-offering';
 export * from './student-schedule';
+export * from './student-booking';
 export * from './student-onboarding-types';
 export * from './student-onboarding-timeline';
 export * from './school-class';

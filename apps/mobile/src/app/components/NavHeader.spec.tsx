@@ -32,9 +32,25 @@ describe('NavHeader', () => {
     expect(getByLabelText('Logout')).toBeTruthy();
   });
 
-  it('hides the profile avatar when back is shown', () => {
+  it('can place the profile avatar on the right without a back button', () => {
     const onProfilePress = jest.fn();
-    const { getByLabelText, queryByLabelText, queryByText } = render(
+    const { getByLabelText } = render(
+      <NavHeader
+        title="Search"
+        userInitials="SD"
+        onProfilePress={onProfilePress}
+        profileAlign="right"
+        onLogout={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(getByLabelText('Open profile'));
+    expect(onProfilePress).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the profile avatar when back is shown', () => {
+    const onProfilePress = jest.fn();
+    const { getByLabelText } = render(
       <NavHeader
         title="My profile"
         userInitials="SD"
@@ -46,7 +62,7 @@ describe('NavHeader', () => {
     );
 
     expect(getByLabelText('Go back')).toBeTruthy();
-    expect(queryByLabelText('Open profile')).toBeNull();
-    expect(queryByText('SD')).toBeNull();
+    fireEvent.press(getByLabelText('Open profile'));
+    expect(onProfilePress).toHaveBeenCalledTimes(1);
   });
 });

@@ -68,17 +68,19 @@ describe('AppHeader', () => {
     expect(onProfilePress).toHaveBeenCalledTimes(1);
   });
 
-  it('hides the profile avatar when back is shown', () => {
+  it('keeps the profile avatar when back is shown', () => {
+    const onProfilePress = jest.fn();
     render(
       <AppHeader
         onLogout={jest.fn()}
         onBack={jest.fn()}
-        onProfilePress={jest.fn()}
+        onProfilePress={onProfilePress}
         onOpenWallet={jest.fn()}
       />,
     );
 
     expect(screen.getByRole('button', { name: 'Go back' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Open profile' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Open profile' }));
+    expect(onProfilePress).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import {
+  istHomeScheduleDays,
   PENDING_CALENDAR_TASK_ACTION,
   PENDING_CALENDAR_TASK_MESSAGE,
   PENDING_RATE_CARD_TASK_ACTION,
@@ -55,7 +56,13 @@ describe('TutorHomePage', () => {
     expect(screen.getByText("Today's classes")).toBeTruthy();
     expect(screen.getByText('Teaching hours')).toBeTruthy();
     expect(screen.getByText('Concluded classes')).toBeTruthy();
-    expect(screen.getByText('MON')).toBeTruthy();
+    const days = istHomeScheduleDays();
+    expect(
+      screen.getByRole('button', {
+        name: `${days[0].abbr} ${days[0].day} ${days[0].monthAbbr}`,
+      }),
+    ).toBeTruthy();
+    expect(screen.getByText(`${days[0].day} ${days[0].monthAbbr}`)).toBeTruthy();
     expect(
       screen.queryByText(
         'Manage bookings, students, and your teaching schedule — coming soon.',

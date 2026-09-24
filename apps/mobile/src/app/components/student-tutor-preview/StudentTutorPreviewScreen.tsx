@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@apollo/client';
 import { TUTOR_SEARCH_DETAIL } from '@tutorix/shared-graphql/queries';
 import { formatInr } from '@tutorix/shared-utils/rate-card';
@@ -15,6 +15,7 @@ import { analytics } from '../../../lib/analytics';
 type StudentTutorPreviewScreenProps = {
   tutorId: string;
   offeringId: string;
+  onBookClass: () => void;
 };
 
 type PreviewExperience = {
@@ -37,6 +38,7 @@ type PreviewQualification = {
 export const StudentTutorPreviewScreen: React.FC<StudentTutorPreviewScreenProps> = ({
   tutorId,
   offeringId,
+  onBookClass,
 }) => {
   const { data, loading, error } = useQuery(TUTOR_SEARCH_DETAIL, {
     variables: { tutorId, offeringId },
@@ -113,6 +115,14 @@ export const StudentTutorPreviewScreen: React.FC<StudentTutorPreviewScreenProps>
         {detail.matchingOffering.freeDemoOffered ? (
           <Text style={styles.available}>Free demo</Text>
         ) : null}
+        <Pressable
+          style={styles.bookButton}
+          onPress={onBookClass}
+          accessibilityRole="button"
+          accessibilityLabel="Book class"
+        >
+          <Text style={styles.bookButtonText}>Book class</Text>
+        </Pressable>
       </View>
       {recentExperiences.length ? (
         <View style={styles.card}>
@@ -191,5 +201,13 @@ const styles = StyleSheet.create({
   itemTitle: { fontSize: 15, fontWeight: '700', color: '#143055' },
   meta: { marginTop: 6, color: '#6b7280', fontSize: 14 },
   available: { marginTop: 8, color: '#16a34a', fontWeight: '700' },
+  bookButton: {
+    marginTop: 16,
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  bookButtonText: { color: '#fff', fontWeight: '700' },
   hint: { padding: 24, color: '#6b7280', textAlign: 'center' },
 });

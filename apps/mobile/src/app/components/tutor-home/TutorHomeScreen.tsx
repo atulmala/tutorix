@@ -6,7 +6,7 @@ import {
   GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
   GET_MY_TUTOR_DETAIL,
 } from '@tutorix/shared-graphql/queries';
-import { istMondayWeekDays } from '@tutorix/shared-utils/student-schedule';
+import { istHomeScheduleDays } from '@tutorix/shared-utils/student-schedule';
 import {
   hasIncompleteRateCardOfferings,
   PENDING_RATE_CARD_TASK_ACTION,
@@ -64,7 +64,7 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
   onSetRateCard,
   onUpdateCalendar,
 }) => {
-  const weekDays = useMemo(() => istMondayWeekDays(), []);
+  const weekDays = useMemo(() => istHomeScheduleDays(), []);
   const todayKey = weekDays.find((d) => d.isToday)?.key ?? weekDays[0]?.key;
   const [selectedKey, setSelectedKey] = useState(todayKey);
   const selected = weekDays.find((d) => d.key === selectedKey) ?? weekDays[0];
@@ -131,27 +131,36 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
       <View style={styles.titleRow}>
         <Text style={styles.title}>My schedule</Text>
         <View style={styles.weekChip}>
-          <Text style={styles.weekChipText}>This week</Text>
+          <Text style={styles.weekChipText}>Next 2 weeks</Text>
         </View>
       </View>
 
       <View style={styles.weekStrip}>
-        {weekDays.map((day) => {
-          const on = day.key === selected?.key;
-          return (
-            <Pressable
-              key={day.key}
-              style={[styles.dayCell, on && styles.dayCellOn]}
-              onPress={() => setSelectedKey(day.key)}
-              accessibilityRole="button"
-              accessibilityLabel={`${day.abbr} ${day.day}`}
-              accessibilityState={{ selected: on }}
-            >
-              <Text style={[styles.dayAbbr, on && styles.dayTextOn]}>{day.abbr}</Text>
-              <Text style={[styles.dayNum, on && styles.dayTextOn]}>{day.day}</Text>
-            </Pressable>
-          );
-        })}
+        <ScrollView
+          horizontal
+          nestedScrollEnabled
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.weekStripInner}
+        >
+          {weekDays.map((day) => {
+            const on = day.key === selected?.key;
+            return (
+              <Pressable
+                key={day.key}
+                style={[styles.dayCell, on && styles.dayCellOn]}
+                onPress={() => setSelectedKey(day.key)}
+                accessibilityRole="button"
+                accessibilityLabel={`${day.abbr} ${day.day} ${day.monthAbbr}`}
+                accessibilityState={{ selected: on }}
+              >
+                <Text style={[styles.dayAbbr, on && styles.dayTextOn]}>{day.abbr}</Text>
+                <Text style={[styles.dayNum, on && styles.dayTextOn]}>
+                  {day.day} {day.monthAbbr}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </View>
 
       <View style={styles.statsRow}>
@@ -231,21 +240,21 @@ const styles = StyleSheet.create({
   },
   weekChipText: { fontSize: 13, fontWeight: '600', color: '#2563eb' },
   weekStrip: {
-    flexDirection: 'row',
     backgroundColor: '#fff',
     borderRadius: 18,
     padding: 8,
-    gap: 4,
   },
+  weekStripInner: { flexDirection: 'row', gap: 4 },
   dayCell: {
-    flex: 1,
+    minWidth: 68,
+    paddingHorizontal: 8,
     alignItems: 'center',
     borderRadius: 12,
     paddingVertical: 8,
   },
   dayCellOn: { backgroundColor: '#2563eb' },
   dayAbbr: { fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 0.3 },
-  dayNum: { marginTop: 4, fontSize: 16, fontWeight: '800', color: '#143055' },
+  dayNum: { marginTop: 4, fontSize: 13, fontWeight: '800', color: '#143055' },
   dayTextOn: { color: '#fff' },
   statsRow: { flexDirection: 'row', gap: 10 },
   statCard: {

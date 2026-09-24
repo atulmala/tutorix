@@ -32,6 +32,10 @@ describe('walletReturnFromPush', () => {
     expect(walletReturnFromPush('studentTutorSearch')).toBe('studentHome');
     expect(walletReturnFromPush('studentTutorSearchResults')).toBe('studentHome');
     expect(walletReturnFromPush('studentTutorPreview')).toBe('studentHome');
+    expect(walletReturnFromPush('studentTutorBooking')).toBe('studentHome');
+    expect(walletReturnFromPush('studentTutorBookingConfirm')).toBe(
+      'studentTutorBookingConfirm',
+    );
   });
 
   it('returns studentProfile when the student is already on profile', () => {

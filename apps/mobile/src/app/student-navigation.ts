@@ -15,6 +15,8 @@ export type AppView =
   | 'studentTutorSearch'
   | 'studentTutorSearchResults'
   | 'studentTutorPreview'
+  | 'studentTutorBooking'
+  | 'studentTutorBookingConfirm'
   | 'wallet'
   | 'home';
 
@@ -22,7 +24,8 @@ export type WalletReturnView =
   | 'tutorHome'
   | 'tutorProfile'
   | 'studentProfile'
-  | 'studentHome';
+  | 'studentHome'
+  | 'studentTutorBookingConfirm';
 
 export type StudentRouteProfile = {
   onBoardingComplete?: boolean;
@@ -47,9 +50,13 @@ export function walletReturnFromPush(view: AppView): WalletReturnView | null {
     view === 'studentOnboarding' ||
     view === 'studentTutorSearch' ||
     view === 'studentTutorSearchResults' ||
-    view === 'studentTutorPreview'
+    view === 'studentTutorPreview' ||
+    view === 'studentTutorBooking'
   ) {
     return 'studentHome';
+  }
+  if (view === 'studentTutorBookingConfirm') {
+    return 'studentTutorBookingConfirm';
   }
   if (view === 'studentProfile') {
     return 'studentProfile';

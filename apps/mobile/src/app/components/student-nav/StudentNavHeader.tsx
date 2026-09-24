@@ -13,7 +13,7 @@ type StudentNavHeaderProps = {
   onLogout: () => void;
   onOpenWallet: () => void;
   onBack?: () => void;
-  onProfilePress?: () => void;
+  onProfilePress: () => void;
 };
 
 export const StudentNavHeader: React.FC<StudentNavHeaderProps> = ({
@@ -36,6 +36,7 @@ export const StudentNavHeader: React.FC<StudentNavHeaderProps> = ({
       avatarUrl={profilePictureAvatarUrl(user)}
       userInitials={initialsFromProfileName(user?.firstName, user?.lastName)}
       onProfilePress={onProfilePress}
+      profileAlign="right"
       rightBeforeLogout={<WalletBalanceChip onOpenWallet={onOpenWallet} />}
     />
   );

@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { TutorService } from '../../tutor/services/tutor.service';
 import { StudentService } from '../../student/services/student.service';
 import { UserWalletEntity } from '../entities/user-wallet.entity';
@@ -142,43 +142,50 @@ export class WalletService {
   }
 
   async debitPurchase(params: WalletDebitParams): Promise<UserWalletEntity> {
-    return this.dataSource.transaction(async (manager) => {
-      const wallet = await manager
-        .getRepository(UserWalletEntity)
-        .createQueryBuilder('wallet')
-        .setLock('pessimistic_write')
-        .where('wallet.user_id = :userId', { userId: params.userId })
-        .andWhere('wallet.deleted = false')
-        .getOne();
+    return this.dataSource.transaction((manager) =>
+      this.debitPurchaseWithManager(manager, params),
+    );
+  }
 
-      if (!wallet) {
-        throw new NotFoundException('Wallet not found');
-      }
-      if (wallet.balanceInr < params.amountInr) {
-        throw new BadRequestException(
-          `Insufficient wallet balance. Available ₹${wallet.balanceInr}, required ₹${params.amountInr}`,
-        );
-      }
+  async debitPurchaseWithManager(
+    manager: EntityManager,
+    params: WalletDebitParams,
+  ): Promise<UserWalletEntity> {
+    const wallet = await manager
+      .getRepository(UserWalletEntity)
+      .createQueryBuilder('wallet')
+      .setLock('pessimistic_write')
+      .where('wallet.user_id = :userId', { userId: params.userId })
+      .andWhere('wallet.deleted = false')
+      .getOne();
 
-      wallet.balanceInr -= params.amountInr;
-      const savedWallet = await manager.getRepository(UserWalletEntity).save(wallet);
-
-      await manager.getRepository(WalletTransactionEntity).save(
-        manager.getRepository(WalletTransactionEntity).create({
-          walletId: savedWallet.id,
-          userId: params.userId,
-          type: WalletTransactionTypeEnum.purchase_debit,
-          amountInr: params.amountInr,
-          balanceAfterInr: savedWallet.balanceInr,
-          commerceOrderId: params.commerceOrderId,
-          referenceType: params.referenceType,
-          referenceId: params.referenceId,
-          description: params.description,
-        }),
+    if (!wallet) {
+      throw new NotFoundException('Wallet not found');
+    }
+    if (wallet.balanceInr < params.amountInr) {
+      throw new BadRequestException(
+        `Insufficient wallet balance. Available ₹${wallet.balanceInr}, required ₹${params.amountInr}`,
       );
+    }
 
-      return savedWallet;
-    });
+    wallet.balanceInr -= params.amountInr;
+    const savedWallet = await manager.getRepository(UserWalletEntity).save(wallet);
+
+    await manager.getRepository(WalletTransactionEntity).save(
+      manager.getRepository(WalletTransactionEntity).create({
+        walletId: savedWallet.id,
+        userId: params.userId,
+        type: WalletTransactionTypeEnum.purchase_debit,
+        amountInr: params.amountInr,
+        balanceAfterInr: savedWallet.balanceInr,
+        commerceOrderId: params.commerceOrderId,
+        referenceType: params.referenceType,
+        referenceId: params.referenceId,
+        description: params.description,
+      }),
+    );
+
+    return savedWallet;
   }
 
   async listTransactions(
