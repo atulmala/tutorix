@@ -100,7 +100,6 @@ function AppContent() {
   currentViewRef.current = currentView;
 
   const setCurrentView = useCallback((view: WebView) => {
-    console.log(`[App] View change: ${currentViewRef.current} -> ${view}`);
     setCurrentViewInternal(view);
   }, []);
 
@@ -125,22 +124,12 @@ function AppContent() {
     certificationStage?: string | null;
   } | null | undefined) => {
     if (!tutor) {
-      console.log('[App] No tutor profile, going home');
       setTutorProfileForOnboarding(null);
       setCurrentView('home');
       return;
     }
 
     const onboardingComplete = tutor.onBoardingComplete === true;
-    const celebrationSeen = tutor.onboardingCelebrationSeen === true;
-    console.log(
-      '[App] onBoardingComplete:',
-      onboardingComplete,
-      'celebrationSeen:',
-      celebrationSeen,
-      'certificationStage:',
-      tutor.certificationStage,
-    );
 
     const nextView = tutorViewAfterProfile(tutor);
     if (nextView === 'tutor-onboarding') {
@@ -400,8 +389,6 @@ function AppContent() {
   };
 
   const handleLogout = async () => {
-    console.log('[App] Logout initiated');
-
     await logout();
 
     setTutorProfileForOnboarding(null);
@@ -419,8 +406,6 @@ function AppContent() {
     if (path === '/students' || path === '/tutors') {
       window.history.pushState({}, '', '/');
     }
-
-    console.log('[App] Logout complete');
   };
 
   const handleForgotPassword = () => {
