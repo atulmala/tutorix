@@ -32,9 +32,9 @@ describe('walletReturnFromPush', () => {
     expect(walletReturnFromPush('studentTutorSearch')).toBe('studentHome');
     expect(walletReturnFromPush('studentTutorSearchResults')).toBe('studentHome');
     expect(walletReturnFromPush('studentTutorPreview')).toBe('studentHome');
-    expect(walletReturnFromPush('studentTutorBooking')).toBe('studentHome');
-    expect(walletReturnFromPush('studentTutorBookingConfirm')).toBe(
-      'studentTutorBookingConfirm',
+    expect(walletReturnFromPush('studentCart')).toBe('studentHome');
+    expect(walletReturnFromPush('studentCartCheckout')).toBe(
+      'studentCartCheckout',
     );
   });
 

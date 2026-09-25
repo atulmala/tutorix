@@ -3,7 +3,12 @@ import {
   MIN_SLOTS_THIS_WEEK,
   istSlotToUtc,
 } from './tutor-calendar';
-import { rankTutorSearchHits, type TutorSearchCandidate } from './tutor-search';
+import {
+  rankTutorSearchHits,
+  classPackSlabLinesForMode,
+  rateForModeAndQuantity,
+  type TutorSearchCandidate,
+} from './tutor-search';
 
 describe('currentIstWeekRange', () => {
   it('starts Sunday 00:00 IST for a Wednesday', () => {
@@ -112,5 +117,43 @@ describe('rankTutorSearchHits', () => {
     expect(ranked.map((h) => h.tutorId)).toEqual([2, 1]);
     expect(ranked[0].inBudget).toBe(true);
     expect(ranked[1].inBudget).toBe(false);
+  });
+});
+
+describe('classPackSlabLinesForMode', () => {
+  const card = {
+    offlineEnabled: true,
+    offlineBaseRate: 1000,
+    offlineBaseDiscountPct: 0,
+    offlineSlab2DiscountPct: 10,
+    offlineSlab3DiscountPct: 20,
+    onlineEnabled: false,
+  };
+
+  it('returns three tiers with discount badges when configured', () => {
+    const lines = classPackSlabLinesForMode(card, 'offline');
+    expect(lines).toHaveLength(3);
+    expect(lines[1].discountPct).toBe(10);
+    expect(lines[2].unitRateInr).toBe(800);
+  });
+});
+
+describe('rateForModeAndQuantity', () => {
+  const card = {
+    offlineEnabled: true,
+    offlineBaseRate: 1000,
+    offlineBaseDiscountPct: 0,
+    offlineSlab2DiscountPct: 10,
+    offlineSlab3DiscountPct: 20,
+    onlineEnabled: true,
+    onlineBaseRate: 800,
+    onlineBaseDiscountPct: 5,
+  };
+
+  it('uses slab discounts for larger packs', () => {
+    expect(rateForModeAndQuantity(card, 'offline', 1)).toBe(1000);
+    expect(rateForModeAndQuantity(card, 'offline', 5)).toBe(900);
+    expect(rateForModeAndQuantity(card, 'offline', 11)).toBe(800);
+    expect(rateForModeAndQuantity(card, 'online', 3)).toBe(760);
   });
 });

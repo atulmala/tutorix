@@ -65,6 +65,7 @@ import {
 import { WalletService } from './wallet.service';
 import { CommunicationService } from '../../communication/communication.service';
 import { CommunicationEvent } from '../../communication/enums/communication-event.enum';
+import { StudentCartService } from '../../student-cart/services/student-cart.service';
 
 type ResolvedPurchase = {
   itemType: OrderItemTypeEnum;
@@ -95,6 +96,7 @@ export class WalletCheckoutService {
     private readonly ptFeeService: TutorOfferingPtFeeService,
     private readonly walletOfferingLabelService: WalletOfferingLabelService,
     private readonly communicationService: CommunicationService,
+    private readonly studentCartService: StudentCartService,
     @InjectRepository(PaymentAttemptEntity)
     private readonly paymentAttemptRepo: Repository<PaymentAttemptEntity>,
     @InjectRepository(PlatformFeePaymentEntity)
@@ -124,6 +126,17 @@ export class WalletCheckoutService {
     user: User,
     purchaseIntent: WalletPurchaseIntentInput,
   ): Promise<WalletPurchaseResultDto> {
+    if (
+      purchaseIntent.itemType === WalletPurchaseItemTypeEnum.CLASS_BOOKING &&
+      purchaseIntent.referenceType === WalletPurchaseReferenceTypeEnum.cart
+    ) {
+      const priced = await this.studentCartService.requirePricedCart(user);
+      if (priced.cart.id !== purchaseIntent.referenceId) {
+        throw new BadRequestException('Cart is no longer valid');
+      }
+      return this.studentCartService.completePaidCart(user);
+    }
+
     const purchase = await this.resolvePurchase(user, purchaseIntent);
     const wallet = await this.walletService.getWalletForUser(user.id);
     if (wallet.balanceInr < purchase.amountInr) {
@@ -392,9 +405,35 @@ export class WalletCheckoutService {
     switch (intent.itemType) {
       case WalletPurchaseItemTypeEnum.PROFICIENCY_TEST:
         return this.resolveProficiencyTestPurchase(user, intent);
+      case WalletPurchaseItemTypeEnum.CLASS_BOOKING:
+        return this.resolveCartPurchase(user, intent);
       default:
         throw new BadRequestException(`Unsupported purchase type ${intent.itemType}`);
     }
+  }
+
+  private async resolveCartPurchase(
+    user: User,
+    intent: WalletPurchaseIntentInput,
+  ): Promise<ResolvedPurchase> {
+    if (intent.referenceType !== WalletPurchaseReferenceTypeEnum.cart) {
+      throw new BadRequestException('Class bookings require a cart reference');
+    }
+    const priced = await this.studentCartService.requirePricedCart(user);
+    if (priced.cart.id !== intent.referenceId) {
+      throw new BadRequestException('Cart is no longer valid');
+    }
+    return {
+      itemType: OrderItemTypeEnum.CLASS_BOOKING,
+      referenceType: OrderItemReferenceTypeEnum.tutor_offering,
+      referenceId: priced.items[0]?.tutorOfferingId ?? priced.cart.id,
+      amountInr: priced.totalInr,
+      description: `Class booking · ${priced.dtos.length} pack${priced.dtos.length === 1 ? '' : 's'}`,
+      payerRole: OrderPayerRoleEnum.student,
+      feeCode: PlatformFeeCodeEnum.STUDENT_REGISTRATION,
+      feeContextType: PlatformFeePaymentContextTypeEnum.student,
+      feeContextId: priced.cart.id,
+    };
   }
 
   private async resolveProficiencyTestPurchase(

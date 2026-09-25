@@ -24,8 +24,13 @@ import { StudentProfilePage } from './components/student-profile';
 import { StudentTutorSearchPage } from './components/student-tutor-search/StudentTutorSearchPage';
 import { clearStudentTutorSearchDraft } from './components/student-tutor-search/student-tutor-search-draft';
 import { StudentTutorPreviewPage } from './components/student-tutor-preview/StudentTutorPreviewPage';
-import { StudentTutorBookingPage } from './components/student-tutor-booking/StudentTutorBookingPage';
-import { StudentTutorBookingConfirmPage } from './components/student-tutor-booking/StudentTutorBookingConfirmPage';
+import { StudentCartPage } from './components/student-cart/StudentCartPage';
+import { StudentCartCheckoutPage } from './components/student-cart/StudentCartCheckoutPage';
+import {
+  StudentClassCreditsPage,
+  type StudentClassCredit,
+} from './components/student-cart/StudentClassCreditsPage';
+import { StudentClassSchedulePage } from './components/student-cart/StudentClassSchedulePage';
 import { AppHeader } from './components/AppHeader';
 import { WalletPage } from './components/wallet';
 import { AnalyticsViewTracker } from '../components/AnalyticsViewTracker';
@@ -42,9 +47,7 @@ import {
 import {
   ALREADY_REGISTERED_LOGIN_MESSAGE,
   isBankDetailsMarkedComplete,
-  isStudentBookingDraftReady,
   needsRateCardSetup,
-  type StudentBookingDraft,
 } from '@tutorix/shared-utils';
 
 function AppContent() {
@@ -56,7 +59,7 @@ function AppContent() {
     tutorId: string;
     offeringId: string;
   } | null>(null);
-  const [bookingDraft, setBookingDraft] = useState<StudentBookingDraft | null>(null);
+  const [scheduleCredit, setScheduleCredit] = useState<StudentClassCredit | null>(null);
   const [resumeUserId, setResumeUserId] = useState<number | undefined>(undefined);
   const [resumeVerificationStatus, setResumeVerificationStatus] = useState<
     | {
@@ -473,6 +476,7 @@ function AppContent() {
           onLogout={handleLogout}
           onProfilePress={() => setCurrentView('student-profile')}
           onOpenWallet={() => handleOpenWallet('student-home')}
+          onOpenCart={() => setCurrentView('student-cart')}
           profileAlign="right"
           flush
         />
@@ -481,6 +485,11 @@ function AppContent() {
             onOpenTutorSearch={() => {
               clearStudentTutorSearchDraft();
               setCurrentView('student-tutor-search');
+            }}
+            onScheduleCredits={() => setCurrentView('student-class-credits')}
+            onRescheduleCredit={(credit) => {
+              setScheduleCredit(credit);
+              setCurrentView('student-class-schedule');
             }}
           />
         </main>
@@ -503,6 +512,7 @@ function AppContent() {
           }
           onProfilePress={() => setCurrentView('student-profile')}
           onOpenWallet={() => handleOpenWallet('student-home')}
+          onOpenCart={() => setCurrentView('student-cart')}
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
           <div className={onSearch ? 'w-full' : 'hidden'}>
@@ -517,13 +527,7 @@ function AppContent() {
             <StudentTutorPreviewPage
               tutorId={tutorPreview.tutorId}
               offeringId={tutorPreview.offeringId}
-              onBookClass={() => {
-                setBookingDraft({
-                  tutorId: tutorPreview.tutorId,
-                  offeringId: tutorPreview.offeringId,
-                });
-                setCurrentView('student-tutor-booking');
-              }}
+              onViewCart={() => setCurrentView('student-cart')}
             />
           ) : null}
         </main>
@@ -531,24 +535,23 @@ function AppContent() {
     );
   }
 
-  if (currentView === 'student-tutor-booking' && tutorPreview) {
+  if (currentView === 'student-cart') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
         <AppHeader
-          title="Book class"
+          title="Cart"
           onLogout={handleLogout}
-          onBack={() => setCurrentView('student-tutor-preview')}
+          onBack={() => setCurrentView('student-home')}
           onProfilePress={() => setCurrentView('student-profile')}
           onOpenWallet={() => handleOpenWallet('student-home')}
+          onOpenCart={() => setCurrentView('student-cart')}
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
-          <StudentTutorBookingPage
-            tutorId={tutorPreview.tutorId}
-            offeringId={tutorPreview.offeringId}
-            draft={bookingDraft}
-            onContinue={(draft) => {
-              setBookingDraft(draft);
-              setCurrentView('student-tutor-booking-confirm');
+          <StudentCartPage
+            onCheckout={() => setCurrentView('student-cart-checkout')}
+            onKeepShopping={() => {
+              clearStudentTutorSearchDraft();
+              setCurrentView('student-tutor-search');
             }}
           />
         </main>
@@ -556,27 +559,66 @@ function AppContent() {
     );
   }
 
-  if (
-    currentView === 'student-tutor-booking-confirm' &&
-    isStudentBookingDraftReady(bookingDraft)
-  ) {
+  if (currentView === 'student-cart-checkout') {
     return (
       <div className="min-h-screen bg-subtle text-primary">
         <AppHeader
-          title="Confirm class"
+          title="Checkout"
           onLogout={handleLogout}
-          onBack={() => setCurrentView('student-tutor-booking')}
+          onBack={() => setCurrentView('student-cart')}
           onProfilePress={() => setCurrentView('student-profile')}
-          onOpenWallet={() => handleOpenWallet('student-tutor-booking-confirm')}
+          onOpenWallet={() => handleOpenWallet('student-cart-checkout')}
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
-          <StudentTutorBookingConfirmPage
-            draft={bookingDraft}
-            onBooked={() => {
-              setBookingDraft(null);
+          <StudentCartCheckoutPage
+            onPaid={() => setCurrentView('student-home')}
+            onScheduleNow={() => setCurrentView('student-class-credits')}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'student-class-credits') {
+    return (
+      <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader
+          title="Schedule"
+          onLogout={handleLogout}
+          onBack={() => setCurrentView('student-home')}
+          onProfilePress={() => setCurrentView('student-profile')}
+          onOpenWallet={() => handleOpenWallet('student-home')}
+          onOpenCart={() => setCurrentView('student-cart')}
+        />
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
+          <StudentClassCreditsPage
+            onSchedule={(credit) => {
+              setScheduleCredit(credit);
+              setCurrentView('student-class-schedule');
+            }}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'student-class-schedule' && scheduleCredit) {
+    return (
+      <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader
+          title="Schedule class"
+          onLogout={handleLogout}
+          onBack={() => setCurrentView('student-class-credits')}
+          onProfilePress={() => setCurrentView('student-profile')}
+          onOpenWallet={() => handleOpenWallet('student-home')}
+        />
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
+          <StudentClassSchedulePage
+            credit={scheduleCredit}
+            onScheduled={() => {
+              setScheduleCredit(null);
               setCurrentView('student-home');
             }}
-            onOpenWallet={() => handleOpenWallet('student-tutor-booking-confirm')}
           />
         </main>
       </div>
@@ -592,6 +634,7 @@ function AppContent() {
           onBack={() => setCurrentView('student-home')}
           onProfilePress={() => setCurrentView('student-profile')}
           onOpenWallet={() => handleOpenWallet('student-profile')}
+          onOpenCart={() => setCurrentView('student-cart')}
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
           <StudentProfilePage />
@@ -604,7 +647,7 @@ function AppContent() {
     const studentWallet =
       walletReturnView === 'student-home' ||
       walletReturnView === 'student-profile' ||
-      walletReturnView === 'student-tutor-booking-confirm';
+      walletReturnView === 'student-cart-checkout';
     return (
       <div className="min-h-screen bg-subtle text-primary">
         <AppHeader

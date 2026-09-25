@@ -16,6 +16,7 @@ import {
   rankTutorSearchHits,
   sortExperiencesLatestFirst,
   sortQualificationsHighestFirst,
+  classPackSlabLinesForMode,
   starterRateForMode,
   STUDENT_TUTOR_RECENT_EXPERIENCE_LIMIT,
   STUDENT_TUTOR_TOP_QUALIFICATION_LIMIT,
@@ -438,6 +439,7 @@ export class TutorSearchService {
       onlineRateInr: rateCard ? starterRateForMode(rateCard, 'online') : null,
       offlineRateInr: rateCard ? starterRateForMode(rateCard, 'offline') : null,
       freeDemoOffered: rateCard?.freeDemoOffered === true,
+      ...this.packSlabsForSummary(rateCard),
     };
   }
 
@@ -455,6 +457,22 @@ export class TutorSearchService {
       onlineRateInr: rateCard ? starterRateForMode(rateCard, 'online') : null,
       offlineRateInr: rateCard ? starterRateForMode(rateCard, 'offline') : null,
       freeDemoOffered: rateCard?.freeDemoOffered === true,
+      ...this.packSlabsForSummary(rateCard),
+    };
+  }
+
+  private packSlabsForSummary(
+    rateCard: TutorOfferingRateCardEntity | null,
+  ): Pick<
+    TutorSearchOfferingSummary,
+    'onlinePackSlabs' | 'offlinePackSlabs'
+  > {
+    if (!rateCard) {
+      return { onlinePackSlabs: [], offlinePackSlabs: [] };
+    }
+    return {
+      onlinePackSlabs: classPackSlabLinesForMode(rateCard, 'online'),
+      offlinePackSlabs: classPackSlabLinesForMode(rateCard, 'offline'),
     };
   }
 

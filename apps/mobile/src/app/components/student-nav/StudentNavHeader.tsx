@@ -6,12 +6,14 @@ import {
   profilePictureAvatarUrl,
 } from '@tutorix/shared-utils';
 import { NavHeader } from '../NavHeader';
+import { CartChip } from '../student-cart/CartChip';
 import { WalletBalanceChip } from '../wallet';
 
 type StudentNavHeaderProps = {
   title: string;
   onLogout: () => void;
   onOpenWallet: () => void;
+  onOpenCart?: () => void;
   onBack?: () => void;
   onProfilePress: () => void;
 };
@@ -20,6 +22,7 @@ export const StudentNavHeader: React.FC<StudentNavHeaderProps> = ({
   title,
   onLogout,
   onOpenWallet,
+  onOpenCart,
   onBack,
   onProfilePress,
 }) => {
@@ -37,7 +40,12 @@ export const StudentNavHeader: React.FC<StudentNavHeaderProps> = ({
       userInitials={initialsFromProfileName(user?.firstName, user?.lastName)}
       onProfilePress={onProfilePress}
       profileAlign="right"
-      rightBeforeLogout={<WalletBalanceChip onOpenWallet={onOpenWallet} />}
+      rightBeforeLogout={
+        <>
+          {onOpenCart ? <CartChip onOpenCart={onOpenCart} /> : null}
+          <WalletBalanceChip onOpenWallet={onOpenWallet} />
+        </>
+      }
     />
   );
 };

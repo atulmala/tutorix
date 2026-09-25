@@ -28,6 +28,9 @@ import { TutorWeeklyUnavailability } from '../modules/tutor-calendar/entities/tu
 import { TutorClassSessionEntity } from '../modules/tutor-class-session/entities/tutor-class-session.entity';
 import { TutorClassSessionEnrollmentEntity } from '../modules/tutor-class-session/entities/tutor-class-session-enrollment.entity';
 import { Student } from '../modules/student/entities/student.entity';
+import { StudentCartEntity } from '../modules/student-cart/entities/student-cart.entity';
+import { StudentCartItemEntity } from '../modules/student-cart/entities/student-cart-item.entity';
+import { StudentClassCreditEntity } from '../modules/student-cart/entities/student-class-credit.entity';
 import { PlatformFeeConfigEntity } from '../modules/platform-fee/entities/platform-fee-config.entity';
 import { PlatformFeePaymentEntity } from '../modules/payment/entities/platform-fee-payment.entity';
 import { OrderEntity } from '../modules/commerce/entities/order.entity';
@@ -89,6 +92,9 @@ export function createDatabaseOptions(
       TutorClassSessionEntity,
       TutorClassSessionEnrollmentEntity,
       Student,
+      StudentCartEntity,
+      StudentCartItemEntity,
+      StudentClassCreditEntity,
       PlatformFeeConfigEntity,
       PlatformFeePaymentEntity,
       OrderEntity,

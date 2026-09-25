@@ -8,6 +8,7 @@ const mockUseQuery = jest.fn();
 
 jest.mock('@tutorix/shared-graphql/queries', () => ({
   STUDENT_BOOKED_CLASS_SESSIONS: { kind: 'booked' },
+  MY_CLASS_CREDITS: { kind: 'credits' },
 }));
 
 jest.mock('@apollo/client', () => ({
@@ -64,5 +65,27 @@ describe('StudentHomeScreen', () => {
     const { getByText } = render(<StudentHomeScreen onOpenTutorSearch={jest.fn()} />);
     expect(getByText('Mathematics')).toBeTruthy();
     expect(getByText('Offline · Anita Sharma')).toBeTruthy();
+  });
+
+  it('shows unscheduled classes after login', () => {
+    mockUseQuery.mockImplementation((query: { kind?: string }) => {
+      if (query.kind === 'credits') {
+        return {
+          loading: false,
+          data: { myClassCredits: [{ id: 12, status: 'unscheduled' }] },
+        };
+      }
+      return { loading: false, data: { studentBookedClassSessions: [] } };
+    });
+
+    const onScheduleCredits = jest.fn();
+    const { getByText } = render(
+      <StudentHomeScreen
+        onOpenTutorSearch={jest.fn()}
+        onScheduleCredits={onScheduleCredits}
+      />,
+    );
+    fireEvent.press(getByText('1 class to schedule'));
+    expect(onScheduleCredits).toHaveBeenCalled();
   });
 });

@@ -25,6 +25,14 @@ jest.mock('./HeaderProfileAvatar', () => ({
   ),
 }));
 
+jest.mock('./student-cart/CartChip', () => ({
+  CartChip: ({ onOpenCart }: { onOpenCart?: () => void }) => (
+    <button type="button" aria-label="Cart" onClick={onOpenCart}>
+      Cart
+    </button>
+  ),
+}));
+
 jest.mock('./wallet', () => ({
   WalletBalanceChip: ({ onOpenWallet }: { onOpenWallet?: () => void }) => (
     <button type="button" aria-label="Wallet balance ₹0" onClick={onOpenWallet}>

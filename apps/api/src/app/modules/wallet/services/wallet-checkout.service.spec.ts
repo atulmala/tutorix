@@ -36,6 +36,7 @@ describe('WalletCheckoutService', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
     );
   });
 
@@ -110,5 +111,41 @@ describe('WalletCheckoutService', () => {
     await expect(
       service.initiateWalletTopUp({ id: 1 } as never, { amountInr: 10_001 }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('completes a class cart purchase through the cart service', async () => {
+    const completePaidCart = jest.fn().mockResolvedValue({
+      wallet: { balanceInr: 40 },
+      orderId: 40,
+      orderNumber: 'ORD-1',
+    });
+    const requirePricedCart = jest.fn().mockResolvedValue({ cart: { id: 5 } });
+    const cartService = new WalletCheckoutService(
+      walletService as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      { completePaidCart, requirePricedCart } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await cartService.completeWalletPurchase({ id: 1 } as never, {
+      itemType: WalletPurchaseItemTypeEnum.CLASS_BOOKING,
+      referenceType: WalletPurchaseReferenceTypeEnum.cart,
+      referenceId: 5,
+    });
+
+    expect(completePaidCart).toHaveBeenCalledTimes(1);
+    expect(result.orderId).toBe(40);
   });
 });

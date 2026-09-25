@@ -17,6 +17,7 @@ registerEnumType(WalletPurchaseItemTypeEnum, { name: 'WalletPurchaseItemType' })
 export enum WalletPurchaseReferenceTypeEnum {
   tutor_offering = 'tutor_offering',
   class_session = 'class_session',
+  cart = 'cart',
 }
 
 registerEnumType(WalletPurchaseReferenceTypeEnum, {

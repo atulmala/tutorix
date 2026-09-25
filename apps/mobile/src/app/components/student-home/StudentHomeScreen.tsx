@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useQuery } from '@apollo/client';
-import { STUDENT_BOOKED_CLASS_SESSIONS } from '@tutorix/shared-graphql/queries';
+import { MY_CLASS_CREDITS, STUDENT_BOOKED_CLASS_SESSIONS } from '@tutorix/shared-graphql/queries';
+import type { StudentClassCredit } from '../student-cart/StudentClassCreditsScreen';
 import { formatIstBookingTimeRange } from '@tutorix/shared-utils/student-booking';
 import {
   istDayKey,
@@ -12,6 +13,8 @@ import {
 
 type StudentHomeScreenProps = {
   onOpenTutorSearch: () => void;
+  onScheduleCredits?: () => void;
+  onRescheduleCredit?: (credit: StudentClassCredit) => void;
 };
 
 type BookedClass = {
@@ -51,6 +54,8 @@ function ClockIcon() {
 
 export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
   onOpenTutorSearch,
+  onScheduleCredits,
+  onRescheduleCredit,
 }) => {
   const weekDays = useMemo(() => istHomeScheduleDays(), []);
   const scheduleRange = useMemo(() => istHomeScheduleRange(), []);
@@ -64,7 +69,12 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
     },
     fetchPolicy: 'network-only',
   });
+  const { data: creditData } = useQuery(MY_CLASS_CREDITS, {
+    fetchPolicy: 'cache-and-network',
+  });
   const booked = (data?.studentBookedClassSessions ?? []) as BookedClass[];
+  const credits = (creditData?.myClassCredits ?? []) as StudentClassCredit[];
+  const unscheduledCount = credits.filter((row) => row.status === 'unscheduled').length;
   const selectedClasses = booked.filter(
     (row) => istDayKey(new Date(row.startsAt)) === selected?.key,
   );
@@ -82,6 +92,20 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
           <Text style={styles.weekChipText}>Next 2 weeks</Text>
         </View>
       </View>
+
+      {unscheduledCount > 0 && onScheduleCredits ? (
+        <Pressable
+          style={styles.banner}
+          onPress={onScheduleCredits}
+          accessibilityRole="button"
+          accessibilityLabel={`${unscheduledCount} ${unscheduledCount === 1 ? 'class' : 'classes'} to schedule`}
+        >
+          <Text style={styles.listEmptyTitle}>
+            {unscheduledCount} {unscheduledCount === 1 ? 'class' : 'classes'} to schedule
+          </Text>
+          <Text style={styles.listEmptyCopy}>Pick 1-hour slots when you are ready.</Text>
+        </Pressable>
+      ) : null}
 
       <View style={styles.weekStrip}>
         <ScrollView
@@ -163,6 +187,18 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
               <Text style={styles.listEmptyCopy}>
                 {row.deliveryMode === 'online' ? 'Online' : 'Offline'} · {row.tutorName}
               </Text>
+              {onRescheduleCredit
+                ? (() => {
+                    const credit = credits.find(
+                      (item) => String(item.enrollmentId) === String(row.enrollmentId),
+                    );
+                    return credit ? (
+                      <Pressable onPress={() => onRescheduleCredit(credit)}>
+                        <Text style={styles.reschedule}>Reschedule</Text>
+                      </Pressable>
+                    ) : null;
+                  })()
+                : null}
             </View>
           ))
         )}
@@ -187,6 +223,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: { fontSize: 26, fontWeight: '800', color: '#143055' },
+  banner: {
+    backgroundColor: '#fffbeb',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  reschedule: { marginTop: 6, color: '#2563eb', fontWeight: '700' },
   weekChip: {
     backgroundColor: '#fff',
     borderRadius: 999,

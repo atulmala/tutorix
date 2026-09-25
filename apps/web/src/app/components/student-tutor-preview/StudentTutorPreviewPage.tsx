@@ -1,20 +1,23 @@
-import React, { useEffect } from 'react';
-import { useQuery } from '@apollo/client';
-import { TUTOR_SEARCH_DETAIL } from '@tutorix/shared-graphql';
+import React, { useEffect, useState } from 'react';
+import { useMutation, useQuery } from '@apollo/client';
+import { ADD_TO_CART, MY_CART, TUTOR_SEARCH_DETAIL } from '@tutorix/shared-graphql';
 import {
   formatExperienceDuration,
   formatExperiencePeriod,
-  formatInr,
   formatQualificationInstitutionGrade,
   formatQualificationTitle,
   monthsToExperienceDuration,
 } from '@tutorix/shared-utils';
 import { analytics } from '../../../lib/analytics';
+import {
+  TutorSubjectPurchaseCard,
+  type PreviewOffering,
+} from './TutorSubjectPurchaseCard';
 
 type StudentTutorPreviewPageProps = {
   tutorId: string;
   offeringId: string;
-  onBookClass: () => void;
+  onViewCart: () => void;
 };
 
 type PreviewExperience = {
@@ -37,12 +40,16 @@ type PreviewQualification = {
 export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = ({
   tutorId,
   offeringId,
-  onBookClass,
+  onViewCart,
 }) => {
   const { data, loading, error } = useQuery(TUTOR_SEARCH_DETAIL, {
     variables: { tutorId, offeringId },
     fetchPolicy: 'network-only',
   });
+  const [addToCart, { loading: adding }] = useMutation(ADD_TO_CART, {
+    refetchQueries: [{ query: MY_CART }],
+  });
+  const [addingOfferingId, setAddingOfferingId] = useState<string | null>(null);
 
   const detail = data?.tutorSearchDetail;
 
@@ -51,6 +58,26 @@ export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = (
       analytics.trackTutorViewed(detail.tutorId);
     }
   }, [detail?.tutorId]);
+
+  const handleAdd = async (
+    targetOfferingId: string,
+    deliveryMode: 'online' | 'offline',
+    quantity: number,
+  ) => {
+    setAddingOfferingId(targetOfferingId);
+    try {
+      await addToCart({
+        variables: {
+          tutorId,
+          offeringId: targetOfferingId,
+          deliveryMode,
+          quantity,
+        },
+      });
+    } finally {
+      setAddingOfferingId(null);
+    }
+  };
 
   if (loading) {
     return <p className="text-sm text-muted">Loading tutor…</p>;
@@ -65,6 +92,7 @@ export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = (
       : '';
   const recentExperiences = (detail.recentExperiences ?? []) as PreviewExperience[];
   const topQualifications = (detail.topQualifications ?? []) as PreviewQualification[];
+  const otherOfferings = (detail.otherOfferings ?? []) as PreviewOffering[];
 
   return (
     <div className="w-full max-w-5xl space-y-6">
@@ -97,34 +125,42 @@ export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = (
         </div>
       </div>
 
-      <section className="rounded-2xl border border-primary/10 bg-white p-6 shadow-sm">
+      <section className="space-y-3">
         <h2 className="text-lg font-bold text-primary">This subject</h2>
-        <p className="mt-2 text-sm text-primary">{detail.matchingOffering.offeringLabel}</p>
-        <div className="mt-3 flex flex-wrap gap-2 text-sm">
-          {detail.matchingOffering.offlineEnabled && detail.matchingOffering.offlineRateInr ? (
-            <span className="rounded-full bg-sky-50 px-3 py-1 font-semibold text-sky-800">
-              Offline {formatInr(detail.matchingOffering.offlineRateInr)} / class
-            </span>
-          ) : null}
-          {detail.matchingOffering.onlineEnabled && detail.matchingOffering.onlineRateInr ? (
-            <span className="rounded-full bg-violet-50 px-3 py-1 font-semibold text-violet-800">
-              Online {formatInr(detail.matchingOffering.onlineRateInr)} / class
-            </span>
-          ) : null}
-          {detail.matchingOffering.freeDemoOffered ? (
-            <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-[#16a34a]">
-              Free demo
-            </span>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          onClick={onBookClass}
-          className="mt-4 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
-        >
-          Book class
-        </button>
+        <TutorSubjectPurchaseCard
+          offering={detail.matchingOffering as PreviewOffering}
+          defaultExpanded
+          collapsible={false}
+          highlight
+          adding={adding && addingOfferingId === String(detail.matchingOffering.offeringId)}
+          onAdd={handleAdd}
+          onViewCart={onViewCart}
+        />
       </section>
+
+      {otherOfferings.length > 0 ? (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-lg font-bold text-primary">Also teaches</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Tap a subject to see pack pricing and add classes to your cart.
+            </p>
+          </div>
+          <div className="space-y-3">
+            {otherOfferings.map((offering) => (
+              <TutorSubjectPurchaseCard
+                key={offering.offeringId}
+                offering={offering}
+                defaultExpanded={false}
+                collapsible
+                adding={adding && addingOfferingId === String(offering.offeringId)}
+                onAdd={handleAdd}
+                onViewCart={onViewCart}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {recentExperiences.length > 0 ? (
         <section className="rounded-2xl border border-primary/10 bg-white p-6 shadow-sm">
@@ -166,19 +202,6 @@ export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = (
                 </li>
               );
             })}
-          </ul>
-        </section>
-      ) : null}
-
-      {detail.otherOfferings.length > 0 ? (
-        <section className="rounded-2xl border border-primary/10 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-primary">Also teaches</h2>
-          <ul className="mt-3 space-y-2 text-sm text-primary">
-            {detail.otherOfferings.map(
-              (offering: { offeringId: string; offeringLabel: string }) => (
-                <li key={offering.offeringId}>{offering.offeringLabel}</li>
-              ),
-            )}
           </ul>
         </section>
       ) : null}

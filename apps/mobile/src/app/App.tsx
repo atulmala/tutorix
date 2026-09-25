@@ -19,8 +19,13 @@ import { StudentTutorSearchScreen } from './components/student-tutor-search/Stud
 import { StudentTutorSearchResultsScreen } from './components/student-tutor-search/StudentTutorSearchResultsScreen';
 import type { StudentTutorSearchParams } from './components/student-tutor-search/student-tutor-search-params';
 import { StudentTutorPreviewScreen } from './components/student-tutor-preview/StudentTutorPreviewScreen';
-import { StudentTutorBookingScreen } from './components/student-tutor-booking/StudentTutorBookingScreen';
-import { StudentTutorBookingConfirmScreen } from './components/student-tutor-booking/StudentTutorBookingConfirmScreen';
+import { StudentCartScreen } from './components/student-cart/StudentCartScreen';
+import { StudentCartCheckoutScreen } from './components/student-cart/StudentCartCheckoutScreen';
+import {
+  StudentClassCreditsScreen,
+  type StudentClassCredit,
+} from './components/student-cart/StudentClassCreditsScreen';
+import { StudentClassScheduleScreen } from './components/student-cart/StudentClassScheduleScreen';
 import {
   StudentHomeHeader,
   StudentNavHeader,
@@ -52,10 +57,6 @@ import {
 } from '@tutorix/shared-graphql/client/mobile/token-storage';
 import { isBankDetailsMarkedComplete } from '@tutorix/shared-utils/bank-details-formatters';
 import { needsRateCardSetup } from '@tutorix/shared-utils/rate-card';
-import {
-  isStudentBookingDraftReady,
-  type StudentBookingDraft,
-} from '@tutorix/shared-utils/student-booking';
 import { ALREADY_REGISTERED_LOGIN_MESSAGE } from '@tutorix/shared-utils/already-registered';
 import { GET_MY_STUDENT_PROFILE, GET_MY_TUTOR_DETAIL, GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
 import { LOGIN } from '@tutorix/shared-graphql/mutations';
@@ -125,7 +126,7 @@ function AppContent() {
     tutorId: string;
     offeringId: string;
   } | null>(null);
-  const [bookingDraft, setBookingDraft] = useState<StudentBookingDraft | null>(null);
+  const [scheduleCredit, setScheduleCredit] = useState<StudentClassCredit | null>(null);
   const [tutorSearchParams, setTutorSearchParams] =
     useState<StudentTutorSearchParams | null>(null);
   const [signupResume, setSignupResume] = useState<{
@@ -457,9 +458,15 @@ function AppContent() {
         <StudentHomeHeader
           onProfilePress={() => setCurrentView('studentProfile')}
           onOpenWallet={() => handleOpenWallet('studentHome')}
+          onOpenCart={() => setCurrentView('studentCart')}
         />
         <StudentHomeScreen
           onOpenTutorSearch={() => setCurrentView('studentTutorSearch')}
+          onScheduleCredits={() => setCurrentView('studentClassCredits')}
+          onRescheduleCredit={(credit) => {
+            setScheduleCredit(credit);
+            setCurrentView('studentClassSchedule');
+          }}
         />
         <StudentTabBar
           active="home"
@@ -483,6 +490,7 @@ function AppContent() {
           onLogout={handleLogout}
           onProfilePress={() => setCurrentView('studentProfile')}
           onOpenWallet={() => handleOpenWallet('studentHome')}
+          onOpenCart={() => setCurrentView('studentCart')}
         />
         {showResults && tutorSearchParams ? (
           <StudentTutorSearchResultsScreen
@@ -524,61 +532,83 @@ function AppContent() {
           onLogout={handleLogout}
           onProfilePress={() => setCurrentView('studentProfile')}
           onOpenWallet={() => handleOpenWallet('studentHome')}
+          onOpenCart={() => setCurrentView('studentCart')}
         />
         <StudentTutorPreviewScreen
           tutorId={tutorPreview.tutorId}
           offeringId={tutorPreview.offeringId}
-          onBookClass={() => {
-            setBookingDraft({
-              tutorId: tutorPreview.tutorId,
-              offeringId: tutorPreview.offeringId,
-            });
-            setCurrentView('studentTutorBooking');
+          onViewCart={() => setCurrentView('studentCart')}
+        />
+      </View>
+    );
+  } else if (currentView === 'studentCart') {
+    screen = (
+      <View style={{ flex: 1 }}>
+        <StudentNavHeader
+          title="Cart"
+          onBack={() => setCurrentView('studentHome')}
+          onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('studentProfile')}
+          onOpenWallet={() => handleOpenWallet('studentHome')}
+          onOpenCart={() => setCurrentView('studentCart')}
+        />
+        <StudentCartScreen
+          onCheckout={() => setCurrentView('studentCartCheckout')}
+          onKeepShopping={() => setCurrentView('studentTutorSearch')}
+        />
+      </View>
+    );
+  } else if (currentView === 'studentCartCheckout') {
+    screen = (
+      <View style={{ flex: 1 }}>
+        <StudentNavHeader
+          title="Checkout"
+          onBack={() => setCurrentView('studentCart')}
+          onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('studentProfile')}
+          onOpenWallet={() => handleOpenWallet('studentCartCheckout')}
+        />
+        <StudentCartCheckoutScreen
+          onPaid={() => setCurrentView('studentHome')}
+          onScheduleNow={() => setCurrentView('studentClassCredits')}
+        />
+      </View>
+    );
+  } else if (currentView === 'studentClassCredits') {
+    screen = (
+      <View style={{ flex: 1 }}>
+        <StudentNavHeader
+          title="Schedule"
+          onBack={() => setCurrentView('studentHome')}
+          onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('studentProfile')}
+          onOpenWallet={() => handleOpenWallet('studentHome')}
+          onOpenCart={() => setCurrentView('studentCart')}
+        />
+        <StudentClassCreditsScreen
+          onSchedule={(credit) => {
+            setScheduleCredit(credit);
+            setCurrentView('studentClassSchedule');
           }}
         />
       </View>
     );
-  } else if (currentView === 'studentTutorBooking' && tutorPreview) {
+  } else if (currentView === 'studentClassSchedule' && scheduleCredit) {
     screen = (
       <View style={{ flex: 1 }}>
         <StudentNavHeader
-          title="Book class"
-          onBack={() => setCurrentView('studentTutorPreview')}
+          title="Schedule class"
+          onBack={() => setCurrentView('studentClassCredits')}
           onLogout={handleLogout}
           onProfilePress={() => setCurrentView('studentProfile')}
           onOpenWallet={() => handleOpenWallet('studentHome')}
         />
-        <StudentTutorBookingScreen
-          tutorId={tutorPreview.tutorId}
-          offeringId={tutorPreview.offeringId}
-          draft={bookingDraft}
-          onContinue={(draft) => {
-            setBookingDraft(draft);
-            setCurrentView('studentTutorBookingConfirm');
-          }}
-        />
-      </View>
-    );
-  } else if (
-    currentView === 'studentTutorBookingConfirm' &&
-    isStudentBookingDraftReady(bookingDraft)
-  ) {
-    screen = (
-      <View style={{ flex: 1 }}>
-        <StudentNavHeader
-          title="Confirm class"
-          onBack={() => setCurrentView('studentTutorBooking')}
-          onLogout={handleLogout}
-          onProfilePress={() => setCurrentView('studentProfile')}
-          onOpenWallet={() => handleOpenWallet('studentTutorBookingConfirm')}
-        />
-        <StudentTutorBookingConfirmScreen
-          draft={bookingDraft}
-          onBooked={() => {
-            setBookingDraft(null);
+        <StudentClassScheduleScreen
+          credit={scheduleCredit}
+          onScheduled={() => {
+            setScheduleCredit(null);
             setCurrentView('studentHome');
           }}
-          onOpenWallet={() => handleOpenWallet('studentTutorBookingConfirm')}
         />
       </View>
     );
@@ -590,6 +620,7 @@ function AppContent() {
           onLogout={handleLogout}
           onProfilePress={() => setCurrentView('studentProfile')}
           onOpenWallet={() => handleOpenWallet('studentProfile')}
+          onOpenCart={() => setCurrentView('studentCart')}
         />
         <StudentDetailScreen
           onAccountDeleted={() => {
@@ -682,7 +713,7 @@ function AppContent() {
     const studentWallet =
       walletReturnView === 'studentHome' ||
       walletReturnView === 'studentProfile' ||
-      walletReturnView === 'studentTutorBookingConfirm';
+      walletReturnView === 'studentCartCheckout';
     const tutorWallet =
       walletReturnView === 'tutorHome' || walletReturnView === 'tutorProfile';
     screen = (

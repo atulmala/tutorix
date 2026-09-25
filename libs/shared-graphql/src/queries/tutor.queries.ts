@@ -292,6 +292,20 @@ export const TUTOR_SEARCH_DETAIL = gql`
         onlineRateInr
         offlineRateInr
         freeDemoOffered
+        onlinePackSlabs {
+          label
+          minClasses
+          maxClasses
+          unitRateInr
+          discountPct
+        }
+        offlinePackSlabs {
+          label
+          minClasses
+          maxClasses
+          unitRateInr
+          discountPct
+        }
       }
       otherOfferings {
         offeringId
@@ -301,6 +315,20 @@ export const TUTOR_SEARCH_DETAIL = gql`
         onlineRateInr
         offlineRateInr
         freeDemoOffered
+        onlinePackSlabs {
+          label
+          minClasses
+          maxClasses
+          unitRateInr
+          discountPct
+        }
+        offlinePackSlabs {
+          label
+          minClasses
+          maxClasses
+          unitRateInr
+          discountPct
+        }
       }
     }
   }

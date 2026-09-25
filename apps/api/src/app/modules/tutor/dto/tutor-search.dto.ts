@@ -81,6 +81,24 @@ export class TutorSearchConnection {
 }
 
 @ObjectType()
+export class TutorSearchClassPackSlab {
+  @Field()
+  label!: string;
+
+  @Field(() => Int)
+  minClasses!: number;
+
+  @Field(() => Int, { nullable: true })
+  maxClasses?: number | null;
+
+  @Field(() => Int)
+  unitRateInr!: number;
+
+  @Field(() => Int, { nullable: true })
+  discountPct?: number | null;
+}
+
+@ObjectType()
 export class TutorSearchOfferingSummary {
   @Field(() => ID)
   offeringId!: number;
@@ -102,6 +120,12 @@ export class TutorSearchOfferingSummary {
 
   @Field()
   freeDemoOffered!: boolean;
+
+  @Field(() => [TutorSearchClassPackSlab])
+  onlinePackSlabs!: TutorSearchClassPackSlab[];
+
+  @Field(() => [TutorSearchClassPackSlab])
+  offlinePackSlabs!: TutorSearchClassPackSlab[];
 }
 
 @ObjectType()

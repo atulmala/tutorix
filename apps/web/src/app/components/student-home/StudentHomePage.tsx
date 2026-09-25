@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@apollo/client';
-import { STUDENT_BOOKED_CLASS_SESSIONS } from '@tutorix/shared-graphql';
+import { MY_CLASS_CREDITS, STUDENT_BOOKED_CLASS_SESSIONS } from '@tutorix/shared-graphql';
+import type { StudentClassCredit } from '../student-cart/StudentClassCreditsPage';
 import {
   formatIstBookingTimeRange,
   istDayKey,
@@ -10,6 +11,8 @@ import {
 
 type StudentHomePageProps = {
   onOpenTutorSearch: () => void;
+  onScheduleCredits?: () => void;
+  onRescheduleCredit?: (credit: StudentClassCredit) => void;
 };
 
 type BookedClass = {
@@ -23,6 +26,8 @@ type BookedClass = {
 
 export const StudentHomePage: React.FC<StudentHomePageProps> = ({
   onOpenTutorSearch,
+  onScheduleCredits,
+  onRescheduleCredit,
 }) => {
   const weekDays = useMemo(() => istHomeScheduleDays(), []);
   const scheduleRange = useMemo(() => istHomeScheduleRange(), []);
@@ -37,7 +42,12 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
     },
     fetchPolicy: 'network-only',
   });
+  const { data: creditData } = useQuery(MY_CLASS_CREDITS, {
+    fetchPolicy: 'cache-and-network',
+  });
   const booked = (data?.studentBookedClassSessions ?? []) as BookedClass[];
+  const credits = (creditData?.myClassCredits ?? []) as StudentClassCredit[];
+  const unscheduledCount = credits.filter((row) => row.status === 'unscheduled').length;
   const selectedClasses = booked.filter(
     (row) => istDayKey(new Date(row.startsAt)) === selected?.key,
   );
@@ -51,6 +61,19 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
           Next 2 weeks
         </span>
       </div>
+
+      {unscheduledCount > 0 && onScheduleCredits ? (
+        <button
+          type="button"
+          onClick={onScheduleCredits}
+          className="w-full rounded-[20px] bg-amber-50 px-4 py-3 text-left"
+        >
+          <p className="text-sm font-extrabold text-[#143055]">
+            {unscheduledCount} {unscheduledCount === 1 ? 'class' : 'classes'} to schedule
+          </p>
+          <p className="mt-0.5 text-sm text-slate-500">Pick 1-hour slots when you are ready.</p>
+        </button>
+      ) : null}
 
       <div className="overflow-x-auto rounded-[18px] bg-white p-2">
         <div className="flex w-max gap-1">
@@ -154,6 +177,22 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
                 <p className="mt-0.5 text-sm text-slate-500">
                   {row.deliveryMode === 'online' ? 'Online' : 'Offline'} · {row.tutorName}
                 </p>
+                {onRescheduleCredit
+                  ? (() => {
+                      const credit = credits.find(
+                        (item) => String(item.enrollmentId) === String(row.enrollmentId),
+                      );
+                      return credit ? (
+                        <button
+                          type="button"
+                          onClick={() => onRescheduleCredit(credit)}
+                          className="mt-2 text-sm font-semibold text-[#2563eb]"
+                        >
+                          Reschedule
+                        </button>
+                      ) : null;
+                    })()
+                  : null}
               </li>
             ))}
           </ul>

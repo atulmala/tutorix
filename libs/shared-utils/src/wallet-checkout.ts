@@ -8,7 +8,7 @@ import {
 
 export type WalletPurchaseIntent = {
   itemType: 'PROFICIENCY_TEST' | 'CLASS_BOOKING';
-  referenceType: 'tutor_offering' | 'class_session';
+  referenceType: 'tutor_offering' | 'class_session' | 'cart';
   referenceId: number;
 };
 

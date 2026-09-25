@@ -2,11 +2,13 @@ import React from 'react';
 import { BRAND_NAME } from '../config';
 import { useWebAuth } from '../auth/useWebAuth';
 import { HeaderProfileAvatar } from './HeaderProfileAvatar';
+import { CartChip } from './student-cart/CartChip';
 import { WalletBalanceChip } from './wallet';
 
 type AppHeaderProps = {
   onLogout: () => void;
   onOpenWallet?: () => void;
+  onOpenCart?: () => void;
   onProfilePress?: () => void;
   onBack?: () => void;
   title?: string;
@@ -17,6 +19,7 @@ type AppHeaderProps = {
 export const AppHeader: React.FC<AppHeaderProps> = ({
   onLogout,
   onOpenWallet,
+  onOpenCart,
   onProfilePress,
   onBack,
   title = BRAND_NAME,
@@ -55,6 +58,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         <div className={`text-2xl font-bold ${flush ? 'text-[#1d4ed8]' : 'text-primary'}`}>{title}</div>
       </div>
       <div className="relative flex items-center gap-3">
+        {onOpenCart ? <CartChip onOpenCart={onOpenCart} /> : null}
         {onOpenWallet ? <WalletBalanceChip onOpenWallet={onOpenWallet} /> : null}
         {showRightProfile ? (
           <HeaderProfileAvatar user={currentUser} onNavigate={onProfilePress} />

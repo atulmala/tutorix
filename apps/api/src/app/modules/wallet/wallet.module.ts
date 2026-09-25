@@ -8,6 +8,7 @@ import { PlatformFeeModule } from '../platform-fee/platform-fee.module';
 import { ProficiencyModule } from '../proficiency/proficiency.module';
 import { TutorModule } from '../tutor/tutor.module';
 import { StudentModule } from '../student/student.module';
+import { StudentCartModule } from '../student-cart/student-cart.module';
 import { CommunicationModule } from '../communication/communication.module';
 import { UserWalletEntity } from './entities/user-wallet.entity';
 import { WalletTransactionEntity } from './entities/wallet-transaction.entity';
@@ -35,6 +36,7 @@ import { WalletResolver } from './resolvers/wallet.resolver';
     forwardRef(() => PaymentModule),
     forwardRef(() => TutorModule),
     StudentModule,
+    forwardRef(() => StudentCartModule),
     CommunicationModule,
   ],
   providers: [

@@ -6,17 +6,20 @@ import {
   initialsFromProfileName,
   profilePictureAvatarUrl,
 } from '@tutorix/shared-utils';
+import { CartChip } from '../student-cart/CartChip';
 import { WalletBalanceChip } from '../wallet';
 import { BRAND_NAME } from '../../config';
 
 type StudentHomeHeaderProps = {
   onProfilePress: () => void;
   onOpenWallet: () => void;
+  onOpenCart?: () => void;
 };
 
 export const StudentHomeHeader: React.FC<StudentHomeHeaderProps> = ({
   onProfilePress,
   onOpenWallet,
+  onOpenCart,
 }) => {
   const { data } = useQuery(GET_MY_STUDENT_PROFILE, {
     fetchPolicy: 'cache-and-network',
@@ -30,6 +33,7 @@ export const StudentHomeHeader: React.FC<StudentHomeHeaderProps> = ({
       <View style={styles.row}>
         <Text style={styles.brand}>{BRAND_NAME}</Text>
         <View style={styles.right}>
+          {onOpenCart ? <CartChip onOpenCart={onOpenCart} /> : null}
           <WalletBalanceChip onOpenWallet={onOpenWallet} />
           <Pressable
             onPress={onProfilePress}

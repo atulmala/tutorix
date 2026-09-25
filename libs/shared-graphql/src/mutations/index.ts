@@ -29,4 +29,5 @@ export * from './payment.mutations';
 export * from './wallet.mutations';
 export * from './communication.mutations';
 export * from './tutor-class-session.mutations';
+export * from './student-cart.mutations';
 // export * from './class.mutations';
