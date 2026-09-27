@@ -21,8 +21,10 @@ export type NavHeaderProps = {
   userInitials?: string | null;
   /** Profile image URL for the left avatar (student home). */
   avatarUrl?: string | null;
-  /** When set and there is no back button, left avatar is tappable. */
+  /** When set, the initials/photo circle is tappable. */
   onProfilePress?: () => void;
+  /** Avatar side when there is no back button. Back screens always put it on the right. */
+  profileAlign?: 'left' | 'right';
   /** Slot rendered on the right, immediately before logout (e.g. wallet chip). */
   rightBeforeLogout?: React.ReactNode;
   /** Callback when logout is pressed; if provided, logout icon is shown */
@@ -36,12 +38,32 @@ export const NavHeader: React.FC<NavHeaderProps> = ({
   userInitials,
   avatarUrl,
   onProfilePress,
+  profileAlign = 'left',
   rightBeforeLogout,
   onLogout,
 }) => {
-  const showLeftAvatar = !onBack && !!onProfilePress;
-  const showLegacyRightInitials =
-    !showLeftAvatar && !onBack && !!userInitials;
+  const showAvatar = Boolean(onProfilePress);
+  const showLeftAvatar = showAvatar && !onBack && profileAlign === 'left';
+  const showRightAvatar = showAvatar && (Boolean(onBack) || profileAlign === 'right');
+
+  const avatar = (
+    <TouchableOpacity
+      style={styles.avatarButton}
+      onPress={onProfilePress}
+      activeOpacity={0.8}
+      disabled={!onProfilePress}
+      accessibilityLabel="Open profile"
+      accessibilityRole="button"
+    >
+      {avatarUrl ? (
+        <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+      ) : (
+        <View style={styles.initialsCircle}>
+          <Text style={styles.initialsText}>{userInitials || '?'}</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -57,21 +79,7 @@ export const NavHeader: React.FC<NavHeaderProps> = ({
               <BackArrowIcon size={24} color="#0f172a" />
             </TouchableOpacity>
           ) : showLeftAvatar ? (
-            <TouchableOpacity
-              style={styles.avatarButton}
-              onPress={onProfilePress}
-              activeOpacity={0.8}
-              accessibilityLabel="Open profile"
-              accessibilityRole="button"
-            >
-              {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
-              ) : (
-                <View style={styles.initialsCircle}>
-                  <Text style={styles.initialsText}>{userInitials || '?'}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
+            avatar
           ) : (
             <View style={styles.backPlaceholder} />
           )}
@@ -89,12 +97,8 @@ export const NavHeader: React.FC<NavHeaderProps> = ({
         </View>
 
         <View style={styles.right}>
-          {showLegacyRightInitials ? (
-            <View style={styles.initialsCircle}>
-              <Text style={styles.initialsText}>{userInitials}</Text>
-            </View>
-          ) : null}
           {rightBeforeLogout}
+          {showRightAvatar ? avatar : null}
           {onLogout ? (
             <TouchableOpacity
               style={styles.logoutButton}

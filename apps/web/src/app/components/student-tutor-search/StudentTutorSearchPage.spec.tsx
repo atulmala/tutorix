@@ -33,7 +33,14 @@ function mockQueries() {
     if (query === GET_MY_STUDENT_PROFILE) {
       return {
         loading: false,
-        data: { myStudentProfile: { board: 'CBSE', schoolClass: 8, boardOther: null } },
+        data: {
+          myStudentProfile: {
+            studentType: 'SCHOOL',
+            board: 'CBSE',
+            schoolClass: 8,
+            boardOther: null,
+          },
+        },
       };
     }
     if (query === GET_OFFERINGS) {

@@ -9,6 +9,7 @@ import {
   PENDING_RATE_CARD_TASK_MESSAGE,
 } from '@tutorix/shared-utils/rate-card';
 import { GET_MY_TUTOR_CALENDAR_UPDATED_TILL, GET_MY_TUTOR_DETAIL } from '@tutorix/shared-graphql/queries';
+import { istHomeScheduleDays } from '@tutorix/shared-utils/student-schedule';
 import { TutorHomeScreen } from './TutorHomeScreen';
 
 const mockUseQuery = jest.fn();
@@ -58,7 +59,9 @@ describe('TutorHomeScreen', () => {
     expect(getByText("Today's classes")).toBeTruthy();
     expect(getByText('Teaching hours')).toBeTruthy();
     expect(getByText('Concluded classes')).toBeTruthy();
-    expect(getByText('MON')).toBeTruthy();
+    const days = istHomeScheduleDays();
+    expect(getByText(`${days[0].day} ${days[0].monthAbbr}`)).toBeTruthy();
+    expect(getByText(`${days[13].day} ${days[13].monthAbbr}`)).toBeTruthy();
     expect(
       queryByText('Manage bookings, students, and your teaching schedule — coming soon.'),
     ).toBeNull();

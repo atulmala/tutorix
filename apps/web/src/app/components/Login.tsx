@@ -53,8 +53,7 @@ export const Login: React.FC<LoginProps> = ({ onBackHome, onSignUp, onLoginSucce
           data.login.refreshToken
         );
       }
-      
-      console.log('Login successful:', data);
+
       setShowSuccessModal(true);
       if (successTimerRef.current) {
         window.clearTimeout(successTimerRef.current);

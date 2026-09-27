@@ -19,6 +19,7 @@ import { TutorRateCardModule } from './modules/tutor-rate-card/tutor-rate-card.m
 import { TutorCalendarModule } from './modules/tutor-calendar/tutor-calendar.module';
 import { TutorClassSessionModule } from './modules/tutor-class-session/tutor-class-session.module';
 import { StudentModule } from './modules/student/student.module';
+import { StudentCartModule } from './modules/student-cart/student-cart.module';
 import { PlatformFeeModule } from './modules/platform-fee/platform-fee.module';
 import { PaymentModule } from './modules/payment';
 import { CommerceModule } from './modules/commerce/commerce.module';
@@ -45,6 +46,7 @@ import { CommunicationModule } from './modules/communication/communication.modul
     TutorCalendarModule,
     TutorClassSessionModule,
     StudentModule,
+    StudentCartModule,
     PlatformFeeModule,
     CommerceModule,
     WalletModule,

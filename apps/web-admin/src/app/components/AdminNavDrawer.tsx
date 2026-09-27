@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { to: '/registration-settings', label: 'Registration' },
   { to: '/communication', label: 'Communication' },
   { to: '/orders', label: 'Orders' },
+  { to: '/class-bookings', label: 'Class bookings' },
 ] as const;
 
 export function AdminNavDrawer() {

@@ -2,9 +2,30 @@ import {
   calculateEffectiveRate,
   getBatchSizeForMode,
   isRateCardComplete,
+  RATE_CARD_SLABS,
   type RateCardLike,
 } from './rate-card';
 import { MIN_SLOTS_THIS_WEEK } from './tutor-calendar';
+
+/** Max straight-line distance (km) for booking offline classes at the tutor's location. */
+export const OFFLINE_BOOKING_MAX_DISTANCE_KM = 25;
+
+export function isWithinOfflineBookingDistance(
+  distanceKm: number | null | undefined,
+): boolean {
+  return (
+    distanceKm != null &&
+    Number.isFinite(distanceKm) &&
+    distanceKm <= OFFLINE_BOOKING_MAX_DISTANCE_KM
+  );
+}
+
+export function effectiveOfflineEnabledForBooking(
+  offlineEnabled: boolean | undefined,
+  distanceKm: number | null | undefined,
+): boolean {
+  return offlineEnabled === true && isWithinOfflineBookingDistance(distanceKm);
+}
 
 export type TutorSearchDeliveryMode = 'ONLINE' | 'OFFLINE' | 'ANY';
 export type TutorSearchClassFormat = 'INDIVIDUAL' | 'GROUP' | 'ANY';
@@ -89,13 +110,47 @@ export function starterRateForMode(
   rateCard: RateCardLike,
   mode: 'online' | 'offline',
 ): number | null {
+  return rateForModeAndQuantity(rateCard, mode, 1);
+}
+
+/** Tutor-entered list price before pack slab discounts (rate card base rate field). */
+export function catalogBaseRateInrForMode(
+  rateCard: RateCardLike,
+  mode: 'online' | 'offline',
+): number | null {
+  if (mode === 'offline') {
+    if (rateCard.offlineEnabled !== true || rateCard.offlineBaseRate == null) {
+      return null;
+    }
+    return rateCard.offlineBaseRate;
+  }
+  if (rateCard.onlineEnabled !== true || rateCard.onlineBaseRate == null) {
+    return null;
+  }
+  return rateCard.onlineBaseRate;
+}
+
+export function rateForModeAndQuantity(
+  rateCard: RateCardLike,
+  mode: 'online' | 'offline',
+  quantity: number,
+): number | null {
+  const qty = Number.isFinite(quantity) ? Math.floor(quantity) : 0;
+  if (qty < 1) {
+    return null;
+  }
   if (mode === 'offline') {
     if (rateCard.offlineEnabled !== true || rateCard.offlineBaseRate == null) {
       return null;
     }
     return calculateEffectiveRate(
       rateCard.offlineBaseRate,
-      rateCard.offlineBaseDiscountPct,
+      discountForQuantity(
+        qty,
+        rateCard.offlineBaseDiscountPct,
+        rateCard.offlineSlab2DiscountPct,
+        rateCard.offlineSlab3DiscountPct,
+      ),
     );
   }
   if (rateCard.onlineEnabled !== true || rateCard.onlineBaseRate == null) {
@@ -103,8 +158,105 @@ export function starterRateForMode(
   }
   return calculateEffectiveRate(
     rateCard.onlineBaseRate,
-    rateCard.onlineBaseDiscountPct,
+    discountForQuantity(
+      qty,
+      rateCard.onlineBaseDiscountPct,
+      rateCard.onlineSlab2DiscountPct,
+      rateCard.onlineSlab3DiscountPct,
+    ),
   );
+}
+
+function discountForQuantity(
+  quantity: number,
+  baseDiscount?: number | null,
+  slab2Discount?: number | null,
+  slab3Discount?: number | null,
+): number | null | undefined {
+  if (quantity >= 11) {
+    return slab3Discount ?? slab2Discount ?? baseDiscount;
+  }
+  if (quantity >= 5) {
+    return slab2Discount ?? baseDiscount;
+  }
+  return baseDiscount;
+}
+
+export type ClassPackSlabLine = {
+  label: string;
+  minClasses: number;
+  maxClasses: number | null;
+  unitRateInr: number;
+  discountPct: number | null;
+};
+
+export function classPackSlabLinesForMode(
+  rateCard: RateCardLike,
+  mode: 'online' | 'offline',
+): ClassPackSlabLine[] {
+  if (mode === 'offline') {
+    if (rateCard.offlineEnabled !== true || rateCard.offlineBaseRate == null) {
+      return [];
+    }
+  } else if (rateCard.onlineEnabled !== true || rateCard.onlineBaseRate == null) {
+    return [];
+  }
+
+  const lines: ClassPackSlabLine[] = [];
+  for (const slab of RATE_CARD_SLABS) {
+    const qty = slab.minClasses;
+    const unitRateInr = rateForModeAndQuantity(rateCard, mode, qty);
+    if (unitRateInr == null) {
+      continue;
+    }
+    const rawDiscount =
+      mode === 'offline'
+        ? discountForQuantity(
+            qty,
+            rateCard.offlineBaseDiscountPct,
+            rateCard.offlineSlab2DiscountPct,
+            rateCard.offlineSlab3DiscountPct,
+          )
+        : discountForQuantity(
+            qty,
+            rateCard.onlineBaseDiscountPct,
+            rateCard.onlineSlab2DiscountPct,
+            rateCard.onlineSlab3DiscountPct,
+          );
+    const discountPct =
+      rawDiscount != null && rawDiscount > 0 ? Math.round(rawDiscount) : null;
+    lines.push({
+      label: slab.label,
+      minClasses: slab.minClasses,
+      maxClasses: slab.maxClasses,
+      unitRateInr,
+      discountPct,
+    });
+  }
+  return lines;
+}
+
+export function unitRateFromPackSlabs(
+  slabs: ClassPackSlabLine[],
+  quantity: number,
+): number | null {
+  const qty = Math.floor(Number(quantity));
+  if (!Number.isFinite(qty) || qty < 1 || slabs.length === 0) {
+    return null;
+  }
+  const tier = qty >= 11 ? 2 : qty >= 5 ? 1 : 0;
+  return slabs[tier]?.unitRateInr ?? null;
+}
+
+export function packSlabsHaveDiscount(slabs: ClassPackSlabLine[]): boolean {
+  return slabs.some((row) => (row.discountPct ?? 0) > 0);
+}
+
+/** Slabs with a configured discount — for student-facing pack pricing promos only. */
+export function discountedPackSlabLines(
+  slabs: ClassPackSlabLine[],
+): ClassPackSlabLine[] {
+  return slabs.filter((row) => (row.discountPct ?? 0) > 0);
 }
 
 function classFormatMatches(
@@ -159,11 +311,16 @@ export function resolveShownMode(
     filters.deliveryMode === 'ANY' ||
     forceOnline;
 
+  const offlineRadiusKm = Math.min(
+    filters.radiusKm,
+    OFFLINE_BOOKING_MAX_DISTANCE_KM,
+  );
   const offlineOk =
     allowOffline &&
     modeEligible(candidate.rateCard, 'offline', filters) &&
+    isWithinOfflineBookingDistance(candidate.distanceKm) &&
     candidate.distanceKm != null &&
-    candidate.distanceKm <= filters.radiusKm;
+    candidate.distanceKm <= offlineRadiusKm;
   const onlineOk =
     allowOnline && modeEligible(candidate.rateCard, 'online', filters);
 

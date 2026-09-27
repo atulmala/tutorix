@@ -63,6 +63,18 @@ jest.mock('./components/student-home', () => ({
 jest.mock('./components/student-tutor-preview/StudentTutorPreviewPage', () => ({
   StudentTutorPreviewPage: () => null,
 }));
+jest.mock('./components/student-cart/StudentCartPage', () => ({
+  StudentCartPage: () => null,
+}));
+jest.mock('./components/student-cart/StudentCartCheckoutPage', () => ({
+  StudentCartCheckoutPage: () => null,
+}));
+jest.mock('./components/student-cart/StudentClassCreditsPage', () => ({
+  StudentClassCreditsPage: () => null,
+}));
+jest.mock('./components/student-cart/StudentClassSchedulePage', () => ({
+  StudentClassSchedulePage: () => null,
+}));
 jest.mock('./components/student-tutor-search/StudentTutorSearchPage', () => ({
   StudentTutorSearchPage: () => null,
 }));

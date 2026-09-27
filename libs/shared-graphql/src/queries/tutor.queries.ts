@@ -246,6 +246,7 @@ export const SEARCH_TUTORS = gql`
         freeDemoOffered
         hasAvailabilityThisWeek
         slotsThisWeek
+        totalExperienceMonths
       }
       nextCursor
       hasMore
@@ -266,6 +267,23 @@ export const TUTOR_SEARCH_DETAIL = gql`
       distanceKm
       hasAvailabilityThisWeek
       slotsThisWeek
+      totalExperienceMonths
+      recentExperiences {
+        jobTitle
+        employerName
+        employerAddress
+        startDate
+        endDate
+        isCurrent
+      }
+      topQualifications {
+        qualificationType
+        degreeName
+        gradeType
+        gradeValue
+        boardOrUniversity
+        yearObtained
+      }
       matchingOffering {
         offeringId
         offeringLabel
@@ -273,7 +291,23 @@ export const TUTOR_SEARCH_DETAIL = gql`
         offlineEnabled
         onlineRateInr
         offlineRateInr
+        onlineBaseRateInr
+        offlineBaseRateInr
         freeDemoOffered
+        onlinePackSlabs {
+          label
+          minClasses
+          maxClasses
+          unitRateInr
+          discountPct
+        }
+        offlinePackSlabs {
+          label
+          minClasses
+          maxClasses
+          unitRateInr
+          discountPct
+        }
       }
       otherOfferings {
         offeringId
@@ -282,7 +316,23 @@ export const TUTOR_SEARCH_DETAIL = gql`
         offlineEnabled
         onlineRateInr
         offlineRateInr
+        onlineBaseRateInr
+        offlineBaseRateInr
         freeDemoOffered
+        onlinePackSlabs {
+          label
+          minClasses
+          maxClasses
+          unitRateInr
+          discountPct
+        }
+        offlinePackSlabs {
+          label
+          minClasses
+          maxClasses
+          unitRateInr
+          discountPct
+        }
       }
     }
   }

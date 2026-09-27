@@ -33,7 +33,7 @@ describe('wallet-checkout utils', () => {
         canPayFromWallet: true,
         purchaseDescription: 'PT',
       }),
-      async () => ({ wallet: { balanceInr: 50 } }),
+      async () => ({ wallet: { balanceInr: 50 }, orderId: 9, orderNumber: 'TX250926ORD' }),
       async () => {
         throw new Error('should not top up');
       },
@@ -43,7 +43,12 @@ describe('wallet-checkout utils', () => {
       async () => 100,
     );
 
-    expect(result).toEqual({ walletBalanceInr: 50, usedGateway: false });
+    expect(result).toEqual({
+      walletBalanceInr: 50,
+      usedGateway: false,
+      purchaseOrderId: 9,
+      purchaseOrderNumber: 'TX250926ORD',
+    });
   });
 
   it('validates standalone top-up amount bounds', () => {

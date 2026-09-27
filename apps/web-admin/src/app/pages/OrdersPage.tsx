@@ -13,7 +13,7 @@ type OrderStatus =
   | 'cancelled'
   | 'refunded';
 
-type PaymentMethod = 'waived' | 'gateway' | 'points' | 'mixed';
+type PaymentMethod = 'waived' | 'gateway' | 'wallet' | 'points' | 'mixed';
 
 type AdminOrderListItem = {
   id: number;
@@ -57,6 +57,7 @@ const PAYMENT_METHOD_OPTIONS: { value: '' | PaymentMethod; label: string }[] = [
   { value: '', label: 'All payment methods' },
   { value: 'waived', label: 'Waived' },
   { value: 'gateway', label: 'Gateway' },
+  { value: 'wallet', label: 'Wallet' },
   { value: 'points', label: 'Points' },
   { value: 'mixed', label: 'Mixed' },
 ];
@@ -70,12 +71,22 @@ function formatDate(value?: string | null): string {
   return new Date(value).toLocaleString();
 }
 
-function paymentMethodLabel(method?: PaymentMethod | null): string {
+function paymentMethodLabel(method?: PaymentMethod | string | null): string {
   if (!method) return '—';
   if (method === 'waived') return 'Waived';
   if (method === 'gateway') return 'Gateway';
+  if (method === 'wallet') return 'Wallet';
   if (method === 'points') return 'Points';
-  return 'Mixed';
+  if (method === 'mixed') return 'Mixed';
+  return String(method);
+}
+
+function orderSourceLabel(source: string): string {
+  if (source === 'cart') return 'Cart';
+  if (source === 'wallet') return 'Wallet';
+  if (source === 'onboarding') return 'Onboarding';
+  if (source === 'admin') return 'Admin';
+  return source;
 }
 
 export function OrdersPage() {
@@ -111,7 +122,8 @@ export function OrdersPage() {
       <div>
         <h1 className="text-2xl font-semibold text-primary">Orders</h1>
         <p className="mt-1 text-sm text-muted">
-          Commerce orders including waived and paid registration and PT fees.
+          Commerce orders including registration fees, class bookings, wallet top-ups, and PT
+          fees.
         </p>
       </div>
 
@@ -213,6 +225,7 @@ export function OrdersPage() {
                   <th className="px-4 py-3">Order</th>
                   <th className="px-4 py-3">Payer</th>
                   <th className="px-4 py-3">Role</th>
+                  <th className="px-4 py-3">Source</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Payment</th>
                   <th className="px-4 py-3">Due</th>
@@ -241,6 +254,7 @@ export function OrdersPage() {
                       <div className="text-xs text-muted">{row.payerEmail ?? '—'}</div>
                     </td>
                     <td className="px-4 py-3 capitalize">{row.payerRole}</td>
+                    <td className="px-4 py-3">{orderSourceLabel(row.source)}</td>
                     <td className="px-4 py-3 capitalize">{row.status.replace('_', ' ')}</td>
                     <td className="px-4 py-3">{paymentMethodLabel(row.paymentMethod)}</td>
                     <td className="px-4 py-3">{formatInr(row.amountDueInr)}</td>

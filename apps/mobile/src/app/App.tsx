@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Image, BackHandler } from 'react-native';
 import {
   ApolloProvider,
   useLazyQuery,
@@ -16,7 +16,16 @@ import { StudentOnboarding } from './components/student-onboarding';
 import { StudentDetailScreen } from './components/student-profile/StudentDetailScreen';
 import { StudentHomeScreen } from './components/student-home/StudentHomeScreen';
 import { StudentTutorSearchScreen } from './components/student-tutor-search/StudentTutorSearchScreen';
+import { StudentTutorSearchResultsScreen } from './components/student-tutor-search/StudentTutorSearchResultsScreen';
+import type { StudentTutorSearchParams } from './components/student-tutor-search/student-tutor-search-params';
 import { StudentTutorPreviewScreen } from './components/student-tutor-preview/StudentTutorPreviewScreen';
+import { StudentCartScreen } from './components/student-cart/StudentCartScreen';
+import { StudentCartCheckoutScreen } from './components/student-cart/StudentCartCheckoutScreen';
+import {
+  StudentClassCreditsScreen,
+  type StudentClassCredit,
+} from './components/student-cart/StudentClassCreditsScreen';
+import { StudentClassScheduleScreen } from './components/student-cart/StudentClassScheduleScreen';
 import {
   StudentHomeHeader,
   StudentNavHeader,
@@ -34,10 +43,12 @@ import { TutorNavHeader } from './components/tutor-nav/TutorNavHeader';
 import { WalletScreen } from './components/wallet';
 import { NavHeader } from './components/NavHeader';
 import {
+  isStudentCartReturnView,
   studentViewAfterProfile,
   tutorViewAfterProfile,
   walletReturnFromPush,
   type AppView,
+  type StudentCartOverlay,
   type WalletReturnView,
 } from './student-navigation';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -105,6 +116,10 @@ function AppContent() {
   const [currentView, setCurrentView] = useState<AppView>('splash');
   const [walletReturnView, setWalletReturnView] =
     useState<WalletReturnView>('tutorHome');
+  const [walletReturnCartOverlay, setWalletReturnCartOverlay] =
+    useState<StudentCartOverlay | null>(null);
+  const [studentCartOverlay, setStudentCartOverlay] =
+    useState<StudentCartOverlay | null>(null);
   const [tutorCalendarReturnView, setTutorCalendarReturnView] =
     useState<AppView>('tutorHome');
   const [tutorProfileForOnboarding, setTutorProfileForOnboarding] = useState<{
@@ -117,6 +132,9 @@ function AppContent() {
     tutorId: string;
     offeringId: string;
   } | null>(null);
+  const [scheduleCredit, setScheduleCredit] = useState<StudentClassCredit | null>(null);
+  const [tutorSearchParams, setTutorSearchParams] =
+    useState<StudentTutorSearchParams | null>(null);
   const [signupResume, setSignupResume] = useState<{
     userId?: number;
     verificationStatus?: {
@@ -141,8 +159,11 @@ function AppContent() {
     setTutorProfileForOnboarding(null);
     setStudentProfileForOnboarding(null);
     setTutorPreview(null);
+    setTutorSearchParams(null);
     setSignupResume(null);
     setPushBanner(null);
+    setStudentCartOverlay(null);
+    setWalletReturnCartOverlay(null);
     if (pushBannerTimerRef.current) {
       clearTimeout(pushBannerTimerRef.current);
       pushBannerTimerRef.current = null;
@@ -162,6 +183,7 @@ function AppContent() {
     setTutorProfileForOnboarding(null);
     setStudentProfileForOnboarding(null);
     setTutorPreview(null);
+    setTutorSearchParams(null);
     setSignupResume(null);
     setPushBanner(null);
     if (pushBannerTimerRef.current) {
@@ -334,17 +356,56 @@ function AppContent() {
     setCurrentView('studentHome');
   };
 
-  const handleOpenWallet = useCallback((from: WalletReturnView) => {
-    if (currentViewRef.current === 'tutorBankSetup' || currentViewRef.current === 'tutorRateCardSetup') {
-      return;
-    }
-    setWalletReturnView(from);
-    setCurrentView('wallet');
+  const openStudentCart = useCallback(() => {
+    setStudentCartOverlay('cart');
   }, []);
+
+  const closeStudentCartOverlay = useCallback(() => {
+    setStudentCartOverlay(null);
+  }, []);
+
+  useEffect(() => {
+    if (!studentCartOverlay) {
+      return undefined;
+    }
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (studentCartOverlay === 'checkout') {
+        setStudentCartOverlay('cart');
+      } else {
+        setStudentCartOverlay(null);
+      }
+      return true;
+    });
+    return () => subscription.remove();
+  }, [studentCartOverlay]);
+
+  const handleOpenWallet = useCallback(
+    (from: WalletReturnView) => {
+      if (
+        currentViewRef.current === 'tutorBankSetup' ||
+        currentViewRef.current === 'tutorRateCardSetup'
+      ) {
+        return;
+      }
+      const underlying = currentViewRef.current;
+      const returnView = isStudentCartReturnView(underlying) ? underlying : from;
+      setWalletReturnCartOverlay(studentCartOverlay);
+      setStudentCartOverlay(null);
+      setWalletReturnView(returnView);
+      setCurrentView('wallet');
+    },
+    [studentCartOverlay],
+  );
 
   const handleWalletBack = useCallback(() => {
     setCurrentView(walletReturnView);
-  }, [walletReturnView]);
+    if (walletReturnCartOverlay) {
+      setStudentCartOverlay(walletReturnCartOverlay);
+      setWalletReturnCartOverlay(null);
+    } else if (walletReturnView === 'studentCartCheckout') {
+      setStudentCartOverlay('checkout');
+    }
+  }, [walletReturnView, walletReturnCartOverlay]);
 
   const openWalletFromPush = useCallback(() => {
     if (currentViewRef.current === 'tutorBankSetup' || currentViewRef.current === 'tutorRateCardSetup') {
@@ -444,9 +505,15 @@ function AppContent() {
         <StudentHomeHeader
           onProfilePress={() => setCurrentView('studentProfile')}
           onOpenWallet={() => handleOpenWallet('studentHome')}
+          onOpenCart={openStudentCart}
         />
         <StudentHomeScreen
           onOpenTutorSearch={() => setCurrentView('studentTutorSearch')}
+          onScheduleCredits={() => setCurrentView('studentClassCredits')}
+          onRescheduleCredit={(credit) => {
+            setScheduleCredit(credit);
+            setCurrentView('studentClassSchedule');
+          }}
         />
         <StudentTabBar
           active="home"
@@ -456,24 +523,45 @@ function AppContent() {
         />
       </View>
     );
-  } else if (currentView === 'studentTutorSearch') {
+  } else if (
+    currentView === 'studentTutorSearch' ||
+    currentView === 'studentTutorSearchResults'
+  ) {
+    const showResults =
+      currentView === 'studentTutorSearchResults' && tutorSearchParams != null;
     screen = (
       <View style={{ flex: 1 }}>
         <StudentNavHeader
-          title="Search"
+          title={showResults ? 'Tutors' : 'Search'}
+          onBack={showResults ? () => setCurrentView('studentTutorSearch') : undefined}
           onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('studentProfile')}
           onOpenWallet={() => handleOpenWallet('studentHome')}
+          onOpenCart={openStudentCart}
         />
-        <StudentTutorSearchScreen
-          onOpenTutorPreview={(tutorId, offeringId) => {
-            setTutorPreview({ tutorId, offeringId });
-            setCurrentView('studentTutorPreview');
-          }}
-        />
+        {showResults && tutorSearchParams ? (
+          <StudentTutorSearchResultsScreen
+            searchParams={tutorSearchParams}
+            onRefineSearch={setTutorSearchParams}
+            onOpenTutorPreview={(tutorId, offeringId) => {
+              setTutorPreview({ tutorId, offeringId });
+              setCurrentView('studentTutorPreview');
+            }}
+          />
+        ) : (
+          <StudentTutorSearchScreen
+            onSearch={(params) => {
+              setTutorSearchParams(params);
+              setCurrentView('studentTutorSearchResults');
+            }}
+          />
+        )}
         <StudentTabBar
           active="search"
           onHome={() => setCurrentView('studentHome')}
-          onSearch={() => undefined}
+          onSearch={
+            showResults ? () => setCurrentView('studentTutorSearch') : () => undefined
+          }
           onProfile={() => setCurrentView('studentProfile')}
         />
       </View>
@@ -483,13 +571,58 @@ function AppContent() {
       <View style={{ flex: 1 }}>
         <StudentNavHeader
           title="Tutor"
-          onBack={() => setCurrentView('studentTutorSearch')}
+          onBack={() =>
+            setCurrentView(
+              tutorSearchParams ? 'studentTutorSearchResults' : 'studentTutorSearch',
+            )
+          }
           onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('studentProfile')}
           onOpenWallet={() => handleOpenWallet('studentHome')}
+          onOpenCart={openStudentCart}
         />
         <StudentTutorPreviewScreen
           tutorId={tutorPreview.tutorId}
           offeringId={tutorPreview.offeringId}
+          onViewCart={openStudentCart}
+        />
+      </View>
+    );
+  } else if (currentView === 'studentClassCredits') {
+    screen = (
+      <View style={{ flex: 1 }}>
+        <StudentNavHeader
+          title="Schedule"
+          onBack={() => setCurrentView('studentHome')}
+          onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('studentProfile')}
+          onOpenWallet={() => handleOpenWallet('studentHome')}
+          onOpenCart={openStudentCart}
+        />
+        <StudentClassCreditsScreen
+          onSchedule={(credit) => {
+            setScheduleCredit(credit);
+            setCurrentView('studentClassSchedule');
+          }}
+        />
+      </View>
+    );
+  } else if (currentView === 'studentClassSchedule' && scheduleCredit) {
+    screen = (
+      <View style={{ flex: 1 }}>
+        <StudentNavHeader
+          title="Schedule class"
+          onBack={() => setCurrentView('studentClassCredits')}
+          onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('studentProfile')}
+          onOpenWallet={() => handleOpenWallet('studentHome')}
+        />
+        <StudentClassScheduleScreen
+          credit={scheduleCredit}
+          onScheduled={() => {
+            setScheduleCredit(null);
+            setCurrentView('studentHome');
+          }}
         />
       </View>
     );
@@ -499,7 +632,9 @@ function AppContent() {
         <StudentNavHeader
           title="My profile"
           onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('studentProfile')}
           onOpenWallet={() => handleOpenWallet('studentProfile')}
+          onOpenCart={openStudentCart}
         />
         <StudentDetailScreen
           onAccountDeleted={() => {
@@ -590,8 +725,8 @@ function AppContent() {
     );
   } else if (currentView === 'wallet') {
     const studentWallet =
-      walletReturnView === 'studentHome' ||
-      walletReturnView === 'studentProfile';
+      walletReturnView === 'studentCartCheckout' ||
+      isStudentCartReturnView(walletReturnView);
     const tutorWallet =
       walletReturnView === 'tutorHome' || walletReturnView === 'tutorProfile';
     screen = (
@@ -601,6 +736,7 @@ function AppContent() {
             title="Wallet"
             onBack={handleWalletBack}
             onLogout={handleLogout}
+            onProfilePress={() => setCurrentView('studentProfile')}
             onOpenWallet={() => undefined}
           />
         ) : tutorWallet ? (
@@ -634,10 +770,68 @@ function AppContent() {
     );
   }
 
+  const analyticsScreen =
+    studentCartOverlay === 'checkout'
+      ? 'studentCartCheckout'
+      : studentCartOverlay === 'cart'
+        ? 'studentCart'
+        : currentView;
+
+  const studentCartOverlayNode = studentCartOverlay ? (
+    <View style={studentCartOverlayStyles.root}>
+      {studentCartOverlay === 'cart' ? (
+        <>
+          <StudentNavHeader
+            title="Cart"
+            onBack={closeStudentCartOverlay}
+            onLogout={handleLogout}
+            onProfilePress={() => {
+              closeStudentCartOverlay();
+              setCurrentView('studentProfile');
+            }}
+            onOpenWallet={() => handleOpenWallet('studentHome')}
+            onOpenCart={openStudentCart}
+          />
+          <StudentCartScreen
+            onCheckout={() => setStudentCartOverlay('checkout')}
+            onKeepShopping={() => {
+              closeStudentCartOverlay();
+              setCurrentView('studentTutorSearch');
+            }}
+          />
+        </>
+      ) : (
+        <>
+          <StudentNavHeader
+            title="Checkout"
+            onBack={() => setStudentCartOverlay('cart')}
+            onLogout={handleLogout}
+            onProfilePress={() => {
+              closeStudentCartOverlay();
+              setCurrentView('studentProfile');
+            }}
+            onOpenWallet={() => handleOpenWallet('studentCartCheckout')}
+          />
+          <StudentCartCheckoutScreen
+            onPaid={() => {
+              closeStudentCartOverlay();
+              setCurrentView('studentHome');
+            }}
+            onScheduleNow={() => {
+              closeStudentCartOverlay();
+              setCurrentView('studentClassCredits');
+            }}
+          />
+        </>
+      )}
+    </View>
+  ) : null;
+
   return (
     <>
-      <AnalyticsViewTracker screenName={currentView} />
+      <AnalyticsViewTracker screenName={analyticsScreen} />
       {screen}
+      {studentCartOverlayNode}
       {pushBanner ? (
         <Pressable
           style={pushBannerStyles.banner}
@@ -692,6 +886,14 @@ export const App = () => {
 };
 
 export default App;
+
+const studentCartOverlayStyles = StyleSheet.create({
+  root: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#fff',
+    zIndex: 20,
+  },
+});
 
 const pushBannerStyles = StyleSheet.create({
   banner: {

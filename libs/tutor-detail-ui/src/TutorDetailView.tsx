@@ -12,6 +12,7 @@ import {
   formatDate,
   formatExperienceDuration,
   formatExperienceMonthYear,
+  formatQualificationInstitutionGrade,
   formatQualificationTitle,
   getAvailableQualificationTypes,
   mapExperienceToFormRow,
@@ -659,8 +660,16 @@ function EducationSection({
                         </div>
                       </div>
                       <p className="mt-1 text-indigo-900/70">
-                        {qual.boardOrUniversity} · {qual.gradeType}: {qual.gradeValue} ·{' '}
-                        {qual.yearObtained}
+                        {[
+                          formatQualificationInstitutionGrade(
+                            qual.boardOrUniversity,
+                            qual.gradeType,
+                            qual.gradeValue,
+                          ),
+                          qual.yearObtained,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
                       </p>
                       {qual.fieldOfStudy && (
                         <p className="mt-0.5 text-indigo-800/60">{qual.fieldOfStudy}</p>

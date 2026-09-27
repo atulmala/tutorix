@@ -113,18 +113,14 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = () => {
 
   // Pre-populate form with existing HOME address
   useEffect(() => {
-    console.log('[TutorAddressEntry] Profile data:', profileData);
     const addresses = profileData?.myTutorProfile?.addresses;
-    console.log('[TutorAddressEntry] Addresses:', addresses);
-    
+
     if (addresses && addresses.length > 0) {
       // Find HOME address (type could be string 'HOME' or enum value)
       const homeAddress = addresses.find(
         (addr: { type?: string | number }) => 
           addr.type === 'HOME' || addr.type === 1 || addr.type === 'HOME'
       ) || addresses[0];
-      
-      console.log('[TutorAddressEntry] Home address found:', homeAddress);
 
       if (homeAddress) {
         // Parse street into houseNo, addressLine1, addressLine2

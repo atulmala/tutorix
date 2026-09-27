@@ -41,6 +41,7 @@ import {
   formatDateTime,
   formatExperienceDuration,
   formatExperienceMonthYear,
+  formatQualificationInstitutionGrade,
   formatQualificationTitle,
   getAvailableQualificationTypes,
   mapExperienceToFormRow,
@@ -1169,7 +1170,16 @@ export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
                       </View>
                     </View>
                     <Text style={styles.row}>
-                      {q.boardOrUniversity} · {q.gradeType}: {q.gradeValue} · {q.yearObtained}
+                      {[
+                        formatQualificationInstitutionGrade(
+                          q.boardOrUniversity,
+                          q.gradeType,
+                          q.gradeValue,
+                        ),
+                        q.yearObtained,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </Text>
                     {q.fieldOfStudy ? <Text style={styles.muted}>{q.fieldOfStudy}</Text> : null}
                   </View>

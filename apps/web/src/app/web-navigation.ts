@@ -18,6 +18,10 @@ export type WebView =
   | 'student-profile'
   | 'student-tutor-search'
   | 'student-tutor-preview'
+  | 'student-cart'
+  | 'student-cart-checkout'
+  | 'student-class-credits'
+  | 'student-class-schedule'
   | 'wallet'
   | 'privacy'
   | 'terms';
@@ -26,7 +30,32 @@ export type WalletReturnView =
   | 'tutor-home'
   | 'tutor-profile'
   | 'student-home'
-  | 'student-profile';
+  | 'student-profile'
+  | 'student-tutor-search'
+  | 'student-tutor-preview'
+  | 'student-class-credits'
+  | 'student-class-schedule'
+  /** @deprecated Checkout is a cart overlay; prefer restoring overlay state. */
+  | 'student-cart-checkout';
+
+export type StudentCartOverlay = 'cart' | 'checkout';
+
+const STUDENT_CART_RETURN_VIEWS = [
+  'student-home',
+  'student-profile',
+  'student-tutor-search',
+  'student-tutor-preview',
+  'student-class-credits',
+  'student-class-schedule',
+] as const satisfies readonly WebView[];
+
+export type StudentCartReturnView = (typeof STUDENT_CART_RETURN_VIEWS)[number];
+
+export function isStudentCartReturnView(
+  view: WebView,
+): view is StudentCartReturnView {
+  return (STUDENT_CART_RETURN_VIEWS as readonly WebView[]).includes(view);
+}
 
 export function studentViewAfterProfile(
   student: {
@@ -73,16 +102,14 @@ export function tutorViewAfterProfile(
 }
 
 export function walletReturnFromView(view: WebView): WalletReturnView | null {
-  if (
-    view === 'student-home' ||
-    view === 'student-onboarding' ||
-    view === 'student-tutor-search' ||
-    view === 'student-tutor-preview'
-  ) {
+  if (view === 'student-onboarding') {
     return 'student-home';
   }
-  if (view === 'student-profile') {
-    return 'student-profile';
+  if (view === 'student-cart' || view === 'student-cart-checkout') {
+    return 'student-home';
+  }
+  if (isStudentCartReturnView(view)) {
+    return view;
   }
   if (view === 'tutor-home' || view === 'tutor-onboarding' || view === 'tutor-bank-setup' || view === 'tutor-rate-card-setup' || view === 'tutor-calendar') {
     return 'tutor-home';
