@@ -15,6 +15,7 @@ import {
   type WalletPurchaseIntent,
   type WalletPurchasePreview,
 } from '@tutorix/shared-utils';
+import { CartCheckoutSuccessSection } from './CartCheckoutSuccessSection';
 
 type CheckoutItem = {
   id: number;
@@ -35,6 +36,8 @@ export const StudentCartCheckoutPage: React.FC<StudentCartCheckoutPageProps> = (
   onScheduleNow,
 }) => {
   const [paid, setPaid] = useState(false);
+  const [purchaseOrderId, setPurchaseOrderId] = useState<number | undefined>();
+  const [purchaseOrderNumber, setPurchaseOrderNumber] = useState<string | undefined>();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { data, loading, error } = useQuery(PREPARE_CART_CHECKOUT, {
     fetchPolicy: 'network-only',
@@ -63,7 +66,7 @@ export const StudentCartCheckoutPage: React.FC<StudentCartCheckoutPageProps> = (
       referenceId: preview.cartId,
     };
     try {
-      await runWalletAwarePurchaseCheckout(
+      const checkoutResult = await runWalletAwarePurchaseCheckout(
         purchaseIntent,
         async (intent) => {
           const response = await prepareWalletPurchaseQuery({
@@ -91,6 +94,8 @@ export const StudentCartCheckoutPage: React.FC<StudentCartCheckoutPageProps> = (
         },
         async (walletPreview) => walletPreview.shortfallInr,
       );
+      setPurchaseOrderId(checkoutResult.purchaseOrderId);
+      setPurchaseOrderNumber(checkoutResult.purchaseOrderNumber);
       setPaid(true);
     } catch (payError) {
       setErrorMessage(
@@ -108,26 +113,12 @@ export const StudentCartCheckoutPage: React.FC<StudentCartCheckoutPageProps> = (
 
   if (paid) {
     return (
-      <div className="w-full max-w-xl space-y-4">
-        <h1 className="text-[26px] font-extrabold text-[#143055]">Classes purchased</h1>
-        <p className="text-sm text-slate-500">
-          You can pick 1-hour slots now or come back later from home.
-        </p>
-        <button
-          type="button"
-          onClick={onScheduleNow}
-          className="w-full rounded-xl bg-[#2563eb] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
-        >
-          Schedule now
-        </button>
-        <button
-          type="button"
-          onClick={onPaid}
-          className="w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-[#143055]"
-        >
-          Later
-        </button>
-      </div>
+      <CartCheckoutSuccessSection
+        purchaseOrderId={purchaseOrderId}
+        purchaseOrderNumber={purchaseOrderNumber}
+        onScheduleNow={onScheduleNow}
+        onLater={onPaid}
+      />
     );
   }
 

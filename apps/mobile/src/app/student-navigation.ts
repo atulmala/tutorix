@@ -27,7 +27,33 @@ export type WalletReturnView =
   | 'tutorProfile'
   | 'studentProfile'
   | 'studentHome'
+  | 'studentTutorSearch'
+  | 'studentTutorSearchResults'
+  | 'studentTutorPreview'
+  | 'studentClassCredits'
+  | 'studentClassSchedule'
+  /** @deprecated Checkout is a cart overlay; prefer restoring overlay state. */
   | 'studentCartCheckout';
+
+export type StudentCartOverlay = 'cart' | 'checkout';
+
+const STUDENT_CART_RETURN_VIEWS = [
+  'studentHome',
+  'studentProfile',
+  'studentTutorSearch',
+  'studentTutorSearchResults',
+  'studentTutorPreview',
+  'studentClassCredits',
+  'studentClassSchedule',
+] as const satisfies readonly AppView[];
+
+export type StudentCartReturnView = (typeof STUDENT_CART_RETURN_VIEWS)[number];
+
+export function isStudentCartReturnView(
+  view: AppView,
+): view is StudentCartReturnView {
+  return (STUDENT_CART_RETURN_VIEWS as readonly AppView[]).includes(view);
+}
 
 export type StudentRouteProfile = {
   onBoardingComplete?: boolean;
@@ -47,23 +73,14 @@ export function studentViewAfterProfile(
 }
 
 export function walletReturnFromPush(view: AppView): WalletReturnView | null {
-  if (
-    view === 'studentHome' ||
-    view === 'studentOnboarding' ||
-    view === 'studentTutorSearch' ||
-    view === 'studentTutorSearchResults' ||
-    view === 'studentTutorPreview' ||
-    view === 'studentCart' ||
-    view === 'studentClassCredits' ||
-    view === 'studentClassSchedule'
-  ) {
+  if (view === 'studentOnboarding') {
     return 'studentHome';
   }
-  if (view === 'studentCartCheckout') {
-    return 'studentCartCheckout';
+  if (view === 'studentCart' || view === 'studentCartCheckout') {
+    return 'studentHome';
   }
-  if (view === 'studentProfile') {
-    return 'studentProfile';
+  if (isStudentCartReturnView(view)) {
+    return view;
   }
   if (view === 'tutorHome' || view === 'tutorOnboarding' || view === 'tutorBankSetup' || view === 'tutorRateCardSetup' || view === 'tutorCalendar') {
     return 'tutorHome';

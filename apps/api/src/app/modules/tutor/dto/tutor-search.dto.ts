@@ -118,6 +118,18 @@ export class TutorSearchOfferingSummary {
   @Field(() => Int, { nullable: true })
   offlineRateInr?: number | null;
 
+  @Field(() => Int, {
+    nullable: true,
+    description: 'Tutor list base rate before pack discounts',
+  })
+  onlineBaseRateInr?: number | null;
+
+  @Field(() => Int, {
+    nullable: true,
+    description: 'Tutor list base rate before pack discounts',
+  })
+  offlineBaseRateInr?: number | null;
+
   @Field()
   freeDemoOffered!: boolean;
 

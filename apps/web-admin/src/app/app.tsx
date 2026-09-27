@@ -17,6 +17,7 @@ import { SendEmailPage } from './pages/SendEmailPage';
 import { CommunicationPage } from './pages/CommunicationPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
+import { ClassBookingsPage } from './pages/ClassBookingsPage';
 
 export function App() {
   return (
@@ -49,6 +50,7 @@ export function App() {
           <Route path="email" element={<Navigate to="/communication" replace />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:orderId" element={<OrderDetailPage />} />
+          <Route path="class-bookings" element={<ClassBookingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

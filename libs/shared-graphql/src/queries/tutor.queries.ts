@@ -291,6 +291,8 @@ export const TUTOR_SEARCH_DETAIL = gql`
         offlineEnabled
         onlineRateInr
         offlineRateInr
+        onlineBaseRateInr
+        offlineBaseRateInr
         freeDemoOffered
         onlinePackSlabs {
           label
@@ -314,6 +316,8 @@ export const TUTOR_SEARCH_DETAIL = gql`
         offlineEnabled
         onlineRateInr
         offlineRateInr
+        onlineBaseRateInr
+        offlineBaseRateInr
         freeDemoOffered
         onlinePackSlabs {
           label

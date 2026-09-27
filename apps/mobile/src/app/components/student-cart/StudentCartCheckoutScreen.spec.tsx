@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { PREPARE_CART_CHECKOUT } from '@tutorix/shared-graphql/queries';
 import { runWalletAwarePurchaseCheckout } from '@tutorix/shared-utils/wallet-checkout';
+import { openMobilePaymentCheckout } from '../../../lib/mobile-payment-checkout';
 import { StudentCartCheckoutScreen } from './StudentCartCheckoutScreen';
 
 const mockUseQuery = jest.fn();
@@ -17,6 +18,7 @@ jest.mock('@tutorix/shared-graphql/mutations', () => ({
   COMPLETE_WALLET_PURCHASE: { kind: 'complete' },
   INITIATE_WALLET_TOP_UP: { kind: 'topup' },
   CONFIRM_WALLET_TOP_UP: { kind: 'confirm' },
+  MY_ORDER_INVOICE: { kind: 'invoice' },
 }));
 
 jest.mock('@apollo/client', () => ({
@@ -29,9 +31,16 @@ jest.mock('@tutorix/shared-utils/wallet-checkout', () => ({
   runWalletAwarePurchaseCheckout: jest.fn(),
 }));
 
+jest.mock('../../../lib/mobile-payment-checkout', () => ({
+  openMobilePaymentCheckout: jest.fn(),
+}));
+
 describe('StudentCartCheckoutScreen', () => {
   it('pays the cart without sending the student to the wallet page', async () => {
     mockUseQuery.mockImplementation((query: { kind?: string }) => {
+      if (query.kind === 'invoice') {
+        return { loading: false, data: null };
+      }
       if (query === PREPARE_CART_CHECKOUT) {
         return {
           loading: false,
@@ -61,6 +70,7 @@ describe('StudentCartCheckoutScreen', () => {
     (runWalletAwarePurchaseCheckout as jest.Mock).mockResolvedValue({
       walletBalanceInr: 0,
       usedGateway: true,
+      purchaseOrderNumber: 'TX250926ABC',
     });
 
     const onPaid = jest.fn();
@@ -73,6 +83,15 @@ describe('StudentCartCheckoutScreen', () => {
     await waitFor(() => {
       expect(runWalletAwarePurchaseCheckout).toHaveBeenCalled();
     });
+    expect(runWalletAwarePurchaseCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({ itemType: 'CLASS_BOOKING', referenceType: 'cart' }),
+      expect.any(Function),
+      expect.any(Function),
+      expect.any(Function),
+      expect.any(Function),
+      expect.any(Function),
+      openMobilePaymentCheckout,
+    );
     fireEvent.press(getByText('Later'));
     expect(onPaid).toHaveBeenCalledTimes(1);
   });

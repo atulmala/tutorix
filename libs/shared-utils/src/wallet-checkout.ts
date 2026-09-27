@@ -58,6 +58,19 @@ export function formatWalletLowBalanceMessage(
   return `Your wallet balance is ₹${walletBalanceInr}. Please add at least ₹${shortfallInr} in order to complete this transaction.`;
 }
 
+export type WalletPurchaseCompletion = {
+  wallet: { balanceInr: number };
+  orderId?: number | null;
+  orderNumber?: string | null;
+};
+
+export type WalletAwarePurchaseCheckoutResult = {
+  walletBalanceInr: number;
+  usedGateway: boolean;
+  purchaseOrderId?: number;
+  purchaseOrderNumber?: string;
+};
+
 export async function runWalletAwarePurchaseCheckout(
   purchaseIntent: WalletPurchaseIntent,
   prepareWalletPurchase: (
@@ -65,7 +78,7 @@ export async function runWalletAwarePurchaseCheckout(
   ) => Promise<WalletPurchasePreview>,
   completeWalletPurchase: (
     intent: WalletPurchaseIntent,
-  ) => Promise<{ wallet: { balanceInr: number } }>,
+  ) => Promise<WalletPurchaseCompletion>,
   initiateWalletTopUp: (
     input: WalletTopUpInputPayload,
   ) => Promise<CheckoutResult | null | undefined>,
@@ -76,12 +89,17 @@ export async function runWalletAwarePurchaseCheckout(
   openCheckout: (
     session: PaymentOrderSession,
   ) => Promise<ConfirmPaymentInput> = openPaymentCheckout,
-): Promise<{ walletBalanceInr: number; usedGateway: boolean }> {
+): Promise<WalletAwarePurchaseCheckoutResult> {
   const preview = await prepareWalletPurchase(purchaseIntent);
 
   if (preview.canPayFromWallet) {
     const result = await completeWalletPurchase(purchaseIntent);
-    return { walletBalanceInr: result.wallet.balanceInr, usedGateway: false };
+    return {
+      walletBalanceInr: result.wallet.balanceInr,
+      usedGateway: false,
+      purchaseOrderId: result.orderId ?? undefined,
+      purchaseOrderNumber: result.orderNumber ?? undefined,
+    };
   }
 
   const topUpAmount = await resolveTopUpAmount(preview);
@@ -113,6 +131,8 @@ export async function runWalletAwarePurchaseCheckout(
   return {
     walletBalanceInr: result.wallet.balanceInr,
     usedGateway: true,
+    purchaseOrderId: result.purchaseOrderId ?? undefined,
+    purchaseOrderNumber: result.purchaseOrderNumber ?? undefined,
   };
 }
 

@@ -130,6 +130,7 @@ describe('StudentClassCreditService', () => {
     service = new StudentClassCreditService(
       { findByUserId: findStudent } as never,
       { findByTutorOfferingId: findRateCard } as never,
+      { findAll: jest.fn().mockResolvedValue([]) } as never,
       { emit } as never,
       { transaction: async (fn: (mgr: typeof manager) => unknown) => fn(manager) } as never,
       {

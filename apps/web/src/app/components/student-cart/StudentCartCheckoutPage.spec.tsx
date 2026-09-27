@@ -15,6 +15,7 @@ jest.mock('@tutorix/shared-graphql', () => ({
   CONFIRM_WALLET_TOP_UP: { kind: 'confirm' },
   MY_CART: { kind: 'cart' },
   MY_CLASS_CREDITS: { kind: 'credits' },
+  MY_ORDER_INVOICE: { kind: 'invoice' },
 }));
 
 jest.mock('@apollo/client', () => ({
@@ -40,6 +41,18 @@ describe('StudentCartCheckoutPage', () => {
     mockUseMutation.mockReturnValue([jest.fn(), { loading: false }]);
     (runWalletAwarePurchaseCheckout as jest.Mock).mockReset();
     mockUseQuery.mockImplementation((query: { kind?: string }) => {
+      if (query.kind === 'invoice') {
+        return {
+          loading: false,
+          data: {
+            myOrderInvoice: {
+              invoiceNumber: 'INV202609TEST',
+              amountPaidInr: 1000,
+              pdfUrl: 'https://example.com/invoice.pdf',
+            },
+          },
+        };
+      }
       if (query === PREPARE_CART_CHECKOUT) {
         return {
           loading: false,
@@ -72,6 +85,8 @@ describe('StudentCartCheckoutPage', () => {
     (runWalletAwarePurchaseCheckout as jest.Mock).mockResolvedValue({
       walletBalanceInr: 0,
       usedGateway: true,
+      purchaseOrderId: 42,
+      purchaseOrderNumber: 'TX250926ABC',
     });
     const onPaid = jest.fn();
     const onScheduleNow = jest.fn();
@@ -91,6 +106,9 @@ describe('StudentCartCheckoutPage', () => {
         expect.any(Function),
       );
     });
+    expect(screen.getByText('TX250926ABC')).toBeTruthy();
+    expect(screen.getByText('INV202609TEST')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Download invoice PDF' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Schedule now' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Later' }));
     expect(onPaid).toHaveBeenCalledTimes(1);

@@ -6,6 +6,8 @@ import {
 import {
   rankTutorSearchHits,
   classPackSlabLinesForMode,
+  catalogBaseRateInrForMode,
+  discountedPackSlabLines,
   rateForModeAndQuantity,
   type TutorSearchCandidate,
 } from './tutor-search';
@@ -67,6 +69,15 @@ describe('rankTutorSearchHits', () => {
     );
     expect(ranked.map((h) => h.tutorId)).toEqual([2, 1]);
     expect(ranked[0].hasAvailabilityThisWeek).toBe(true);
+  });
+
+  it('shows online only when tutor is beyond 25 km offline booking limit', () => {
+    const ranked = rankTutorSearchHits(
+      [candidate({ tutorId: 1, distanceKm: 30, slotsThisWeek: 3 })],
+      { ...filters, deliveryMode: 'ANY', radiusKm: 50 },
+    );
+    expect(ranked).toHaveLength(1);
+    expect(ranked[0].deliveryModeShown).toBe('ONLINE');
   });
 
   it('excludes offline tutors outside the radius when searching offline only', () => {
@@ -135,6 +146,41 @@ describe('classPackSlabLinesForMode', () => {
     expect(lines).toHaveLength(3);
     expect(lines[1].discountPct).toBe(10);
     expect(lines[2].unitRateInr).toBe(800);
+  });
+});
+
+describe('discountedPackSlabLines', () => {
+  it('keeps only tiers with a discount', () => {
+    const lines = classPackSlabLinesForMode(
+      {
+        offlineEnabled: true,
+        offlineBaseRate: 1000,
+        offlineBaseDiscountPct: 0,
+        offlineSlab2DiscountPct: 10,
+        offlineSlab3DiscountPct: 20,
+        onlineEnabled: false,
+      },
+      'offline',
+    );
+    expect(discountedPackSlabLines(lines).map((row) => row.label)).toEqual([
+      '5–10 classes',
+      '11+ classes',
+    ]);
+  });
+});
+
+describe('catalogBaseRateInrForMode', () => {
+  it('returns raw base rate without slab discount', () => {
+    const card = {
+      offlineEnabled: true,
+      offlineBaseRate: 1000,
+      offlineBaseDiscountPct: 10,
+      onlineEnabled: true,
+      onlineBaseRate: 800,
+      onlineBaseDiscountPct: 5,
+    };
+    expect(catalogBaseRateInrForMode(card, 'offline')).toBe(1000);
+    expect(catalogBaseRateInrForMode(card, 'online')).toBe(800);
   });
 });
 

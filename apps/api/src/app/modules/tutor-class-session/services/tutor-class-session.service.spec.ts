@@ -1,7 +1,5 @@
-import { BadRequestException } from '@nestjs/common';
 import { UserRole } from '../../auth/enums/user-role.enum';
 import { TutorCalendar } from '../../tutor-calendar/entities/tutor-calendar.entity';
-import { WalletPurchaseReferenceTypeEnum } from '../../wallet/enums/wallet.enums';
 import { TutorClassSessionEnrollmentEntity } from '../entities/tutor-class-session-enrollment.entity';
 import { TutorClassSessionEntity } from '../entities/tutor-class-session.entity';
 import { ClassSessionDeliveryModeEnum } from '../enums/class-session-delivery-mode.enum';
@@ -284,37 +282,7 @@ describe('TutorClassSessionService', () => {
     expect(slots).toEqual([]);
   });
 
-  it('creates a session, enrolls the student, and debits the wallet', async () => {
-    const booked = await service.bookTutorClass(
-      studentUser as never,
-      11,
-      30,
-      ClassSessionDeliveryModeEnum.offline,
-    );
-
-    expect(booked).toEqual({
-      sessionId: 90,
-      enrollmentId: 70,
-      seatsLeft: 0,
-      status: ClassSessionStatusEnum.full,
-    });
-    expect(debitWithManager).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        userId: 9,
-        amountInr: 500,
-        referenceType: WalletPurchaseReferenceTypeEnum.class_session,
-        referenceId: 90,
-      }),
-    );
-    expect(emit).toHaveBeenCalled();
-  });
-
-  it('rejects an insufficient wallet debit', async () => {
-    debitWithManager.mockRejectedValue(
-      new BadRequestException('Insufficient wallet balance. Available ₹10, required ₹500'),
-    );
-
+  it('rejects direct bookTutorClass in favor of cart checkout', async () => {
     await expect(
       service.bookTutorClass(
         studentUser as never,
@@ -322,35 +290,7 @@ describe('TutorClassSessionService', () => {
         30,
         ClassSessionDeliveryModeEnum.offline,
       ),
-    ).rejects.toBeInstanceOf(BadRequestException);
-  });
-
-  it('rejects a second booking by the same student', async () => {
-    lockedSession = {
-      id: 90,
-      tutorCalendarId: 11,
-      tutorOfferingId: 80,
-      deliveryMode: ClassSessionDeliveryModeEnum.offline,
-      batchSize: 4,
-      status: ClassSessionStatusEnum.open,
-    } as TutorClassSessionEntity;
-    lockedEnrollments = [
-      {
-        id: 70,
-        sessionId: 90,
-        studentId: 21,
-        status: ClassSessionEnrollmentStatusEnum.confirmed,
-        deleted: false,
-      } as TutorClassSessionEnrollmentEntity,
-    ];
-
-    await expect(
-      service.bookTutorClass(
-        studentUser as never,
-        11,
-        30,
-        ClassSessionDeliveryModeEnum.offline,
-      ),
-    ).rejects.toThrow('You have already booked this class');
+    ).rejects.toThrow(/cart/);
+    expect(debitWithManager).not.toHaveBeenCalled();
   });
 });

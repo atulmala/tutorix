@@ -132,6 +132,7 @@ export const StudentTutorPreviewScreen: React.FC<StudentTutorPreviewScreenProps>
       <Text style={styles.sectionHeading}>This subject</Text>
       <TutorSubjectPurchaseCard
         offering={detail.matchingOffering as PreviewOffering}
+        distanceKm={detail.distanceKm}
         defaultExpanded
         collapsible={false}
         highlight
@@ -150,6 +151,7 @@ export const StudentTutorPreviewScreen: React.FC<StudentTutorPreviewScreenProps>
             <TutorSubjectPurchaseCard
               key={offering.offeringId}
               offering={offering}
+              distanceKm={detail.distanceKm}
               adding={adding && addingOfferingId === String(offering.offeringId)}
               onAdd={handleAdd}
               onViewCart={onViewCart}

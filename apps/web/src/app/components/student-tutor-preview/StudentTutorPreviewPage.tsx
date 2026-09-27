@@ -129,6 +129,7 @@ export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = (
         <h2 className="text-lg font-bold text-primary">This subject</h2>
         <TutorSubjectPurchaseCard
           offering={detail.matchingOffering as PreviewOffering}
+          distanceKm={detail.distanceKm}
           defaultExpanded
           collapsible={false}
           highlight
@@ -151,6 +152,7 @@ export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = (
               <TutorSubjectPurchaseCard
                 key={offering.offeringId}
                 offering={offering}
+                distanceKm={detail.distanceKm}
                 defaultExpanded={false}
                 collapsible
                 adding={adding && addingOfferingId === String(offering.offeringId)}

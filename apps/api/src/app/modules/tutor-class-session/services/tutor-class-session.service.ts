@@ -12,7 +12,6 @@ import {
   formatIstBookingTimeRange,
   getBatchSizeForMode,
   maxHorizonEndUtc,
-  starterRateForMode,
 } from '@tutorix/shared-utils';
 import { User } from '../../auth/entities/user.entity';
 import { UserRole } from '../../auth/enums/user-role.enum';
@@ -25,7 +24,6 @@ import { TutorCalendar } from '../../tutor-calendar/entities/tutor-calendar.enti
 import { TutorOfferingEntity } from '../../tutor/entities/tutor-offering.entity';
 import { TutorOfferingStatusEnum } from '../../tutor/enums/tutor.enums';
 import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
-import { WalletPurchaseReferenceTypeEnum } from '../../wallet/enums/wallet.enums';
 import { WalletService } from '../../wallet/services/wallet.service';
 import {
   BookTutorClassResult,
@@ -167,149 +165,14 @@ export class TutorClassSessionService {
   }
 
   async bookTutorClass(
-    user: User,
-    tutorCalendarIdInput: string | number,
-    offeringIdInput: string | number,
-    deliveryMode: ClassSessionDeliveryModeEnum,
+    _user: User,
+    _tutorCalendarIdInput: string | number,
+    _offeringIdInput: string | number,
+    _deliveryMode: ClassSessionDeliveryModeEnum,
   ): Promise<BookTutorClassResult> {
-    this.assertStudent(user);
-    const student = await this.requireStudent(user.id);
-    const tutorCalendarId = asId(tutorCalendarIdInput);
-    const offeringId = asId(offeringIdInput);
-    const tutorOffering = await this.resolveTutorOfferingFromSlot(
-      tutorCalendarId,
-      offeringId,
+    throw new BadRequestException(
+      'Direct class booking is no longer supported. Add classes to your cart from the tutor profile, pay at checkout, then schedule your class credits.',
     );
-    const rateCard = await this.requireRateCard(tutorOffering.id, deliveryMode);
-    const priceInr = starterRateForMode(rateCard, deliveryMode);
-    if (priceInr == null || priceInr < 1) {
-      throw new BadRequestException(
-        'Rate is not available for this delivery mode',
-      );
-    }
-    const batchSize = getBatchSizeForMode(rateCard, deliveryMode);
-    await this.walletService.ensureWalletForUser(user.id);
-
-    const result = await this.dataSource.transaction(async (manager) => {
-      const slot = await manager
-        .getRepository(TutorCalendar)
-        .createQueryBuilder('c')
-        .setLock('pessimistic_write')
-        .where('c.id = :id', { id: tutorCalendarId })
-        .andWhere('c.deleted = false')
-        .getOne();
-      if (!slot) {
-        throw new NotFoundException('This slot is no longer available');
-      }
-      if (slot.tutorId !== tutorOffering.tutorId) {
-        throw new BadRequestException('This slot is no longer available');
-      }
-      if (slot.startsAt.getTime() <= Date.now()) {
-        throw new BadRequestException('This slot is in the past');
-      }
-
-      let session = await manager
-        .getRepository(TutorClassSessionEntity)
-        .createQueryBuilder('s')
-        .setLock('pessimistic_write')
-        .where('s.tutor_calendar_id = :id', { id: slot.id })
-        .andWhere('s.deleted = false')
-        .getOne();
-
-      if (session) {
-        if (
-          session.status === ClassSessionStatusEnum.cancelled ||
-          session.tutorOfferingId !== tutorOffering.id ||
-          session.deliveryMode !== deliveryMode
-        ) {
-          throw new BadRequestException(
-            'This slot is already booked for a different class',
-          );
-        }
-      } else {
-        session = await manager.getRepository(TutorClassSessionEntity).save(
-          manager.getRepository(TutorClassSessionEntity).create({
-            tutorCalendarId: slot.id,
-            tutorOfferingId: tutorOffering.id,
-            deliveryMode,
-            batchSize,
-            status: ClassSessionStatusEnum.open,
-          }),
-        );
-      }
-
-      const enrollments = await manager
-        .getRepository(TutorClassSessionEnrollmentEntity)
-        .createQueryBuilder('e')
-        .setLock('pessimistic_write')
-        .where('e.session_id = :sessionId', { sessionId: session.id })
-        .andWhere('e.deleted = false')
-        .getMany();
-      const confirmed = enrollments.filter(
-        (row) => row.status === ClassSessionEnrollmentStatusEnum.confirmed,
-      );
-      if (confirmed.some((row) => row.studentId === student.id)) {
-        throw new BadRequestException('You have already booked this class');
-      }
-      if (confirmed.length >= session.batchSize) {
-        throw new BadRequestException('This class is full');
-      }
-
-      const enrollment = await manager
-        .getRepository(TutorClassSessionEnrollmentEntity)
-        .save(
-          manager.getRepository(TutorClassSessionEnrollmentEntity).create({
-            sessionId: session.id,
-            studentId: student.id,
-            status: ClassSessionEnrollmentStatusEnum.confirmed,
-          }),
-        );
-
-      const nextConfirmed = confirmed.length + 1;
-      const nextStatus =
-        nextConfirmed >= session.batchSize
-          ? ClassSessionStatusEnum.full
-          : ClassSessionStatusEnum.open;
-      if (session.status !== nextStatus) {
-        session.status = nextStatus;
-        await manager.getRepository(TutorClassSessionEntity).save(session);
-      }
-
-      const offeringName = tutorOffering.offering?.displayName ?? 'Class';
-      await this.walletService.debitPurchaseWithManager(manager, {
-        userId: user.id,
-        amountInr: priceInr,
-        referenceType: WalletPurchaseReferenceTypeEnum.class_session,
-        referenceId: session.id,
-        description: `Class booking · ${offeringName} · ${formatIstBookingDateLabel(slot.startsAt)} ${formatIstBookingTimeRange(slot.startsAt, slot.durationMinutes)}`,
-      });
-
-      return {
-        session,
-        enrollment,
-        slot,
-        seatsLeft: session.batchSize - nextConfirmed,
-        offeringName,
-      };
-    });
-
-    await this.emitClassBooked({
-      studentUserId: user.id,
-      tutorUserId: tutorOffering.tutor?.userId ?? tutorOffering.tutor?.user?.id,
-      studentName: personName(student.user) || 'Student',
-      tutorName: personName(tutorOffering.tutor?.user) || 'Tutor',
-      offeringName: result.offeringName,
-      startsAt: result.slot.startsAt,
-      durationMinutes: result.slot.durationMinutes,
-      sessionId: result.session.id,
-    });
-
-    return {
-      sessionId: result.session.id,
-      enrollmentId: result.enrollment.id,
-      seatsLeft: result.seatsLeft,
-      status: result.session.status,
-    };
   }
 
   async listBookedSessions(

@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CommerceModule } from '../commerce/commerce.module';
 import { CommunicationModule } from '../communication/communication.module';
 import { OrderItemEntity } from '../commerce/entities/order-item.entity';
+import { OfferingsModule } from '../offerings/offerings.module';
 import { ProficiencyModule } from '../proficiency/proficiency.module';
 import { StudentModule } from '../student/student.module';
 import { TutorCalendar } from '../tutor-calendar/entities/tutor-calendar.entity';
@@ -18,6 +19,7 @@ import { StudentClassCreditEntity } from './entities/student-class-credit.entity
 import { StudentCartResolver } from './resolvers/student-cart.resolver';
 import { StudentCartService } from './services/student-cart.service';
 import { StudentClassCreditService } from './services/student-class-credit.service';
+import { AdminClassBookingService } from './services/admin-class-booking.service';
 
 @Module({
   imports: [
@@ -32,13 +34,19 @@ import { StudentClassCreditService } from './services/student-class-credit.servi
       OrderItemEntity,
     ]),
     StudentModule,
+    OfferingsModule,
     TutorRateCardModule,
     ProficiencyModule,
     CommunicationModule,
     forwardRef(() => CommerceModule),
     forwardRef(() => WalletModule),
   ],
-  providers: [StudentCartService, StudentClassCreditService, StudentCartResolver],
-  exports: [StudentCartService, StudentClassCreditService],
+  providers: [
+    StudentCartService,
+    StudentClassCreditService,
+    AdminClassBookingService,
+    StudentCartResolver,
+  ],
+  exports: [StudentCartService, StudentClassCreditService, AdminClassBookingService],
 })
 export class StudentCartModule {}

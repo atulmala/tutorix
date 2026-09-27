@@ -158,13 +158,6 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
               Book a certified tutor and your upcoming sessions will appear here, with time,
               subject, and a join action when it is time to start.
             </p>
-            <button
-              type="button"
-              onClick={onOpenTutorSearch}
-              className="mt-4 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
-            >
-              Find a tutor
-            </button>
           </>
         ) : (
           <ul className="space-y-3">
@@ -197,6 +190,13 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
             ))}
           </ul>
         )}
+        <button
+          type="button"
+          onClick={onOpenTutorSearch}
+          className="mt-4 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+        >
+          Find a tutor
+        </button>
       </section>
 
       <section className="rounded-[20px] bg-white p-5">

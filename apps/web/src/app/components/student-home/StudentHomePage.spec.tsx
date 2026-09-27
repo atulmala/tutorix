@@ -73,6 +73,7 @@ describe('StudentHomePage', () => {
     expect(screen.getByText('Mathematics')).toBeTruthy();
     expect(screen.getByText(/Online · Anita Sharma/)).toBeTruthy();
     expect(screen.getByText("1 class")).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Find a tutor' })).toBeTruthy();
   });
 
   it('shows unscheduled classes on home after login', () => {

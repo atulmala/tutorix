@@ -25,6 +25,10 @@ export class StudentCartItemEntity extends QBaseEntity {
   @Index()
   tutorOfferingId!: number;
 
+  /** Catalog offering id from student search / preview (may differ from tutor PT leaf). */
+  @Column({ name: 'catalog_offering_id', type: 'integer', nullable: true })
+  catalogOfferingId?: number | null;
+
   @ManyToOne(() => TutorOfferingEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'tutor_offering_id' })
   tutorOffering?: TutorOfferingEntity;

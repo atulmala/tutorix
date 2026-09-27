@@ -65,6 +65,7 @@ describe('StudentHomeScreen', () => {
     const { getByText } = render(<StudentHomeScreen onOpenTutorSearch={jest.fn()} />);
     expect(getByText('Mathematics')).toBeTruthy();
     expect(getByText('Offline · Anita Sharma')).toBeTruthy();
+    expect(getByText('Find a tutor')).toBeTruthy();
   });
 
   it('shows unscheduled classes after login', () => {

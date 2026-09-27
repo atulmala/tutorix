@@ -3,7 +3,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatInr } from '@tutorix/shared-utils/rate-card';
 import { lockedDeliveryMode } from '@tutorix/shared-utils/student-booking';
 import {
-  packSlabsHaveDiscount,
+  discountedPackSlabLines,
+  effectiveOfflineEnabledForBooking,
+  OFFLINE_BOOKING_MAX_DISTANCE_KM,
   unitRateFromPackSlabs,
   type ClassPackSlabLine,
 } from '@tutorix/shared-utils/tutor-search';
@@ -15,6 +17,8 @@ export type PreviewOffering = {
   offlineEnabled?: boolean;
   onlineRateInr?: number | null;
   offlineRateInr?: number | null;
+  onlineBaseRateInr?: number | null;
+  offlineBaseRateInr?: number | null;
   freeDemoOffered?: boolean;
   onlinePackSlabs?: ClassPackSlabLine[];
   offlinePackSlabs?: ClassPackSlabLine[];
@@ -32,10 +36,12 @@ type TutorSubjectPurchaseCardProps = {
     quantity: number,
   ) => Promise<void>;
   onViewCart: () => void;
+  distanceKm?: number | null;
 };
 
 export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> = ({
   offering,
+  distanceKm = null,
   defaultExpanded = false,
   collapsible = true,
   highlight = false,
@@ -48,11 +54,15 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
   const [deliveryMode, setDeliveryMode] = useState<'online' | 'offline' | null>(null);
   const [cartMessage, setCartMessage] = useState<string | null>(null);
 
-  const locked = lockedDeliveryMode(
+  const offlineBookable = effectiveOfflineEnabledForBooking(
     offering.offlineEnabled === true,
-    offering.onlineEnabled === true,
+    distanceKm,
   );
-  const bothModes = offering.offlineEnabled === true && offering.onlineEnabled === true;
+  const onlineBookable = offering.onlineEnabled === true;
+  const locked = lockedDeliveryMode(offlineBookable, onlineBookable);
+  const bothModes = offlineBookable && onlineBookable;
+  const offlineTooFar =
+    offering.offlineEnabled === true && !offlineBookable && onlineBookable;
   const mode = locked ?? deliveryMode;
   const onlineSlabs = offering.onlinePackSlabs ?? [];
   const offlineSlabs = offering.offlinePackSlabs ?? [];
@@ -64,9 +74,21 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
     return unitRateFromPackSlabs(activeSlabs, quantity);
   }, [activeSlabs, mode, quantity]);
   const lineTotal = unitRate != null ? unitRate * quantity : null;
-  const hasSlabPricing = offlineSlabs.length > 0 || onlineSlabs.length > 0;
+  const offlineDiscountSlabs = discountedPackSlabLines(offlineSlabs);
+  const onlineDiscountSlabs = discountedPackSlabLines(onlineSlabs);
   const hasPackSavings =
-    packSlabsHaveDiscount(offlineSlabs) || packSlabsHaveDiscount(onlineSlabs);
+    (offlineBookable && offlineDiscountSlabs.length > 0) ||
+    (onlineBookable && onlineDiscountSlabs.length > 0);
+  const packDisplayMode =
+    mode ??
+    (bothModes
+      ? null
+      : offlineBookable
+        ? 'offline'
+        : onlineBookable
+          ? 'online'
+          : null);
+  const showPackPricing = hasPackSavings && packDisplayMode != null;
 
   const handleAdd = async () => {
     const resolvedMode = locked ?? deliveryMode;
@@ -105,9 +127,9 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
               ) : null}
             </View>
             <Text style={styles.title}>{offering.offeringLabel}</Text>
-            <BaseRateRow offering={offering} />
+            <BaseRateRow offering={offering} distanceKm={distanceKm} />
             {!expanded && hasPackSavings ? (
-              <Text style={styles.packHint}>Pack discounts on 5+ classes</Text>
+              <Text style={styles.packHint}>Pack discounts available</Text>
             ) : null}
           </View>
           {collapsible ? (
@@ -118,14 +140,17 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
 
       {expanded ? (
         <View style={styles.body}>
-          {hasSlabPricing ? (
+          {showPackPricing ? (
             <PackSlabGrid
-              offlineSlabs={offlineSlabs}
-              onlineSlabs={onlineSlabs}
-              offlineEnabled={offering.offlineEnabled === true}
-              onlineEnabled={offering.onlineEnabled === true}
-              activeMode={mode}
+              offlineSlabs={offlineDiscountSlabs}
+              onlineSlabs={onlineDiscountSlabs}
+              activeMode={packDisplayMode}
             />
+          ) : null}
+          {hasPackSavings && bothModes && !packDisplayMode ? (
+            <Text style={styles.slabHint}>
+              Choose Online or Offline below to see pack discounts for that mode.
+            </Text>
           ) : null}
 
           <View style={styles.buyBox}>
@@ -150,6 +175,13 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
               <Text style={styles.meta}>{quantity === 1 ? 'class' : 'classes'}</Text>
             </View>
 
+            {offlineTooFar ? (
+              <Text style={styles.meta}>
+                Offline is unavailable beyond {OFFLINE_BOOKING_MAX_DISTANCE_KM} km
+                {distanceKm != null ? ` (${distanceKm.toFixed(1)} km away)` : ''}. Book online
+                instead.
+              </Text>
+            ) : null}
             {bothModes ? (
               <View style={styles.modeRow}>
                 {(['offline', 'online'] as const).map((value) => {
@@ -198,10 +230,29 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
   );
 };
 
-function BaseRateRow({ offering }: { offering: PreviewOffering }) {
+function displayBaseRateInr(
+  offering: PreviewOffering,
+  mode: 'online' | 'offline',
+): number | null {
+  if (mode === 'offline') {
+    return offering.offlineBaseRateInr ?? offering.offlineRateInr ?? null;
+  }
+  return offering.onlineBaseRateInr ?? offering.onlineRateInr ?? null;
+}
+
+function BaseRateRow({
+  offering,
+  distanceKm,
+}: {
+  offering: PreviewOffering;
+  distanceKm?: number | null;
+}) {
+  const offlineBase = displayBaseRateInr(offering, 'offline');
+  const onlineBase = displayBaseRateInr(offering, 'online');
   const showOffline =
-    offering.offlineEnabled === true && offering.offlineRateInr != null;
-  const showOnline = offering.onlineEnabled === true && offering.onlineRateInr != null;
+    effectiveOfflineEnabledForBooking(offering.offlineEnabled === true, distanceKm) &&
+    offlineBase != null;
+  const showOnline = offering.onlineEnabled === true && onlineBase != null;
   if (!showOffline && !showOnline) {
     return null;
   }
@@ -213,14 +264,14 @@ function BaseRateRow({ offering }: { offering: PreviewOffering }) {
         {showOffline ? (
           <View style={styles.chipOffline}>
             <Text style={styles.chipOfflineText}>
-              Offline {formatInr(offering.offlineRateInr ?? 0)} / class
+              Offline {formatInr(offlineBase)} / class
             </Text>
           </View>
         ) : null}
         {showOnline ? (
           <View style={styles.chipOnline}>
             <Text style={styles.chipOnlineText}>
-              Online {formatInr(offering.onlineRateInr ?? 0)} / class
+              Online {formatInr(onlineBase)} / class
             </Text>
           </View>
         ) : null}
@@ -232,62 +283,34 @@ function BaseRateRow({ offering }: { offering: PreviewOffering }) {
 function PackSlabGrid({
   offlineSlabs,
   onlineSlabs,
-  offlineEnabled,
-  onlineEnabled,
   activeMode,
 }: {
   offlineSlabs: ClassPackSlabLine[];
   onlineSlabs: ClassPackSlabLine[];
-  offlineEnabled: boolean;
-  onlineEnabled: boolean;
-  activeMode: 'online' | 'offline' | null;
+  activeMode: 'online' | 'offline';
 }) {
-  const sections: { key: string; title: string; slabs: ClassPackSlabLine[] }[] = [];
-
-  if (activeMode === 'offline' && offlineSlabs.length > 0) {
-    sections.push({ key: 'offline', title: 'Offline pack pricing', slabs: offlineSlabs });
-  } else if (activeMode === 'online' && onlineSlabs.length > 0) {
-    sections.push({ key: 'online', title: 'Online pack pricing', slabs: onlineSlabs });
-  } else if (!activeMode) {
-    if (offlineEnabled && offlineSlabs.length > 0) {
-      sections.push({ key: 'offline', title: 'Offline pack pricing', slabs: offlineSlabs });
-    }
-    if (onlineEnabled && onlineSlabs.length > 0) {
-      sections.push({ key: 'online', title: 'Online pack pricing', slabs: onlineSlabs });
-    }
-  }
-
-  if (sections.length === 0) {
+  const slabs = activeMode === 'offline' ? offlineSlabs : onlineSlabs;
+  if (slabs.length === 0) {
     return null;
   }
 
+  const title =
+    activeMode === 'offline' ? 'Offline pack discounts' : 'Online pack discounts';
+
   return (
     <View style={styles.slabSection}>
-      {sections.map((section) => (
-        <View key={section.key} style={styles.slabModeBlock}>
-          <Text style={styles.slabHeading}>{section.title}</Text>
-          {section.slabs.map((slab) => (
-            <View
-              key={`${section.key}-${slab.label}`}
-              style={[
-                styles.slabCard,
-                (slab.discountPct ?? 0) > 0 && styles.slabCardDiscount,
-              ]}
-            >
-              <View style={styles.slabTop}>
-                <Text style={styles.slabLabel}>{slab.label}</Text>
-                {(slab.discountPct ?? 0) > 0 ? (
-                  <Text style={styles.slabSave}>Save {slab.discountPct}%</Text>
-                ) : null}
-              </View>
-              <Text style={styles.slabRate}>{formatInr(slab.unitRateInr)} / class</Text>
+      <View style={styles.slabModeBlock}>
+        <Text style={styles.slabHeading}>{title}</Text>
+        {slabs.map((slab) => (
+          <View key={slab.label} style={[styles.slabCard, styles.slabCardDiscount]}>
+            <View style={styles.slabTop}>
+              <Text style={styles.slabLabel}>{slab.label}</Text>
+              <Text style={styles.slabSave}>Save {slab.discountPct}%</Text>
             </View>
-          ))}
-        </View>
-      ))}
-      {!activeMode && offlineEnabled && onlineEnabled && sections.length > 1 ? (
-        <Text style={styles.slabHint}>Choose Online or Offline for your line total.</Text>
-      ) : null}
+            <Text style={styles.slabRate}>{formatInr(slab.unitRateInr)} / class</Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }

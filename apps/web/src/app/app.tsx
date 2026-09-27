@@ -39,8 +39,10 @@ import type { WebUser } from './types/web-user';
 import { SessionLoadingGate } from './auth/SessionLoadingGate';
 import { LegalPage } from './components/LegalPage';
 import {
+  isStudentCartReturnView,
   studentViewAfterProfile,
   tutorViewAfterProfile,
+  type StudentCartOverlay,
   type WalletReturnView,
   type WebView,
 } from './web-navigation';
@@ -55,6 +57,10 @@ function AppContent() {
   const [currentView, setCurrentViewInternal] = useState<WebView>('home');
   const [walletReturnView, setWalletReturnView] =
     useState<WalletReturnView>('tutor-home');
+  const [walletReturnCartOverlay, setWalletReturnCartOverlay] =
+    useState<StudentCartOverlay | null>(null);
+  const [studentCartOverlay, setStudentCartOverlay] =
+    useState<StudentCartOverlay | null>(null);
   const [tutorPreview, setTutorPreview] = useState<{
     tutorId: string;
     offeringId: string;
@@ -242,17 +248,41 @@ function AppContent() {
     }
   }, [fetchMyStudentProfile, fetchMyTutorDetail, fetchMyTutorProfile, routeStudentAfterProfile, routeTutorAfterProfile, setCurrentView]);
 
-  const handleOpenWallet = useCallback((from: WalletReturnView) => {
-    if (currentViewRef.current === 'tutor-bank-setup' || currentViewRef.current === 'tutor-rate-card-setup') {
-      return;
-    }
-    setWalletReturnView(from);
-    setCurrentView('wallet');
-  }, [setCurrentView]);
+  const openStudentCart = useCallback(() => {
+    setStudentCartOverlay('cart');
+  }, []);
+
+  const closeStudentCartOverlay = useCallback(() => {
+    setStudentCartOverlay(null);
+  }, []);
+
+  const handleOpenWallet = useCallback(
+    (from: WalletReturnView) => {
+      if (
+        currentViewRef.current === 'tutor-bank-setup' ||
+        currentViewRef.current === 'tutor-rate-card-setup'
+      ) {
+        return;
+      }
+      const underlying = currentViewRef.current;
+      const returnView = isStudentCartReturnView(underlying) ? underlying : from;
+      setWalletReturnCartOverlay(studentCartOverlay);
+      setStudentCartOverlay(null);
+      setWalletReturnView(returnView);
+      setCurrentView('wallet');
+    },
+    [setCurrentView, studentCartOverlay],
+  );
 
   const handleWalletBack = useCallback(() => {
     setCurrentView(walletReturnView);
-  }, [setCurrentView, walletReturnView]);
+    if (walletReturnCartOverlay) {
+      setStudentCartOverlay(walletReturnCartOverlay);
+      setWalletReturnCartOverlay(null);
+    } else if (walletReturnView === 'student-cart-checkout') {
+      setStudentCartOverlay('checkout');
+    }
+  }, [setCurrentView, walletReturnView, walletReturnCartOverlay]);
 
   // Check for reset password token in URL on mount (takes precedence over session restore)
   useEffect(() => {
@@ -404,6 +434,8 @@ function AppContent() {
     hasRoutedBootstrapRef.current = false;
     setSessionRestorePhase('idle');
 
+    setStudentCartOverlay(null);
+    setWalletReturnCartOverlay(null);
     setCurrentView('home');
     const path = window.location.pathname.replace(/\/$/, '') || '/';
     if (path === '/students' || path === '/tutors') {
@@ -476,7 +508,7 @@ function AppContent() {
           onLogout={handleLogout}
           onProfilePress={() => setCurrentView('student-profile')}
           onOpenWallet={() => handleOpenWallet('student-home')}
-          onOpenCart={() => setCurrentView('student-cart')}
+          onOpenCart={openStudentCart}
           profileAlign="right"
           flush
         />
@@ -512,7 +544,7 @@ function AppContent() {
           }
           onProfilePress={() => setCurrentView('student-profile')}
           onOpenWallet={() => handleOpenWallet('student-home')}
-          onOpenCart={() => setCurrentView('student-cart')}
+          onOpenCart={openStudentCart}
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
           <div className={onSearch ? 'w-full' : 'hidden'}>
@@ -527,53 +559,9 @@ function AppContent() {
             <StudentTutorPreviewPage
               tutorId={tutorPreview.tutorId}
               offeringId={tutorPreview.offeringId}
-              onViewCart={() => setCurrentView('student-cart')}
+              onViewCart={openStudentCart}
             />
           ) : null}
-        </main>
-      </div>
-    );
-  }
-
-  if (currentView === 'student-cart') {
-    return (
-      <div className="min-h-screen bg-subtle text-primary">
-        <AppHeader
-          title="Cart"
-          onLogout={handleLogout}
-          onBack={() => setCurrentView('student-home')}
-          onProfilePress={() => setCurrentView('student-profile')}
-          onOpenWallet={() => handleOpenWallet('student-home')}
-          onOpenCart={() => setCurrentView('student-cart')}
-        />
-        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
-          <StudentCartPage
-            onCheckout={() => setCurrentView('student-cart-checkout')}
-            onKeepShopping={() => {
-              clearStudentTutorSearchDraft();
-              setCurrentView('student-tutor-search');
-            }}
-          />
-        </main>
-      </div>
-    );
-  }
-
-  if (currentView === 'student-cart-checkout') {
-    return (
-      <div className="min-h-screen bg-subtle text-primary">
-        <AppHeader
-          title="Checkout"
-          onLogout={handleLogout}
-          onBack={() => setCurrentView('student-cart')}
-          onProfilePress={() => setCurrentView('student-profile')}
-          onOpenWallet={() => handleOpenWallet('student-cart-checkout')}
-        />
-        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
-          <StudentCartCheckoutPage
-            onPaid={() => setCurrentView('student-home')}
-            onScheduleNow={() => setCurrentView('student-class-credits')}
-          />
         </main>
       </div>
     );
@@ -588,7 +576,7 @@ function AppContent() {
           onBack={() => setCurrentView('student-home')}
           onProfilePress={() => setCurrentView('student-profile')}
           onOpenWallet={() => handleOpenWallet('student-home')}
-          onOpenCart={() => setCurrentView('student-cart')}
+          onOpenCart={openStudentCart}
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
           <StudentClassCreditsPage
@@ -634,7 +622,7 @@ function AppContent() {
           onBack={() => setCurrentView('student-home')}
           onProfilePress={() => setCurrentView('student-profile')}
           onOpenWallet={() => handleOpenWallet('student-profile')}
-          onOpenCart={() => setCurrentView('student-cart')}
+          onOpenCart={openStudentCart}
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
           <StudentProfilePage />
@@ -645,9 +633,8 @@ function AppContent() {
 
   if (currentView === 'wallet') {
     const studentWallet =
-      walletReturnView === 'student-home' ||
-      walletReturnView === 'student-profile' ||
-      walletReturnView === 'student-cart-checkout';
+      walletReturnView === 'student-cart-checkout' ||
+      isStudentCartReturnView(walletReturnView);
     return (
       <div className="min-h-screen bg-subtle text-primary">
         <AppHeader
@@ -901,10 +888,67 @@ function AppContent() {
   );
   })();
 
+  const analyticsView =
+    studentCartOverlay === 'checkout'
+      ? 'student-cart-checkout'
+      : studentCartOverlay === 'cart'
+        ? 'student-cart'
+        : currentView;
+
+  const studentCartOverlayNode = studentCartOverlay ? (
+    <div className="fixed inset-0 z-50 flex min-h-screen flex-col bg-subtle text-primary">
+      <AppHeader
+        title={studentCartOverlay === 'cart' ? 'Cart' : 'Checkout'}
+        onLogout={handleLogout}
+        onBack={
+          studentCartOverlay === 'cart'
+            ? closeStudentCartOverlay
+            : () => setStudentCartOverlay('cart')
+        }
+        onProfilePress={() => {
+          closeStudentCartOverlay();
+          setCurrentView('student-profile');
+        }}
+        onOpenWallet={() =>
+          handleOpenWallet(
+            studentCartOverlay === 'checkout'
+              ? 'student-cart-checkout'
+              : 'student-home',
+          )
+        }
+        onOpenCart={studentCartOverlay === 'cart' ? openStudentCart : undefined}
+      />
+      <main className="mx-auto flex w-full max-w-6xl flex-1 justify-center px-4 py-10">
+        {studentCartOverlay === 'cart' ? (
+          <StudentCartPage
+            onCheckout={() => setStudentCartOverlay('checkout')}
+            onKeepShopping={() => {
+              closeStudentCartOverlay();
+              clearStudentTutorSearchDraft();
+              setCurrentView('student-tutor-search');
+            }}
+          />
+        ) : (
+          <StudentCartCheckoutPage
+            onPaid={() => {
+              closeStudentCartOverlay();
+              setCurrentView('student-home');
+            }}
+            onScheduleNow={() => {
+              closeStudentCartOverlay();
+              setCurrentView('student-class-credits');
+            }}
+          />
+        )}
+      </main>
+    </div>
+  ) : null;
+
   return (
     <>
-      <AnalyticsViewTracker viewName={currentView} />
+      <AnalyticsViewTracker viewName={analyticsView} />
       {content}
+      {studentCartOverlayNode}
     </>
   );
 }

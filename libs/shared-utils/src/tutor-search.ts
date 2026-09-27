@@ -7,6 +7,26 @@ import {
 } from './rate-card';
 import { MIN_SLOTS_THIS_WEEK } from './tutor-calendar';
 
+/** Max straight-line distance (km) for booking offline classes at the tutor's location. */
+export const OFFLINE_BOOKING_MAX_DISTANCE_KM = 25;
+
+export function isWithinOfflineBookingDistance(
+  distanceKm: number | null | undefined,
+): boolean {
+  return (
+    distanceKm != null &&
+    Number.isFinite(distanceKm) &&
+    distanceKm <= OFFLINE_BOOKING_MAX_DISTANCE_KM
+  );
+}
+
+export function effectiveOfflineEnabledForBooking(
+  offlineEnabled: boolean | undefined,
+  distanceKm: number | null | undefined,
+): boolean {
+  return offlineEnabled === true && isWithinOfflineBookingDistance(distanceKm);
+}
+
 export type TutorSearchDeliveryMode = 'ONLINE' | 'OFFLINE' | 'ANY';
 export type TutorSearchClassFormat = 'INDIVIDUAL' | 'GROUP' | 'ANY';
 export type TutorSearchSort = 'BEST_MATCH' | 'DISTANCE' | 'RATE';
@@ -91,6 +111,23 @@ export function starterRateForMode(
   mode: 'online' | 'offline',
 ): number | null {
   return rateForModeAndQuantity(rateCard, mode, 1);
+}
+
+/** Tutor-entered list price before pack slab discounts (rate card base rate field). */
+export function catalogBaseRateInrForMode(
+  rateCard: RateCardLike,
+  mode: 'online' | 'offline',
+): number | null {
+  if (mode === 'offline') {
+    if (rateCard.offlineEnabled !== true || rateCard.offlineBaseRate == null) {
+      return null;
+    }
+    return rateCard.offlineBaseRate;
+  }
+  if (rateCard.onlineEnabled !== true || rateCard.onlineBaseRate == null) {
+    return null;
+  }
+  return rateCard.onlineBaseRate;
 }
 
 export function rateForModeAndQuantity(
@@ -215,6 +252,13 @@ export function packSlabsHaveDiscount(slabs: ClassPackSlabLine[]): boolean {
   return slabs.some((row) => (row.discountPct ?? 0) > 0);
 }
 
+/** Slabs with a configured discount — for student-facing pack pricing promos only. */
+export function discountedPackSlabLines(
+  slabs: ClassPackSlabLine[],
+): ClassPackSlabLine[] {
+  return slabs.filter((row) => (row.discountPct ?? 0) > 0);
+}
+
 function classFormatMatches(
   rateCard: RateCardLike,
   mode: 'online' | 'offline',
@@ -267,11 +311,16 @@ export function resolveShownMode(
     filters.deliveryMode === 'ANY' ||
     forceOnline;
 
+  const offlineRadiusKm = Math.min(
+    filters.radiusKm,
+    OFFLINE_BOOKING_MAX_DISTANCE_KM,
+  );
   const offlineOk =
     allowOffline &&
     modeEligible(candidate.rateCard, 'offline', filters) &&
+    isWithinOfflineBookingDistance(candidate.distanceKm) &&
     candidate.distanceKm != null &&
-    candidate.distanceKm <= filters.radiusKm;
+    candidate.distanceKm <= offlineRadiusKm;
   const onlineOk =
     allowOnline && modeEligible(candidate.rateCard, 'online', filters);
 

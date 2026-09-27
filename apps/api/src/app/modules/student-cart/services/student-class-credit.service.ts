@@ -11,6 +11,7 @@ import {
   formatIstBookingDateLabel,
   formatIstBookingTimeRange,
   getBatchSizeForMode,
+  type OfferingNodeForLabel,
 } from '@tutorix/shared-utils';
 import { User } from '../../auth/entities/user.entity';
 import { UserRole } from '../../auth/enums/user-role.enum';
@@ -31,7 +32,12 @@ import { ClassSessionDeliveryModeEnum } from '../../tutor-class-session/enums/cl
 import { ClassSessionEnrollmentStatusEnum } from '../../tutor-class-session/enums/class-session-enrollment-status.enum';
 import { ClassSessionStatusEnum } from '../../tutor-class-session/enums/class-session-status.enum';
 import { TutorOfferingEntity } from '../../tutor/entities/tutor-offering.entity';
+import { OfferingService } from '../../offerings/services/offering.service';
 import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
+import {
+  offeringsByIdFromCatalog,
+  resolveStudentCartOfferingDisplay,
+} from '../student-cart-offering-display.util';
 import {
   ScheduleClassCreditResult,
   StudentClassCreditDto,
@@ -59,6 +65,7 @@ export class StudentClassCreditService {
   constructor(
     private readonly studentService: StudentService,
     private readonly rateCardService: TutorRateCardService,
+    private readonly offeringService: OfferingService,
     private readonly communicationService: CommunicationService,
     private readonly dataSource: DataSource,
     @InjectRepository(StudentClassCreditEntity)
@@ -116,6 +123,7 @@ export class StudentClassCreditService {
           orderItemId: item.id,
           tutorId: offering.tutorId,
           tutorOfferingId: offering.id,
+          catalogOfferingId: cartItem?.catalogOfferingId ?? null,
           deliveryMode,
           status: ClassCreditStatusEnum.unscheduled,
         }),
@@ -141,9 +149,12 @@ export class StudentClassCreditService {
       ],
       order: { id: 'ASC' },
     });
+    const offeringsById = offeringsByIdFromCatalog(
+      await this.offeringService.findAll(),
+    );
     return rows
       .filter((row) => row.status !== ClassCreditStatusEnum.cancelled)
-      .map((row) => this.toDto(row));
+      .map((row) => this.toDto(row, offeringsById));
   }
 
   async schedule(
@@ -363,16 +374,25 @@ export class StudentClassCreditService {
     await manager.getRepository(TutorClassSessionEntity).save(session);
   }
 
-  private toDto(row: StudentClassCreditEntity): StudentClassCreditDto {
+  private toDto(
+    row: StudentClassCreditEntity,
+    offeringsById: Map<number, OfferingNodeForLabel>,
+  ): StudentClassCreditDto {
     const startsAt =
       row.enrollment?.session?.tutorCalendar?.startsAt ?? null;
+    const { offeringId, offeringLabel } = resolveStudentCartOfferingDisplay(
+      row.catalogOfferingId,
+      row.tutorOffering?.offeringId,
+      row.tutorOffering?.offering?.displayName,
+      offeringsById,
+    );
     return {
       id: row.id,
       tutorId: row.tutorId,
       tutorOfferingId: row.tutorOfferingId,
-      offeringId: row.tutorOffering?.offeringId ?? 0,
+      offeringId,
       tutorName: personName(row.tutorOffering?.tutor?.user) || 'Tutor',
-      offeringLabel: row.tutorOffering?.offering?.displayName ?? 'Class',
+      offeringLabel,
       deliveryMode: row.deliveryMode,
       status: row.status,
       enrollmentId: row.enrollmentId ?? null,

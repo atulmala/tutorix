@@ -1,4 +1,5 @@
 import {
+  isStudentCartReturnView,
   studentViewAfterProfile,
   tutorViewAfterProfile,
   walletReturnFromPush,
@@ -25,17 +26,24 @@ describe('studentViewAfterProfile', () => {
   });
 });
 
+describe('isStudentCartReturnView', () => {
+  it('includes student flows that can open the cart overlay', () => {
+    expect(isStudentCartReturnView('studentTutorPreview')).toBe(true);
+    expect(isStudentCartReturnView('studentCart')).toBe(false);
+  });
+});
+
 describe('walletReturnFromPush', () => {
-  it('returns studentHome from student home, onboarding, search, or tutor preview', () => {
+  it('returns the current student screen when it can host the cart overlay', () => {
     expect(walletReturnFromPush('studentHome')).toBe('studentHome');
     expect(walletReturnFromPush('studentOnboarding')).toBe('studentHome');
-    expect(walletReturnFromPush('studentTutorSearch')).toBe('studentHome');
-    expect(walletReturnFromPush('studentTutorSearchResults')).toBe('studentHome');
-    expect(walletReturnFromPush('studentTutorPreview')).toBe('studentHome');
-    expect(walletReturnFromPush('studentCart')).toBe('studentHome');
-    expect(walletReturnFromPush('studentCartCheckout')).toBe(
-      'studentCartCheckout',
+    expect(walletReturnFromPush('studentTutorSearch')).toBe('studentTutorSearch');
+    expect(walletReturnFromPush('studentTutorSearchResults')).toBe(
+      'studentTutorSearchResults',
     );
+    expect(walletReturnFromPush('studentTutorPreview')).toBe('studentTutorPreview');
+    expect(walletReturnFromPush('studentCart')).toBe('studentHome');
+    expect(walletReturnFromPush('studentCartCheckout')).toBe('studentHome');
   });
 
   it('returns studentProfile when the student is already on profile', () => {

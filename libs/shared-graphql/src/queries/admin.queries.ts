@@ -315,6 +315,41 @@ export const GET_ADMIN_ORDERS = gql`
   }
 `;
 
+export const GET_ADMIN_CLASS_BOOKINGS = gql`
+  query GetAdminClassBookings($input: AdminClassBookingListInput!) {
+    adminClassBookings(input: $input) {
+      items {
+        orderId
+        orderNumber
+        studentId
+        studentName
+        studentEmail
+        purchasedAt
+        classCount
+        tutorCount
+        amountDueInr
+        amountPaidInr
+        lines {
+          tutorId
+          tutorName
+          offeringLabel
+          deliveryMode
+          classCount
+          scheduledCount
+          unscheduledCount
+          cancelledCount
+          unitRateInr
+          linePaidInr
+        }
+      }
+      totalCount
+      page
+      pageSize
+      totalPages
+    }
+  }
+`;
+
 export const GET_ADMIN_ORDER_DETAIL = gql`
   query GetAdminOrderDetail($orderId: Int!) {
     adminOrderDetail(orderId: $orderId) {

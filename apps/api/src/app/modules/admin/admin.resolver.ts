@@ -30,6 +30,9 @@ import { CommerceAdminService } from '../commerce/services/commerce-admin.servic
 import { AdminOrderListInput } from '../commerce/dto/admin/admin-order-list.input';
 import { AdminOrderListResult } from '../commerce/dto/admin/admin-order-list-result.dto';
 import { AdminOrderDetail } from '../commerce/dto/admin/admin-order-detail.dto';
+import { AdminClassBookingListInput } from '../student-cart/dto/admin/admin-class-booking-list.input';
+import { AdminClassBookingListResult } from '../student-cart/dto/admin/admin-class-booking-list-result.dto';
+import { AdminClassBookingService } from '../student-cart/services/admin-class-booking.service';
 import { StudentService } from '../student/services/student.service';
 import { TutorService } from '../tutor/services/tutor.service';
 import { WalletService } from '../wallet/services/wallet.service';
@@ -59,6 +62,7 @@ export class AdminResolver {
     private readonly walletService: WalletService,
     private readonly emailService: EmailService,
     private readonly communicationAdminService: CommunicationAdminService,
+    private readonly adminClassBookingService: AdminClassBookingService,
   ) {}
 
   @Query(() => AdminDashboardStats, {
@@ -271,6 +275,17 @@ export class AdminResolver {
     @Args('orderId', { type: () => Int }) orderId: number,
   ): Promise<AdminOrderDetail> {
     return this.commerceAdminService.getOrderDetail(orderId);
+  }
+
+  @Query(() => AdminClassBookingListResult, {
+    description: 'Paginated class cart checkouts with credit lines (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminClassBookings(
+    @Args('input') input: AdminClassBookingListInput,
+  ): Promise<AdminClassBookingListResult> {
+    return this.adminClassBookingService.list(input);
   }
 
   @Query(() => UserWalletDto, {

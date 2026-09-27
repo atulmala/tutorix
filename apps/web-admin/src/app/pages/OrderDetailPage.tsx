@@ -88,8 +88,18 @@ function paymentMethodLabel(method?: string | null): string {
   if (!method) return '—';
   if (method === 'waived') return 'Waived — no payment required';
   if (method === 'gateway') return 'Online payment';
+  if (method === 'wallet') return 'Tutorix wallet';
   if (method === 'points') return 'Tutorix points';
-  return 'Mixed (gateway + points)';
+  if (method === 'mixed') return 'Mixed (gateway + points)';
+  return method;
+}
+
+function orderSourceLabel(source: string): string {
+  if (source === 'cart') return 'Student cart checkout';
+  if (source === 'wallet') return 'Wallet';
+  if (source === 'onboarding') return 'Onboarding';
+  if (source === 'admin') return 'Admin';
+  return source;
 }
 
 function lineTotal(item: OrderItemRow): number {
@@ -177,7 +187,8 @@ export function OrderDetailPage() {
           </Link>
           <h1 className="mt-2 text-2xl font-semibold text-primary">{order.orderNumber}</h1>
           <p className="mt-1 text-sm text-muted capitalize">
-            {order.status.replace('_', ' ')} · {paymentMethodLabel(order.paymentMethod)}
+            {order.status.replace('_', ' ')} · {paymentMethodLabel(order.paymentMethod)} ·{' '}
+            {orderSourceLabel(order.source)}
           </p>
         </div>
         <div className="text-right text-sm text-muted">

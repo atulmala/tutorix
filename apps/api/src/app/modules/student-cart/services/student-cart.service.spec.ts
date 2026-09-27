@@ -2,7 +2,26 @@ import { BadRequestException } from '@nestjs/common';
 import { UserRole } from '../../auth/enums/user-role.enum';
 import { WalletPurchaseReferenceTypeEnum } from '../../wallet/enums/wallet.enums';
 import { ClassSessionDeliveryModeEnum } from '../../tutor-class-session/enums/class-session-delivery-mode.enum';
+import { AddressType } from '../../address/enums/address-type.enum';
 import { StudentCartService } from './student-cart.service';
+
+const nearbyStudentAddresses = [
+  {
+    deleted: false,
+    primary: true,
+    latitude: 28.6139,
+    longitude: 77.209,
+  },
+];
+
+const nearbyTutorAddresses = [
+  {
+    deleted: false,
+    type: AddressType.TEACHING,
+    latitude: 28.6145,
+    longitude: 77.2095,
+  },
+];
 
 describe('StudentCartService', () => {
   const studentUser = { id: 9, role: UserRole.STUDENT };
@@ -15,6 +34,7 @@ describe('StudentCartService', () => {
       deleted: false,
       onBoardingComplete: true,
       user: { firstName: 'Priya', lastName: 'Sharma' },
+      addresses: nearbyTutorAddresses,
     },
     offering: { displayName: 'Mathematics' },
   };
@@ -47,6 +67,7 @@ describe('StudentCartService', () => {
       id?: number;
       deleted?: boolean;
       tutorOfferingId: number;
+      catalogOfferingId?: number;
       deliveryMode: ClassSessionDeliveryModeEnum;
       quantity: number;
       unitRateInr: number;
@@ -56,7 +77,11 @@ describe('StudentCartService', () => {
   let service: StudentCartService;
 
   beforeEach(() => {
-    findStudent = jest.fn().mockResolvedValue({ id: 21, userId: 9 });
+    findStudent = jest.fn().mockResolvedValue({
+      id: 21,
+      userId: 9,
+      addresses: nearbyStudentAddresses,
+    });
     findRateCard = jest.fn().mockResolvedValue(rateCard);
     offeringFindOne = jest.fn().mockResolvedValue(tutorOffering);
     cart = { id: 5, studentId: 21, items: [] };
@@ -114,7 +139,47 @@ describe('StudentCartService', () => {
         create: (row: unknown) => row,
       } as never,
       { findOne: offeringFindOne } as never,
+      { findAll: jest.fn().mockResolvedValue([]) } as never,
     );
+  });
+
+  it('rejects offline cart lines when tutor is more than 25 km away', async () => {
+    findStudent.mockResolvedValue({
+      id: 21,
+      userId: 9,
+      addresses: [
+        {
+          deleted: false,
+          primary: true,
+          latitude: 28.6139,
+          longitude: 77.209,
+        },
+      ],
+    });
+    offeringFindOne.mockResolvedValue({
+      ...tutorOffering,
+      tutor: {
+        ...tutorOffering.tutor,
+        addresses: [
+          {
+            deleted: false,
+            type: AddressType.TEACHING,
+            latitude: 28.35,
+            longitude: 77.05,
+          },
+        ],
+      },
+    });
+
+    await expect(
+      service.addToCart(
+        studentUser as never,
+        3,
+        30,
+        ClassSessionDeliveryModeEnum.offline,
+        1,
+      ),
+    ).rejects.toThrow(/25 km/i);
   });
 
   it('merges the same offering and mode and reprices on the slab', async () => {
@@ -134,6 +199,7 @@ describe('StudentCartService', () => {
     );
 
     expect(cart.items).toHaveLength(1);
+    expect(cart.items[0].catalogOfferingId).toBe(30);
     expect(cart.items[0].quantity).toBe(5);
     expect(cart.items[0].unitRateInr).toBe(900);
     expect(cartDto.totalInr).toBe(4500);

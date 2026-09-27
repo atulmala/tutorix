@@ -6,7 +6,18 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { rateForModeAndQuantity } from '@tutorix/shared-utils';
+import {
+  isWithinOfflineBookingDistance,
+  OFFLINE_BOOKING_MAX_DISTANCE_KM,
+  rateForModeAndQuantity,
+  type OfferingNodeForLabel,
+} from '@tutorix/shared-utils';
+import { distanceKmBetweenStudentAndTutor } from '../../tutor/utils/student-tutor-distance.util';
+import { OfferingService } from '../../offerings/services/offering.service';
+import {
+  offeringsByIdFromCatalog,
+  resolveStudentCartOfferingDisplay,
+} from '../student-cart-offering-display.util';
 import { User } from '../../auth/entities/user.entity';
 import { UserRole } from '../../auth/enums/user-role.enum';
 import {
@@ -25,6 +36,7 @@ import { WalletPurchaseReferenceTypeEnum } from '../../wallet/enums/wallet.enums
 import { WalletService } from '../../wallet/services/wallet.service';
 import { StudentClassCreditService } from './student-class-credit.service';
 import { ProficiencyTestService } from '../../proficiency/services/proficiency-test.service';
+import { Student } from '../../student/entities/student.entity';
 import { StudentService } from '../../student/services/student.service';
 import { ClassSessionDeliveryModeEnum } from '../../tutor-class-session/enums/class-session-delivery-mode.enum';
 import { TutorOfferingEntity } from '../../tutor/entities/tutor-offering.entity';
@@ -62,12 +74,13 @@ export class StudentCartService {
     private readonly itemRepo: Repository<StudentCartItemEntity>,
     @InjectRepository(TutorOfferingEntity)
     private readonly tutorOfferingRepo: Repository<TutorOfferingEntity>,
+    private readonly offeringService: OfferingService,
   ) {}
 
   async myCart(user: User): Promise<StudentCartDto> {
     const student = await this.requireStudent(user);
     const cart = await this.getOrCreateCart(student.id);
-    return this.toCartDto(cart);
+    return this.toCartDtoWithCatalog(cart);
   }
 
   async addToCart(
@@ -79,10 +92,14 @@ export class StudentCartService {
   ): Promise<StudentCartDto> {
     const qty = this.requireQuantity(quantity);
     const student = await this.requireStudent(user);
+    const catalogOfferingId = asId(offeringIdInput);
     const tutorOffering = await this.resolveTutorOffering(
       asId(tutorIdInput),
-      asId(offeringIdInput),
+      catalogOfferingId,
     );
+    if (deliveryMode === ClassSessionDeliveryModeEnum.offline) {
+      this.assertOfflineBookingAllowed(student, tutorOffering);
+    }
     const unitRateInr = await this.unitRateFor(tutorOffering.id, deliveryMode, qty);
     const cart = await this.getOrCreateCart(student.id);
     const existing = (cart.items ?? []).find(
@@ -94,6 +111,9 @@ export class StudentCartService {
     if (existing) {
       const nextQty = existing.quantity + qty;
       existing.quantity = nextQty;
+      if (!existing.catalogOfferingId) {
+        existing.catalogOfferingId = catalogOfferingId;
+      }
       existing.unitRateInr = await this.unitRateFor(
         tutorOffering.id,
         deliveryMode,
@@ -105,13 +125,14 @@ export class StudentCartService {
         this.itemRepo.create({
           cartId: cart.id,
           tutorOfferingId: tutorOffering.id,
+          catalogOfferingId,
           deliveryMode,
           quantity: qty,
           unitRateInr,
         }),
       );
     }
-    return this.toCartDto(await this.getOrCreateCart(student.id));
+    return this.toCartDtoWithCatalog(await this.getOrCreateCart(student.id));
   }
 
   async updateCartItem(
@@ -135,7 +156,7 @@ export class StudentCartService {
       qty,
     );
     await this.itemRepo.save(item);
-    return this.toCartDto(await this.getOrCreateCart(student.id));
+    return this.toCartDtoWithCatalog(await this.getOrCreateCart(student.id));
   }
 
   async removeFromCart(
@@ -151,7 +172,7 @@ export class StudentCartService {
       throw new NotFoundException('Cart item not found');
     }
     await this.itemRepo.delete(item.id);
-    return this.toCartDto(await this.getOrCreateCart(student.id));
+    return this.toCartDtoWithCatalog(await this.getOrCreateCart(student.id));
   }
 
   async clearCart(studentId: number): Promise<void> {
@@ -177,6 +198,7 @@ export class StudentCartService {
     if (items.length === 0) {
       throw new BadRequestException('Your cart is empty');
     }
+    const offeringsById = await this.loadOfferingsById();
     const dtos: StudentCartItemDto[] = [];
     const lines: PlatformFeeLineInput[] = [];
     let totalInr = 0;
@@ -190,7 +212,7 @@ export class StudentCartService {
         item.unitRateInr = unitRateInr;
         await this.itemRepo.save(item);
       }
-      const dto = this.toItemDto(item);
+      const dto = this.toItemDto(item, offeringsById);
       dtos.push(dto);
       totalInr += dto.lineTotalInr;
       const modeLabel = item.deliveryMode === 'online' ? 'Online' : 'Offline';
@@ -280,8 +302,16 @@ export class StudentCartService {
     deliveryMode: ClassSessionDeliveryModeEnum,
     quantity: number,
   ): Promise<number> {
-    const rateCard =
-      await this.rateCardService.findByTutorOfferingId(tutorOfferingId);
+    const tutorOffering = await this.tutorOfferingRepo.findOne({
+      where: { id: tutorOfferingId, deleted: false },
+    });
+    if (!tutorOffering) {
+      throw new NotFoundException('Tutor offering not found');
+    }
+    const resolvedMap = await this.rateCardService.resolveCompleteRateCards([
+      tutorOffering,
+    ]);
+    const rateCard = resolvedMap.get(tutorOfferingId) ?? null;
     const rate = rateForModeAndQuantity(rateCard ?? {}, deliveryMode, quantity);
     if (rate == null || rate < 1) {
       throw new BadRequestException(
@@ -295,7 +325,7 @@ export class StudentCartService {
     tutorId: number,
     offeringId: number,
   ): Promise<TutorOfferingEntity> {
-    const relations = ['tutor', 'tutor.user', 'offering'] as const;
+    const relations = ['tutor', 'tutor.user', 'tutor.addresses', 'offering'] as const;
     const exact = await this.tutorOfferingRepo.findOne({
       where: {
         tutorId,
@@ -349,6 +379,27 @@ export class StudentCartService {
     return student;
   }
 
+  private assertOfflineBookingAllowed(
+    student: Student,
+    tutorOffering: TutorOfferingEntity,
+  ): void {
+    const tutor = tutorOffering.tutor;
+    if (!tutor) {
+      throw new BadRequestException('Tutor not found');
+    }
+    const distanceKm = distanceKmBetweenStudentAndTutor(
+      student.addresses ?? [],
+      tutor.addresses ?? [],
+    );
+    if (!isWithinOfflineBookingDistance(distanceKm)) {
+      throw new BadRequestException(
+        distanceKm == null
+          ? 'Add your location to your profile to book offline classes, or choose online.'
+          : `Offline classes are available only within ${OFFLINE_BOOKING_MAX_DISTANCE_KM} km of the tutor (${distanceKm.toFixed(1)} km away). Choose online or find a closer tutor.`,
+      );
+    }
+  }
+
   private requireQuantity(quantity: number): number {
     const qty = Math.floor(Number(quantity));
     if (!Number.isFinite(qty) || qty < 1 || qty > 50) {
@@ -357,9 +408,24 @@ export class StudentCartService {
     return qty;
   }
 
-  private toCartDto(cart: StudentCartEntity): StudentCartDto {
+  private async toCartDtoWithCatalog(
+    cart: StudentCartEntity,
+  ): Promise<StudentCartDto> {
+    const offeringsById = await this.loadOfferingsById();
+    return this.toCartDto(cart, offeringsById);
+  }
+
+  private async loadOfferingsById(): Promise<Map<number, OfferingNodeForLabel>> {
+    const catalog = await this.offeringService.findAll();
+    return offeringsByIdFromCatalog(catalog);
+  }
+
+  private toCartDto(
+    cart: StudentCartEntity,
+    offeringsById: Map<number, OfferingNodeForLabel>,
+  ): StudentCartDto {
     const items = (cart.items ?? []).filter((item) => !item.deleted).map((item) =>
-      this.toItemDto(item),
+      this.toItemDto(item, offeringsById),
     );
     return {
       id: cart.id,
@@ -369,15 +435,24 @@ export class StudentCartService {
     };
   }
 
-  private toItemDto(item: StudentCartItemEntity): StudentCartItemDto {
+  private toItemDto(
+    item: StudentCartItemEntity,
+    offeringsById: Map<number, OfferingNodeForLabel>,
+  ): StudentCartItemDto {
     const offering = item.tutorOffering;
+    const { offeringId, offeringLabel } = resolveStudentCartOfferingDisplay(
+      item.catalogOfferingId,
+      offering?.offeringId,
+      offering?.offering?.displayName,
+      offeringsById,
+    );
     return {
       id: item.id,
       tutorId: offering?.tutorId ?? 0,
       tutorOfferingId: item.tutorOfferingId,
-      offeringId: offering?.offeringId ?? 0,
+      offeringId,
       tutorName: personName(offering?.tutor?.user) || 'Tutor',
-      offeringLabel: offering?.offering?.displayName ?? 'Class',
+      offeringLabel,
       deliveryMode: item.deliveryMode,
       quantity: item.quantity,
       unitRateInr: item.unitRateInr,

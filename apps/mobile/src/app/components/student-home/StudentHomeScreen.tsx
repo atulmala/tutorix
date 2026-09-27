@@ -168,14 +168,6 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
               Book a certified tutor and your upcoming sessions will appear here, with time,
               subject, and a join action when it is time to start.
             </Text>
-            <Pressable
-              style={styles.findButton}
-              onPress={onOpenTutorSearch}
-              accessibilityRole="button"
-              accessibilityLabel="Find a tutor"
-            >
-              <Text style={styles.findButtonText}>Find a tutor</Text>
-            </Pressable>
           </>
         ) : (
           selectedClasses.map((row) => (
@@ -202,6 +194,14 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
             </View>
           ))
         )}
+        <Pressable
+          style={styles.findButton}
+          onPress={onOpenTutorSearch}
+          accessibilityRole="button"
+          accessibilityLabel="Find a tutor"
+        >
+          <Text style={styles.findButtonText}>Find a tutor</Text>
+        </Pressable>
       </View>
 
       <View style={styles.concludedCard}>
