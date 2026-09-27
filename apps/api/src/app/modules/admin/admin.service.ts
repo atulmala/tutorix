@@ -11,7 +11,10 @@ import { OfferingService } from '../offerings/services/offering.service';
 import { ProficiencyTestService } from '../proficiency/services/proficiency-test.service';
 import { ProficiencyTestEntity } from '../proficiency/entities/proficiency-test.entity';
 import { Tutor } from '../tutor/entities/tutor.entity';
-import { TutorCertificationStageEnum } from '../tutor/enums/tutor.enums';
+import {
+  TutorCertificationStageEnum,
+  TutorOfferingStatusEnum,
+} from '../tutor/enums/tutor.enums';
 import { Student } from '../student/entities/student.entity';
 import { StudentOnboardingStageEnum } from '../student/enums/student.enums';
 import { TutorService } from '../tutor/services/tutor.service';
@@ -126,15 +129,30 @@ export class AdminService {
       MAX_PAGE_SIZE,
       Math.max(1, input.pageSize ?? DEFAULT_PAGE_SIZE),
     );
-    const hasStageFilter = input.certificationStage != null;
-    const isDocsStage = input.certificationStage === TutorCertificationStageEnum.docs;
+    const hasOfferingFilter = input.offeringId != null;
+    const hasStageFilter =
+      !hasOfferingFilter && input.certificationStage != null;
+    const isDocsStage =
+      hasStageFilter &&
+      input.certificationStage === TutorCertificationStageEnum.docs;
 
     const qb = this.tutorRepo
       .createQueryBuilder('tutor')
       .innerJoinAndSelect('tutor.user', 'user')
       .where('tutor.deleted = :deleted', { deleted: false });
 
-    if (hasStageFilter) {
+    if (hasOfferingFilter) {
+      qb.innerJoin(
+        'tutor.tutorOfferings',
+        'tutorOffering',
+        'tutorOffering.offeringId = :offeringId AND tutorOffering.status = :offeringStatus AND tutorOffering.deleted = :offeringDeleted',
+        {
+          offeringId: input.offeringId,
+          offeringStatus: TutorOfferingStatusEnum.pt_passed,
+          offeringDeleted: false,
+        },
+      );
+    } else if (hasStageFilter) {
       qb.andWhere('tutor.certificationStage = :stage', {
         stage: input.certificationStage,
       });
