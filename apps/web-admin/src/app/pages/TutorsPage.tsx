@@ -5,6 +5,7 @@ import {
   GET_ADMIN_TUTORS,
   GET_ADMIN_TUTOR_STAGE_COUNTS,
 } from '@tutorix/shared-graphql';
+import { TutorOfferingSearch } from './TutorOfferingSearch';
 import {
   ONBOARDING_STEPS,
   type OnboardingStepId,
@@ -45,7 +46,7 @@ type AdminTutorsData = {
 const PAGE_SIZE = 20;
 
 const SELECT_CLASS_NAME =
-  'h-11 w-full rounded-xl border border-sky-200/80 bg-white px-3 text-sm text-primary shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200';
+  'h-11 w-full rounded-xl border border-sky-200/80 bg-white px-3 text-sm text-primary shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-muted';
 
 const STAGE_HEADER_STYLES: Record<OnboardingStepId, string> = {
   address: 'border-sky-200 bg-gradient-to-r from-sky-100/80 to-sky-50/50 text-sky-900',
@@ -127,22 +128,40 @@ export function TutorsPage() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
+  const [appliedOfferingId, setAppliedOfferingId] = useState<number | null>(null);
+  const [offeringResetToken, setOfferingResetToken] = useState(0);
 
   useEffect(() => {
     setPage(1);
-  }, [activeStage, appliedSearch]);
+  }, [activeStage, appliedSearch, appliedOfferingId]);
 
   const searchArg = appliedSearch || undefined;
-  const isUniversalSearch = Boolean(searchArg);
+  const isOfferingSearch = appliedOfferingId != null;
+  const isUniversalSearch = Boolean(searchArg) && !isOfferingSearch;
+  const showStageColumn = isUniversalSearch || isOfferingSearch;
+
+  function clearOfferingSearch() {
+    setAppliedOfferingId(null);
+    setOfferingResetToken((token) => token + 1);
+  }
 
   function handleSearch() {
     setAppliedSearch(searchInput.trim());
+    setAppliedOfferingId(null);
+    setOfferingResetToken((token) => token + 1);
+  }
+
+  function handleOfferingSearch(offeringId: number) {
+    setAppliedOfferingId(offeringId);
+    setAppliedSearch('');
+    setSearchInput('');
   }
 
   function handleStageChange(stage: OnboardingStepId) {
     setActiveStage(stage);
     setAppliedSearch('');
     setSearchInput('');
+    clearOfferingSearch();
   }
 
   function handleSearchInputChange(value: string) {
@@ -159,10 +178,11 @@ export function TutorsPage() {
   const { data, loading, error } = useQuery<AdminTutorsData>(GET_ADMIN_TUTORS, {
     variables: {
       input: {
-        certificationStage: isUniversalSearch ? null : activeStage,
+        certificationStage: showStageColumn ? null : activeStage,
         page,
         pageSize: PAGE_SIZE,
         search: isUniversalSearch ? searchArg : undefined,
+        offeringId: isOfferingSearch ? appliedOfferingId : undefined,
       },
     },
     fetchPolicy: 'cache-and-network',
@@ -185,10 +205,10 @@ export function TutorsPage() {
   const items = result?.items ?? [];
   const totalPages = result?.totalPages ?? 0;
   const totalCount = result?.totalCount ?? 0;
-  const activeHeaderStyle = isUniversalSearch
+  const activeHeaderStyle = showStageColumn
     ? UNIVERSAL_SEARCH_HEADER_STYLE
     : STAGE_HEADER_STYLES[activeStage];
-  const activePanelStyle = isUniversalSearch
+  const activePanelStyle = showStageColumn
     ? UNIVERSAL_SEARCH_PANEL_STYLE
     : ACTIVE_PANEL_STYLES[activeStage];
 
@@ -197,7 +217,7 @@ export function TutorsPage() {
       <div className="rounded-2xl border border-primary/10 bg-gradient-to-r from-primary/5 via-sky-50/80 to-violet-50/80 px-6 py-5">
         <h1 className="text-2xl font-semibold text-primary">Tutors</h1>
         <p className="mt-1 text-sm text-muted">
-          Browse tutors by onboarding stage. Search by name, email, or mobile.
+          Browse tutors by onboarding stage. Search by name, email, or mobile, or by offering.
         </p>
       </div>
 
@@ -245,6 +265,7 @@ export function TutorsPage() {
           <select
             id="tutor-stage"
             value={activeStage}
+            disabled={isOfferingSearch}
             onChange={(e) => handleStageChange(e.target.value as OnboardingStepId)}
             className={SELECT_CLASS_NAME}
           >
@@ -262,6 +283,13 @@ export function TutorsPage() {
         </div>
       </div>
 
+      <TutorOfferingSearch
+        resetToken={offeringResetToken}
+        active={isOfferingSearch}
+        onSearch={handleOfferingSearch}
+        onClear={clearOfferingSearch}
+      />
+
       <div
         className={`mt-6 overflow-hidden rounded-xl border bg-white shadow-md ${activePanelStyle}`}
       >
@@ -277,7 +305,13 @@ export function TutorsPage() {
           </p>
         )}
 
-        {!loading && !error && items.length === 0 && (
+        {!loading && !error && isOfferingSearch && (
+          <p className="border-b border-slate-100 bg-gradient-to-r from-purple-50/70 to-white px-4 py-3 text-sm font-medium text-primary">
+            {totalCount} tutor{totalCount === 1 ? '' : 's'} passed the proficiency test for this offering.
+          </p>
+        )}
+
+        {!loading && !error && items.length === 0 && !isOfferingSearch && (
           <p className="bg-gradient-to-r from-gray-50 to-slate-50 p-6 text-sm text-muted">
             {isUniversalSearch
               ? 'No tutors match your search.'
@@ -296,16 +330,15 @@ export function TutorsPage() {
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Email</th>
                   <th className="px-4 py-3">Mobile</th>
-                  {isUniversalSearch && <th className="px-4 py-3">Stage</th>}
+                  {showStageColumn && <th className="px-4 py-3">Stage</th>}
                   <th className="px-4 py-3">Days in stage</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((tutor, index) => {
-                  const needsReview =
-                    isUniversalSearch
-                      ? tutor.pendingAdminDocumentReview
-                      : activeStage === 'docs' && tutor.pendingAdminDocumentReview;
+                  const needsReview = showStageColumn
+                    ? tutor.pendingAdminDocumentReview
+                    : activeStage === 'docs' && tutor.pendingAdminDocumentReview;
 
                   return (
                   <tr
@@ -349,7 +382,7 @@ export function TutorsPage() {
                         tutor.mobileNumber,
                       )}
                     </td>
-                    {isUniversalSearch && (
+                    {showStageColumn && (
                       <td className="px-4 py-3 text-muted">
                         {getStageTitle(tutor.certificationStage)}
                       </td>

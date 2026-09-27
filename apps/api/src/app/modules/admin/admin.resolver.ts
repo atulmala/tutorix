@@ -75,7 +75,8 @@ export class AdminResolver {
   }
 
   @Query(() => AdminTutorListResult, {
-    description: 'Paginated tutors filtered by onboarding stage (admin only)',
+    description:
+      'Paginated tutors filtered by onboarding stage, or by tutors who passed the proficiency test for an offering (admin only)',
   })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)

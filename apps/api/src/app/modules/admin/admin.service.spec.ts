@@ -5,7 +5,13 @@ import { User } from '../auth/entities/user.entity';
 import { Tutor } from '../tutor/entities/tutor.entity';
 import { Student } from '../student/entities/student.entity';
 import { UserRole } from '../auth/enums/user-role.enum';
-import { TutorCertificationStageEnum } from '../tutor/enums/tutor.enums';
+import {
+  TutorCertificationStageEnum,
+  TutorOfferingStatusEnum,
+} from '../tutor/enums/tutor.enums';
+import { StudentDetailService } from '../student/services/student-detail.service';
+import { PlatformFeeService } from '../platform-fee/services/platform-fee.service';
+import { RegistrationSettingsService } from '../registration-settings/services/registration-settings.service';
 import { StudentOnboardingStageEnum } from '../student/enums/student.enums';
 import { SessionService } from '../auth/services/session.service';
 import { DocumentScreeningService } from '../document/services/document-screening.service';
@@ -114,6 +120,20 @@ describe('AdminService', () => {
         { provide: DocumentScreeningService, useValue: documentScreeningService },
         { provide: ProficiencyTestService, useValue: proficiencyTestService },
         { provide: OfferingService, useValue: offeringService },
+        { provide: StudentDetailService, useValue: { getStudentDetail: jest.fn() } },
+        {
+          provide: PlatformFeeService,
+          useValue: {
+            findAll: jest.fn(),
+            updateConfig: jest.fn(),
+            getDiscountAmountInr: jest.fn(),
+            getEffectiveAmountInr: jest.fn(),
+          },
+        },
+        {
+          provide: RegistrationSettingsService,
+          useValue: { getSettings: jest.fn(), updateSettings: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -296,6 +316,34 @@ describe('AdminService', () => {
         id: 21,
         pendingAdminDocumentReview: false,
       });
+    });
+
+    it('lists tutors who passed the proficiency test for an offering across stages', async () => {
+      const qb = createQueryBuilderMock();
+      qb.getManyAndCount.mockResolvedValue([[], 0]);
+      tutorRepo.createQueryBuilder.mockReturnValue(qb);
+
+      await service.listTutors({
+        offeringId: 42,
+        certificationStage: TutorCertificationStageEnum.complete,
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(qb.innerJoin).toHaveBeenCalledWith(
+        'tutor.tutorOfferings',
+        'tutorOffering',
+        'tutorOffering.offeringId = :offeringId AND tutorOffering.status = :offeringStatus AND tutorOffering.deleted = :offeringDeleted',
+        {
+          offeringId: 42,
+          offeringStatus: TutorOfferingStatusEnum.pt_passed,
+          offeringDeleted: false,
+        },
+      );
+      expect(qb.andWhere).not.toHaveBeenCalledWith(
+        'tutor.certificationStage = :stage',
+        expect.anything(),
+      );
     });
   });
 

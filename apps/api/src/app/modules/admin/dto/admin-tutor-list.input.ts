@@ -26,4 +26,13 @@ export class AdminTutorListInput {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @Field(() => Int, {
+    nullable: true,
+    description:
+      'When set, return tutors who passed the proficiency test for this offering, across all onboarding stages.',
+  })
+  @IsOptional()
+  @IsInt()
+  offeringId?: number;
 }
