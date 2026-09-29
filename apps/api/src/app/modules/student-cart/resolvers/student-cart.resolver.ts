@@ -9,11 +9,14 @@ import { RolesGuard } from '../../auth/guards/roles.guard';
 import { WalletService } from '../../wallet/services/wallet.service';
 import { ClassSessionDeliveryModeEnum } from '../../tutor-class-session/enums/class-session-delivery-mode.enum';
 import {
+  CancelClassCreditsResult,
   CartCheckoutPreviewDto,
   ScheduleClassCreditResult,
   StudentCartDto,
   StudentClassCreditDto,
 } from '../dto/student-cart.dto';
+import { ClassCreditRefundMethodEnum } from '../enums/class-credit-refund-method.enum';
+import { ClassCreditCancellationService } from '../services/class-credit-cancellation.service';
 import { StudentCartService } from '../services/student-cart.service';
 import { StudentClassCreditService } from '../services/student-class-credit.service';
 
@@ -22,6 +25,7 @@ export class StudentCartResolver {
   constructor(
     private readonly cartService: StudentCartService,
     private readonly creditService: StudentClassCreditService,
+    private readonly cancellationService: ClassCreditCancellationService,
     private readonly walletService: WalletService,
   ) {}
 
@@ -110,5 +114,17 @@ export class StudentCartResolver {
     @Args('tutorCalendarId', { type: () => ID }) tutorCalendarId: number,
   ): Promise<ScheduleClassCreditResult> {
     return this.creditService.reschedule(user, creditId, tutorCalendarId);
+  }
+
+  @Mutation(() => CancelClassCreditsResult, { name: 'cancelClassCredits' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  cancelClassCredits(
+    @CurrentUser() user: User,
+    @Args('creditIds', { type: () => [ID] }) creditIds: Array<string | number>,
+    @Args('refundMethod', { type: () => ClassCreditRefundMethodEnum })
+    refundMethod: ClassCreditRefundMethodEnum,
+  ): Promise<CancelClassCreditsResult> {
+    return this.cancellationService.cancel(user, creditIds, refundMethod);
   }
 }

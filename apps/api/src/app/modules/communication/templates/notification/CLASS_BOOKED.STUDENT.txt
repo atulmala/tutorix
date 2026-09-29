@@ -1,4 +1,4 @@
 ---
-title: Class booked
+title: Classes booked
 ---
-{{offeringName}} with {{tutorName}} on {{classTime}}.
+You booked {{classCount}} classes. Amount paid {{amountPaid}}.

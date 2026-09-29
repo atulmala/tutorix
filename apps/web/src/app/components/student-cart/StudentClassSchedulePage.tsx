@@ -9,16 +9,19 @@ import { StudentTutorBookingPage } from '../student-tutor-booking/StudentTutorBo
 import type { StudentClassCredit } from './StudentClassCreditsPage';
 
 type StudentClassSchedulePageProps = {
-  credit: StudentClassCredit;
+  credits: StudentClassCredit[];
   onScheduled: () => void;
 };
 
 export const StudentClassSchedulePage: React.FC<StudentClassSchedulePageProps> = ({
-  credit,
+  credits,
   onScheduled,
 }) => {
+  const [index, setIndex] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const isReschedule = credit.status === 'scheduled';
+  const credit = credits[Math.min(index, credits.length - 1)];
+  const remaining = credits.length - index;
+  const isReschedule = credit?.status === 'scheduled';
   const [scheduleCredit, { loading: scheduling }] = useMutation(SCHEDULE_CLASS_CREDIT, {
     refetchQueries: [{ query: MY_CLASS_CREDITS }],
   });
@@ -29,10 +32,20 @@ export const StudentClassSchedulePage: React.FC<StudentClassSchedulePageProps> =
     },
   );
 
+  if (!credit) {
+    return null;
+  }
+
   return (
     <div className="w-full max-w-xl space-y-3">
       {errorMessage ? <p className="text-sm text-danger">{errorMessage}</p> : null}
+      {!isReschedule && credits.length > 1 ? (
+        <p className="text-sm font-semibold text-[#143055]">
+          {remaining} {remaining === 1 ? 'class' : 'classes'} left to schedule
+        </p>
+      ) : null}
       <StudentTutorBookingPage
+        key={credit.id}
         tutorId={String(credit.tutorId)}
         offeringId={String(credit.offeringId)}
         lockedDeliveryMode={credit.deliveryMode}
@@ -57,7 +70,11 @@ export const StudentClassSchedulePage: React.FC<StudentClassSchedulePageProps> =
               } else {
                 await scheduleCredit({ variables });
               }
-              onScheduled();
+              if (index + 1 < credits.length) {
+                setIndex(index + 1);
+              } else {
+                onScheduled();
+              }
             } catch (error) {
               setErrorMessage(
                 error instanceof Error ? error.message : 'Could not save this slot.',

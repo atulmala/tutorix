@@ -3,6 +3,12 @@ import { EmailPurpose } from './enums/email-purpose.enum';
 
 export type EmailProviderKind = 'ses' | 'console';
 
+export type EmailAttachment = {
+  filename: string;
+  contentType: string;
+  content: Buffer;
+};
+
 export type SendEmailInput = {
   to: string;
   subject: string;
@@ -13,6 +19,7 @@ export type SendEmailInput = {
   recipientName?: string | null;
   recipientRole?: UserRole | null;
   tags?: Record<string, string>;
+  attachments?: EmailAttachment[];
 };
 
 export type SendEmailResult = {

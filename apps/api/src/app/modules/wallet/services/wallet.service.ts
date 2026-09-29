@@ -107,38 +107,57 @@ export class WalletService {
   }
 
   async creditTopUp(params: WalletCreditParams): Promise<UserWalletEntity> {
-    return this.dataSource.transaction(async (manager) => {
-      const wallet = await manager
-        .getRepository(UserWalletEntity)
-        .createQueryBuilder('wallet')
-        .setLock('pessimistic_write')
-        .where('wallet.user_id = :userId', { userId: params.userId })
-        .andWhere('wallet.deleted = false')
-        .getOne();
+    return this.dataSource.transaction((manager) =>
+      this.creditWithManager(manager, params, WalletTransactionTypeEnum.top_up_credit),
+    );
+  }
 
-      if (!wallet) {
-        throw new NotFoundException('Wallet not found');
-      }
+  async creditClassRefundWithManager(
+    manager: EntityManager,
+    params: WalletCreditParams,
+  ): Promise<UserWalletEntity> {
+    return this.creditWithManager(
+      manager,
+      params,
+      WalletTransactionTypeEnum.class_refund_credit,
+    );
+  }
 
-      wallet.balanceInr += params.amountInr;
-      const savedWallet = await manager.getRepository(UserWalletEntity).save(wallet);
+  private async creditWithManager(
+    manager: EntityManager,
+    params: WalletCreditParams,
+    type: WalletTransactionTypeEnum,
+  ): Promise<UserWalletEntity> {
+    const wallet = await manager
+      .getRepository(UserWalletEntity)
+      .createQueryBuilder('wallet')
+      .setLock('pessimistic_write')
+      .where('wallet.user_id = :userId', { userId: params.userId })
+      .andWhere('wallet.deleted = false')
+      .getOne();
 
-      await manager.getRepository(WalletTransactionEntity).save(
-        manager.getRepository(WalletTransactionEntity).create({
-          walletId: savedWallet.id,
-          userId: params.userId,
-          type: WalletTransactionTypeEnum.top_up_credit,
-          amountInr: params.amountInr,
-          balanceAfterInr: savedWallet.balanceInr,
-          commerceOrderId: params.commerceOrderId,
-          referenceType: params.referenceType,
-          referenceId: params.referenceId,
-          description: params.description,
-        }),
-      );
+    if (!wallet) {
+      throw new NotFoundException('Wallet not found');
+    }
 
-      return savedWallet;
-    });
+    wallet.balanceInr += params.amountInr;
+    const savedWallet = await manager.getRepository(UserWalletEntity).save(wallet);
+
+    await manager.getRepository(WalletTransactionEntity).save(
+      manager.getRepository(WalletTransactionEntity).create({
+        walletId: savedWallet.id,
+        userId: params.userId,
+        type,
+        amountInr: params.amountInr,
+        balanceAfterInr: savedWallet.balanceInr,
+        commerceOrderId: params.commerceOrderId,
+        referenceType: params.referenceType,
+        referenceId: params.referenceId,
+        description: params.description,
+      }),
+    );
+
+    return savedWallet;
   }
 
   async debitPurchase(params: WalletDebitParams): Promise<UserWalletEntity> {

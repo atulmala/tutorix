@@ -1,5 +1,5 @@
 ---
 whatsappTemplateName: 
-variableMapping: {"tutorName":"1","studentName":"2"}
+variableMapping: {"studentName":"1","classCount":"2","amountPaid":"3"}
 ---
-Hi {{studentName}}, your {{offeringName}} class with {{tutorName}} is booked for {{classTime}}.
+Hi {{studentName}}, you booked {{classCount}} classes. Amount paid {{amountPaid}}.

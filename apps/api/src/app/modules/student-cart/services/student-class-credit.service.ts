@@ -34,6 +34,8 @@ import { ClassSessionStatusEnum } from '../../tutor-class-session/enums/class-se
 import { TutorOfferingEntity } from '../../tutor/entities/tutor-offering.entity';
 import { OfferingService } from '../../offerings/services/offering.service';
 import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
+import { orderItemPaidInrPerCredit } from '../admin-class-booking-order-item.util';
+import { buildClassScheduleTable } from '../class-booking-email-table.util';
 import {
   offeringsByIdFromCatalog,
   resolveStudentCartOfferingDisplay,
@@ -146,6 +148,7 @@ export class StudentClassCreditService {
         'enrollment',
         'enrollment.session',
         'enrollment.session.tutorCalendar',
+        'orderItem',
       ],
       order: { id: 'ASC' },
     });
@@ -312,15 +315,17 @@ export class StudentClassCreditService {
       };
     });
 
-    await this.emitClassBooked({
+    await this.emitClassScheduled({
       studentUserId: user.id,
       tutorUserId: tutorOffering.tutor?.userId ?? tutorOffering.tutor?.user?.id,
       studentName: personName(student.user) || 'Student',
       tutorName: personName(tutorOffering.tutor?.user) || 'Tutor',
       offeringName: result.offeringName,
+      deliveryMode: credit.deliveryMode,
       startsAt: result.slot.startsAt,
       durationMinutes: result.slot.durationMinutes,
       sessionId: result.session.id,
+      isReschedule: allowReschedule,
     });
 
     return {
@@ -397,6 +402,9 @@ export class StudentClassCreditService {
       status: row.status,
       enrollmentId: row.enrollmentId ?? null,
       startsAt,
+      refundableInr: row.orderItem
+        ? orderItemPaidInrPerCredit(row.orderItem)
+        : 0,
     };
   }
 
@@ -411,45 +419,78 @@ export class StudentClassCreditService {
     return student;
   }
 
-  private async emitClassBooked(params: {
+  private async emitClassScheduled(params: {
     studentUserId: number;
     tutorUserId?: number | null;
     studentName: string;
     tutorName: string;
     offeringName: string;
+    deliveryMode: string;
     startsAt: Date;
     durationMinutes: number;
     sessionId: number;
+    isReschedule: boolean;
   }): Promise<void> {
     const classTime = `${formatIstBookingDateLabel(params.startsAt)} ${formatIstBookingTimeRange(params.startsAt, params.durationMinutes)}`;
-    const payload = {
+    const studentHeadline = params.isReschedule
+      ? 'Your class was rescheduled'
+      : 'Your class is scheduled';
+    const tutorHeadline = params.isReschedule
+      ? 'A class with you was rescheduled'
+      : 'A class is scheduled with you';
+    const studentTable = buildClassScheduleTable({
+      counterpartLabel: 'Tutor',
+      counterpartName: params.tutorName,
+      offeringLabel: params.offeringName,
+      deliveryMode: params.deliveryMode,
+      classTime,
+    });
+    const tutorTable = buildClassScheduleTable({
+      counterpartLabel: 'Student',
+      counterpartName: params.studentName,
+      offeringLabel: params.offeringName,
+      deliveryMode: params.deliveryMode,
+      classTime,
+    });
+    const shared = {
       tutorName: params.tutorName,
       studentName: params.studentName,
       offeringName: params.offeringName,
+      deliveryMode: params.deliveryMode,
       classTime,
     };
     try {
       await this.communicationService.emit({
-        event: CommunicationEvent.CLASS_BOOKED,
+        event: CommunicationEvent.CLASS_SCHEDULED,
         userId: params.studentUserId,
         audience: CommunicationAudience.STUDENT,
-        entityType: 'class_session',
+        entityType: params.isReschedule ? 'class_session_reschedule' : 'class_session',
         entityId: params.sessionId,
-        payload,
+        payload: {
+          ...shared,
+          headline: studentHeadline,
+          linesHtml: studentTable.html,
+          linesText: studentTable.text,
+        },
       });
       if (params.tutorUserId) {
         await this.communicationService.emit({
-          event: CommunicationEvent.CLASS_BOOKED,
+          event: CommunicationEvent.CLASS_SCHEDULED,
           userId: params.tutorUserId,
           audience: CommunicationAudience.TUTOR,
-          entityType: 'class_session',
+          entityType: params.isReschedule ? 'class_session_reschedule' : 'class_session',
           entityId: params.sessionId,
-          payload,
+          payload: {
+            ...shared,
+            headline: tutorHeadline,
+            linesHtml: tutorTable.html,
+            linesText: tutorTable.text,
+          },
         });
       }
     } catch (error) {
       this.logger.warn(
-        `CLASS_BOOKED emit failed for session ${params.sessionId}: ${
+        `CLASS_SCHEDULED emit failed for session ${params.sessionId}: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );

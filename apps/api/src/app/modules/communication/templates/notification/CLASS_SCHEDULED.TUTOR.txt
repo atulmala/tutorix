@@ -1,0 +1,4 @@
+---
+title: {{headline}}
+---
+{{studentName}} · {{offeringName}} on {{classTime}}.

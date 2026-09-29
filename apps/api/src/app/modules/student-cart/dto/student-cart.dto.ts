@@ -1,5 +1,6 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
 import { ClassSessionDeliveryModeEnum } from '../../tutor-class-session/enums/class-session-delivery-mode.enum';
+import { ClassCreditRefundMethodEnum } from '../enums/class-credit-refund-method.enum';
 import { ClassCreditStatusEnum } from '../enums/class-credit-status.enum';
 
 @ObjectType()
@@ -102,6 +103,24 @@ export class StudentClassCreditDto {
 
   @Field(() => Date, { nullable: true })
   startsAt?: Date | null;
+
+  @Field(() => Int)
+  refundableInr!: number;
+}
+
+@ObjectType()
+export class CancelClassCreditsResult {
+  @Field(() => Int)
+  cancelledCount!: number;
+
+  @Field(() => Int)
+  amountInr!: number;
+
+  @Field(() => ClassCreditRefundMethodEnum)
+  refundMethod!: ClassCreditRefundMethodEnum;
+
+  @Field(() => Int, { nullable: true })
+  walletBalanceInr?: number | null;
 }
 
 @ObjectType()

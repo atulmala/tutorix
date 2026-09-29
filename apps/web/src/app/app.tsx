@@ -65,7 +65,7 @@ function AppContent() {
     tutorId: string;
     offeringId: string;
   } | null>(null);
-  const [scheduleCredit, setScheduleCredit] = useState<StudentClassCredit | null>(null);
+  const [scheduleCredits, setScheduleCredits] = useState<StudentClassCredit[] | null>(null);
   const [resumeUserId, setResumeUserId] = useState<number | undefined>(undefined);
   const [resumeVerificationStatus, setResumeVerificationStatus] = useState<
     | {
@@ -520,7 +520,7 @@ function AppContent() {
             }}
             onScheduleCredits={() => setCurrentView('student-class-credits')}
             onRescheduleCredit={(credit) => {
-              setScheduleCredit(credit);
+              setScheduleCredits([credit]);
               setCurrentView('student-class-schedule');
             }}
           />
@@ -580,8 +580,8 @@ function AppContent() {
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
           <StudentClassCreditsPage
-            onSchedule={(credit) => {
-              setScheduleCredit(credit);
+            onSchedule={(credits) => {
+              setScheduleCredits(credits);
               setCurrentView('student-class-schedule');
             }}
           />
@@ -590,7 +590,7 @@ function AppContent() {
     );
   }
 
-  if (currentView === 'student-class-schedule' && scheduleCredit) {
+  if (currentView === 'student-class-schedule' && scheduleCredits?.length) {
     return (
       <div className="min-h-screen bg-subtle text-primary">
         <AppHeader
@@ -602,9 +602,9 @@ function AppContent() {
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
           <StudentClassSchedulePage
-            credit={scheduleCredit}
+            credits={scheduleCredits}
             onScheduled={() => {
-              setScheduleCredit(null);
+              setScheduleCredits(null);
               setCurrentView('student-home');
             }}
           />

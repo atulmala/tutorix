@@ -1,13 +1,16 @@
 ---
-subject: Your class with {{tutorName}} is booked
-text: Hi {{studentName}}, your {{offeringName}} class with {{tutorName}} is booked for {{classTime}}.
+subject: Your classes are booked
+text: Hi {{studentName}}, you booked {{classCount}} classes. Amount paid: {{amountPaid}}.
+
+{{linesText}}
 ---
 <!DOCTYPE html>
 <html>
   <body style="font-family: Arial, Helvetica, sans-serif; color: #111827; line-height: 1.5;">
     <p>Hi {{studentName}},</p>
-    <p>Your <strong>{{offeringName}}</strong> class with {{tutorName}} is booked for {{classTime}}.</p>
-    <p>Open the Tutorix app to view details.</p>
+    <p>Your class booking is confirmed. You booked <strong>{{classCount}}</strong> classes. Amount paid: <strong>{{amountPaid}}</strong>.</p>
+    {{{linesHtml}}}
+    <p>Your invoice is attached.</p>
     <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">— Tutorix</p>
   </body>
 </html>

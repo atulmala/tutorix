@@ -66,6 +66,7 @@ export const MY_CLASS_CREDITS = gql`
       status
       enrollmentId
       startsAt
+      refundableInr
     }
   }
 `;

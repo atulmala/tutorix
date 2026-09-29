@@ -48,6 +48,17 @@ export const SCHEDULE_CLASS_CREDIT = gql`
   }
 `;
 
+export const CANCEL_CLASS_CREDITS = gql`
+  mutation CancelClassCredits($creditIds: [ID!]!, $refundMethod: ClassCreditRefundMethod!) {
+    cancelClassCredits(creditIds: $creditIds, refundMethod: $refundMethod) {
+      cancelledCount
+      amountInr
+      refundMethod
+      walletBalanceInr
+    }
+  }
+`;
+
 export const RESCHEDULE_CLASS_CREDIT = gql`
   mutation RescheduleClassCredit($creditId: ID!, $tutorCalendarId: ID!) {
     rescheduleClassCredit(creditId: $creditId, tutorCalendarId: $tutorCalendarId) {

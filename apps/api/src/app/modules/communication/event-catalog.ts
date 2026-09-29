@@ -23,6 +23,31 @@ export type CatalogEntry = {
 const OTP_VARS = ['firstName', 'otp', 'expiryMinutes'];
 const WALLET_VARS = ['firstName', 'amountInr', 'balanceInr'];
 const CLASS_VARS = ['tutorName', 'studentName', 'offeringName', 'classTime'];
+const BOOKING_STUDENT_VARS = [
+  'studentName',
+  'classCount',
+  'amountPaid',
+  'orderNumber',
+  'linesHtml',
+  'linesText',
+];
+const BOOKING_TUTOR_VARS = [
+  'tutorName',
+  'studentName',
+  'classCount',
+  'linesHtml',
+  'linesText',
+];
+const SCHEDULE_VARS = [
+  'tutorName',
+  'studentName',
+  'offeringName',
+  'deliveryMode',
+  'classTime',
+  'headline',
+  'linesHtml',
+  'linesText',
+];
 const REMINDER_VARS = [...CLASS_VARS, 'minutesUntil'];
 const DOCS_UPLOADED_VARS = ['firstName'];
 const DOCS_PASSED_VARS = ['firstName'];
@@ -73,7 +98,7 @@ export const COMMUNICATION_CATALOG: CatalogEntry[] = [
     audience: CommunicationAudience.STUDENT,
     mandatory: false,
     defaultChannels: { ...NONE, email: true, push: true },
-    allowedVariables: CLASS_VARS,
+    allowedVariables: BOOKING_STUDENT_VARS,
     label: 'Class booked (student)',
   },
   {
@@ -81,8 +106,24 @@ export const COMMUNICATION_CATALOG: CatalogEntry[] = [
     audience: CommunicationAudience.TUTOR,
     mandatory: false,
     defaultChannels: { ...NONE, email: true, push: true },
-    allowedVariables: CLASS_VARS,
+    allowedVariables: BOOKING_TUTOR_VARS,
     label: 'Class booked (tutor)',
+  },
+  {
+    event: CommunicationEvent.CLASS_SCHEDULED,
+    audience: CommunicationAudience.STUDENT,
+    mandatory: false,
+    defaultChannels: { ...NONE, email: true, push: true },
+    allowedVariables: SCHEDULE_VARS,
+    label: 'Class scheduled (student)',
+  },
+  {
+    event: CommunicationEvent.CLASS_SCHEDULED,
+    audience: CommunicationAudience.TUTOR,
+    mandatory: false,
+    defaultChannels: { ...NONE, email: true, push: true },
+    allowedVariables: SCHEDULE_VARS,
+    label: 'Class scheduled (tutor)',
   },
   {
     event: CommunicationEvent.CLASS_STARTING_SOON,
@@ -197,10 +238,24 @@ export function samplePayload(event: CommunicationEvent): Record<string, string>
       return { firstName: 'Ada', amountInr: '500', balanceInr: '1500' };
     case CommunicationEvent.CLASS_BOOKED:
       return {
+        studentName: 'Ada Lovelace',
+        tutorName: 'Priya Sharma',
+        classCount: '4',
+        amountPaid: '₹2,000',
+        orderNumber: 'ORD-1',
+        linesHtml: '<table><tr><td>Mathematics</td></tr></table>',
+        linesText: 'Mathematics | Offline | 4 | ₹2,000',
+      };
+    case CommunicationEvent.CLASS_SCHEDULED:
+      return {
         tutorName: 'Priya Sharma',
         studentName: 'Ada Lovelace',
         offeringName: 'Class 10 Maths',
-        classTime: 'Mon 18 Aug, 5:00 PM',
+        deliveryMode: 'Online',
+        classTime: 'Mon 18 Aug, 5:00–6:00 PM',
+        headline: 'Your class is scheduled',
+        linesHtml: '<table><tr><td>Class 10 Maths</td></tr></table>',
+        linesText: 'Priya Sharma | Class 10 Maths | Online | Mon 18 Aug, 5:00–6:00 PM',
       };
     case CommunicationEvent.CLASS_STARTING_SOON:
       return {

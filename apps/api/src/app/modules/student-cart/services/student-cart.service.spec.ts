@@ -3,6 +3,8 @@ import { UserRole } from '../../auth/enums/user-role.enum';
 import { WalletPurchaseReferenceTypeEnum } from '../../wallet/enums/wallet.enums';
 import { ClassSessionDeliveryModeEnum } from '../../tutor-class-session/enums/class-session-delivery-mode.enum';
 import { AddressType } from '../../address/enums/address-type.enum';
+import { CommunicationAudience } from '../../communication/enums/communication-audience.enum';
+import { CommunicationEvent } from '../../communication/enums/communication-event.enum';
 import { StudentCartService } from './student-cart.service';
 
 const nearbyStudentAddresses = [
@@ -33,7 +35,8 @@ describe('StudentCartService', () => {
       id: 3,
       deleted: false,
       onBoardingComplete: true,
-      user: { firstName: 'Priya', lastName: 'Sharma' },
+      userId: 4,
+      user: { id: 4, firstName: 'Priya', lastName: 'Sharma' },
       addresses: nearbyTutorAddresses,
     },
     offering: { displayName: 'Mathematics' },
@@ -59,6 +62,7 @@ describe('StudentCartService', () => {
   let debitPurchase: jest.Mock;
   let generateInvoice: jest.Mock;
   let fulfillPaidOrder: jest.Mock;
+  let emit: jest.Mock;
   let getWallet: jest.Mock;
   let cart: {
     id: number;
@@ -106,13 +110,26 @@ describe('StudentCartService', () => {
     });
     createOrder = jest.fn().mockResolvedValue({ id: 40, orderNumber: 'ORD-1' });
     debitPurchase = jest.fn().mockResolvedValue({ balanceInr: 100 });
-    generateInvoice = jest.fn();
+    generateInvoice = jest.fn().mockResolvedValue({
+      invoice: { invoiceNumber: 'INV-1' },
+      pdfBuffer: Buffer.from('pdf-bytes'),
+    });
     fulfillPaidOrder = jest.fn();
+    emit = jest.fn().mockResolvedValue(undefined);
     getWallet = jest.fn().mockResolvedValue({ balanceInr: 5000 });
 
     service = new StudentCartService(
       { findByUserId: findStudent } as never,
-      { findByTutorOfferingId: findRateCard } as never,
+      {
+        findByTutorOfferingId: findRateCard,
+        resolveCompleteRateCards: jest.fn(async (offerings: Array<{ id: number }>) => {
+          const map = new Map<number, typeof rateCard>();
+          for (const offering of offerings) {
+            map.set(offering.id, rateCard);
+          }
+          return map;
+        }),
+      } as never,
       { findActiveTestForOffering: jest.fn().mockResolvedValue(null) } as never,
       {
         getWalletForUser: getWallet,
@@ -126,7 +143,7 @@ describe('StudentCartService', () => {
         markOrderPaid: jest.fn(),
         findById: jest.fn().mockResolvedValue({ id: 40, items: [] }),
       } as never,
-      { generateForOrder: generateInvoice } as never,
+      { generateForOrderWithPdf: generateInvoice } as never,
       { fulfillPaidOrder } as never,
       {
         findOne: cartFindOne,
@@ -140,6 +157,7 @@ describe('StudentCartService', () => {
       } as never,
       { findOne: offeringFindOne } as never,
       { findAll: jest.fn().mockResolvedValue([]) } as never,
+      { emit } as never,
     );
   });
 
@@ -264,6 +282,33 @@ describe('StudentCartService', () => {
     expect(generateInvoice).toHaveBeenCalledTimes(1);
     expect(itemDelete).toHaveBeenCalledWith({ cartId: 5 });
     expect(result.orderNumber).toBe('ORD-1');
+    expect(emit).toHaveBeenCalledTimes(2);
+    const studentMail = emit.mock.calls.find(
+      (call) => call[0].audience === CommunicationAudience.STUDENT,
+    )?.[0];
+    const tutorMail = emit.mock.calls.find(
+      (call) => call[0].audience === CommunicationAudience.TUTOR,
+    )?.[0];
+    expect(studentMail).toMatchObject({
+      event: CommunicationEvent.CLASS_BOOKED,
+      userId: 9,
+      entityId: 40,
+    });
+    expect(studentMail.emailAttachments).toEqual([
+      expect.objectContaining({
+        filename: 'invoice-INV-1.pdf',
+        contentType: 'application/pdf',
+      }),
+    ]);
+    expect(studentMail.payload.linesHtml).toContain('Priya Sharma');
+    expect(studentMail.payload.linesHtml).toContain('₹2,000');
+    expect(tutorMail).toMatchObject({
+      event: CommunicationEvent.CLASS_BOOKED,
+      userId: 4,
+    });
+    expect(tutorMail.emailAttachments).toBeUndefined();
+    expect(tutorMail.payload.linesHtml).toContain('Mathematics');
+    expect(tutorMail.payload.linesHtml).not.toContain('₹');
   });
 
   it('leaves the cart intact when the wallet cannot cover the total', async () => {

@@ -132,7 +132,7 @@ function AppContent() {
     tutorId: string;
     offeringId: string;
   } | null>(null);
-  const [scheduleCredit, setScheduleCredit] = useState<StudentClassCredit | null>(null);
+  const [scheduleCredits, setScheduleCredits] = useState<StudentClassCredit[] | null>(null);
   const [tutorSearchParams, setTutorSearchParams] =
     useState<StudentTutorSearchParams | null>(null);
   const [signupResume, setSignupResume] = useState<{
@@ -511,7 +511,7 @@ function AppContent() {
           onOpenTutorSearch={() => setCurrentView('studentTutorSearch')}
           onScheduleCredits={() => setCurrentView('studentClassCredits')}
           onRescheduleCredit={(credit) => {
-            setScheduleCredit(credit);
+            setScheduleCredits([credit]);
             setCurrentView('studentClassSchedule');
           }}
         />
@@ -600,14 +600,14 @@ function AppContent() {
           onOpenCart={openStudentCart}
         />
         <StudentClassCreditsScreen
-          onSchedule={(credit) => {
-            setScheduleCredit(credit);
+          onSchedule={(credits) => {
+            setScheduleCredits(credits);
             setCurrentView('studentClassSchedule');
           }}
         />
       </View>
     );
-  } else if (currentView === 'studentClassSchedule' && scheduleCredit) {
+  } else if (currentView === 'studentClassSchedule' && scheduleCredits?.length) {
     screen = (
       <View style={{ flex: 1 }}>
         <StudentNavHeader
@@ -618,9 +618,9 @@ function AppContent() {
           onOpenWallet={() => handleOpenWallet('studentHome')}
         />
         <StudentClassScheduleScreen
-          credit={scheduleCredit}
+          credits={scheduleCredits}
           onScheduled={() => {
-            setScheduleCredit(null);
+            setScheduleCredits(null);
             setCurrentView('studentHome');
           }}
         />
