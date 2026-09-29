@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
-import { ADD_TO_CART, MY_CART, TUTOR_SEARCH_DETAIL } from '@tutorix/shared-graphql';
 import {
-  formatExperienceDuration,
+  ADD_TO_CART,
+  BOOK_FREE_DEMO,
+  MY_CART,
+  MY_CLASS_CREDITS,
+  TUTOR_SEARCH_DETAIL,
+} from '@tutorix/shared-graphql';
+import {
   formatExperiencePeriod,
   formatQualificationInstitutionGrade,
   formatQualificationTitle,
-  monthsToExperienceDuration,
 } from '@tutorix/shared-utils';
+import { ExperienceBadge } from '../student-home/ExperienceBadge';
 import { analytics } from '../../../lib/analytics';
 import {
   TutorSubjectPurchaseCard,
@@ -49,6 +54,12 @@ export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = (
   const [addToCart, { loading: adding }] = useMutation(ADD_TO_CART, {
     refetchQueries: [{ query: MY_CART }],
   });
+  const [bookFreeDemo, { loading: bookingDemo }] = useMutation(BOOK_FREE_DEMO, {
+    refetchQueries: [
+      { query: TUTOR_SEARCH_DETAIL, variables: { tutorId, offeringId } },
+      { query: MY_CLASS_CREDITS },
+    ],
+  });
   const [addingOfferingId, setAddingOfferingId] = useState<string | null>(null);
 
   const detail = data?.tutorSearchDetail;
@@ -79,6 +90,24 @@ export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = (
     }
   };
 
+  const handleBookDemo = async (
+    targetOfferingId: string,
+    deliveryMode: 'online' | 'offline',
+  ) => {
+    setAddingOfferingId(targetOfferingId);
+    try {
+      await bookFreeDemo({
+        variables: {
+          tutorId,
+          offeringId: targetOfferingId,
+          deliveryMode,
+        },
+      });
+    } finally {
+      setAddingOfferingId(null);
+    }
+  };
+
   if (loading) {
     return <p className="text-sm text-muted">Loading tutor…</p>;
   }
@@ -86,10 +115,6 @@ export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = (
     return <p className="text-sm text-danger">Could not load this tutor.</p>;
   }
 
-  const experience =
-    detail.totalExperienceMonths > 0
-      ? formatExperienceDuration(monthsToExperienceDuration(detail.totalExperienceMonths))
-      : '';
   const recentExperiences = (detail.recentExperiences ?? []) as PreviewExperience[];
   const topQualifications = (detail.topQualifications ?? []) as PreviewQualification[];
   const otherOfferings = (detail.otherOfferings ?? []) as PreviewOffering[];
@@ -106,8 +131,10 @@ export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = (
             </div>
           )}
           <div>
-            <h1 className="text-2xl font-bold text-primary">{detail.displayName}</h1>
-            {experience ? <p className="mt-1 text-sm text-muted">{experience}</p> : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-bold text-primary">{detail.displayName}</h1>
+              <ExperienceBadge totalExperienceMonths={detail.totalExperienceMonths} />
+            </div>
             <p className="mt-1 text-sm text-muted">
               {[detail.city, detail.distanceKm != null ? `${detail.distanceKm.toFixed(1)} km` : null]
                 .filter(Boolean)
@@ -133,8 +160,12 @@ export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = (
           defaultExpanded
           collapsible={false}
           highlight
-          adding={adding && addingOfferingId === String(detail.matchingOffering.offeringId)}
+          adding={
+            (adding || bookingDemo) &&
+            addingOfferingId === String(detail.matchingOffering.offeringId)
+          }
           onAdd={handleAdd}
+          onBookDemo={handleBookDemo}
           onViewCart={onViewCart}
         />
       </section>
@@ -155,9 +186,10 @@ export const StudentTutorPreviewPage: React.FC<StudentTutorPreviewPageProps> = (
                 distanceKm={detail.distanceKm}
                 defaultExpanded={false}
                 collapsible
-                adding={adding && addingOfferingId === String(offering.offeringId)}
-                onAdd={handleAdd}
-                onViewCart={onViewCart}
+              adding={(adding || bookingDemo) && addingOfferingId === String(offering.offeringId)}
+              onAdd={handleAdd}
+              onBookDemo={handleBookDemo}
+              onViewCart={onViewCart}
               />
             ))}
           </div>

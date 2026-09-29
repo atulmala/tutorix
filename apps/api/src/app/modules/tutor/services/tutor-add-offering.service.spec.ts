@@ -15,6 +15,7 @@ describe('TutorAddOfferingService', () => {
   let tutorOfferingFindOne: jest.Mock;
   let tutorServiceFindByUserId: jest.Mock;
   let findPendingForTutor: jest.Mock;
+  let findPassedSiblingForSamePt: jest.Mock;
   let saveForTutor: jest.Mock;
   let getFeeInfoForTutorOffering: jest.Mock;
   let findByIdForTutor: jest.Mock;
@@ -31,6 +32,7 @@ describe('TutorAddOfferingService', () => {
     tutorOfferingFindOne = jest.fn();
     tutorServiceFindByUserId = jest.fn().mockResolvedValue(onboardedTutor);
     findPendingForTutor = jest.fn().mockResolvedValue([]);
+    findPassedSiblingForSamePt = jest.fn().mockResolvedValue(null);
     saveForTutor = jest.fn().mockResolvedValue([
       { id: 99, offeringId: 5, status: TutorOfferingStatusEnum.pending_pt },
     ]);
@@ -59,6 +61,7 @@ describe('TutorAddOfferingService', () => {
           provide: TutorOfferingService,
           useValue: {
             findPendingForTutor,
+            findPassedSiblingForSamePt,
             saveForTutor,
             findByIdForTutor,
           },
@@ -104,6 +107,17 @@ describe('TutorAddOfferingService', () => {
     await expect(
       service.addMyTutorOffering(tutorUser as never, 5),
     ).rejects.toThrow(/Complete the proficiency test/);
+  });
+
+  it('allows a new offering when the only pending row already shares a cleared PT', async () => {
+    tutorOfferingFindOne.mockResolvedValue(null);
+    findPendingForTutor.mockResolvedValue([{ id: 88, proficiencyTestId: 9 }]);
+    findPassedSiblingForSamePt.mockResolvedValue({ id: 70, status: 'pt_passed' });
+
+    const result = await service.addMyTutorOffering(tutorUser as never, 5);
+
+    expect(result.tutorOffering.id).toBe(99);
+    expect(saveForTutor).toHaveBeenCalled();
   });
 
   it('creates offering with post-onboarding flags and returns pt fee info', async () => {

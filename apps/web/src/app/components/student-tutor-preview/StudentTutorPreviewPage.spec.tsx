@@ -7,7 +7,9 @@ const mockUseQuery = jest.fn();
 jest.mock('@tutorix/shared-graphql', () => ({
   TUTOR_SEARCH_DETAIL: { kind: 'detail' },
   ADD_TO_CART: { kind: 'add' },
+  BOOK_FREE_DEMO: { kind: 'demo' },
   MY_CART: { kind: 'cart' },
+  MY_CLASS_CREDITS: { kind: 'credits' },
 }));
 
 jest.mock('@apollo/client', () => ({
@@ -105,7 +107,7 @@ describe('StudentTutorPreviewPage', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Anita Sharma' })).toBeTruthy();
-    expect(screen.getByText('2 years 6 months')).toBeTruthy();
+    expect(screen.getByText('2 years 6 months experience')).toBeTruthy();
     expect(screen.getByText('Tutorix')).toBeTruthy();
     expect(screen.getByText('12 MG Road, Bengaluru')).toBeTruthy();
     expect(screen.getByText('Oak School')).toBeTruthy();
@@ -117,5 +119,56 @@ describe('StudentTutorPreviewPage', () => {
     expect(screen.getByRole('button', { name: 'Add to cart' })).toBeTruthy();
     expect(screen.getByText('Also teaches')).toBeTruthy();
     expect(screen.getByText('CBSE · Class 8 · Science')).toBeTruthy();
+  });
+
+  it('lets a student book one free demo and hides it after it is used', () => {
+    mockUseQuery.mockImplementation((query: { kind?: string }) => {
+      if (query === TUTOR_SEARCH_DETAIL) {
+        return {
+          loading: false,
+          data: {
+            tutorSearchDetail: {
+              tutorId: '1',
+              displayName: 'Anita Sharma',
+              totalExperienceMonths: 0,
+              hasAvailabilityThisWeek: false,
+              slotsThisWeek: 0,
+              recentExperiences: [],
+              topQualifications: [],
+              matchingOffering: {
+                offeringId: '30',
+                offeringLabel: 'CBSE · Class 8 · Mathematics',
+                offlineEnabled: false,
+                onlineEnabled: true,
+                freeDemoOffered: true,
+                demoAvailable: true,
+                offlinePackSlabs: [],
+                onlinePackSlabs: [],
+              },
+              otherOfferings: [
+                {
+                  offeringId: '31',
+                  offeringLabel: 'CBSE · Class 8 · Science',
+                  offlineEnabled: false,
+                  onlineEnabled: true,
+                  freeDemoOffered: true,
+                  demoAvailable: false,
+                  offlinePackSlabs: [],
+                  onlinePackSlabs: [],
+                },
+              ],
+            },
+          },
+        };
+      }
+      return { loading: false, data: null };
+    });
+
+    render(
+      <StudentTutorPreviewPage tutorId="1" offeringId="30" onViewCart={jest.fn()} />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Book free demo' })).toBeTruthy();
+    expect(screen.getByText('Free demo already booked')).toBeTruthy();
   });
 });

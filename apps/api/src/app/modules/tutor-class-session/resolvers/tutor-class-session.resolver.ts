@@ -10,6 +10,7 @@ import {
   BookTutorClassResult,
   StudentBookedClassSession,
   TutorBookableSlot,
+  TutorBookedClassSession,
 } from '../dto/tutor-class-session.dto';
 import { ClassSessionDeliveryModeEnum } from '../enums/class-session-delivery-mode.enum';
 import { TutorClassSessionService } from '../services/tutor-class-session.service';
@@ -55,6 +56,20 @@ export class TutorClassSessionResolver {
     @Args('to') to: Date,
   ): Promise<StudentBookedClassSession[]> {
     return this.classSessionService.listBookedSessions(user, from, to);
+  }
+
+  @Query(() => [TutorBookedClassSession], {
+    name: 'tutorBookedClassSessions',
+    description: 'Confirmed 1-hour classes for the signed-in tutor',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TUTOR)
+  async tutorBookedClassSessions(
+    @CurrentUser() user: User,
+    @Args('from') from: Date,
+    @Args('to') to: Date,
+  ): Promise<TutorBookedClassSession[]> {
+    return this.classSessionService.listTutorBookedSessions(user, from, to);
   }
 
   @Mutation(() => BookTutorClassResult, {

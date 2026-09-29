@@ -3,10 +3,12 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   Modal,
   ScrollView,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { useMutation, useQuery } from '@apollo/client';
 import { GET_OFFERINGS, GET_MY_TUTOR_DETAIL, GET_PLATFORM_FEE } from '@tutorix/shared-graphql/queries';
@@ -36,6 +38,72 @@ type Props = {
 
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function ScrollableOptionSheet({
+  visible,
+  title,
+  options,
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  title: string;
+  options: { key: string; label: string }[];
+  onSelect: (key: string) => void;
+  onClose: () => void;
+}) {
+  const { height } = useWindowDimensions();
+  const listMaxHeight = Math.round(height * 0.55);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.sheetWrap}>
+        <Pressable
+          style={styles.sheetBackdrop}
+          onPress={onClose}
+          accessibilityLabel="Close list"
+        />
+        <View style={styles.sheet}>
+          <Text style={styles.modalTitle}>{title}</Text>
+          <ScrollView
+            style={{ maxHeight: listMaxHeight }}
+            contentContainerStyle={styles.sheetListContent}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+            showsVerticalScrollIndicator
+            persistentScrollbar
+          >
+            {options.length === 0 ? (
+              <Text style={styles.sheetEmpty}>No options available.</Text>
+            ) : (
+              options.map((option) => (
+                <TouchableOpacity
+                  key={option.key}
+                  style={styles.modalOption}
+                  onPress={() => onSelect(option.key)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={option.label}
+                >
+                  <Text style={styles.modalOptionText}>{option.label}</Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
+          <TouchableOpacity
+            style={styles.modalCancel}
+            onPress={onClose}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel"
+          >
+            <Text style={styles.modalCancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
 }
 
 export const AddOfferingFlow: React.FC<Props> = ({
@@ -251,7 +319,25 @@ export const AddOfferingFlow: React.FC<Props> = ({
     );
   }
 
+  const levelTitle =
+    levelModal != null && levelsConfig[levelModal.levelIndex]
+      ? capitalize(levelsConfig[levelModal.levelIndex].name)
+      : '';
+  const levelOptions =
+    levelModal == null
+      ? []
+      : getChildren(
+          levelModal.levelIndex === 0
+            ? rootOfferingForStudyArea?.id ?? 0
+            : selectedIds[levelModal.levelIndex - 1] ?? 0,
+          levelModal.levelIndex,
+        ).map((offering) => ({
+          key: String(offering.id),
+          label: offering.displayName,
+        }));
+
   return (
+    <View style={styles.screen}>
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
         <View style={styles.headerText}>
@@ -380,75 +466,30 @@ export const AddOfferingFlow: React.FC<Props> = ({
         </View>
       ) : null}
 
-      <Modal
-        visible={studyAreaModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setStudyAreaModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setStudyAreaModalVisible(false)}
-        >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Study area</Text>
-            {STUDY_AREAS_OPTIONS.map((opt) => (
-              <TouchableOpacity
-                key={opt.key}
-                style={styles.modalOption}
-                onPress={() => handleStudyAreaChange(opt.key)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.modalOptionText}>{opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      <Modal
-        visible={levelModal !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setLevelModal(null)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setLevelModal(null)}
-        >
-          <View style={styles.modalContent}>
-            {levelModal !== null && levelsConfig[levelModal.levelIndex] && (
-              <>
-                <Text style={styles.modalTitle}>
-                  {capitalize(levelsConfig[levelModal.levelIndex].name)}
-                </Text>
-                {getChildren(
-                  levelModal.levelIndex === 0
-                    ? rootOfferingForStudyArea?.id ?? 0
-                    : selectedIds[levelModal.levelIndex - 1] ?? 0,
-                  levelModal.levelIndex,
-                ).map((c) => (
-                  <TouchableOpacity
-                    key={c.id}
-                    style={styles.modalOption}
-                    onPress={() => handleLevelSelect(levelModal.levelIndex, c.id)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.modalOptionText}>{c.displayName}</Text>
-                  </TouchableOpacity>
-                ))}
-              </>
-            )}
-          </View>
-        </TouchableOpacity>
-      </Modal>
     </ScrollView>
+    <ScrollableOptionSheet
+      visible={studyAreaModalVisible}
+      title="Study area"
+      options={STUDY_AREAS_OPTIONS.map((opt) => ({ key: opt.key, label: opt.label }))}
+      onSelect={handleStudyAreaChange}
+      onClose={() => setStudyAreaModalVisible(false)}
+    />
+    <ScrollableOptionSheet
+      visible={levelModal !== null}
+      title={levelTitle}
+      options={levelOptions}
+      onSelect={(key) => {
+        if (levelModal == null) return;
+        handleLevelSelect(levelModal.levelIndex, Number(key));
+      }}
+      onClose={() => setLevelModal(null)}
+    />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
   scroll: { flex: 1 },
   content: { padding: 16, paddingBottom: 32, gap: 16 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
@@ -507,19 +548,30 @@ const styles = StyleSheet.create({
   },
   primaryButtonDisabled: { opacity: 0.6 },
   primaryButtonText: { fontSize: 14, fontWeight: '600', color: '#fff' },
-  modalOverlay: {
-    flex: 1,
+  sheetWrap: { flex: 1, justifyContent: 'flex-end' },
+  sheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: 24,
   },
-  modalContent: { backgroundColor: '#fff', borderRadius: 12, padding: 16 },
+  sheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+    maxHeight: '85%',
+  },
+  sheetListContent: { paddingBottom: 8 },
+  sheetEmpty: { fontSize: 14, color: '#64748b', paddingVertical: 12 },
   modalTitle: { fontSize: 16, fontWeight: '600', color: '#0f172a', marginBottom: 12 },
   modalOption: {
-    paddingVertical: 14,
-    paddingHorizontal: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 4,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
   },
   modalOptionText: { fontSize: 16, color: '#0f172a' },
+  modalCancel: { marginTop: 8, paddingVertical: 14, alignItems: 'center' },
+  modalCancelText: { fontSize: 16, fontWeight: '600', color: '#64748b' },
 });

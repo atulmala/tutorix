@@ -3,10 +3,14 @@ import { useQuery } from '@apollo/client';
 import {
   GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
   GET_MY_TUTOR_DETAIL,
+  TUTOR_BOOKED_CLASS_SESSIONS,
 } from '@tutorix/shared-graphql';
 import {
+  formatIstBookingTimeRange,
   hasIncompleteRateCardOfferings,
+  istDayKey,
   istHomeScheduleDays,
+  istHomeScheduleRange,
   needsCalendarUpdateThroughSunday,
   PENDING_CALENDAR_TASK_ACTION,
   PENDING_CALENDAR_TASK_MESSAGE,
@@ -30,11 +34,38 @@ type CalendarUpdatedTillData = {
   myTutorCalendarUpdatedTill?: string | Date | null;
 };
 
+type TutorBookedClass = {
+  enrollmentId: string;
+  sessionId: string;
+  startsAt: string;
+  durationMinutes: number;
+  deliveryMode: 'online' | 'offline';
+  offeringLabel: string;
+  studentName: string;
+  isDemo: boolean;
+};
+
+function teachingHoursLabel(rows: TutorBookedClass[]): string {
+  const seen = new Set<string>();
+  let minutes = 0;
+  for (const row of rows) {
+    if (seen.has(String(row.sessionId))) {
+      continue;
+    }
+    seen.add(String(row.sessionId));
+    minutes += row.durationMinutes;
+  }
+  const hours = minutes / 60;
+  const shown = Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
+  return `${shown} ${hours === 1 ? 'hour' : 'hours'}`;
+}
+
 export const TutorHomePage: React.FC<TutorHomePageProps> = ({
   onSetRateCard,
   onUpdateCalendar,
 }) => {
   const weekDays = useMemo(() => istHomeScheduleDays(), []);
+  const scheduleRange = useMemo(() => istHomeScheduleRange(), []);
   const todayKey = weekDays.find((d) => d.isToday)?.key ?? weekDays[0]?.key;
   const [selectedKey, setSelectedKey] = useState(todayKey);
   const selected = weekDays.find((d) => d.key === selectedKey) ?? weekDays[0];
@@ -47,6 +78,19 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
     GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
     { fetchPolicy: 'cache-and-network' },
   );
+  const { data: sessionData } = useQuery(TUTOR_BOOKED_CLASS_SESSIONS, {
+    variables: {
+      from: scheduleRange.from.toISOString(),
+      to: scheduleRange.to.toISOString(),
+    },
+    fetchPolicy: 'network-only',
+  });
+  const booked = (sessionData?.tutorBookedClassSessions ?? []) as TutorBookedClass[];
+  const selectedClasses = booked.filter(
+    (row) => istDayKey(new Date(row.startsAt)) === selected?.key,
+  );
+  const todayClasses = booked.filter((row) => istDayKey(new Date(row.startsAt)) === todayKey);
+  const todaySessionCount = new Set(todayClasses.map((row) => String(row.sessionId))).size;
 
   const showRateCardTask =
     !detailLoading &&
@@ -148,7 +192,9 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
           </div>
           <div>
             <p className="text-[11px] font-semibold text-slate-500">Today's classes</p>
-            <p className="text-[15px] font-extrabold text-[#143055]">0 classes</p>
+            <p className="text-[15px] font-extrabold text-[#143055]">
+              {todaySessionCount} {todaySessionCount === 1 ? 'class' : 'classes'}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2.5 rounded-2xl bg-white p-3">
@@ -169,17 +215,44 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
           </div>
           <div>
             <p className="text-[11px] font-semibold text-slate-500">Teaching hours</p>
-            <p className="text-[15px] font-extrabold text-[#143055]">0 hours</p>
+            <p className="text-[15px] font-extrabold text-[#143055]">
+              {teachingHoursLabel(selectedClasses)}
+            </p>
           </div>
         </div>
       </div>
 
       <section className="rounded-[20px] bg-white p-5">
-        <h2 className="text-base font-extrabold text-[#143055]">No classes on this day</h2>
-        <p className="mt-1.5 text-sm leading-6 text-slate-500">
-          When students book you, upcoming sessions will appear here, with time, subject,
-          and a start action when it is time to begin.
-        </p>
+        {selectedClasses.length === 0 ? (
+          <>
+            <h2 className="text-base font-extrabold text-[#143055]">No classes on this day</h2>
+            <p className="mt-1.5 text-sm leading-6 text-slate-500">
+              When students book you, upcoming sessions will appear here, with time, subject,
+              and a start action when it is time to begin.
+            </p>
+          </>
+        ) : (
+          <ul className="space-y-3">
+            {selectedClasses.map((row) => (
+              <li key={row.enrollmentId} className="rounded-2xl bg-sky-50 px-4 py-3">
+                <p className="text-sm font-extrabold text-[#143055]">
+                  {formatIstBookingTimeRange(new Date(row.startsAt), row.durationMinutes)}
+                </p>
+                <p className="mt-1 text-sm text-[#143055]">
+                  {row.offeringLabel}
+                  {row.isDemo ? (
+                    <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">
+                      Free demo
+                    </span>
+                  ) : null}
+                </p>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  {row.deliveryMode === 'online' ? 'Online' : 'Offline'} · {row.studentName}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="rounded-[20px] bg-white p-5">

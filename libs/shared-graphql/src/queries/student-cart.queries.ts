@@ -67,6 +67,7 @@ export const MY_CLASS_CREDITS = gql`
       enrollmentId
       startsAt
       refundableInr
+      isDemo
     }
   }
 `;

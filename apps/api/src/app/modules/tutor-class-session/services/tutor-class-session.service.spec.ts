@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import { UserRole } from '../../auth/enums/user-role.enum';
 import { TutorCalendar } from '../../tutor-calendar/entities/tutor-calendar.entity';
 import { TutorClassSessionEnrollmentEntity } from '../entities/tutor-class-session-enrollment.entity';
@@ -42,6 +43,7 @@ describe('TutorClassSessionService', () => {
   let offeringFindOne: jest.Mock;
   let sessionFind: jest.Mock;
   let enrollmentQuery: jest.Mock;
+  let findTutor: jest.Mock;
   let ensureWallet: jest.Mock;
   let debitWithManager: jest.Mock;
   let emit: jest.Mock;
@@ -88,6 +90,7 @@ describe('TutorClassSessionService', () => {
     offeringFindOne = jest.fn().mockResolvedValue(tutorOffering);
     sessionFind = jest.fn().mockResolvedValue([]);
     enrollmentQuery = jest.fn();
+    findTutor = jest.fn().mockResolvedValue({ id: 3, userId: 4 });
     ensureWallet = jest.fn().mockResolvedValue({ id: 1, balanceInr: 1000 });
     debitWithManager = jest.fn().mockResolvedValue({ balanceInr: 600 });
     emit = jest.fn().mockResolvedValue(undefined);
@@ -116,6 +119,7 @@ describe('TutorClassSessionService', () => {
     } as TutorClassSessionEnrollmentEntity;
 
     const dataSource = {
+      getRepository: () => ({ findOne: findTutor }),
       transaction: jest.fn(async (fn: (manager: unknown) => unknown) =>
         fn({
           getRepository: (entity: unknown) => {
@@ -292,5 +296,69 @@ describe('TutorClassSessionService', () => {
       ),
     ).rejects.toThrow(/cart/);
     expect(debitWithManager).not.toHaveBeenCalled();
+  });
+
+  it('lists a scheduled demo on the tutor schedule', async () => {
+    const startsAt = new Date('2026-09-29T10:30:00.000Z');
+    const chain = {
+      innerJoinAndSelect: jest.fn(),
+      leftJoinAndSelect: jest.fn(),
+      innerJoinAndMapOne: jest.fn(),
+      leftJoinAndMapOne: jest.fn(),
+      where: jest.fn(),
+      andWhere: jest.fn(),
+      orderBy: jest.fn(),
+      getMany: jest.fn().mockResolvedValue([
+        {
+          id: 5,
+          bookedStudent: { user: { firstName: 'Ruchi', lastName: 'Sharma' } },
+          classCredit: { isDemo: true },
+          session: {
+            id: 5,
+            deliveryMode: ClassSessionDeliveryModeEnum.offline,
+            tutorCalendar: { id: 11, startsAt, durationMinutes: 60 },
+            tutorOffering: { offering: { displayName: 'Economics' } },
+          },
+        },
+      ]),
+    };
+    chain.innerJoinAndSelect.mockReturnValue(chain);
+    chain.leftJoinAndSelect.mockReturnValue(chain);
+    chain.innerJoinAndMapOne.mockReturnValue(chain);
+    chain.leftJoinAndMapOne.mockReturnValue(chain);
+    chain.where.mockReturnValue(chain);
+    chain.andWhere.mockReturnValue(chain);
+    chain.orderBy.mockReturnValue(chain);
+    enrollmentQuery.mockReturnValue(chain);
+
+    const rows = await service.listTutorBookedSessions(
+      { id: 4, role: UserRole.TUTOR } as never,
+      new Date('2026-09-29T00:00:00.000Z'),
+      new Date('2026-09-30T00:00:00.000Z'),
+    );
+
+    expect(rows).toEqual([
+      {
+        enrollmentId: 5,
+        sessionId: 5,
+        tutorCalendarId: 11,
+        startsAt,
+        durationMinutes: 60,
+        deliveryMode: ClassSessionDeliveryModeEnum.offline,
+        offeringLabel: 'Economics',
+        studentName: 'Ruchi Sharma',
+        isDemo: true,
+      },
+    ]);
+  });
+
+  it('rejects a student asking for the tutor schedule', async () => {
+    await expect(
+      service.listTutorBookedSessions(
+        studentUser as never,
+        new Date('2026-09-29T00:00:00.000Z'),
+        new Date('2026-09-30T00:00:00.000Z'),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

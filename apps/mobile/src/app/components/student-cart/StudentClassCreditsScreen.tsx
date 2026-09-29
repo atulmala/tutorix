@@ -18,6 +18,7 @@ export type StudentClassCredit = {
   enrollmentId?: number | null;
   startsAt?: string | Date | null;
   refundableInr?: number;
+  isDemo?: boolean;
 };
 
 function canCancelCredit(credit: StudentClassCredit): boolean {
@@ -136,6 +137,9 @@ export const StudentClassCreditsScreen: React.FC<StudentClassCreditsScreenProps>
             return (
               <View key={group.key} style={styles.line}>
                 <Text style={styles.lineTitle}>{credit.offeringLabel}</Text>
+                {group.credits.some((row) => row.isDemo) ? (
+                  <Text style={styles.demoChip}>Free demo</Text>
+                ) : null}
                 <Text style={styles.meta}>
                   {credit.deliveryMode === 'online' ? 'Online' : 'Offline'} · {credit.tutorName}
                 </Text>
@@ -170,6 +174,7 @@ export const StudentClassCreditsScreen: React.FC<StudentClassCreditsScreenProps>
           {scheduled.map((credit) => (
             <View key={credit.id} style={styles.line}>
               <Text style={styles.lineTitle}>{credit.offeringLabel}</Text>
+              {credit.isDemo ? <Text style={styles.demoChip}>Free demo</Text> : null}
               <Text style={styles.meta}>
                 {credit.deliveryMode === 'online' ? 'Online' : 'Offline'} · {credit.tutorName}
                 {credit.startsAt
@@ -286,6 +291,20 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#fff', borderRadius: 20, padding: 16, gap: 10 },
   line: { backgroundColor: '#eff6ff', borderRadius: 16, padding: 12, gap: 6 },
   lineTitle: { fontSize: 14, fontWeight: '800', color: '#143055' },
+  demoChip: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    overflow: 'hidden',
+    borderRadius: 999,
+    backgroundColor: '#d1fae5',
+    color: '#065f46',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
   meta: { color: '#64748b', fontSize: 13 },
   primary: {
     alignSelf: 'flex-start',

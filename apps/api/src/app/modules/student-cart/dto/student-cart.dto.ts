@@ -106,6 +106,9 @@ export class StudentClassCreditDto {
 
   @Field(() => Int)
   refundableInr!: number;
+
+  @Field()
+  isDemo!: boolean;
 }
 
 @ObjectType()

@@ -20,6 +20,7 @@ export type PreviewOffering = {
   onlineBaseRateInr?: number | null;
   offlineBaseRateInr?: number | null;
   freeDemoOffered?: boolean;
+  demoAvailable?: boolean;
   onlinePackSlabs?: ClassPackSlabLine[];
   offlinePackSlabs?: ClassPackSlabLine[];
 };
@@ -35,6 +36,10 @@ type TutorSubjectPurchaseCardProps = {
     deliveryMode: 'online' | 'offline',
     quantity: number,
   ) => Promise<void>;
+  onBookDemo?: (
+    offeringId: string,
+    deliveryMode: 'online' | 'offline',
+  ) => Promise<void>;
   onViewCart: () => void;
   distanceKm?: number | null;
 };
@@ -47,12 +52,15 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
   highlight = false,
   adding,
   onAdd,
+  onBookDemo,
   onViewCart,
 }) => {
   const [expanded, setExpanded] = useState(defaultExpanded || !collapsible);
   const [quantity, setQuantity] = useState(1);
   const [deliveryMode, setDeliveryMode] = useState<'online' | 'offline' | null>(null);
   const [cartMessage, setCartMessage] = useState<string | null>(null);
+  const [demoError, setDemoError] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<'cart' | 'demo' | null>(null);
 
   const offlineBookable = effectiveOfflineEnabledForBooking(
     offering.offlineEnabled === true,
@@ -97,8 +105,34 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
       return;
     }
     setCartMessage(null);
-    await onAdd(String(offering.offeringId), resolvedMode, quantity);
-    setCartMessage('Added to cart.');
+    setPendingAction('cart');
+    try {
+      await onAdd(String(offering.offeringId), resolvedMode, quantity);
+      setCartMessage('Added to cart.');
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  const handleBookDemo = async () => {
+    const resolvedMode = locked ?? deliveryMode;
+    if (!resolvedMode || !onBookDemo) {
+      setDemoError('Choose Online or Offline.');
+      return;
+    }
+    setDemoError(null);
+    setCartMessage(null);
+    setPendingAction('demo');
+    try {
+      await onBookDemo(String(offering.offeringId), resolvedMode);
+      setCartMessage('Free demo booked. Schedule it from your classes.');
+    } catch (err) {
+      setDemoError(
+        err instanceof Error ? err.message : 'Could not book the free demo.',
+      );
+    } finally {
+      setPendingAction(null);
+    }
   };
 
   return (
@@ -122,7 +156,11 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
               ) : null}
               {offering.freeDemoOffered ? (
                 <View style={styles.badgeDemo}>
-                  <Text style={styles.badgeDemoText}>Free demo</Text>
+                  <Text style={styles.badgeDemoText}>
+                    {offering.demoAvailable === false
+                      ? 'Free demo already booked'
+                      : 'Free demo'}
+                  </Text>
                 </View>
               ) : null}
             </View>
@@ -210,15 +248,31 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
             ) : null}
 
             {cartMessage ? <Text style={styles.success}>{cartMessage}</Text> : null}
+            {demoError ? <Text style={styles.demoError}>{demoError}</Text> : null}
 
+            {offering.demoAvailable && onBookDemo ? (
+              <Pressable
+                style={styles.demoBtn}
+                disabled={adding || pendingAction != null}
+                onPress={() => void handleBookDemo()}
+                accessibilityRole="button"
+                accessibilityLabel="Book free demo"
+              >
+                <Text style={styles.primaryBtnText}>
+                  {pendingAction === 'demo' ? 'Booking…' : 'Book free demo'}
+                </Text>
+              </Pressable>
+            ) : null}
             <Pressable
               style={styles.primaryBtn}
-              disabled={adding}
+              disabled={adding || pendingAction != null}
               onPress={() => void handleAdd()}
               accessibilityRole="button"
               accessibilityLabel="Add to cart"
             >
-              <Text style={styles.primaryBtnText}>{adding ? 'Adding…' : 'Add to cart'}</Text>
+              <Text style={styles.primaryBtnText}>
+                {pendingAction === 'cart' ? 'Adding…' : 'Add to cart'}
+              </Text>
             </Pressable>
             <Pressable onPress={onViewCart} accessibilityRole="button">
               <Text style={styles.viewCart}>View cart</Text>
@@ -412,6 +466,13 @@ const styles = StyleSheet.create({
   modeLocked: { fontWeight: '700', color: '#143055' },
   lineTotal: { fontSize: 13, color: '#64748b' },
   success: { color: '#16a34a', fontWeight: '700' },
+  demoError: { color: '#dc2626', fontWeight: '700' },
+  demoBtn: {
+    backgroundColor: '#059669',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
   primaryBtn: {
     backgroundColor: '#2563eb',
     borderRadius: 12,

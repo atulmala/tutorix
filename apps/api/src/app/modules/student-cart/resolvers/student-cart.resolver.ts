@@ -73,6 +73,19 @@ export class StudentCartResolver {
     return this.cartService.addToCart(user, tutorId, offeringId, deliveryMode, quantity);
   }
 
+  @Mutation(() => StudentClassCreditDto, { name: 'bookFreeDemo' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  bookFreeDemo(
+    @CurrentUser() user: User,
+    @Args('tutorId', { type: () => ID }) tutorId: number,
+    @Args('offeringId', { type: () => ID }) offeringId: number,
+    @Args('deliveryMode', { type: () => ClassSessionDeliveryModeEnum })
+    deliveryMode: ClassSessionDeliveryModeEnum,
+  ): Promise<StudentClassCreditDto> {
+    return this.cartService.bookFreeDemo(user, tutorId, offeringId, deliveryMode);
+  }
+
   @Mutation(() => StudentCartDto, { name: 'updateCartItem' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)

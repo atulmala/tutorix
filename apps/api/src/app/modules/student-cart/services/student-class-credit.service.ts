@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, Not, Repository } from 'typeorm';
 import {
   formatIstBookingDateLabel,
   formatIstBookingTimeRange,
@@ -405,7 +405,76 @@ export class StudentClassCreditService {
       refundableInr: row.orderItem
         ? orderItemPaidInrPerCredit(row.orderItem)
         : 0,
+      isDemo: row.isDemo === true,
     };
+  }
+
+  async hasActiveDemo(
+    studentId: number,
+    tutorId: number,
+    catalogOfferingId: number,
+  ): Promise<boolean> {
+    const count = await this.creditRepo.count({
+      where: {
+        studentId,
+        tutorId,
+        catalogOfferingId,
+        isDemo: true,
+        deleted: false,
+        status: Not(ClassCreditStatusEnum.cancelled),
+      },
+    });
+    return count > 0;
+  }
+
+  async demoCatalogOfferingIds(
+    studentId: number,
+    tutorId: number,
+  ): Promise<Set<number>> {
+    const rows = await this.creditRepo.find({
+      where: {
+        studentId,
+        tutorId,
+        isDemo: true,
+        deleted: false,
+        status: Not(ClassCreditStatusEnum.cancelled),
+      },
+    });
+    return new Set(
+      rows
+        .map((row) => row.catalogOfferingId)
+        .filter((id): id is number => id != null),
+    );
+  }
+
+  async issueDemoCredit(params: {
+    studentId: number;
+    orderId: number;
+    orderItem: OrderItemEntity;
+    tutorOffering: TutorOfferingEntity;
+    catalogOfferingId: number;
+    deliveryMode: ClassSessionDeliveryModeEnum;
+  }): Promise<StudentClassCreditDto> {
+    const saved = await this.creditRepo.save(
+      this.creditRepo.create({
+        studentId: params.studentId,
+        orderId: params.orderId,
+        orderItemId: params.orderItem.id,
+        tutorId: params.tutorOffering.tutorId,
+        tutorOfferingId: params.tutorOffering.id,
+        catalogOfferingId: params.catalogOfferingId,
+        deliveryMode: params.deliveryMode,
+        status: ClassCreditStatusEnum.unscheduled,
+        isDemo: true,
+      }),
+    );
+    params.orderItem.fulfillmentStatus = OrderItemFulfillmentStatusEnum.fulfilled;
+    await this.orderItemRepo.save(params.orderItem);
+    saved.tutorOffering = params.tutorOffering;
+    const offeringsById = offeringsByIdFromCatalog(
+      await this.offeringService.findAll(),
+    );
+    return this.toDto(saved, offeringsById);
   }
 
   private async requireStudent(user: User) {

@@ -58,3 +58,33 @@ export class StudentBookedClassSession {
   @Field()
   tutorName!: string;
 }
+
+@ObjectType()
+export class TutorBookedClassSession {
+  @Field(() => ID)
+  enrollmentId!: number;
+
+  @Field(() => ID)
+  sessionId!: number;
+
+  @Field(() => ID)
+  tutorCalendarId!: number;
+
+  @Field()
+  startsAt!: Date;
+
+  @Field(() => Int)
+  durationMinutes!: number;
+
+  @Field(() => ClassSessionDeliveryModeEnum)
+  deliveryMode!: ClassSessionDeliveryModeEnum;
+
+  @Field()
+  offeringLabel!: string;
+
+  @Field()
+  studentName!: string;
+
+  @Field()
+  isDemo!: boolean;
+}

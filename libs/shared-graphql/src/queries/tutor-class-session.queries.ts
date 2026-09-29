@@ -37,3 +37,19 @@ export const STUDENT_BOOKED_CLASS_SESSIONS = gql`
     }
   }
 `;
+
+export const TUTOR_BOOKED_CLASS_SESSIONS = gql`
+  query TutorBookedClassSessions($from: DateTime!, $to: DateTime!) {
+    tutorBookedClassSessions(from: $from, to: $to) {
+      enrollmentId
+      sessionId
+      tutorCalendarId
+      startsAt
+      durationMinutes
+      deliveryMode
+      offeringLabel
+      studentName
+      isDemo
+    }
+  }
+`;

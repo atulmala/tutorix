@@ -294,6 +294,7 @@ export const TUTOR_SEARCH_DETAIL = gql`
         onlineBaseRateInr
         offlineBaseRateInr
         freeDemoOffered
+        demoAvailable
         onlinePackSlabs {
           label
           minClasses
@@ -319,6 +320,7 @@ export const TUTOR_SEARCH_DETAIL = gql`
         onlineBaseRateInr
         offlineBaseRateInr
         freeDemoOffered
+        demoAvailable
         onlinePackSlabs {
           label
           minClasses

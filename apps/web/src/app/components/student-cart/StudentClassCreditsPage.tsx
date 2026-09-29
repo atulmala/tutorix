@@ -15,6 +15,7 @@ export type StudentClassCredit = {
   enrollmentId?: number | null;
   startsAt?: string | Date | null;
   refundableInr?: number;
+  isDemo?: boolean;
 };
 
 function canCancelCredit(credit: StudentClassCredit): boolean {
@@ -120,7 +121,14 @@ export const StudentClassCreditsPage: React.FC<StudentClassCreditsPageProps> = (
               const count = group.credits.length;
               return (
                 <li key={group.key} className="rounded-2xl bg-sky-50 px-4 py-3">
-                  <p className="text-sm font-extrabold text-[#143055]">{credit.offeringLabel}</p>
+                  <p className="text-sm font-extrabold text-[#143055]">
+                    {credit.offeringLabel}
+                    {group.credits.some((row) => row.isDemo) ? (
+                      <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">
+                        Free demo
+                      </span>
+                    ) : null}
+                  </p>
                   <p className="mt-0.5 text-sm text-slate-500">
                     {credit.deliveryMode === 'online' ? 'Online' : 'Offline'} · {credit.tutorName}
                   </p>
@@ -155,7 +163,14 @@ export const StudentClassCreditsPage: React.FC<StudentClassCreditsPageProps> = (
           <ul className="mt-3 space-y-3">
             {scheduled.map((credit) => (
               <li key={credit.id} className="rounded-2xl bg-sky-50 px-4 py-3">
-                <p className="text-sm font-extrabold text-[#143055]">{credit.offeringLabel}</p>
+                <p className="text-sm font-extrabold text-[#143055]">
+                  {credit.offeringLabel}
+                  {credit.isDemo ? (
+                    <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">
+                      Free demo
+                    </span>
+                  ) : null}
+                </p>
                 <p className="mt-0.5 text-sm text-slate-500">
                   {credit.deliveryMode === 'online' ? 'Online' : 'Offline'} · {credit.tutorName}
                   {credit.startsAt

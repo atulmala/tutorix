@@ -51,7 +51,11 @@ import {
   formatInrAmount,
   type ClassBookingEmailLine,
 } from '../class-booking-email-table.util';
-import { StudentCartDto, StudentCartItemDto } from '../dto/student-cart.dto';
+import {
+  StudentCartDto,
+  StudentCartItemDto,
+  StudentClassCreditDto,
+} from '../dto/student-cart.dto';
 import { StudentCartItemEntity } from '../entities/student-cart-item.entity';
 import { StudentCartEntity } from '../entities/student-cart.entity';
 
@@ -300,6 +304,127 @@ export class StudentCartService {
       orderId: order.id,
       orderNumber: order.orderNumber,
     };
+  }
+
+  async bookFreeDemo(
+    user: User,
+    tutorIdInput: string | number,
+    offeringIdInput: string | number,
+    deliveryMode: ClassSessionDeliveryModeEnum,
+  ): Promise<StudentClassCreditDto> {
+    const student = await this.requireStudent(user);
+    const catalogOfferingId = asId(offeringIdInput);
+    const tutorOffering = await this.resolveTutorOffering(
+      asId(tutorIdInput),
+      catalogOfferingId,
+    );
+    if (deliveryMode === ClassSessionDeliveryModeEnum.offline) {
+      this.assertOfflineBookingAllowed(student, tutorOffering);
+    }
+    const rateCards = await this.rateCardService.resolveCompleteRateCards([
+      tutorOffering,
+    ]);
+    const rateCard = rateCards.get(tutorOffering.id);
+    if (!rateCard?.freeDemoOffered) {
+      throw new BadRequestException(
+        'This tutor does not offer a free demo for this subject',
+      );
+    }
+    const modeEnabled =
+      deliveryMode === ClassSessionDeliveryModeEnum.online
+        ? rateCard.onlineEnabled === true
+        : rateCard.offlineEnabled === true;
+    if (!modeEnabled) {
+      throw new BadRequestException(
+        'This delivery mode is not available for the free demo',
+      );
+    }
+    if (
+      await this.creditService.hasActiveDemo(
+        student.id,
+        tutorOffering.tutorId,
+        catalogOfferingId,
+      )
+    ) {
+      throw new BadRequestException(
+        'You have already booked a free demo for this subject with this tutor',
+      );
+    }
+
+    const offeringsById = await this.loadOfferingsById();
+    const { offeringLabel } = resolveStudentCartOfferingDisplay(
+      catalogOfferingId,
+      tutorOffering.offeringId,
+      tutorOffering.offering?.displayName,
+      offeringsById,
+    );
+    const tutorName = personName(tutorOffering.tutor?.user) || 'Tutor';
+    const modeLabel =
+      deliveryMode === ClassSessionDeliveryModeEnum.online ? 'Online' : 'Offline';
+    const order = await this.orderService.createOrderWithItems({
+      user,
+      payerRole: OrderPayerRoleEnum.student,
+      source: OrderSourceEnum.cart,
+      initialStatus: OrderStatusEnum.paid,
+      lines: [
+        {
+          itemType: OrderItemTypeEnum.CLASS_BOOKING,
+          description: `Free demo · ${offeringLabel} · ${tutorName} · ${modeLabel}`,
+          referenceType: OrderItemReferenceTypeEnum.tutor_offering,
+          referenceId: tutorOffering.id,
+          unitRateInr: 0,
+          quantity: 1,
+          lineSubtotalInr: 0,
+          discountInr: 0,
+          waiverApplied: true,
+          amountDueInr: 0,
+        },
+      ],
+    });
+    await this.orderService.markOrderPaid(order, OrderPaymentMethodEnum.wallet, 0);
+    const paid = await this.orderService.findById(order.id);
+    const orderItem = paid?.items?.[0];
+    if (!paid || !orderItem) {
+      throw new BadRequestException('Could not book the free demo');
+    }
+    const credit = await this.creditService.issueDemoCredit({
+      studentId: student.id,
+      orderId: paid.id,
+      orderItem,
+      tutorOffering,
+      catalogOfferingId,
+      deliveryMode,
+    });
+
+    try {
+      const generated = await this.invoiceService.generateForOrderWithPdf(paid);
+      await this.emitClassBookingEmails({
+        user,
+        orderId: paid.id,
+        invoiceNumber: generated.invoice.invoiceNumber,
+        amountPaidInr: 0,
+        lines: [
+          {
+            tutorUserId:
+              tutorOffering.tutor?.userId ?? tutorOffering.tutor?.user?.id ?? null,
+            tutorName,
+            offeringLabel,
+            deliveryMode,
+            classCount: 1,
+            lineAmountInr: 0,
+          },
+        ],
+        pdfBuffer: generated.pdfBuffer,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Free demo confirmation failed for order ${paid.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
+    return credit;
   }
 
   private bookingEmailLines(

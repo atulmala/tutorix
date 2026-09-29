@@ -1,10 +1,7 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatInr } from '@tutorix/shared-utils/rate-card';
-import {
-  formatExperienceDuration,
-  monthsToExperienceDuration,
-} from '@tutorix/shared-utils/tutor-detail-formatters';
+import { ExperienceBadge } from './ExperienceBadge';
 
 export type TutorSearchResultCardHit = {
   tutorId: string;
@@ -30,11 +27,6 @@ export const TutorSearchResultCard: React.FC<TutorSearchResultCardProps> = ({
   hit,
   onView,
 }) => {
-  const experience =
-    hit.totalExperienceMonths && hit.totalExperienceMonths > 0
-      ? formatExperienceDuration(monthsToExperienceDuration(hit.totalExperienceMonths))
-      : '';
-
   return (
     <Pressable
       style={styles.card}
@@ -55,7 +47,7 @@ export const TutorSearchResultCard: React.FC<TutorSearchResultCardProps> = ({
           {hit.hasAvailabilityThisWeek ? (
             <Text style={styles.available}>Available this week</Text>
           ) : null}
-          {experience ? <Text style={styles.cardMeta}>{experience}</Text> : null}
+          <ExperienceBadge totalExperienceMonths={hit.totalExperienceMonths} />
         </View>
       </View>
       <Text style={styles.cardMeta}>{hit.offeringLabel}</Text>

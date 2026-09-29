@@ -20,6 +20,7 @@ import {
   monthsToExperienceDuration,
   ptStatusBadgeClass,
   ptStatusLabel,
+  collapseTutorOfferingsSharingProficiencyTest,
   sortTutorOfferingsForDisplay,
   sortQualificationsHighestFirst,
   sumExperienceDurations,
@@ -315,13 +316,16 @@ function OfferingsSection({
   const showRateCardColumn = isAdmin || Boolean(onOpenRateCard);
 
   const sortedOfferings = useMemo(
-    () => sortTutorOfferingsForDisplay(offerings),
+    () =>
+      sortTutorOfferingsForDisplay(
+        collapseTutorOfferingsSharingProficiencyTest(offerings),
+      ),
     [offerings],
   );
 
   const headerMeta = (
     <div className="flex flex-wrap items-center gap-2">
-      <span>{formatEntryCount(offerings.length, 'offering', 'offerings')}</span>
+      <span>{formatEntryCount(sortedOfferings.length, 'offering', 'offerings')}</span>
       {!isAdmin && onAddOffering ? (
         <button
           type="button"

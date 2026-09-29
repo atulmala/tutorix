@@ -133,6 +133,12 @@ export class TutorSearchOfferingSummary {
   @Field()
   freeDemoOffered!: boolean;
 
+  @Field({
+    description:
+      'Student can still book one free demo for this subject with this tutor',
+  })
+  demoAvailable!: boolean;
+
   @Field(() => [TutorSearchClassPackSlab])
   onlinePackSlabs!: TutorSearchClassPackSlab[];
 

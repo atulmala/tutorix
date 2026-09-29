@@ -50,6 +50,9 @@ export class StudentClassCreditEntity extends QBaseEntity {
   @Column({ name: 'catalog_offering_id', type: 'integer', nullable: true })
   catalogOfferingId?: number | null;
 
+  @Column({ name: 'is_demo', type: 'boolean', default: false })
+  isDemo!: boolean;
+
   @ManyToOne(() => TutorOfferingEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'tutor_offering_id' })
   tutorOffering?: TutorOfferingEntity;

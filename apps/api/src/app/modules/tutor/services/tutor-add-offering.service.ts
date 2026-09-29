@@ -54,9 +54,19 @@ export class TutorAddOfferingService {
     }
 
     const pending = await this.tutorOfferingService.findPendingForTutor(tutor.id);
-    if (pending.length > 0) {
+    const blockingPending: TutorOfferingEntity[] = [];
+    for (const offering of pending) {
+      const alreadyCleared = await this.tutorOfferingService.findPassedSiblingForSamePt(
+        tutor.id,
+        offering,
+      );
+      if (!alreadyCleared) {
+        blockingPending.push(offering);
+      }
+    }
+    if (blockingPending.length > 0) {
       throw new BadRequestException(
-        `Complete the proficiency test for your current offering first (offering id ${pending[0].id}).`,
+        `Complete the proficiency test for your current offering first (offering id ${blockingPending[0].id}).`,
       );
     }
 

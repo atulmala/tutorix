@@ -29,6 +29,7 @@ import { PlatformFeeModule } from '../platform-fee/platform-fee.module';
 import { PaymentModule } from '../payment';
 import { WalletModule } from '../wallet/wallet.module';
 import { TutorCalendar } from '../tutor-calendar/entities/tutor-calendar.entity';
+import { StudentClassCreditEntity } from '../student-cart/entities/student-class-credit.entity';
 import { StudentModule } from '../student/student.module';
 import { TutorSearchService } from './services/tutor-search.service';
 import './enums/tutor-search.enum';
@@ -45,6 +46,7 @@ import './enums/tutor-search.enum';
       TutorOfferingPtFeeEntity,
       User,
       TutorCalendar,
+      StudentClassCreditEntity,
     ]),
     CommunicationModule,
     DocumentModule,

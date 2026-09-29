@@ -301,7 +301,7 @@ export class TutorOfferingService {
     return saved;
   }
 
-  private async findPassedSiblingForSamePt(
+  async findPassedSiblingForSamePt(
     tutorId: number,
     tutorOffering: TutorOfferingEntity,
   ): Promise<TutorOfferingEntity | null> {

@@ -20,6 +20,26 @@ export const ADD_TO_CART = gql`
   }
 `;
 
+export const BOOK_FREE_DEMO = gql`
+  mutation BookFreeDemo(
+    $tutorId: ID!
+    $offeringId: ID!
+    $deliveryMode: ClassSessionDeliveryMode!
+  ) {
+    bookFreeDemo(
+      tutorId: $tutorId
+      offeringId: $offeringId
+      deliveryMode: $deliveryMode
+    ) {
+      id
+      offeringId
+      offeringLabel
+      isDemo
+      status
+    }
+  }
+`;
+
 export const UPDATE_CART_ITEM = gql`
   ${STUDENT_CART_FIELDS}
   mutation UpdateCartItem($itemId: ID!, $quantity: Int!) {

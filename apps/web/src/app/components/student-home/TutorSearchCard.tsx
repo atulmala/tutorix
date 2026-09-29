@@ -1,9 +1,6 @@
 import React from 'react';
-import {
-  formatExperienceDuration,
-  formatInr,
-  monthsToExperienceDuration,
-} from '@tutorix/shared-utils';
+import { formatInr } from '@tutorix/shared-utils';
+import { ExperienceBadge } from './ExperienceBadge';
 
 export type TutorSearchCardHit = {
   tutorId: number | string;
@@ -27,10 +24,6 @@ type TutorSearchCardProps = {
 };
 
 export const TutorSearchCard: React.FC<TutorSearchCardProps> = ({ hit, onView }) => {
-  const experience =
-    hit.totalExperienceMonths && hit.totalExperienceMonths > 0
-      ? formatExperienceDuration(monthsToExperienceDuration(hit.totalExperienceMonths))
-      : '';
   const mode =
     hit.deliveryModeShown === 'OFFLINE'
       ? hit.distanceKm != null
@@ -61,10 +54,8 @@ export const TutorSearchCard: React.FC<TutorSearchCardProps> = ({ hit, onView })
                 Available this week
               </span>
             ) : null}
+            <ExperienceBadge totalExperienceMonths={hit.totalExperienceMonths} />
           </div>
-          {experience ? (
-            <p className="mt-0.5 text-xs text-muted">{experience}</p>
-          ) : null}
           <p className="mt-1 text-sm text-primary/80">{hit.offeringLabel}</p>
         </div>
       </div>
