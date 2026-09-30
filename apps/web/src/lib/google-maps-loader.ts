@@ -22,8 +22,29 @@ interface GoogleMapsPlaces {
   };
 }
 
+interface GoogleMapsGeocoder {
+  geocode: (
+    req: { location: { lat: number; lng: number } },
+    cb: (
+      results: Array<{ address_components?: unknown[] }> | null,
+      status: string,
+    ) => void,
+  ) => void;
+}
+
 export interface GoogleMapsApi {
-  maps: { places: GoogleMapsPlaces };
+  maps: {
+    places: GoogleMapsPlaces;
+    Geocoder: new () => GoogleMapsGeocoder;
+    LatLng: new (
+      lat: number,
+      lng: number,
+      noWrap?: boolean,
+    ) => {
+      lat: () => number;
+      lng: () => number;
+    };
+  };
 }
 
 declare global {

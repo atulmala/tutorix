@@ -1,25 +1,18 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Keyboard,
   Dimensions,
-  ScrollView,
 } from 'react-native';
 import { useMutation, useQuery } from '@apollo/client';
 import { GET_MY_STUDENT_PROFILE } from '@tutorix/shared-graphql/queries';
 import { CREATE_STUDENT_ADDRESS } from '@tutorix/shared-graphql/mutations';
-import {
-  getPlacePredictions,
-  getPlaceDetails,
-  type PlacePrediction,
-  type LocationSuggestion,
-} from '../../../hooks/useGooglePlacesFetch';
-import { LocalityValueInput } from '../address/LocalityValueInput';
+import { useAddressCityLocalitySearch } from '../../../hooks/useAddressCityLocalitySearch';
+import { AddressCityLocalityFields } from '../address/AddressCityLocalityFields';
 
 interface AddressForm {
   locality: string;
@@ -82,15 +75,14 @@ export const StudentAddressStep: React.FC = () => {
     country: '',
   });
 
-  const [selectedLocation, setSelectedLocation] =
-    useState<LocationSuggestion | null>(null);
-  const [errors, setErrors] = useState<Partial<Record<keyof AddressForm, string>>>({});
+  const search = useAddressCityLocalitySearch();
+  const { selectedLocation, hydrateFromSavedAddress } = search;
+
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof AddressForm | 'citySearch', string>>
+  >({});
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<PlacePrediction[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
   const [suggestionListMaxHeight, setSuggestionListMaxHeight] = useState(220);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [createAddress, { loading: isSubmitting }] = useMutation(
     CREATE_STUDENT_ADDRESS,
@@ -157,24 +149,26 @@ export const StudentAddressStep: React.FC = () => {
         country: homeAddress.country || '',
       });
 
-      if (homeAddress.latitude && homeAddress.longitude) {
-        setSelectedLocation({
-          displayName: homeAddress.subArea || homeAddress.fullAddress || '',
-          latitude: homeAddress.latitude,
-          longitude: homeAddress.longitude,
-          city: homeAddress.city,
-          state: homeAddress.state,
-          country: homeAddress.country,
-          postalCode: homeAddress.postalCode?.toString(),
-        });
-      }
-    }
-  }, [profileData]);
+      const loc =
+        homeAddress.latitude && homeAddress.longitude
+          ? {
+              displayName: homeAddress.subArea || homeAddress.fullAddress || '',
+              latitude: homeAddress.latitude,
+              longitude: homeAddress.longitude,
+              city: homeAddress.city,
+              state: homeAddress.state,
+              country: homeAddress.country,
+              postalCode: homeAddress.postalCode?.toString(),
+            }
+          : null;
 
-  const hideSuggestions = useCallback(() => {
-    setShowSuggestions(false);
-    setSuggestions([]);
-  }, []);
+      hydrateFromSavedAddress({
+        city: homeAddress.city || '',
+        locality: homeAddress.subArea || homeAddress.fullAddress || '',
+        location: loc,
+      });
+    }
+  }, [profileData, hydrateFromSavedAddress]);
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', (event) => {
@@ -184,6 +178,11 @@ export const StudentAddressStep: React.FC = () => {
     });
     return () => show.remove();
   }, []);
+
+  const hideSuggestions = useCallback(() => {
+    search.hideCitySuggestions();
+    search.hideLocalitySuggestions();
+  }, [search]);
 
   const onOtherFieldFocus = useCallback(() => {
     setTimeout(hideSuggestions, 0);
@@ -197,65 +196,19 @@ export const StudentAddressStep: React.FC = () => {
     [],
   );
 
-  const handleLocalityChange = useCallback((value: string) => {
-    setForm((prev) => ({ ...prev, locality: value }));
-    setErrors((prev) => ({ ...prev, locality: undefined }));
-    setSelectedLocation(null);
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    const trimmed = value.trim();
-    if (!trimmed || trimmed.length < 2) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      setIsSearching(false);
-      return;
-    }
-
-    setIsSearching(true);
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const results = await getPlacePredictions(trimmed, { countryCode: 'in' });
-        setSuggestions(results);
-        setShowSuggestions(results.length > 0);
-      } catch {
-        setSuggestions([]);
-        setShowSuggestions(false);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 300);
-  }, []);
-
-  const handleSelectSuggestion = useCallback(async (placeId: string) => {
-    setShowSuggestions(false);
-    setSuggestions([]);
-    Keyboard.dismiss();
-    try {
-      const loc = await getPlaceDetails(placeId);
-      if (loc) {
-        setSelectedLocation(loc);
-        setForm((prev) => ({
-          ...prev,
-          locality: loc.displayName,
-          city: loc.city ?? '',
-          state: loc.state ?? '',
-          country: loc.country ?? '',
-          postalCode: loc.postalCode ?? '',
-        }));
-        setErrors((prev) => ({ ...prev, locality: undefined }));
-      }
-    } catch {
-      setErrors((prev) => ({
-        ...prev,
-        locality: 'Failed to fetch place details. Please try again.',
-      }));
-    }
-  }, []);
+  const suggestionsBlockingForm =
+    (search.showCitySuggestions && search.citySuggestions.length > 0) ||
+    (search.showLocalitySuggestions && search.localitySuggestions.length > 0);
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<Record<keyof AddressForm, string>> = {};
+    const newErrors: Partial<Record<keyof AddressForm | 'citySearch', string>> =
+      {};
 
+    if (!search.selectedCity) {
+      newErrors.citySearch = search.cityQuery.trim()
+        ? 'Please select your city from the suggestions'
+        : 'City / town / village is required';
+    }
     if (!form.locality.trim()) newErrors.locality = 'Locality is required';
     if (selectedLocation === null && form.locality.trim().length > 0)
       newErrors.locality = 'Please select a location from the suggestions';
@@ -316,172 +269,165 @@ export const StudentAddressStep: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.localityGroup}>
-        <Text style={styles.label}>
-          Locality <Text style={styles.required}>*</Text>
-        </Text>
-        <Text style={styles.hint}>
-          Start typing and select the best matching location
-        </Text>
-        <View style={styles.localityWrap}>
-          <LocalityValueInput
-            value={form.locality}
-            onChangeText={handleLocalityChange}
-            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-            placeholder="Start typing your locality or address..."
-            editable={!isSubmitting}
-            error={!!errors.locality}
-            preview={!!selectedLocation && !showSuggestions}
-            trailing={
-              isSearching ? (
-                <ActivityIndicator size="small" color="#5fa8ff" />
-              ) : null
-            }
-          />
-        </View>
-        {showSuggestions && suggestions.length > 0 ? (
-          <ScrollView
-            style={[styles.suggestions, { maxHeight: suggestionListMaxHeight }]}
-            keyboardShouldPersistTaps="always"
-            keyboardDismissMode="none"
-            nestedScrollEnabled
-          >
-            {suggestions.map((item) => (
-              <TouchableOpacity
-                key={item.placeId}
-                style={styles.suggestionItem}
-                onPress={() => handleSelectSuggestion(item.placeId)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.suggestionMain}>{item.description}</Text>
-                {item.secondaryText ? (
-                  <Text style={styles.suggestionSecondary}>
-                    {item.secondaryText}
-                  </Text>
-                ) : null}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        ) : null}
-        {errors.locality ? (
-          <Text style={styles.fieldError}>{errors.locality}</Text>
-        ) : null}
-      </View>
+      <AddressCityLocalityFields
+        search={search}
+        cityError={errors.citySearch}
+        localityError={errors.locality}
+        disabled={isSubmitting}
+        suggestionListMaxHeight={suggestionListMaxHeight}
+        onOtherFieldFocus={onOtherFieldFocus}
+        onLocalityQueryChange={(v) => {
+          setForm((prev) => ({ ...prev, locality: v }));
+          setErrors((prev) => ({ ...prev, locality: undefined }));
+        }}
+        onCitySelected={(city) => {
+          setForm((prev) => ({
+            ...prev,
+            city: city.name,
+            state: city.state ?? prev.state,
+            country: city.country ?? prev.country,
+            locality: '',
+            postalCode: '',
+          }));
+          setErrors((prev) => ({
+            ...prev,
+            citySearch: undefined,
+            city: undefined,
+            locality: undefined,
+          }));
+        }}
+        onLocalitySelected={(loc) => {
+          setForm((prev) => ({
+            ...prev,
+            locality: loc.displayName,
+            city: search.selectedCity?.name ?? loc.city ?? prev.city,
+            state: loc.state ?? prev.state,
+            country: loc.country ?? prev.country,
+            postalCode: loc.postalCode ?? prev.postalCode,
+          }));
+          setErrors((prev) => ({
+            ...prev,
+            locality: undefined,
+            postalCode: loc.postalCode ? undefined : prev.postalCode,
+          }));
+        }}
+      />
 
-      {showSuggestions ? null : (
+      {!suggestionsBlockingForm ? (
         <>
-        <View style={styles.row}>
-          <View style={styles.half}>
-            <InputGroup
-              label="House No."
-              value={form.houseNo}
-              onChangeText={(v) => handleFieldChange('houseNo', v)}
-              placeholder="House/Flat No."
-              required
-              onFocus={onOtherFieldFocus}
-              error={errors.houseNo}
-              editable={!isSubmitting}
-            />
+          <View style={styles.row}>
+            <View style={styles.half}>
+              <InputGroup
+                label="House No."
+                value={form.houseNo}
+                onChangeText={(v) => handleFieldChange('houseNo', v)}
+                placeholder="House/Flat No."
+                required
+                onFocus={onOtherFieldFocus}
+                error={errors.houseNo}
+                editable={!isSubmitting}
+              />
+            </View>
+            <View style={styles.half}>
+              <InputGroup
+                label="Address Line 1"
+                value={form.addressLine1}
+                onChangeText={(v) => handleFieldChange('addressLine1', v)}
+                placeholder="Street, Area"
+                required
+                onFocus={onOtherFieldFocus}
+                error={errors.addressLine1}
+                editable={!isSubmitting}
+              />
+            </View>
           </View>
-          <View style={styles.half}>
-            <InputGroup
-              label="Address Line 1"
-              value={form.addressLine1}
-              onChangeText={(v) => handleFieldChange('addressLine1', v)}
-              placeholder="Street, Area"
-              required
-              onFocus={onOtherFieldFocus}
-              error={errors.addressLine1}
-              editable={!isSubmitting}
-            />
-          </View>
-        </View>
 
-        <InputGroup
-          label="Address Line 2"
-          value={form.addressLine2}
-          onChangeText={(v) => handleFieldChange('addressLine2', v)}
-          placeholder="Landmark (optional)"
-          onFocus={onOtherFieldFocus}
-          editable={!isSubmitting}
-        />
+          <InputGroup
+            label="Address Line 2"
+            value={form.addressLine2}
+            onChangeText={(v) => handleFieldChange('addressLine2', v)}
+            placeholder="Landmark (optional)"
+            onFocus={onOtherFieldFocus}
+            editable={!isSubmitting}
+          />
 
-        <View style={styles.row}>
-          <View style={styles.half}>
-            <InputGroup
-              label="City"
-              value={form.city}
-              onChangeText={(v) => handleFieldChange('city', v)}
-              placeholder="City"
-              required
-              onFocus={onOtherFieldFocus}
-              error={errors.city}
-              editable={!isSubmitting}
-            />
+          <View style={styles.row}>
+            <View style={styles.half}>
+              <InputGroup
+                label="City"
+                value={form.city}
+                onChangeText={(v) => handleFieldChange('city', v)}
+                placeholder="City"
+                required
+                onFocus={onOtherFieldFocus}
+                error={errors.city}
+                editable={!isSubmitting}
+              />
+            </View>
+            <View style={styles.half}>
+              <InputGroup
+                label="State"
+                value={form.state}
+                onChangeText={(v) => handleFieldChange('state', v)}
+                placeholder="State"
+                required
+                onFocus={onOtherFieldFocus}
+                error={errors.state}
+                editable={!isSubmitting}
+              />
+            </View>
           </View>
-          <View style={styles.half}>
-            <InputGroup
-              label="State"
-              value={form.state}
-              onChangeText={(v) => handleFieldChange('state', v)}
-              placeholder="State"
-              required
-              onFocus={onOtherFieldFocus}
-              error={errors.state}
-              editable={!isSubmitting}
-            />
+          <View style={styles.row}>
+            <View style={styles.half}>
+              <InputGroup
+                label="Post Code"
+                value={form.postalCode}
+                onChangeText={(v) => handleFieldChange('postalCode', v)}
+                placeholder="Post Code"
+                required
+                onFocus={onOtherFieldFocus}
+                error={errors.postalCode}
+                editable={!isSubmitting}
+              />
+            </View>
+            <View style={styles.half}>
+              <InputGroup
+                label="Country"
+                value={form.country}
+                onChangeText={(v) => handleFieldChange('country', v)}
+                placeholder="Country"
+                required
+                onFocus={onOtherFieldFocus}
+                error={errors.country}
+                editable={!isSubmitting}
+              />
+            </View>
           </View>
-        </View>
-        <View style={styles.row}>
-          <View style={styles.half}>
-            <InputGroup
-              label="Post Code"
-              value={form.postalCode}
-              onChangeText={(v) => handleFieldChange('postalCode', v)}
-              placeholder="Post Code"
-              required
-              onFocus={onOtherFieldFocus}
-              error={errors.postalCode}
-              editable={!isSubmitting}
-            />
-          </View>
-          <View style={styles.half}>
-            <InputGroup
-              label="Country"
-              value={form.country}
-              onChangeText={(v) => handleFieldChange('country', v)}
-              placeholder="Country"
-              required
-              onFocus={onOtherFieldFocus}
-              error={errors.country}
-              editable={!isSubmitting}
-            />
-          </View>
-        </View>
 
-        {submitError && (
-          <View style={styles.submitError}>
-            <Text style={styles.submitErrorText}>{submitError}</Text>
-          </View>
-        )}
+          {submitError && (
+            <View style={styles.submitError}>
+              <Text style={styles.submitErrorText}>{submitError}</Text>
+            </View>
+          )}
 
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[
-              styles.continueButton,
-              (isSubmitting || !selectedLocation) && styles.continueButtonDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={isSubmitting || !selectedLocation}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.continueButtonText}>
-              {isSubmitting ? 'Saving...' : 'Continue'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={[
+                styles.continueButton,
+                (isSubmitting || !selectedLocation) &&
+                  styles.continueButtonDisabled,
+              ]}
+              onPress={handleSubmit}
+              disabled={isSubmitting || !selectedLocation}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.continueButtonText}>
+                {isSubmitting ? 'Saving...' : 'Continue'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </>
-      )}
+      ) : null}
     </View>
   );
 };
@@ -505,10 +451,6 @@ const styles = StyleSheet.create({
   half: {
     flex: 1,
   },
-  localityGroup: {
-    marginBottom: 16,
-    zIndex: 20,
-  },
   label: {
     fontSize: 14,
     fontWeight: '600',
@@ -517,37 +459,6 @@ const styles = StyleSheet.create({
   },
   required: {
     color: '#dc2626',
-  },
-  hint: {
-    fontSize: 12,
-    color: '#64748b',
-    marginBottom: 8,
-  },
-  localityWrap: {
-    zIndex: 20,
-  },
-  suggestions: {
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-    backgroundColor: '#fff',
-  },
-  suggestionItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  suggestionMain: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#143055',
-  },
-  suggestionSecondary: {
-    fontSize: 12,
-    color: '#64748b',
-    marginTop: 2,
   },
   input: {
     height: 44,

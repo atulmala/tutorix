@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,14 +12,9 @@ import {
 import { useMutation, useQuery } from '@apollo/client';
 import { CREATE_TUTOR_ADDRESS } from '@tutorix/shared-graphql/mutations';
 import { GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
-import {
-  getPlacePredictions,
-  getPlaceDetails,
-  type PlacePrediction,
-  type LocationSuggestion,
-} from '../../../../hooks/useGooglePlacesFetch';
 import type { StepComponentProps } from '@tutorix/shared-utils';
-import { LocalityValueInput } from '../../address/LocalityValueInput';
+import { useAddressCityLocalitySearch } from '../../../../hooks/useAddressCityLocalitySearch';
+import { AddressCityLocalityFields } from '../../address/AddressCityLocalityFields';
 
 interface AddressForm {
   locality: string;
@@ -32,7 +26,6 @@ interface AddressForm {
   country: string;
 }
 
-// 1. Define the InputGroup component outside and wrap it with React.memo
 const InputGroup = React.memo(
   ({
     label,
@@ -68,7 +61,7 @@ const InputGroup = React.memo(
       />
       {!!error && <Text style={styles.fieldError}>{error}</Text>}
     </View>
-  )
+  ),
 );
 
 export const TutorAddressEntry: React.FC<StepComponentProps> = () => {
@@ -82,14 +75,13 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = () => {
     country: '',
   });
 
-  const [selectedLocation, setSelectedLocation] =
-    useState<LocationSuggestion | null>(null);
-  const [errors, setErrors] = useState<Partial<Record<keyof AddressForm, string>>>({});
+  const search = useAddressCityLocalitySearch();
+  const { selectedLocation, hydrateFromSavedAddress } = search;
+
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof AddressForm | 'citySearch', string>>
+  >({});
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<PlacePrediction[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [createAddress, { loading: isSubmitting }] = useMutation(
     CREATE_TUTOR_ADDRESS,
@@ -118,18 +110,16 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = () => {
         }
       },
       onCompleted: () => {
-        // Don't call onComplete - refetch updates profileData, useEffect in
-        // TutorOnboarding syncs currentStepIndex from certificationStage.
-        // Calling onComplete would double-advance and skip the next step.
+        // Server-driven step sync in TutorOnboarding
       },
       onError: (error) => {
         setSubmitError(
           error.graphQLErrors?.[0]?.message ||
             error.message ||
-            'Failed to save address. Please try again.'
+            'Failed to save address. Please try again.',
         );
       },
-    }
+    },
   );
 
   const { data: profileData } = useQuery(GET_MY_TUTOR_PROFILE, {
@@ -142,7 +132,7 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = () => {
       const homeAddress =
         addresses.find(
           (addr: { type?: string | number }) =>
-            addr.type === 'HOME' || addr.type === 1
+            addr.type === 'HOME' || addr.type === 1,
         ) || addresses[0];
 
       const streetParts = homeAddress.street?.split(', ') || [];
@@ -159,26 +149,32 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = () => {
         country: homeAddress.country || '',
       });
 
-      if (homeAddress.latitude && homeAddress.longitude) {
-        setSelectedLocation({
-          displayName: homeAddress.subArea || homeAddress.fullAddress || '',
-          latitude: homeAddress.latitude,
-          longitude: homeAddress.longitude,
-          city: homeAddress.city,
-          state: homeAddress.state,
-          country: homeAddress.country,
-          postalCode: homeAddress.postalCode?.toString(),
-        });
-      }
+      const loc =
+        homeAddress.latitude && homeAddress.longitude
+          ? {
+              displayName: homeAddress.subArea || homeAddress.fullAddress || '',
+              latitude: homeAddress.latitude,
+              longitude: homeAddress.longitude,
+              city: homeAddress.city,
+              state: homeAddress.state,
+              country: homeAddress.country,
+              postalCode: homeAddress.postalCode?.toString(),
+            }
+          : null;
+
+      hydrateFromSavedAddress({
+        city: homeAddress.city || '',
+        locality: homeAddress.subArea || homeAddress.fullAddress || '',
+        location: loc,
+      });
     }
-  }, [profileData]);
+  }, [profileData, hydrateFromSavedAddress]);
 
   const hideSuggestions = useCallback(() => {
-    setShowSuggestions(false);
-    setSuggestions([]);
-  }, []);
+    search.hideCitySuggestions();
+    search.hideLocalitySuggestions();
+  }, [search]);
 
-  // Defer so the focused field keeps focus (state update after focus would steal it)
   const onOtherFieldFocus = useCallback(() => {
     setTimeout(hideSuggestions, 0);
   }, [hideSuggestions]);
@@ -188,66 +184,18 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = () => {
       setForm((prev) => ({ ...prev, [key]: value }));
       setErrors((prev) => ({ ...prev, [key]: undefined }));
     },
-    []
+    [],
   );
 
-  const handleLocalityChange = useCallback((value: string) => {
-    setForm((prev) => ({ ...prev, locality: value }));
-    setErrors((prev) => ({ ...prev, locality: undefined }));
-    setSelectedLocation(null);
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    const trimmed = value.trim();
-    if (!trimmed || trimmed.length < 2) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      setIsSearching(false);
-      return;
-    }
-
-    setIsSearching(true);
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const results = await getPlacePredictions(trimmed);
-        setSuggestions(results);
-        setShowSuggestions(results.length > 0);
-      } catch {
-        setSuggestions([]);
-        setShowSuggestions(false);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 300);
-  }, []);
-
-  const handleSelectSuggestion = useCallback(async (placeId: string) => {
-    setShowSuggestions(false);
-    try {
-      const loc = await getPlaceDetails(placeId);
-      if (loc) {
-        setSelectedLocation(loc);
-        setForm((prev) => ({
-          ...prev,
-          locality: loc.displayName,
-          city: loc.city ?? '',
-          state: loc.state ?? '',
-          country: loc.country ?? '',
-          postalCode: loc.postalCode ?? '',
-        }));
-        setErrors((prev) => ({ ...prev, locality: undefined }));
-      }
-    } catch {
-      setErrors((prev) => ({
-        ...prev,
-        locality: 'Failed to fetch place details. Please try again.',
-      }));
-    }
-  }, []);
-
   const validateForm = (): boolean => {
-    const newErrors: Partial<Record<keyof AddressForm, string>> = {};
+    const newErrors: Partial<Record<keyof AddressForm | 'citySearch', string>> =
+      {};
 
+    if (!search.selectedCity) {
+      newErrors.citySearch = search.cityQuery.trim()
+        ? 'Please select your city from the suggestions'
+        : 'City / town / village is required';
+    }
     if (!form.locality.trim()) newErrors.locality = 'Locality is required';
     if (selectedLocation === null && form.locality.trim().length > 0)
       newErrors.locality = 'Please select a location from the suggestions';
@@ -310,54 +258,50 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = () => {
       style={styles.container}
     >
       <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.localityGroup}>
-          <Text style={styles.label}>
-            Locality <Text style={styles.required}>*</Text>
-          </Text>
-          <Text style={styles.hint}>
-            Start typing and select the best matching location
-          </Text>
-          <View style={styles.localityWrap}>
-            <LocalityValueInput
-              value={form.locality}
-              onChangeText={handleLocalityChange}
-              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-              placeholder="Start typing your locality or address..."
-              editable={!isSubmitting}
-              error={!!errors.locality}
-              preview={!!selectedLocation && !showSuggestions}
-              trailing={
-                isSearching ? (
-                  <ActivityIndicator size="small" color="#5fa8ff" />
-                ) : null
-              }
-            />
-          </View>
-          {showSuggestions && suggestions.length > 0 && (
-            <View style={styles.suggestions}>
-              {suggestions.map((item) => (
-                <TouchableOpacity
-                  key={item.placeId}
-                  style={styles.suggestionItem}
-                  onPress={() => handleSelectSuggestion(item.placeId)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.suggestionMain}>{item.description}</Text>
-                  {item.secondaryText ? (
-                    <Text style={styles.suggestionSecondary}>
-                      {item.secondaryText}
-                    </Text>
-                  ) : null}
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-          {errors.locality && (
-            <Text style={styles.fieldError}>{errors.locality}</Text>
-          )}
-        </View>
+        <AddressCityLocalityFields
+          search={search}
+          cityError={errors.citySearch}
+          localityError={errors.locality}
+          disabled={isSubmitting}
+          labelColor="#0f172a"
+          onOtherFieldFocus={onOtherFieldFocus}
+          onLocalityQueryChange={(v) => {
+            setForm((prev) => ({ ...prev, locality: v }));
+            setErrors((prev) => ({ ...prev, locality: undefined }));
+          }}
+          onCitySelected={(city) => {
+            setForm((prev) => ({
+              ...prev,
+              city: city.name,
+              state: city.state ?? prev.state,
+              country: city.country ?? prev.country,
+              locality: '',
+              postalCode: '',
+            }));
+            setErrors((prev) => ({
+              ...prev,
+              citySearch: undefined,
+              city: undefined,
+              locality: undefined,
+            }));
+          }}
+          onLocalitySelected={(loc) => {
+            setForm((prev) => ({
+              ...prev,
+              locality: loc.displayName,
+              city: search.selectedCity?.name ?? loc.city ?? prev.city,
+              state: loc.state ?? prev.state,
+              country: loc.country ?? prev.country,
+              postalCode: loc.postalCode ?? prev.postalCode,
+            }));
+            setErrors((prev) => ({
+              ...prev,
+              locality: undefined,
+              postalCode: loc.postalCode ? undefined : prev.postalCode,
+            }));
+          }}
+        />
 
-        {/* 2. Use the memoized InputGroup component */}
         <View style={styles.row}>
           <View style={styles.half}>
             <InputGroup
@@ -454,7 +398,8 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = () => {
           <TouchableOpacity
             style={[
               styles.continueButton,
-              (isSubmitting || !selectedLocation) && styles.continueButtonDisabled,
+              (isSubmitting || !selectedLocation) &&
+                styles.continueButtonDisabled,
             ]}
             onPress={handleSubmit}
             disabled={isSubmitting || !selectedLocation}
@@ -493,9 +438,6 @@ const styles = StyleSheet.create({
   half: {
     flex: 1,
   },
-  localityGroup: {
-    marginBottom: 16,
-  },
   label: {
     fontSize: 14,
     fontWeight: '600',
@@ -504,38 +446,6 @@ const styles = StyleSheet.create({
   },
   required: {
     color: '#dc2626',
-  },
-  hint: {
-    fontSize: 12,
-    color: '#64748b',
-    marginBottom: 8,
-  },
-  localityWrap: {
-    position: 'relative',
-  },
-  suggestions: {
-    marginTop: 4,
-    maxHeight: 200,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-    backgroundColor: '#fff',
-  },
-  suggestionItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  suggestionMain: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#0f172a',
-  },
-  suggestionSecondary: {
-    fontSize: 12,
-    color: '#64748b',
-    marginTop: 2,
   },
   input: {
     height: 44,
@@ -584,18 +494,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 12,
     marginTop: 8,
-  },
-  backButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-  },
-  backButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0f172a',
   },
   continueButton: {
     paddingHorizontal: 24,
