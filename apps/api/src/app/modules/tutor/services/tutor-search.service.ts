@@ -22,6 +22,7 @@ import {
   STUDENT_TUTOR_RECENT_EXPERIENCE_LIMIT,
   STUDENT_TUTOR_TOP_QUALIFICATION_LIMIT,
   sumExperienceDurations,
+  tutorDistanceKmForDisplay,
   type OfferingNodeForLabel,
   type TutorSearchCandidate,
 } from '@tutorix/shared-utils';
@@ -99,6 +100,7 @@ export class TutorSearchService {
     }
 
     const origin = this.pickStudentOrigin(student.addresses ?? []);
+    const studentCity = origin?.city ?? null;
     const originHasCoordinates = hasUsableCoordinates(
       origin?.latitude,
       origin?.longitude,
@@ -206,7 +208,12 @@ export class TutorSearchService {
 
     return {
       items: page.items.map((hit) =>
-        this.toGraphqlHit(hit, eligible, experiencesByTutor.get(hit.tutorId) ?? []),
+        this.toGraphqlHit(
+          hit,
+          eligible,
+          experiencesByTutor.get(hit.tutorId) ?? [],
+          studentCity,
+        ),
       ),
       nextCursor: page.nextCursor,
       hasMore: page.hasMore,
@@ -266,7 +273,13 @@ export class TutorSearchService {
     const slotCounts = await this.loadSlotsThisWeek([tutor.id]);
     const origin = this.pickStudentOrigin(student.addresses ?? []);
     const tutorPoint = this.pickTutorPoint(tutor.addresses ?? []);
-    const distanceKm = this.distanceKmBetween(origin, tutorPoint);
+    const distanceKm = tutorDistanceKmForDisplay(
+      this.distanceKmBetween(origin, tutorPoint),
+      {
+        studentCity: origin?.city ?? null,
+        tutorCity: tutorPoint?.city ?? null,
+      },
+    );
 
     const photoUrl = await this.profilePictureService.resolveDisplayUrl(
       tutor.user?.profilePicture ?? tutor.user?.profilePictureThumbnailMedium,
@@ -324,6 +337,7 @@ export class TutorSearchService {
     hit: ReturnType<typeof rankTutorSearchHits>[number],
     offerings: TutorOfferingEntity[],
     experiences: ExperienceEntity[],
+    studentCity?: string | null,
   ): TutorSearchHit {
     const row = offerings.find((o) => o.tutorId === hit.tutorId);
     const totalExperience = sumExperienceDurations(
@@ -345,7 +359,10 @@ export class TutorSearchService {
       groupSize: hit.groupSize,
       rateInr: hit.rateInr,
       deliveryModeShown: hit.deliveryModeShown as TutorSearchDeliveryMode,
-      distanceKm: hit.distanceKm,
+      distanceKm: tutorDistanceKmForDisplay(hit.distanceKm, {
+        studentCity,
+        tutorCity: hit.city,
+      }),
       city: hit.city,
       freeDemoOffered: hit.freeDemoOffered,
       hasAvailabilityThisWeek: hit.hasAvailabilityThisWeek,

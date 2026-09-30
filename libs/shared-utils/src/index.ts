@@ -29,6 +29,7 @@ export * from './student-booking';
 export * from './student-class-credit-groups';
 export * from './student-onboarding-types';
 export * from './student-onboarding-timeline';
+export * from './address-places';
 export * from './school-class';
 export * from './profile-picture';
 export * from './payment-checkout';

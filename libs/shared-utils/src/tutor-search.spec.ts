@@ -9,8 +9,29 @@ import {
   catalogBaseRateInrForMode,
   discountedPackSlabLines,
   rateForModeAndQuantity,
+  tutorDistanceKmForDisplay,
   type TutorSearchCandidate,
 } from './tutor-search';
+
+describe('tutorDistanceKmForDisplay', () => {
+  it('returns null when beyond offline booking radius', () => {
+    expect(tutorDistanceKmForDisplay(26, { studentCity: 'Delhi', tutorCity: 'Delhi' })).toBeNull();
+  });
+
+  it('returns null when student and tutor cities differ', () => {
+    expect(tutorDistanceKmForDisplay(5, { studentCity: 'Delhi', tutorCity: 'Gurgaon' })).toBeNull();
+  });
+
+  it('returns distance when same city and within radius', () => {
+    expect(
+      tutorDistanceKmForDisplay(12.4, { studentCity: ' Bengaluru ', tutorCity: 'bengaluru' }),
+    ).toBe(12.4);
+  });
+
+  it('returns distance when cities unknown but within radius', () => {
+    expect(tutorDistanceKmForDisplay(8)).toBe(8);
+  });
+});
 
 describe('currentIstWeekRange', () => {
   it('starts Sunday 00:00 IST for a Wednesday', () => {

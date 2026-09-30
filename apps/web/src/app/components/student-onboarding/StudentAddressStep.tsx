@@ -1,26 +1,12 @@
-import React, {
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-} from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import {
   CREATE_STUDENT_ADDRESS,
   GET_MY_STUDENT_PROFILE,
 } from '@tutorix/shared-graphql';
-import { useGooglePlacesAutocomplete } from '../../../hooks/useGooglePlacesAutocomplete';
+import { useAddressCityLocalitySearch } from '../../../hooks/useAddressCityLocalitySearch';
+import { AddressCityLocalityFields } from '../address/AddressCityLocalityFields';
 import type { StudentStepComponentProps } from './types';
-
-interface LocationSuggestion {
-  displayName: string;
-  latitude: number;
-  longitude: number;
-  city?: string;
-  state?: string;
-  country?: string;
-  postalCode?: string;
-}
 
 interface AddressForm {
   locality: string;
@@ -45,24 +31,13 @@ export const StudentAddressStep: React.FC<StudentStepComponentProps> = () => {
     country: '',
   });
 
-  const [selectedLocation, setSelectedLocation] =
-    useState<LocationSuggestion | null>(null);
+  const search = useAddressCityLocalitySearch();
+  const { selectedLocation, hydrateFromSavedAddress } = search;
+
   const [errors, setErrors] = useState<
-    Partial<Record<keyof AddressForm, string>>
+    Partial<Record<keyof AddressForm | 'citySearch', string>>
   >({});
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [apiError, setApiError] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<
-    { description: string; placeId: string; secondaryText?: string }[]
-  >([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-
-  const suggestionsRef = useRef<HTMLDivElement | null>(null);
-  const localityInputRef = useRef<HTMLInputElement | null>(null);
-
-  const { ready, error: mapsError, getPredictions, getPlaceDetails } =
-    useGooglePlacesAutocomplete();
 
   const [createAddress, { loading: isSubmitting }] = useMutation(
     CREATE_STUDENT_ADDRESS,
@@ -97,30 +72,27 @@ export const StudentAddressStep: React.FC<StudentStepComponentProps> = () => {
         setSubmitError(
           error.graphQLErrors?.[0]?.message ||
             error.message ||
-            'Failed to save address. Please try again.'
+            'Failed to save address. Please try again.',
         );
       },
-    }
+    },
   );
 
-  // Fetch existing address to pre-populate form
   const { data: profileData } = useQuery(GET_MY_STUDENT_PROFILE, {
-    fetchPolicy: 'network-only', // Always fetch fresh data
+    fetchPolicy: 'network-only',
   });
 
-  // Pre-populate form with existing HOME address
   useEffect(() => {
     const addresses = profileData?.myStudentProfile?.addresses;
 
     if (addresses && addresses.length > 0) {
-      // Find HOME address (type could be string 'HOME' or enum value)
-      const homeAddress = addresses.find(
-        (addr: { type?: string | number }) => 
-          addr.type === 'HOME' || addr.type === 1 || addr.type === 'HOME'
-      ) || addresses[0];
+      const homeAddress =
+        addresses.find(
+          (addr: { type?: string | number }) =>
+            addr.type === 'HOME' || addr.type === 1 || addr.type === 'HOME',
+        ) || addresses[0];
 
       if (homeAddress) {
-        // Parse street into houseNo, addressLine1, addressLine2
         const streetParts = homeAddress.street?.split(', ') || [];
         const houseNo = streetParts[0] || '';
         const addressLine1 = streetParts[1] || '';
@@ -137,185 +109,46 @@ export const StudentAddressStep: React.FC<StudentStepComponentProps> = () => {
           country: homeAddress.country || '',
         });
 
-        // Set selected location so form can be submitted
-        if (homeAddress.latitude && homeAddress.longitude) {
-          setSelectedLocation({
-            displayName: homeAddress.subArea || homeAddress.fullAddress || '',
-            latitude: homeAddress.latitude,
-            longitude: homeAddress.longitude,
-            city: homeAddress.city,
-            state: homeAddress.state,
-            country: homeAddress.country,
-            postalCode: homeAddress.postalCode?.toString(),
-          });
-        }
+        const loc =
+          homeAddress.latitude && homeAddress.longitude
+            ? {
+                displayName:
+                  homeAddress.subArea || homeAddress.fullAddress || '',
+                latitude: homeAddress.latitude,
+                longitude: homeAddress.longitude,
+                city: homeAddress.city,
+                state: homeAddress.state,
+                country: homeAddress.country,
+                postalCode: homeAddress.postalCode?.toString(),
+              }
+            : null;
+
+        hydrateFromSavedAddress({
+          city: homeAddress.city || '',
+          locality: homeAddress.subArea || homeAddress.fullAddress || '',
+          location: loc,
+        });
       }
     }
-  }, [profileData]);
+  }, [profileData, hydrateFromSavedAddress]);
 
   const handleFieldChange = <K extends keyof AddressForm>(
     key: K,
-    value: AddressForm[K]
+    value: AddressForm[K],
   ) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: undefined }));
   };
 
-  const handleLocalityChange = (value: string) => {
-    setForm((prev) => ({ ...prev, locality: value }));
-    setErrors((prev) => ({ ...prev, locality: undefined }));
-    setSelectedLocation(null);
-  };
-
-  // Click outside to close suggestions
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        suggestionsRef.current &&
-        !suggestionsRef.current.contains(event.target as Node) &&
-        localityInputRef.current &&
-        !localityInputRef.current.contains(event.target as Node)
-      ) {
-        setShowSuggestions(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  // Debounced predictions when locality input changes
-  useEffect(() => {
-    const query = form.locality.trim();
-
-    if (!ready || !query || query.length < 2) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      setIsSearching(false);
-      setApiError(null);
-      return;
-    }
-
-    setIsSearching(true);
-    setApiError(null);
-
-    const timeoutId = window.setTimeout(() => {
-      getPredictions(query)
-        .then(
-          (
-            results: {
-              description: string;
-              placeId: string;
-              secondaryText?: string;
-            }[]
-          ) => {
-            setSuggestions(results);
-            setShowSuggestions(results.length > 0);
-            setIsSearching(false);
-          }
-        )
-        .catch((err: unknown) => {
-          setIsSearching(false);
-          setSuggestions([]);
-          setShowSuggestions(false);
-          const message =
-            err && typeof err === 'object' && 'message' in err
-              ? String((err as { message: unknown }).message)
-              : 'Failed to search locations. Please try again.';
-          setApiError(message);
-        });
-    }, 300);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [form.locality, ready, getPredictions]);
-
-  const mapPlaceToLocation = useCallback((place: unknown): LocationSuggestion => {
-    const p = place as {
-      formatted_address?: string;
-      geometry?: { location?: { lat: () => number; lng: () => number } };
-      address_components?: Array<{
-        long_name: string;
-        short_name: string;
-        types: string[];
-      }>;
-    };
-
-    const components = p.address_components ?? [];
-
-    const getComponent = (type: string): string | undefined => {
-      const comp = components.find((c) => c.types.includes(type));
-      return comp?.long_name;
-    };
-
-    const getComponentShort = (type: string): string | undefined => {
-      const comp = components.find((c) => c.types.includes(type));
-      return comp?.short_name;
-    };
-
-    const city =
-      getComponent('locality') ||
-      getComponent('administrative_area_level_2') ||
-      getComponent('sublocality') ||
-      getComponent('postal_town');
-
-    const state = getComponent('administrative_area_level_1');
-    const country = getComponent('country');
-    // Use postal_code, fallback to postal_code_prefix; try both long_name and short_name (some regions use short for codes)
-    const postalCode =
-      getComponent('postal_code') ||
-      getComponentShort('postal_code') ||
-      getComponent('postal_code_prefix') ||
-      getComponentShort('postal_code_prefix');
-
-    const location = p.geometry?.location;
-    const lat = location ? location.lat() : 0;
-    const lng = location ? location.lng() : 0;
-
-    return {
-      displayName: p.formatted_address ?? '',
-      latitude: lat,
-      longitude: lng,
-      city: city || undefined,
-      state: state || undefined,
-      country: country || undefined,
-      postalCode: postalCode || undefined,
-    };
-  }, []);
-
-  const handleSelectSuggestion = useCallback(
-    async (placeId: string) => {
-      try {
-        const place = await getPlaceDetails(placeId);
-        const loc = mapPlaceToLocation(place);
-
-        setSelectedLocation(loc);
-        setForm((prev) => ({
-          ...prev,
-          locality: loc.displayName,
-          city: loc.city ?? '',
-          state: loc.state ?? '',
-          country: loc.country ?? '',
-          postalCode: loc.postalCode ?? '',
-        }));
-        setErrors((prev) => ({ ...prev, locality: undefined }));
-        setShowSuggestions(false);
-      } catch (err: unknown) {
-        const message =
-          err && typeof err === 'object' && 'message' in err
-            ? String((err as { message: unknown }).message)
-            : 'Failed to fetch place details. Please try again.';
-        setApiError(message);
-      }
-    },
-    [getPlaceDetails, mapPlaceToLocation]
-  );
-
   const validateForm = (): boolean => {
-    const newErrors: Partial<Record<keyof AddressForm, string>> = {};
+    const newErrors: Partial<Record<keyof AddressForm | 'citySearch', string>> =
+      {};
+
+    if (!search.selectedCity) {
+      newErrors.citySearch = search.cityQuery.trim()
+        ? 'Please select your city from the suggestions'
+        : 'City / town / village is required';
+    }
 
     if (!form.locality.trim()) {
       newErrors.locality = 'Locality is required';
@@ -367,7 +200,6 @@ export const StudentAddressStep: React.FC<StudentStepComponentProps> = () => {
     }
 
     try {
-      // Build full address from components
       const addressParts = [
         form.houseNo,
         form.addressLine1,
@@ -383,9 +215,10 @@ export const StudentAddressStep: React.FC<StudentStepComponentProps> = () => {
         variables: {
           input: {
             type: 'HOME',
-            street: [form.houseNo, form.addressLine1, form.addressLine2]
-              .filter(Boolean)
-              .join(', ') || undefined,
+            street:
+              [form.houseNo, form.addressLine1, form.addressLine2]
+                .filter(Boolean)
+                .join(', ') || undefined,
             subArea: form.locality,
             city: form.city || undefined,
             state: form.state || undefined,
@@ -407,75 +240,48 @@ export const StudentAddressStep: React.FC<StudentStepComponentProps> = () => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Locality field with autocomplete */}
-      <div className="space-y-1">
-        <label className="text-sm font-medium text-primary">
-          Locality <span className="text-danger">*</span>
-        </label>
-        <p className="text-xs text-muted mb-2">
-          Start typing and select the best matching location from the options
-        </p>
-        <div className="relative">
-          <div
-            className={`locality-autocomplete-wrap min-h-[44px] w-full rounded-md border ${
-              errors.locality ? 'border-danger' : 'border-subtle'
-            } bg-white shadow-sm focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0`}
-          >
-            <input
-              id="locality"
-              ref={localityInputRef}
-              type="text"
-              value={form.locality}
-              onChange={(e) => handleLocalityChange(e.target.value)}
-              onFocus={() => {
-                if (suggestions.length > 0) {
-                  setShowSuggestions(true);
-                }
-              }}
-              disabled={!ready || !!mapsError}
-              className="h-11 w-full rounded-md border-none bg-transparent px-3 text-primary outline-none"
-              placeholder="Start typing your locality or address..."
-              autoComplete="off"
-            />
-            {isSearching && (
-              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              </div>
-            )}
+      <AddressCityLocalityFields
+        search={search}
+        cityError={errors.citySearch}
+        localityError={errors.locality}
+        disabled={isSubmitting}
+        onLocalityQueryChange={(v) => {
+          setForm((prev) => ({ ...prev, locality: v }));
+          setErrors((prev) => ({ ...prev, locality: undefined }));
+        }}
+        onCitySelected={(city) => {
+          setForm((prev) => ({
+            ...prev,
+            city: city.name,
+            state: city.state ?? prev.state,
+            country: city.country ?? prev.country,
+            locality: '',
+            postalCode: '',
+          }));
+          setErrors((prev) => ({
+            ...prev,
+            citySearch: undefined,
+            city: undefined,
+            locality: undefined,
+          }));
+        }}
+        onLocalitySelected={(loc) => {
+          setForm((prev) => ({
+            ...prev,
+            locality: loc.displayName,
+            city: search.selectedCity?.name ?? loc.city ?? prev.city,
+            state: loc.state ?? prev.state,
+            country: loc.country ?? prev.country,
+            postalCode: loc.postalCode ?? prev.postalCode,
+          }));
+          setErrors((prev) => ({
+            ...prev,
+            locality: undefined,
+            postalCode: loc.postalCode ? undefined : prev.postalCode,
+          }));
+        }}
+      />
 
-            {showSuggestions && suggestions.length > 0 && (
-              <div
-                ref={suggestionsRef}
-                className="absolute z-[9999] mt-1 max-h-60 w-full overflow-auto rounded-md border border-subtle bg-white shadow-lg"
-              >
-                {suggestions.map((s) => (
-                  <button
-                    key={s.placeId}
-                    type="button"
-                    onClick={() => handleSelectSuggestion(s.placeId)}
-                    className="w-full px-4 py-2 text-left text-sm text-primary hover:bg-subtle focus:bg-subtle focus:outline-none"
-                  >
-                    <div className="font-medium">{s.description}</div>
-                    {s.secondaryText && (
-                      <div className="text-xs text-muted">{s.secondaryText}</div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          {errors.locality && (
-            <p className="text-xs text-danger mt-1">{errors.locality}</p>
-          )}
-          {(apiError || mapsError) && (
-            <p className="text-xs text-amber-600 mt-1">
-              {apiError || mapsError}
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* House No, Address Line 1, Address Line 2 in same row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-1">
           <label htmlFor="houseNo" className="text-sm font-medium text-primary">
@@ -497,7 +303,10 @@ export const StudentAddressStep: React.FC<StudentStepComponentProps> = () => {
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="addressLine1" className="text-sm font-medium text-primary">
+          <label
+            htmlFor="addressLine1"
+            className="text-sm font-medium text-primary"
+          >
             Address Line 1 <span className="text-danger">*</span>
           </label>
           <input
@@ -516,7 +325,10 @@ export const StudentAddressStep: React.FC<StudentStepComponentProps> = () => {
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="addressLine2" className="text-sm font-medium text-primary">
+          <label
+            htmlFor="addressLine2"
+            className="text-sm font-medium text-primary"
+          >
             Address Line 2
           </label>
           <input
@@ -530,7 +342,6 @@ export const StudentAddressStep: React.FC<StudentStepComponentProps> = () => {
         </div>
       </div>
 
-      {/* City, State, Post Code, Country in same row - auto-filled but editable */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="space-y-1">
           <label htmlFor="city" className="text-sm font-medium text-primary">
@@ -546,9 +357,7 @@ export const StudentAddressStep: React.FC<StudentStepComponentProps> = () => {
             }`}
             placeholder="City"
           />
-          {errors.city && (
-            <p className="text-xs text-danger">{errors.city}</p>
-          )}
+          {errors.city && <p className="text-xs text-danger">{errors.city}</p>}
         </div>
 
         <div className="space-y-1">
@@ -571,7 +380,10 @@ export const StudentAddressStep: React.FC<StudentStepComponentProps> = () => {
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="postalCode" className="text-sm font-medium text-primary">
+          <label
+            htmlFor="postalCode"
+            className="text-sm font-medium text-primary"
+          >
             Post Code <span className="text-danger">*</span>
           </label>
           <input

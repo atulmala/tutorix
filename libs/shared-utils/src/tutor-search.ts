@@ -27,6 +27,34 @@ export function effectiveOfflineEnabledForBooking(
   return offlineEnabled === true && isWithinOfflineBookingDistance(distanceKm);
 }
 
+export function normalizeCityNameForComparison(
+  city: string | null | undefined,
+): string {
+  return (city ?? '').trim().toLowerCase();
+}
+
+/** Distance shown on tutor profile / search cards (not used for ranking). */
+export function tutorDistanceKmForDisplay(
+  distanceKm: number | null | undefined,
+  options?: {
+    studentCity?: string | null;
+    tutorCity?: string | null;
+  },
+): number | null {
+  if (distanceKm == null || !Number.isFinite(distanceKm)) {
+    return null;
+  }
+  if (distanceKm > OFFLINE_BOOKING_MAX_DISTANCE_KM) {
+    return null;
+  }
+  const studentCity = normalizeCityNameForComparison(options?.studentCity);
+  const tutorCity = normalizeCityNameForComparison(options?.tutorCity);
+  if (studentCity && tutorCity && studentCity !== tutorCity) {
+    return null;
+  }
+  return distanceKm;
+}
+
 export type TutorSearchDeliveryMode = 'ONLINE' | 'OFFLINE' | 'ANY';
 export type TutorSearchClassFormat = 'INDIVIDUAL' | 'GROUP' | 'ANY';
 export type TutorSearchSort = 'BEST_MATCH' | 'DISTANCE' | 'RATE';
