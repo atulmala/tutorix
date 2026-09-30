@@ -3,6 +3,8 @@ import { UserRole } from '../../auth/enums/user-role.enum';
 import { WalletPurchaseReferenceTypeEnum } from '../../wallet/enums/wallet.enums';
 import { ClassSessionDeliveryModeEnum } from '../../tutor-class-session/enums/class-session-delivery-mode.enum';
 import { AddressType } from '../../address/enums/address-type.enum';
+import { CommunicationAudience } from '../../communication/enums/communication-audience.enum';
+import { CommunicationEvent } from '../../communication/enums/communication-event.enum';
 import { StudentCartService } from './student-cart.service';
 
 const nearbyStudentAddresses = [
@@ -33,7 +35,8 @@ describe('StudentCartService', () => {
       id: 3,
       deleted: false,
       onBoardingComplete: true,
-      user: { firstName: 'Priya', lastName: 'Sharma' },
+      userId: 4,
+      user: { id: 4, firstName: 'Priya', lastName: 'Sharma' },
       addresses: nearbyTutorAddresses,
     },
     offering: { displayName: 'Mathematics' },
@@ -47,6 +50,7 @@ describe('StudentCartService', () => {
     onlineEnabled: true,
     onlineBaseRate: 800,
     onlineBaseDiscountPct: 5,
+    freeDemoOffered: false,
   };
 
   let findStudent: jest.Mock;
@@ -56,9 +60,13 @@ describe('StudentCartService', () => {
   let itemSave: jest.Mock;
   let itemDelete: jest.Mock;
   let createOrder: jest.Mock;
+  let findOrder: jest.Mock;
   let debitPurchase: jest.Mock;
   let generateInvoice: jest.Mock;
   let fulfillPaidOrder: jest.Mock;
+  let hasActiveDemo: jest.Mock;
+  let issueDemoCredit: jest.Mock;
+  let emit: jest.Mock;
   let getWallet: jest.Mock;
   let cart: {
     id: number;
@@ -77,6 +85,7 @@ describe('StudentCartService', () => {
   let service: StudentCartService;
 
   beforeEach(() => {
+    rateCard.freeDemoOffered = false;
     findStudent = jest.fn().mockResolvedValue({
       id: 21,
       userId: 9,
@@ -105,14 +114,34 @@ describe('StudentCartService', () => {
       return { affected: 1 };
     });
     createOrder = jest.fn().mockResolvedValue({ id: 40, orderNumber: 'ORD-1' });
+    findOrder = jest.fn().mockResolvedValue({ id: 40, items: [] });
     debitPurchase = jest.fn().mockResolvedValue({ balanceInr: 100 });
-    generateInvoice = jest.fn();
+    generateInvoice = jest.fn().mockResolvedValue({
+      invoice: { invoiceNumber: 'INV-1' },
+      pdfBuffer: Buffer.from('pdf-bytes'),
+    });
     fulfillPaidOrder = jest.fn();
+    hasActiveDemo = jest.fn().mockResolvedValue(false);
+    issueDemoCredit = jest.fn().mockResolvedValue({
+      id: 9,
+      isDemo: true,
+      offeringLabel: 'Mathematics',
+    });
+    emit = jest.fn().mockResolvedValue(undefined);
     getWallet = jest.fn().mockResolvedValue({ balanceInr: 5000 });
 
     service = new StudentCartService(
       { findByUserId: findStudent } as never,
-      { findByTutorOfferingId: findRateCard } as never,
+      {
+        findByTutorOfferingId: findRateCard,
+        resolveCompleteRateCards: jest.fn(async (offerings: Array<{ id: number }>) => {
+          const map = new Map<number, typeof rateCard>();
+          for (const offering of offerings) {
+            map.set(offering.id, rateCard);
+          }
+          return map;
+        }),
+      } as never,
       { findActiveTestForOffering: jest.fn().mockResolvedValue(null) } as never,
       {
         getWalletForUser: getWallet,
@@ -124,10 +153,10 @@ describe('StudentCartService', () => {
       {
         createOrderWithItems: createOrder,
         markOrderPaid: jest.fn(),
-        findById: jest.fn().mockResolvedValue({ id: 40, items: [] }),
+        findById: findOrder,
       } as never,
-      { generateForOrder: generateInvoice } as never,
-      { fulfillPaidOrder } as never,
+      { generateForOrderWithPdf: generateInvoice } as never,
+      { fulfillPaidOrder, hasActiveDemo, issueDemoCredit } as never,
       {
         findOne: cartFindOne,
         save: jest.fn(async (row) => ({ ...row, id: 5, items: [] })),
@@ -140,6 +169,7 @@ describe('StudentCartService', () => {
       } as never,
       { findOne: offeringFindOne } as never,
       { findAll: jest.fn().mockResolvedValue([]) } as never,
+      { emit } as never,
     );
   });
 
@@ -264,6 +294,33 @@ describe('StudentCartService', () => {
     expect(generateInvoice).toHaveBeenCalledTimes(1);
     expect(itemDelete).toHaveBeenCalledWith({ cartId: 5 });
     expect(result.orderNumber).toBe('ORD-1');
+    expect(emit).toHaveBeenCalledTimes(2);
+    const studentMail = emit.mock.calls.find(
+      (call) => call[0].audience === CommunicationAudience.STUDENT,
+    )?.[0];
+    const tutorMail = emit.mock.calls.find(
+      (call) => call[0].audience === CommunicationAudience.TUTOR,
+    )?.[0];
+    expect(studentMail).toMatchObject({
+      event: CommunicationEvent.CLASS_BOOKED,
+      userId: 9,
+      entityId: 40,
+    });
+    expect(studentMail.emailAttachments).toEqual([
+      expect.objectContaining({
+        filename: 'invoice-INV-1.pdf',
+        contentType: 'application/pdf',
+      }),
+    ]);
+    expect(studentMail.payload.linesHtml).toContain('Priya Sharma');
+    expect(studentMail.payload.linesHtml).toContain('₹2,000');
+    expect(tutorMail).toMatchObject({
+      event: CommunicationEvent.CLASS_BOOKED,
+      userId: 4,
+    });
+    expect(tutorMail.emailAttachments).toBeUndefined();
+    expect(tutorMail.payload.linesHtml).toContain('Mathematics');
+    expect(tutorMail.payload.amountPaid).toBe('₹2,000');
   });
 
   it('leaves the cart intact when the wallet cannot cover the total', async () => {
@@ -287,5 +344,54 @@ describe('StudentCartService', () => {
     expect(debitPurchase).not.toHaveBeenCalled();
     expect(itemDelete).not.toHaveBeenCalled();
     expect(cart.items).toHaveLength(1);
+  });
+
+  it('books a free demo without charging the wallet', async () => {
+    rateCard.freeDemoOffered = true;
+    findOrder.mockResolvedValue({ id: 40, items: [{ id: 7 }] });
+
+    const credit = await service.bookFreeDemo(
+      studentUser as never,
+      3,
+      30,
+      ClassSessionDeliveryModeEnum.online,
+    );
+
+    expect(credit.id).toBe(9);
+    expect(debitPurchase).not.toHaveBeenCalled();
+    expect(createOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lines: [
+          expect.objectContaining({
+            unitRateInr: 0,
+            amountDueInr: 0,
+            quantity: 1,
+            waiverApplied: true,
+          }),
+        ],
+      }),
+    );
+    expect(issueDemoCredit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        studentId: 21,
+        catalogOfferingId: 30,
+        deliveryMode: ClassSessionDeliveryModeEnum.online,
+      }),
+    );
+  });
+
+  it('refuses a second free demo for the same subject and tutor', async () => {
+    rateCard.freeDemoOffered = true;
+    hasActiveDemo.mockResolvedValue(true);
+
+    await expect(
+      service.bookFreeDemo(
+        studentUser as never,
+        3,
+        30,
+        ClassSessionDeliveryModeEnum.online,
+      ),
+    ).rejects.toThrow(/already booked a free demo/);
+    expect(createOrder).not.toHaveBeenCalled();
   });
 });

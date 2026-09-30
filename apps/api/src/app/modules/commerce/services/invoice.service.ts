@@ -67,9 +67,17 @@ export class InvoiceService {
   }
 
   async generateForOrder(order: OrderEntity): Promise<InvoiceEntity> {
+    const { invoice } = await this.generateForOrderWithPdf(order);
+    return invoice;
+  }
+
+  async generateForOrderWithPdf(order: OrderEntity): Promise<{
+    invoice: InvoiceEntity;
+    pdfBuffer: Buffer | null;
+  }> {
     const existing = await this.findByOrderId(order.id);
     if (existing) {
-      return existing;
+      return { invoice: existing, pdfBuffer: null };
     }
 
     if (!order.items?.length) {
@@ -118,27 +126,42 @@ export class InvoiceService {
     });
     savedInvoice.lines = await this.invoiceLineRepo.save(lines);
 
+    let pdfBuffer: Buffer | null = null;
     try {
-      const pdfKey = await this.renderAndUploadPdf(savedInvoice, order);
-      savedInvoice.pdfStorageKey = pdfKey;
-      await this.invoiceRepo.save(savedInvoice);
+      pdfBuffer = await this.renderPdfBuffer(savedInvoice, order);
     } catch (error) {
       this.logger.warn(
-        `Invoice PDF upload failed for order ${order.orderNumber}: ${error instanceof Error ? error.message : error}`,
+        `Invoice PDF render failed for order ${order.orderNumber}: ${error instanceof Error ? error.message : error}`,
       );
     }
 
-    return savedInvoice;
-  }
-
-  private async renderAndUploadPdf(
-    invoice: InvoiceEntity,
-    order: OrderEntity,
-  ): Promise<string | undefined> {
-    if (!this.bucket) {
-      return undefined;
+    if (pdfBuffer && this.bucket) {
+      try {
+        const storageKey = `invoices/${order.userId}/${savedInvoice.invoiceNumber}.pdf`;
+        await this.s3.send(
+          new PutObjectCommand({
+            Bucket: this.bucket,
+            Key: storageKey,
+            Body: pdfBuffer,
+            ContentType: 'application/pdf',
+          }),
+        );
+        savedInvoice.pdfStorageKey = storageKey;
+        await this.invoiceRepo.save(savedInvoice);
+      } catch (error) {
+        this.logger.warn(
+          `Invoice PDF upload failed for order ${order.orderNumber}: ${error instanceof Error ? error.message : error}`,
+        );
+      }
     }
 
+    return { invoice: savedInvoice, pdfBuffer };
+  }
+
+  private async renderPdfBuffer(
+    invoice: InvoiceEntity,
+    order: OrderEntity,
+  ): Promise<Buffer> {
     const chunks: Buffer[] = [];
     const doc = new PDFDocument({ margin: 50 });
     doc.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -152,18 +175,7 @@ export class InvoiceService {
     renderInvoicePdfContent(doc, invoice, order, billingAddress);
 
     doc.end();
-    const pdfBuffer = await pdfDone;
-
-    const storageKey = `invoices/${order.userId}/${invoice.invoiceNumber}.pdf`;
-    await this.s3.send(
-      new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: storageKey,
-        Body: pdfBuffer,
-        ContentType: 'application/pdf',
-      }),
-    );
-    return storageKey;
+    return pdfDone;
   }
 
   private async resolveBillingAddress(

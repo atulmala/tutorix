@@ -1,0 +1,5 @@
+---
+whatsappTemplateName: 
+variableMapping: {"studentName":"1","tutorName":"2","offeringName":"3"}
+---
+Hi {{studentName}}, {{tutorName}} asked you to pick a new time for {{offeringName}}. Open Tutorix to schedule it again.

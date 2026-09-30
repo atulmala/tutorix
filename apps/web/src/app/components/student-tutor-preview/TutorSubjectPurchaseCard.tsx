@@ -19,6 +19,7 @@ export type PreviewOffering = {
   onlineBaseRateInr?: number | null;
   offlineBaseRateInr?: number | null;
   freeDemoOffered?: boolean;
+  demoAvailable?: boolean;
   onlinePackSlabs?: ClassPackSlabLine[];
   offlinePackSlabs?: ClassPackSlabLine[];
 };
@@ -34,6 +35,10 @@ type TutorSubjectPurchaseCardProps = {
     deliveryMode: 'online' | 'offline',
     quantity: number,
   ) => Promise<void>;
+  onBookDemo?: (
+    offeringId: string,
+    deliveryMode: 'online' | 'offline',
+  ) => Promise<void>;
   onViewCart: () => void;
   /** Straight-line distance student ↔ tutor teaching location (km). */
   distanceKm?: number | null;
@@ -47,12 +52,15 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
   highlight = false,
   adding,
   onAdd,
+  onBookDemo,
   onViewCart,
 }) => {
   const [expanded, setExpanded] = useState(defaultExpanded || !collapsible);
   const [quantity, setQuantity] = useState(1);
   const [deliveryMode, setDeliveryMode] = useState<'online' | 'offline' | null>(null);
   const [cartMessage, setCartMessage] = useState<string | null>(null);
+  const [demoError, setDemoError] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<'cart' | 'demo' | null>(null);
 
   const offlineBookable = effectiveOfflineEnabledForBooking(
     offering.offlineEnabled === true,
@@ -103,8 +111,34 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
       return;
     }
     setCartMessage(null);
-    await onAdd(String(offering.offeringId), resolvedMode, quantity);
-    setCartMessage('Added to cart.');
+    setPendingAction('cart');
+    try {
+      await onAdd(String(offering.offeringId), resolvedMode, quantity);
+      setCartMessage('Added to cart.');
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  const handleBookDemo = async () => {
+    const resolvedMode = locked ?? deliveryMode;
+    if (!resolvedMode || !onBookDemo) {
+      setDemoError('Choose Online or Offline.');
+      return;
+    }
+    setDemoError(null);
+    setCartMessage(null);
+    setPendingAction('demo');
+    try {
+      await onBookDemo(String(offering.offeringId), resolvedMode);
+      setCartMessage('Free demo booked. Schedule it from your classes.');
+    } catch (err) {
+      setDemoError(
+        err instanceof Error ? err.message : 'Could not book the free demo.',
+      );
+    } finally {
+      setPendingAction(null);
+    }
   };
 
   const header = (
@@ -129,7 +163,9 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
           ) : null}
           {offering.freeDemoOffered ? (
             <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#16a34a]">
-              Free demo
+              {offering.demoAvailable === false
+                ? 'Free demo already booked'
+                : 'Free demo'}
             </span>
           ) : null}
         </div>
@@ -250,15 +286,28 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
               {cartMessage ? (
                 <p className="mt-2 text-sm font-semibold text-[#16a34a]">{cartMessage}</p>
               ) : null}
+              {demoError ? (
+                <p className="mt-2 text-sm font-semibold text-red-600">{demoError}</p>
+              ) : null}
 
               <div className="mt-3 flex flex-wrap gap-2">
+                {offering.demoAvailable && onBookDemo ? (
+                  <button
+                    type="button"
+                    disabled={adding || pendingAction != null}
+                    onClick={() => void handleBookDemo()}
+                    className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-slate-300"
+                  >
+                    {pendingAction === 'demo' ? 'Booking…' : 'Book free demo'}
+                  </button>
+                ) : null}
                 <button
                   type="button"
-                  disabled={adding}
+                  disabled={adding || pendingAction != null}
                   onClick={() => void handleAdd()}
                   className="rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8] disabled:bg-slate-300"
                 >
-                  {adding ? 'Adding…' : 'Add to cart'}
+                  {pendingAction === 'cart' ? 'Adding…' : 'Add to cart'}
                 </button>
                 <button
                   type="button"

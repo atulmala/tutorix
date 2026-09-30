@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQuery } from '@apollo/client';
-import { MY_CART, TUTOR_SEARCH_DETAIL } from '@tutorix/shared-graphql/queries';
-import { ADD_TO_CART } from '@tutorix/shared-graphql/mutations';
+import { MY_CART, MY_CLASS_CREDITS, TUTOR_SEARCH_DETAIL } from '@tutorix/shared-graphql/queries';
+import { ADD_TO_CART, BOOK_FREE_DEMO } from '@tutorix/shared-graphql/mutations';
 import {
-  formatExperienceDuration,
   formatExperiencePeriod,
   formatQualificationInstitutionGrade,
   formatQualificationTitle,
-  monthsToExperienceDuration,
 } from '@tutorix/shared-utils/tutor-detail-formatters';
+import { ExperienceBadge } from '../student-tutor-search/ExperienceBadge';
 import { analytics } from '../../../lib/analytics';
 import {
   TutorSubjectPurchaseCard,
@@ -51,6 +50,12 @@ export const StudentTutorPreviewScreen: React.FC<StudentTutorPreviewScreenProps>
   const [addToCart, { loading: adding }] = useMutation(ADD_TO_CART, {
     refetchQueries: [{ query: MY_CART }],
   });
+  const [bookFreeDemo, { loading: bookingDemo }] = useMutation(BOOK_FREE_DEMO, {
+    refetchQueries: [
+      { query: TUTOR_SEARCH_DETAIL, variables: { tutorId, offeringId } },
+      { query: MY_CLASS_CREDITS },
+    ],
+  });
   const [addingOfferingId, setAddingOfferingId] = useState<string | null>(null);
   const detail = data?.tutorSearchDetail;
 
@@ -80,6 +85,24 @@ export const StudentTutorPreviewScreen: React.FC<StudentTutorPreviewScreenProps>
     }
   };
 
+  const handleBookDemo = async (
+    targetOfferingId: string,
+    deliveryMode: 'online' | 'offline',
+  ) => {
+    setAddingOfferingId(targetOfferingId);
+    try {
+      await bookFreeDemo({
+        variables: {
+          tutorId,
+          offeringId: targetOfferingId,
+          deliveryMode,
+        },
+      });
+    } finally {
+      setAddingOfferingId(null);
+    }
+  };
+
   if (loading) {
     return <Text style={styles.hint}>Loading tutor…</Text>;
   }
@@ -87,10 +110,6 @@ export const StudentTutorPreviewScreen: React.FC<StudentTutorPreviewScreenProps>
     return <Text style={styles.hint}>Could not load this tutor.</Text>;
   }
 
-  const experience =
-    detail.totalExperienceMonths > 0
-      ? formatExperienceDuration(monthsToExperienceDuration(detail.totalExperienceMonths))
-      : '';
   const recentExperiences = (detail.recentExperiences ?? []) as PreviewExperience[];
   const topQualifications = (detail.topQualifications ?? []) as PreviewQualification[];
   const otherOfferings = (detail.otherOfferings ?? []) as PreviewOffering[];
@@ -108,7 +127,7 @@ export const StudentTutorPreviewScreen: React.FC<StudentTutorPreviewScreenProps>
           )}
           <View style={styles.headerCopy}>
             <Text style={styles.name}>{detail.displayName}</Text>
-            {experience ? <Text style={styles.meta}>{experience}</Text> : null}
+            <ExperienceBadge totalExperienceMonths={detail.totalExperienceMonths} />
             <Text style={styles.meta}>
               {[
                 detail.city,
@@ -136,8 +155,12 @@ export const StudentTutorPreviewScreen: React.FC<StudentTutorPreviewScreenProps>
         defaultExpanded
         collapsible={false}
         highlight
-        adding={adding && addingOfferingId === String(detail.matchingOffering.offeringId)}
+        adding={
+          (adding || bookingDemo) &&
+          addingOfferingId === String(detail.matchingOffering.offeringId)
+        }
         onAdd={handleAdd}
+        onBookDemo={handleBookDemo}
         onViewCart={onViewCart}
       />
 
@@ -152,8 +175,9 @@ export const StudentTutorPreviewScreen: React.FC<StudentTutorPreviewScreenProps>
               key={offering.offeringId}
               offering={offering}
               distanceKm={detail.distanceKm}
-              adding={adding && addingOfferingId === String(offering.offeringId)}
+              adding={(adding || bookingDemo) && addingOfferingId === String(offering.offeringId)}
               onAdd={handleAdd}
+              onBookDemo={handleBookDemo}
               onViewCart={onViewCart}
             />
           ))}

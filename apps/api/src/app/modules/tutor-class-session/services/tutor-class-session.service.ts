@@ -15,6 +15,9 @@ import {
 } from '@tutorix/shared-utils';
 import { User } from '../../auth/entities/user.entity';
 import { UserRole } from '../../auth/enums/user-role.enum';
+import { StudentClassCreditEntity } from '../../student-cart/entities/student-class-credit.entity';
+import { Student } from '../../student/entities/student.entity';
+import { Tutor } from '../../tutor/entities/tutor.entity';
 import { CommunicationAudience } from '../../communication/enums/communication-audience.enum';
 import { CommunicationEvent } from '../../communication/enums/communication-event.enum';
 import { CommunicationService } from '../../communication/communication.service';
@@ -29,6 +32,7 @@ import {
   BookTutorClassResult,
   StudentBookedClassSession,
   TutorBookableSlot,
+  TutorBookedClassSession,
 } from '../dto/tutor-class-session.dto';
 import { TutorClassSessionEnrollmentEntity } from '../entities/tutor-class-session-enrollment.entity';
 import { TutorClassSessionEntity } from '../entities/tutor-class-session.entity';
@@ -162,6 +166,76 @@ export class TutorClassSessionService {
       });
     }
     return bookable;
+  }
+
+  async listTutorBookedSessions(
+    user: User,
+    from: Date,
+    to: Date,
+  ): Promise<TutorBookedClassSession[]> {
+    this.assertTutor(user);
+    const tutor = await this.dataSource.getRepository(Tutor).findOne({
+      where: { userId: user.id, deleted: false },
+    });
+    if (!tutor) {
+      throw new ForbiddenException('Tutor profile not found');
+    }
+    if (!(from < to)) {
+      return [];
+    }
+
+    const enrollments = await this.enrollmentRepo
+      .createQueryBuilder('e')
+      .innerJoinAndSelect('e.session', 's')
+      .innerJoinAndSelect('s.tutorCalendar', 'c')
+      .innerJoinAndSelect('s.tutorOffering', 'toffer')
+      .leftJoinAndSelect('toffer.offering', 'o')
+      .innerJoinAndMapOne(
+        'e.bookedStudent',
+        Student,
+        'student',
+        'student.id = e.student_id',
+      )
+      .leftJoinAndSelect('student.user', 'studentUser')
+      .leftJoinAndMapOne(
+        'e.classCredit',
+        StudentClassCreditEntity,
+        'credit',
+        'credit.enrollment_id = e.id AND credit.deleted = false',
+      )
+      .where('c.tutorId = :tutorId', { tutorId: tutor.id })
+      .andWhere('e.deleted = false')
+      .andWhere('e.status = :enrolled', {
+        enrolled: ClassSessionEnrollmentStatusEnum.confirmed,
+      })
+      .andWhere('s.deleted = false')
+      .andWhere('s.status != :cancelled', {
+        cancelled: ClassSessionStatusEnum.cancelled,
+      })
+      .andWhere('c.startsAt >= :from', { from })
+      .andWhere('c.startsAt < :to', { to })
+      .orderBy('c.startsAt', 'ASC')
+      .getMany();
+
+    return enrollments.map((row) => {
+      const booked = row as TutorClassSessionEnrollmentEntity & {
+        bookedStudent?: Student;
+        classCredit?: StudentClassCreditEntity | null;
+      };
+      const session = booked.session as TutorClassSessionEntity;
+      const calendar = session.tutorCalendar as TutorCalendar;
+      return {
+        enrollmentId: booked.id,
+        sessionId: session.id,
+        tutorCalendarId: calendar.id,
+        startsAt: calendar.startsAt,
+        durationMinutes: calendar.durationMinutes ?? 60,
+        deliveryMode: session.deliveryMode,
+        offeringLabel: session.tutorOffering?.offering?.displayName ?? 'Class',
+        studentName: personName(booked.bookedStudent?.user) || 'Student',
+        isDemo: booked.classCredit?.isDemo === true,
+      };
+    });
   }
 
   async bookTutorClass(
@@ -315,6 +389,12 @@ export class TutorClassSessionService {
   private assertStudent(user: User): void {
     if (String(user.role).toUpperCase() !== UserRole.STUDENT) {
       throw new ForbiddenException('Only students can book classes');
+    }
+  }
+
+  private assertTutor(user: User): void {
+    if (String(user.role).toUpperCase() !== UserRole.TUTOR) {
+      throw new ForbiddenException('Only tutors can view this schedule');
     }
   }
 

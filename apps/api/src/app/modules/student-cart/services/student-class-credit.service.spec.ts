@@ -6,6 +6,8 @@ import { TutorClassSessionEnrollmentEntity } from '../../tutor-class-session/ent
 import { TutorClassSessionEntity } from '../../tutor-class-session/entities/tutor-class-session.entity';
 import { ClassSessionDeliveryModeEnum } from '../../tutor-class-session/enums/class-session-delivery-mode.enum';
 import { ClassSessionEnrollmentStatusEnum } from '../../tutor-class-session/enums/class-session-enrollment-status.enum';
+import { CommunicationAudience } from '../../communication/enums/communication-audience.enum';
+import { CommunicationEvent } from '../../communication/enums/communication-event.enum';
 import { ClassCreditStatusEnum } from '../enums/class-credit-status.enum';
 import { StudentClassCreditService } from './student-class-credit.service';
 
@@ -208,7 +210,34 @@ describe('StudentClassCreditService', () => {
       enrollmentId: 70,
       sessionId: 55,
     });
-    expect(emit).toHaveBeenCalled();
+    expect(emit).toHaveBeenCalledTimes(2);
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: CommunicationEvent.CLASS_SCHEDULED,
+        audience: CommunicationAudience.STUDENT,
+        userId: 9,
+        payload: expect.objectContaining({
+          headline: 'Your class is scheduled',
+        }),
+      }),
+    );
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: CommunicationEvent.CLASS_SCHEDULED,
+        audience: CommunicationAudience.TUTOR,
+        userId: 4,
+        payload: expect.objectContaining({
+          headline: 'A class is scheduled with you',
+        }),
+      }),
+    );
+    expect(
+      emit.mock.calls.every(
+        (call) => call[0].event !== CommunicationEvent.CLASS_BOOKED,
+      ),
+    ).toBe(true);
+    expect(emit.mock.calls[0][0].payload.linesHtml).toContain('Mathematics');
+    expect(emit.mock.calls[0][0].payload.linesHtml).toContain('Priya Sharma');
   });
 
   it('rejects scheduling a credit that is already scheduled', async () => {
@@ -222,6 +251,25 @@ describe('StudentClassCreditService', () => {
 
     await expect(service.schedule(studentUser as never, 12, 90)).rejects.toBeInstanceOf(
       BadRequestException,
+    );
+  });
+
+  it('rejects a student reschedule inside the offline lead time', async () => {
+    creditFindOne.mockResolvedValue({
+      id: 12,
+      studentId: 21,
+      status: ClassCreditStatusEnum.scheduled,
+      deliveryMode: ClassSessionDeliveryModeEnum.offline,
+      enrollment: {
+        session: {
+          tutorCalendar: { startsAt: new Date(Date.now() + 20 * 60 * 1000) },
+        },
+      },
+      tutorOffering,
+    });
+
+    await expect(service.reschedule(studentUser as never, 12, 90)).rejects.toThrow(
+      /30 minutes before/,
     );
   });
 });

@@ -1,0 +1,7 @@
+---
+dltTemplateId: 
+dltEntityId: 
+dltHeader: 
+variableMapping: {"studentName":"1","classTime":"2"}
+---
+Tutorix: {{headline}}. {{studentName}} · {{offeringName}} on {{classTime}}.

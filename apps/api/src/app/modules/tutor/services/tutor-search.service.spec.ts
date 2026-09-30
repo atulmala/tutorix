@@ -22,6 +22,7 @@ import {
 } from '../enums/tutor-search.enum';
 import { ExperienceService } from '../../experience/services/experience.service';
 import { TutorQualificationService } from './tutor-qualification.service';
+import { StudentClassCreditEntity } from '../../student-cart/entities/student-class-credit.entity';
 import { TutorSearchService } from './tutor-search.service';
 
 describe('TutorSearchService', () => {
@@ -37,6 +38,7 @@ describe('TutorSearchService', () => {
   let findExperiencesByTutorIds: jest.Mock;
   let findExperiencesByTutorId: jest.Mock;
   let findQualificationsByTutorId: jest.Mock;
+  let findDemoCredits: jest.Mock;
 
   const studentUser = { id: 9, role: UserRole.STUDENT };
 
@@ -157,6 +159,7 @@ describe('TutorSearchService', () => {
     findExperiencesByTutorIds = jest.fn().mockResolvedValue([]);
     findExperiencesByTutorId = jest.fn().mockResolvedValue([]);
     findQualificationsByTutorId = jest.fn().mockResolvedValue([]);
+    findDemoCredits = jest.fn().mockResolvedValue([]);
 
     const calendarQb = {
       select: jest.fn().mockReturnThis(),
@@ -202,6 +205,10 @@ describe('TutorSearchService', () => {
         {
           provide: TutorQualificationService,
           useValue: { findByTutorId: findQualificationsByTutorId },
+        },
+        {
+          provide: getRepositoryToken(StudentClassCreditEntity),
+          useValue: { find: findDemoCredits },
         },
       ],
     }).compile();
@@ -491,5 +498,18 @@ describe('TutorSearchService', () => {
 
     expect(detail.matchingOffering.offeringId).toBe(34);
     expect(detail.matchingOffering.offeringLabel).toContain('Classes 11');
+  });
+
+  it('hides the free demo after the student has already booked it', async () => {
+    completeCard.freeDemoOffered = true;
+    findOfferings.mockResolvedValue([tutorRow(1)]);
+    findRateCards.mockResolvedValue(new Map([[1, completeCard]]));
+    findDemoCredits.mockResolvedValue([{ catalogOfferingId: 33 }]);
+
+    const detail = await service.getTutorSearchDetail(studentUser as never, 1, 33);
+
+    expect(detail.matchingOffering.freeDemoOffered).toBe(true);
+    expect(detail.matchingOffering.demoAvailable).toBe(false);
+    completeCard.freeDemoOffered = false;
   });
 });

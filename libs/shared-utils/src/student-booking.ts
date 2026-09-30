@@ -12,6 +12,59 @@ export const STUDENT_BOOKING_MAX_WEEK_OFFSET = MAX_WEEKS_AHEAD - 1;
 
 export type StudentBookingDeliveryMode = 'online' | 'offline';
 
+export const OFFLINE_CLASS_CHANGE_LEAD_MINUTES = 30;
+export const ONLINE_CLASS_CHANGE_LEAD_MINUTES = 15;
+
+export function classChangeLeadMinutes(
+  deliveryMode: StudentBookingDeliveryMode | string,
+): number {
+  return deliveryMode === 'online'
+    ? ONLINE_CLASS_CHANGE_LEAD_MINUTES
+    : OFFLINE_CLASS_CHANGE_LEAD_MINUTES;
+}
+
+export function classChangeDeadlineMessage(
+  deliveryMode: StudentBookingDeliveryMode | string,
+): string {
+  const minutes = classChangeLeadMinutes(deliveryMode);
+  const kind = deliveryMode === 'online' ? 'Online' : 'Offline';
+  return `${kind} classes can only be changed until ${minutes} minutes before they start`;
+}
+
+/** Reschedule and cancel stay open until the lead time before the class starts. */
+export function canChangeScheduledClass(
+  startsAt: Date | string | null | undefined,
+  deliveryMode: StudentBookingDeliveryMode | string,
+  now: Date = new Date(),
+): boolean {
+  if (startsAt == null || startsAt === '') {
+    return false;
+  }
+  const startMs = new Date(startsAt).getTime();
+  if (Number.isNaN(startMs)) {
+    return false;
+  }
+  return startMs - now.getTime() >= classChangeLeadMinutes(deliveryMode) * 60 * 1000;
+}
+
+/** A class is concluded once its end time has passed. */
+export function scheduledClassHasEnded(
+  startsAt: Date | string | null | undefined,
+  durationMinutes: number | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  if (startsAt == null || startsAt === '') {
+    return false;
+  }
+  const startMs = new Date(startsAt).getTime();
+  if (Number.isNaN(startMs)) {
+    return false;
+  }
+  const minutes =
+    durationMinutes != null && durationMinutes > 0 ? durationMinutes : SLOT_DURATION_MINUTES;
+  return startMs + minutes * 60 * 1000 <= now.getTime();
+}
+
 export type StudentBookingDraft = {
   tutorId: string;
   offeringId: string;

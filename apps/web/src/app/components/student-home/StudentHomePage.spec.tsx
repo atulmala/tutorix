@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { STUDENT_BOOKED_CLASS_SESSIONS } from '@tutorix/shared-graphql';
-import { istHomeScheduleDays } from '@tutorix/shared-utils';
+import { istDayKey, istHomeScheduleDays } from '@tutorix/shared-utils';
 import { StudentHomePage } from './StudentHomePage';
 
 const mockUseQuery = jest.fn();
@@ -27,7 +27,9 @@ describe('StudentHomePage', () => {
     expect(screen.getByText('My schedule')).toBeTruthy();
     expect(screen.getByText("Today's classes")).toBeTruthy();
     expect(screen.getByText('Learning hours')).toBeTruthy();
-    expect(screen.getByText('Concluded classes')).toBeTruthy();
+    expect(screen.getByText('Concluded classes: 0')).toBeTruthy();
+    expect(screen.getByText('Today: 0 hours')).toBeTruthy();
+    expect(screen.getByText('Till now: 0')).toBeTruthy();
     const days = istHomeScheduleDays();
     expect(
       screen.getByRole('button', {
@@ -99,5 +101,60 @@ describe('StudentHomePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /1 class to schedule/ }));
     expect(onScheduleCredits).toHaveBeenCalledTimes(1);
+  });
+
+  it('counts concluded classes and opens the details page', () => {
+    const endedToday = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const endedEarlier = new Date(Date.now() - 26 * 60 * 60 * 1000);
+    const todayKey = istHomeScheduleDays().find((day) => day.isToday)?.key;
+    const todayCount = [endedToday, endedEarlier].filter(
+      (startsAt) => istDayKey(startsAt) === todayKey,
+    ).length;
+    mockUseQuery.mockImplementation((query: { kind?: string }) => {
+      if (query === STUDENT_BOOKED_CLASS_SESSIONS) {
+        return {
+          loading: false,
+          data: {
+            studentBookedClassSessions: [
+              {
+                enrollmentId: '38',
+                startsAt: endedToday.toISOString(),
+                durationMinutes: 60,
+                deliveryMode: 'offline',
+                offeringLabel: 'Economics',
+                tutorName: 'Navya',
+              },
+              {
+                enrollmentId: '12',
+                startsAt: endedEarlier.toISOString(),
+                durationMinutes: 60,
+                deliveryMode: 'online',
+                offeringLabel: 'Physics',
+                tutorName: 'Amit',
+              },
+            ],
+          },
+        };
+      }
+      return { loading: false, data: null };
+    });
+
+    const onOpenConcludedClasses = jest.fn();
+    render(
+      <StudentHomePage
+        onOpenTutorSearch={jest.fn()}
+        onOpenConcludedClasses={onOpenConcludedClasses}
+      />,
+    );
+
+    expect(screen.getByText('No classes on this day')).toBeTruthy();
+    expect(screen.getByText('Concluded classes: 2')).toBeTruthy();
+    expect(
+      screen.getByText(`Today: ${todayCount} ${todayCount === 1 ? 'hour' : 'hours'}`),
+    ).toBeTruthy();
+    expect(screen.getByText('Till now: 2')).toBeTruthy();
+    expect(screen.queryByText('Economics')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'See details' }));
+    expect(onOpenConcludedClasses).toHaveBeenCalledTimes(1);
   });
 });

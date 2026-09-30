@@ -33,12 +33,19 @@ type MyWalletTransactionsData = {
   };
 };
 
+function isWalletCredit(type: string): boolean {
+  return type === 'top_up_credit' || type === 'class_refund_credit';
+}
+
 function formatTransactionType(type: string): string {
+  if (type === 'class_refund_credit') {
+    return 'Refund';
+  }
   return type === 'top_up_credit' ? 'Added' : 'Spent';
 }
 
 function formatTransactionAmount(type: string, amountInr: number): string {
-  return type === 'top_up_credit' ? `+₹${amountInr}` : `-₹${amountInr}`;
+  return isWalletCredit(type) ? `+₹${amountInr}` : `-₹${amountInr}`;
 }
 
 export const WalletPage: React.FC<WalletPageProps> = ({ onBack }) => {
@@ -175,7 +182,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onBack }) => {
                   <div className="text-right">
                     <p
                       className={`text-sm font-semibold ${
-                        tx.type === 'top_up_credit' ? 'text-green-700' : 'text-red-700'
+                        isWalletCredit(tx.type) ? 'text-green-700' : 'text-red-700'
                       }`}
                     >
                       {formatTransactionAmount(tx.type, tx.amountInr)}

@@ -8,7 +8,12 @@ import {
   PENDING_RATE_CARD_TASK_ACTION,
   PENDING_RATE_CARD_TASK_MESSAGE,
 } from '@tutorix/shared-utils/rate-card';
-import { GET_MY_TUTOR_CALENDAR_UPDATED_TILL, GET_MY_TUTOR_DETAIL } from '@tutorix/shared-graphql/queries';
+import {
+  GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
+  GET_MY_TUTOR_DETAIL,
+  TUTOR_BOOKED_CLASS_SESSIONS,
+} from '@tutorix/shared-graphql/queries';
+import { formatIstBookingTimeRange } from '@tutorix/shared-utils/student-booking';
 import { istHomeScheduleDays } from '@tutorix/shared-utils/student-schedule';
 import { TutorHomeScreen } from './TutorHomeScreen';
 
@@ -17,10 +22,12 @@ const mockUseQuery = jest.fn();
 jest.mock('@tutorix/shared-graphql/queries', () => ({
   GET_MY_TUTOR_DETAIL: { kind: 'detail' },
   GET_MY_TUTOR_CALENDAR_UPDATED_TILL: { kind: 'till' },
+  TUTOR_BOOKED_CLASS_SESSIONS: { kind: 'sessions' },
 }));
 
 jest.mock('@apollo/client', () => ({
-  useQuery: (...args: unknown[]) => mockUseQuery(...args),
+  useQuery: (query: unknown, options?: unknown) => mockUseQuery(query, options),
+  useMutation: () => [jest.fn(), { loading: false }],
 }));
 
 const completeOffering = {
@@ -58,7 +65,7 @@ describe('TutorHomeScreen', () => {
     expect(getByText('My schedule')).toBeTruthy();
     expect(getByText("Today's classes")).toBeTruthy();
     expect(getByText('Teaching hours')).toBeTruthy();
-    expect(getByText('Concluded classes')).toBeTruthy();
+    expect(getByText('Concluded classes: 0')).toBeTruthy();
     const days = istHomeScheduleDays();
     expect(getByText(`${days[0].day} ${days[0].monthAbbr}`)).toBeTruthy();
     expect(getByText(`${days[13].day} ${days[13].monthAbbr}`)).toBeTruthy();
@@ -89,5 +96,44 @@ describe('TutorHomeScreen', () => {
 
     expect(onSetRateCard).toHaveBeenCalledTimes(1);
     expect(onUpdateCalendar).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a scheduled demo on the selected day', () => {
+    const startsAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    mockUseQuery.mockImplementation((query: { kind?: string }) => {
+      if (query === TUTOR_BOOKED_CLASS_SESSIONS) {
+        return {
+          loading: false,
+          data: {
+            tutorBookedClassSessions: [
+              {
+                enrollmentId: '5',
+                sessionId: '5',
+                startsAt: startsAt.toISOString(),
+                durationMinutes: 60,
+                deliveryMode: 'offline',
+                offeringLabel: 'Economics',
+                studentName: 'Ruchi Sharma',
+                isDemo: true,
+              },
+            ],
+          },
+        };
+      }
+      if (query === GET_MY_TUTOR_DETAIL) {
+        return { loading: false, data: { myTutorDetail: { offerings: [completeOffering] } } };
+      }
+      return { loading: false, data: { myTutorCalendarUpdatedTill: '2099-12-31T00:00:00.000Z' } };
+    });
+
+    const { getByText } = render(<TutorHomeScreen />);
+
+    expect(getByText(formatIstBookingTimeRange(startsAt, 60))).toBeTruthy();
+    expect(getByText('Economics · Free demo')).toBeTruthy();
+    expect(getByText('Offline · Ruchi Sharma')).toBeTruthy();
+    expect(getByText('1 class')).toBeTruthy();
+    expect(getByText('1 hour')).toBeTruthy();
+    expect(getByText('Cancel class')).toBeTruthy();
+    expect(getByText('Request reschedule')).toBeTruthy();
   });
 });

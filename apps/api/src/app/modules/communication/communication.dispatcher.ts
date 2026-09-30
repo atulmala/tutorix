@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../auth/entities/user.entity';
+import { EmailAttachment } from './email/email.types';
 import { EmailPurpose } from './email/enums/email-purpose.enum';
 import { EmailService } from './email/email.service';
 import { formatRecipientName } from './email/email.utils';
@@ -36,6 +37,7 @@ export type CommunicationEmitInput = {
   entityType?: string;
   entityId?: string | number;
   payload: Record<string, unknown>;
+  emailAttachments?: EmailAttachment[];
 };
 
 @Injectable()
@@ -195,6 +197,7 @@ export class CommunicationDispatcher {
           recipientName: formatRecipientName(user.firstName, user.lastName),
           recipientRole: user.role,
           tags: { event: input.event, audience },
+          attachments: input.emailAttachments,
         });
         provider = this.emailService.getProviderKind();
         messageId = result.messageId;
@@ -338,6 +341,8 @@ export function emailPurposeForEvent(event: CommunicationEvent): EmailPurpose {
       return EmailPurpose.WALLET_TOP_UP;
     case CommunicationEvent.CLASS_BOOKED:
       return EmailPurpose.CLASS_BOOKING;
+    case CommunicationEvent.CLASS_SCHEDULED:
+      return EmailPurpose.OTHER;
     case CommunicationEvent.CLASS_STARTING_SOON:
       return EmailPurpose.CLASS_REMINDER;
     default:

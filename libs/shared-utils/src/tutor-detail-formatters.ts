@@ -97,6 +97,62 @@ export function sortTutorOfferingsForDisplay<
   );
 }
 
+type SharedPtOffering = {
+  id: number;
+  proficiencyTestId?: number | null;
+  status: string;
+  rateCard?: { isComplete?: boolean } | null;
+};
+
+function sharedPtStatusRank(status: string): number {
+  if (status === 'pt_passed') return 0;
+  if (status === 'pending_pt') return 1;
+  if (status === 'pt_failed') return 2;
+  return 3;
+}
+
+function pickSharedPtRepresentative<T extends SharedPtOffering>(group: T[]): T {
+  return [...group].sort((a, b) => {
+    const status = sharedPtStatusRank(a.status) - sharedPtStatusRank(b.status);
+    if (status !== 0) return status;
+    const aCard = a.rateCard?.isComplete ? 0 : 1;
+    const bCard = b.rateCard?.isComplete ? 0 : 1;
+    if (aCard !== bCard) return aCard - bCard;
+    return a.id - b.id;
+  })[0];
+}
+
+/**
+ * One profile row per proficiency test. Offerings that share a test already
+ * render as the same class-range label (for example CBSE Economics Classes 11-12).
+ */
+export function collapseTutorOfferingsSharingProficiencyTest<T extends SharedPtOffering>(
+  offerings: T[],
+): T[] {
+  const groups = new Map<number, T[]>();
+  for (const offering of offerings) {
+    const ptId = offering.proficiencyTestId;
+    if (ptId == null) continue;
+    const group = groups.get(ptId) ?? [];
+    group.push(offering);
+    groups.set(ptId, group);
+  }
+
+  const emitted = new Set<number>();
+  const listed: T[] = [];
+  for (const offering of offerings) {
+    const ptId = offering.proficiencyTestId;
+    if (ptId == null) {
+      listed.push(offering);
+      continue;
+    }
+    if (emitted.has(ptId)) continue;
+    emitted.add(ptId);
+    listed.push(pickSharedPtRepresentative(groups.get(ptId) ?? [offering]));
+  }
+  return listed;
+}
+
 export function formatDate(value?: string | null): string {
   if (!value) return '—';
   const date = new Date(value);
@@ -152,6 +208,16 @@ export function monthsToExperienceDuration(totalMonths: number): ExperienceDurat
     years: Math.floor(normalized / 12),
     months: normalized % 12,
   };
+}
+
+/** Attention-grabbing label for tutor search cards and the student tutor profile. */
+export function formatExperienceBadgeLabel(
+  totalExperienceMonths?: number | null,
+): string | null {
+  if (totalExperienceMonths == null || totalExperienceMonths <= 0) {
+    return null;
+  }
+  return `${formatExperienceDuration(monthsToExperienceDuration(totalExperienceMonths))} experience`;
 }
 
 export function formatExperienceDuration(

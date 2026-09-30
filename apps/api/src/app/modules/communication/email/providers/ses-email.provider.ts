@@ -25,6 +25,13 @@ export class SesEmailProvider implements EmailProvider {
               Text: { Data: input.text, Charset: 'UTF-8' },
               Html: { Data: input.html, Charset: 'UTF-8' },
             },
+            Attachments: input.attachments?.map((file) => ({
+              FileName: file.filename,
+              RawContent: file.content,
+              ContentType: file.contentType,
+              ContentDisposition: 'ATTACHMENT' as const,
+              ContentTransferEncoding: 'BASE64' as const,
+            })),
           },
         },
         EmailTags: tags,

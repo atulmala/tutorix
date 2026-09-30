@@ -3,6 +3,7 @@ import { registerEnumType } from '@nestjs/graphql';
 export enum WalletTransactionTypeEnum {
   top_up_credit = 'top_up_credit',
   purchase_debit = 'purchase_debit',
+  class_refund_credit = 'class_refund_credit',
 }
 
 registerEnumType(WalletTransactionTypeEnum, { name: 'WalletTransactionType' });

@@ -51,6 +51,7 @@ import {
   pinExperienceRowToMonthDay,
   sortQualificationsHighestFirst,
   sumExperienceDurations,
+  collapseTutorOfferingsSharingProficiencyTest,
   formatOfferingLabelForDisplay,
   hasPassedOverlappingPt,
   offeringCoveredBySharedRateCard,
@@ -430,7 +431,10 @@ export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
   );
 
   const sortedOfferings = useMemo(
-    () => sortTutorOfferingsForDisplay(tutor?.offerings ?? []),
+    () =>
+      sortTutorOfferingsForDisplay(
+        collapseTutorOfferingsSharingProficiencyTest(tutor?.offerings ?? []),
+      ),
     [tutor?.offerings],
   );
 
@@ -855,7 +859,7 @@ export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
           <Text style={styles.offeringsSectionTitle}>Offerings</Text>
           <View style={styles.offeringsHeaderActions}>
             <Text style={styles.offeringsCount}>
-              {formatEntryCount(tutor.offerings.length, 'offering', 'offerings')}
+              {formatEntryCount(sortedOfferings.length, 'offering', 'offerings')}
             </Text>
             <TouchableOpacity
               style={styles.addOfferingButton}

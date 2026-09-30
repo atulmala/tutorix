@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import {
   currentIstWeekRange,
   formatTutorOfferingFullLabel,
@@ -34,6 +34,8 @@ import { OfferingService } from '../../offerings/services/offering.service';
 import { OfferingEntity } from '../../offerings/entities/offering.entity';
 import { ProficiencyTestService } from '../../proficiency/services/proficiency-test.service';
 import { StudentService } from '../../student/services/student.service';
+import { StudentClassCreditEntity } from '../../student-cart/entities/student-class-credit.entity';
+import { ClassCreditStatusEnum } from '../../student-cart/enums/class-credit-status.enum';
 import { TutorCalendar } from '../../tutor-calendar/entities/tutor-calendar.entity';
 import { ExperienceService } from '../../experience/services/experience.service';
 import { ExperienceEntity } from '../../experience/entities/experience.entity';
@@ -77,6 +79,8 @@ export class TutorSearchService {
     private readonly profilePictureService: ProfilePictureService,
     private readonly experienceService: ExperienceService,
     private readonly tutorQualificationService: TutorQualificationService,
+    @InjectRepository(StudentClassCreditEntity)
+    private readonly classCreditRepo: Repository<StudentClassCreditEntity>,
   ) {}
 
   async searchTutors(
@@ -275,6 +279,7 @@ export class TutorSearchService {
     const totalExperience = sumExperienceDurations(
       experiences.map((exp) => this.toExperienceRange(exp)),
     );
+    const usedDemoOfferings = await this.demoCatalogOfferingIds(student.id, tutor.id);
 
     return {
       tutorId: tutor.id,
@@ -295,16 +300,22 @@ export class TutorSearchService {
       topQualifications: sortQualificationsHighestFirst(qualifications)
         .slice(0, STUDENT_TUTOR_TOP_QUALIFICATION_LIMIT)
         .map((qual) => this.toSearchQualification(qual)),
-      matchingOffering: this.toOfferingSummaryForCatalog(
-        offeringId,
-        matching,
-        rateCards.get(matching.id) ?? null,
-        offeringsById,
+      matchingOffering: this.withDemoAvailability(
+        this.toOfferingSummaryForCatalog(
+          offeringId,
+          matching,
+          rateCards.get(matching.id) ?? null,
+          offeringsById,
+        ),
+        usedDemoOfferings,
       ),
       otherOfferings: offerings
         .filter((row) => row.id !== matching.id && isRateCardComplete(rateCards.get(row.id)))
         .map((row) =>
-          this.toOfferingSummary(row, rateCards.get(row.id) ?? null, offeringsById),
+          this.withDemoAvailability(
+            this.toOfferingSummary(row, rateCards.get(row.id) ?? null, offeringsById),
+            usedDemoOfferings,
+          ),
         ),
     };
   }
@@ -446,6 +457,7 @@ export class TutorSearchService {
         ? catalogBaseRateInrForMode(rateCard, 'offline')
         : null,
       freeDemoOffered: rateCard?.freeDemoOffered === true,
+      demoAvailable: false,
       ...this.packSlabsForSummary(rateCard),
     };
   }
@@ -470,8 +482,41 @@ export class TutorSearchService {
         ? catalogBaseRateInrForMode(rateCard, 'offline')
         : null,
       freeDemoOffered: rateCard?.freeDemoOffered === true,
+      demoAvailable: false,
       ...this.packSlabsForSummary(rateCard),
     };
+  }
+
+  private withDemoAvailability(
+    summary: TutorSearchOfferingSummary,
+    usedCatalogOfferingIds: Set<number>,
+  ): TutorSearchOfferingSummary {
+    return {
+      ...summary,
+      demoAvailable:
+        summary.freeDemoOffered &&
+        !usedCatalogOfferingIds.has(Number(summary.offeringId)),
+    };
+  }
+
+  private async demoCatalogOfferingIds(
+    studentId: number,
+    tutorId: number,
+  ): Promise<Set<number>> {
+    const rows = await this.classCreditRepo.find({
+      where: {
+        studentId,
+        tutorId,
+        isDemo: true,
+        deleted: false,
+        status: Not(ClassCreditStatusEnum.cancelled),
+      },
+    });
+    return new Set(
+      rows
+        .map((row) => row.catalogOfferingId)
+        .filter((id): id is number => id != null),
+    );
   }
 
   private packSlabsForSummary(

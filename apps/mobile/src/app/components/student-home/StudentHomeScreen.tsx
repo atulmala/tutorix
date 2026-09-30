@@ -4,17 +4,22 @@ import Svg, { Path } from 'react-native-svg';
 import { useQuery } from '@apollo/client';
 import { MY_CLASS_CREDITS, STUDENT_BOOKED_CLASS_SESSIONS } from '@tutorix/shared-graphql/queries';
 import type { StudentClassCredit } from '../student-cart/StudentClassCreditsScreen';
-import { formatIstBookingTimeRange } from '@tutorix/shared-utils/student-booking';
 import {
+  canChangeScheduledClass,
+  formatIstBookingTimeRange,
+  scheduledClassHasEnded,
+} from '@tutorix/shared-utils/student-booking';
+import {
+  istBookedClassQueryRange,
   istDayKey,
   istHomeScheduleDays,
-  istHomeScheduleRange,
 } from '@tutorix/shared-utils/student-schedule';
 
 type StudentHomeScreenProps = {
   onOpenTutorSearch: () => void;
   onScheduleCredits?: () => void;
   onRescheduleCredit?: (credit: StudentClassCredit) => void;
+  onOpenConcludedClasses?: () => void;
 };
 
 type BookedClass = {
@@ -56,9 +61,10 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
   onOpenTutorSearch,
   onScheduleCredits,
   onRescheduleCredit,
+  onOpenConcludedClasses,
 }) => {
   const weekDays = useMemo(() => istHomeScheduleDays(), []);
-  const scheduleRange = useMemo(() => istHomeScheduleRange(), []);
+  const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
   const todayKey = weekDays.find((d) => d.isToday)?.key ?? weekDays[0]?.key;
   const [selectedKey, setSelectedKey] = useState(todayKey);
   const selected = weekDays.find((d) => d.key === selectedKey) ?? weekDays[0];
@@ -75,10 +81,19 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
   const booked = (data?.studentBookedClassSessions ?? []) as BookedClass[];
   const credits = (creditData?.myClassCredits ?? []) as StudentClassCredit[];
   const unscheduledCount = credits.filter((row) => row.status === 'unscheduled').length;
-  const selectedClasses = booked.filter(
+  const dayClasses = booked.filter(
     (row) => istDayKey(new Date(row.startsAt)) === selected?.key,
   );
+  const selectedClasses = dayClasses.filter(
+    (row) => !scheduledClassHasEnded(row.startsAt, row.durationMinutes),
+  );
   const todayClasses = booked.filter((row) => istDayKey(new Date(row.startsAt)) === todayKey);
+  const concludedClasses = booked
+    .filter((row) => scheduledClassHasEnded(row.startsAt, row.durationMinutes))
+    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
+  const todayConcludedCount = concludedClasses.filter(
+    (row) => istDayKey(new Date(row.startsAt)) === todayKey,
+  ).length;
 
   return (
     <ScrollView
@@ -154,8 +169,9 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
           <View style={styles.statCopy}>
             <Text style={styles.statLabel}>Learning hours</Text>
             <Text style={styles.statValue}>
-              {selectedClasses.length} {selectedClasses.length === 1 ? 'hour' : 'hours'}
+              Today: {todayConcludedCount} {todayConcludedCount === 1 ? 'hour' : 'hours'}
             </Text>
+            <Text style={styles.statValue}>Till now: {concludedClasses.length}</Text>
           </View>
         </View>
       </View>
@@ -184,7 +200,7 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
                     const credit = credits.find(
                       (item) => String(item.enrollmentId) === String(row.enrollmentId),
                     );
-                    return credit ? (
+                    return credit && canChangeScheduledClass(row.startsAt, row.deliveryMode) ? (
                       <Pressable onPress={() => onRescheduleCredit(credit)}>
                         <Text style={styles.reschedule}>Reschedule</Text>
                       </Pressable>
@@ -205,10 +221,17 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
       </View>
 
       <View style={styles.concludedCard}>
-        <Text style={styles.concludedTitle}>Concluded classes</Text>
-        <Text style={styles.listEmptyCopy}>
-          Sessions you finish will be listed here so you can look back on them.
+        <Text style={styles.concludedTitle}>
+          Concluded classes: {concludedClasses.length}
         </Text>
+        <Pressable
+          style={styles.detailsButton}
+          onPress={onOpenConcludedClasses}
+          accessibilityRole="button"
+          accessibilityLabel="See details"
+        >
+          <Text style={styles.detailsButtonText}>See details</Text>
+        </Pressable>
       </View>
     </ScrollView>
   );
@@ -307,4 +330,13 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   concludedTitle: { fontSize: 16, fontWeight: '800', color: '#143055' },
+  detailsButton: {
+    alignSelf: 'flex-start',
+    marginTop: 12,
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  detailsButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });

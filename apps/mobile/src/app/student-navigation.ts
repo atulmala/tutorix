@@ -19,6 +19,8 @@ export type AppView =
   | 'studentCartCheckout'
   | 'studentClassCredits'
   | 'studentClassSchedule'
+  | 'studentConcludedClasses'
+  | 'tutorConcludedClasses'
   | 'wallet'
   | 'home';
 
@@ -32,6 +34,8 @@ export type WalletReturnView =
   | 'studentTutorPreview'
   | 'studentClassCredits'
   | 'studentClassSchedule'
+  | 'studentConcludedClasses'
+  | 'tutorConcludedClasses'
   /** @deprecated Checkout is a cart overlay; prefer restoring overlay state. */
   | 'studentCartCheckout';
 
@@ -45,6 +49,7 @@ const STUDENT_CART_RETURN_VIEWS = [
   'studentTutorPreview',
   'studentClassCredits',
   'studentClassSchedule',
+  'studentConcludedClasses',
 ] as const satisfies readonly AppView[];
 
 export type StudentCartReturnView = (typeof STUDENT_CART_RETURN_VIEWS)[number];
@@ -81,6 +86,9 @@ export function walletReturnFromPush(view: AppView): WalletReturnView | null {
   }
   if (isStudentCartReturnView(view)) {
     return view;
+  }
+  if (view === 'tutorConcludedClasses') {
+    return 'tutorConcludedClasses';
   }
   if (view === 'tutorHome' || view === 'tutorOnboarding' || view === 'tutorBankSetup' || view === 'tutorRateCardSetup' || view === 'tutorCalendar') {
     return 'tutorHome';

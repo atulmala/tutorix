@@ -30,7 +30,9 @@ describe('StudentHomeScreen', () => {
     expect(getByText('My schedule')).toBeTruthy();
     expect(getByText("Today's classes")).toBeTruthy();
     expect(getByText('Learning hours')).toBeTruthy();
-    expect(getByText('Concluded classes')).toBeTruthy();
+    expect(getByText('Concluded classes: 0')).toBeTruthy();
+    expect(getByText('Today: 0 hours')).toBeTruthy();
+    expect(getByText('Till now: 0')).toBeTruthy();
     const days = istHomeScheduleDays();
     expect(getByText(`${days[0].day} ${days[0].monthAbbr}`)).toBeTruthy();
     expect(getByText(`${days[13].day} ${days[13].monthAbbr}`)).toBeTruthy();

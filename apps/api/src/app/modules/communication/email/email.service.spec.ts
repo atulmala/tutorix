@@ -146,6 +146,41 @@ describe('EmailService', () => {
     );
   });
 
+  it('includes a PDF attachment on the SES message', async () => {
+    mockSend.mockResolvedValue({ MessageId: 'ses-attach' });
+    const { service } = createService({
+      EMAIL_PROVIDER: 'ses',
+      SES_FROM_EMAIL: 'info@tutorix.tech',
+    });
+    const pdf = Buffer.from('pdf-bytes');
+    await service.send({
+      ...baseInput,
+      attachments: [
+        {
+          filename: 'invoice-INV-1.pdf',
+          contentType: 'application/pdf',
+          content: pdf,
+        },
+      ],
+    });
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Content: expect.objectContaining({
+          Simple: expect.objectContaining({
+            Attachments: [
+              expect.objectContaining({
+                FileName: 'invoice-INV-1.pdf',
+                ContentType: 'application/pdf',
+                ContentDisposition: 'ATTACHMENT',
+                RawContent: pdf,
+              }),
+            ],
+          }),
+        }),
+      }),
+    );
+  });
+
   it('rejects invalid recipient email without recording', async () => {
     const { service, emailSendRepository } = createService({
       EMAIL_PROVIDER: 'console',

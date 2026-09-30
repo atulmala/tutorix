@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -30,6 +31,9 @@ import {
 } from '../../commerce/enums/commerce.enums';
 import { InvoiceService } from '../../commerce/services/invoice.service';
 import { OrderService } from '../../commerce/services/order.service';
+import { CommunicationAudience } from '../../communication/enums/communication-audience.enum';
+import { CommunicationEvent } from '../../communication/enums/communication-event.enum';
+import { CommunicationService } from '../../communication/communication.service';
 import { PlatformFeeLineInput } from '../../commerce/services/order-pricing.service';
 import { WalletPurchaseResultDto } from '../../wallet/dto/wallet-checkout.dto';
 import { WalletPurchaseReferenceTypeEnum } from '../../wallet/enums/wallet.enums';
@@ -42,7 +46,16 @@ import { ClassSessionDeliveryModeEnum } from '../../tutor-class-session/enums/cl
 import { TutorOfferingEntity } from '../../tutor/entities/tutor-offering.entity';
 import { TutorOfferingStatusEnum } from '../../tutor/enums/tutor.enums';
 import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
-import { StudentCartDto, StudentCartItemDto } from '../dto/student-cart.dto';
+import {
+  buildClassBookingTable,
+  formatInrAmount,
+  type ClassBookingEmailLine,
+} from '../class-booking-email-table.util';
+import {
+  StudentCartDto,
+  StudentCartItemDto,
+  StudentClassCreditDto,
+} from '../dto/student-cart.dto';
 import { StudentCartItemEntity } from '../entities/student-cart-item.entity';
 import { StudentCartEntity } from '../entities/student-cart.entity';
 
@@ -60,6 +73,8 @@ function personName(user?: { firstName?: string | null; lastName?: string | null
 
 @Injectable()
 export class StudentCartService {
+  private readonly logger = new Logger(StudentCartService.name);
+
   constructor(
     private readonly studentService: StudentService,
     private readonly rateCardService: TutorRateCardService,
@@ -75,6 +90,7 @@ export class StudentCartService {
     @InjectRepository(TutorOfferingEntity)
     private readonly tutorOfferingRepo: Repository<TutorOfferingEntity>,
     private readonly offeringService: OfferingService,
+    private readonly communicationService: CommunicationService,
   ) {}
 
   async myCart(user: User): Promise<StudentCartDto> {
@@ -265,17 +281,251 @@ export class StudentCartService {
     });
 
     const paid = await this.orderService.findById(order.id);
+    let pdfBuffer: Buffer | null = null;
+    let invoiceNumber = order.orderNumber;
     if (paid) {
       await this.creditService.fulfillPaidOrder(paid, student.id, priced.items);
-      await this.invoiceService.generateForOrder(paid);
+      const generated = await this.invoiceService.generateForOrderWithPdf(paid);
+      pdfBuffer = generated.pdfBuffer;
+      invoiceNumber = generated.invoice.invoiceNumber;
     }
     await this.clearCart(student.id);
+    await this.emitClassBookingEmails({
+      user,
+      orderId: order.id,
+      invoiceNumber,
+      amountPaidInr: priced.totalInr,
+      lines: this.bookingEmailLines(priced.dtos, priced.items),
+      pdfBuffer,
+    });
 
     return {
       wallet: this.walletService.toWalletDto(updatedWallet),
       orderId: order.id,
       orderNumber: order.orderNumber,
     };
+  }
+
+  async bookFreeDemo(
+    user: User,
+    tutorIdInput: string | number,
+    offeringIdInput: string | number,
+    deliveryMode: ClassSessionDeliveryModeEnum,
+  ): Promise<StudentClassCreditDto> {
+    const student = await this.requireStudent(user);
+    const catalogOfferingId = asId(offeringIdInput);
+    const tutorOffering = await this.resolveTutorOffering(
+      asId(tutorIdInput),
+      catalogOfferingId,
+    );
+    if (deliveryMode === ClassSessionDeliveryModeEnum.offline) {
+      this.assertOfflineBookingAllowed(student, tutorOffering);
+    }
+    const rateCards = await this.rateCardService.resolveCompleteRateCards([
+      tutorOffering,
+    ]);
+    const rateCard = rateCards.get(tutorOffering.id);
+    if (!rateCard?.freeDemoOffered) {
+      throw new BadRequestException(
+        'This tutor does not offer a free demo for this subject',
+      );
+    }
+    const modeEnabled =
+      deliveryMode === ClassSessionDeliveryModeEnum.online
+        ? rateCard.onlineEnabled === true
+        : rateCard.offlineEnabled === true;
+    if (!modeEnabled) {
+      throw new BadRequestException(
+        'This delivery mode is not available for the free demo',
+      );
+    }
+    if (
+      await this.creditService.hasActiveDemo(
+        student.id,
+        tutorOffering.tutorId,
+        catalogOfferingId,
+      )
+    ) {
+      throw new BadRequestException(
+        'You have already booked a free demo for this subject with this tutor',
+      );
+    }
+
+    const offeringsById = await this.loadOfferingsById();
+    const { offeringLabel } = resolveStudentCartOfferingDisplay(
+      catalogOfferingId,
+      tutorOffering.offeringId,
+      tutorOffering.offering?.displayName,
+      offeringsById,
+    );
+    const tutorName = personName(tutorOffering.tutor?.user) || 'Tutor';
+    const modeLabel =
+      deliveryMode === ClassSessionDeliveryModeEnum.online ? 'Online' : 'Offline';
+    const order = await this.orderService.createOrderWithItems({
+      user,
+      payerRole: OrderPayerRoleEnum.student,
+      source: OrderSourceEnum.cart,
+      initialStatus: OrderStatusEnum.paid,
+      lines: [
+        {
+          itemType: OrderItemTypeEnum.CLASS_BOOKING,
+          description: `Free demo · ${offeringLabel} · ${tutorName} · ${modeLabel}`,
+          referenceType: OrderItemReferenceTypeEnum.tutor_offering,
+          referenceId: tutorOffering.id,
+          unitRateInr: 0,
+          quantity: 1,
+          lineSubtotalInr: 0,
+          discountInr: 0,
+          waiverApplied: true,
+          amountDueInr: 0,
+        },
+      ],
+    });
+    await this.orderService.markOrderPaid(order, OrderPaymentMethodEnum.wallet, 0);
+    const paid = await this.orderService.findById(order.id);
+    const orderItem = paid?.items?.[0];
+    if (!paid || !orderItem) {
+      throw new BadRequestException('Could not book the free demo');
+    }
+    const credit = await this.creditService.issueDemoCredit({
+      studentId: student.id,
+      orderId: paid.id,
+      orderItem,
+      tutorOffering,
+      catalogOfferingId,
+      deliveryMode,
+    });
+
+    try {
+      const generated = await this.invoiceService.generateForOrderWithPdf(paid);
+      await this.emitClassBookingEmails({
+        user,
+        orderId: paid.id,
+        invoiceNumber: generated.invoice.invoiceNumber,
+        amountPaidInr: 0,
+        lines: [
+          {
+            tutorUserId:
+              tutorOffering.tutor?.userId ?? tutorOffering.tutor?.user?.id ?? null,
+            tutorName,
+            offeringLabel,
+            deliveryMode,
+            classCount: 1,
+            lineAmountInr: 0,
+          },
+        ],
+        pdfBuffer: generated.pdfBuffer,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Free demo confirmation failed for order ${paid.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
+    return credit;
+  }
+
+  private bookingEmailLines(
+    dtos: StudentCartItemDto[],
+    items: StudentCartItemEntity[],
+  ): Array<ClassBookingEmailLine & { tutorUserId: number | null }> {
+    return dtos.map((dto, index) => {
+      const tutor = items[index]?.tutorOffering?.tutor;
+      return {
+        tutorUserId: tutor?.userId ?? tutor?.user?.id ?? null,
+        tutorName: dto.tutorName,
+        offeringLabel: dto.offeringLabel,
+        deliveryMode: dto.deliveryMode,
+        classCount: dto.quantity,
+        lineAmountInr: dto.lineTotalInr,
+      };
+    });
+  }
+
+  private async emitClassBookingEmails(params: {
+    user: User;
+    orderId: number;
+    invoiceNumber: string;
+    amountPaidInr: number;
+    lines: Array<ClassBookingEmailLine & { tutorUserId: number | null }>;
+    pdfBuffer: Buffer | null;
+  }): Promise<void> {
+    const studentName = personName(params.user) || 'Student';
+    const classCount = params.lines.reduce((sum, line) => sum + line.classCount, 0);
+    const studentTable = buildClassBookingTable(params.lines, { includeAmount: true });
+    try {
+      if (!params.pdfBuffer) {
+        this.logger.warn(
+          `CLASS_BOOKED invoice PDF missing for order ${params.orderId}`,
+        );
+      }
+      await this.communicationService.emit({
+        event: CommunicationEvent.CLASS_BOOKED,
+        userId: params.user.id,
+        audience: CommunicationAudience.STUDENT,
+        entityType: 'commerce_order',
+        entityId: params.orderId,
+        payload: {
+          studentName,
+          classCount: String(classCount),
+          amountPaid: formatInrAmount(params.amountPaidInr),
+          orderNumber: params.invoiceNumber,
+          linesHtml: studentTable.html,
+          linesText: studentTable.text,
+        },
+        emailAttachments: params.pdfBuffer
+          ? [
+              {
+                filename: `invoice-${params.invoiceNumber}.pdf`,
+                contentType: 'application/pdf',
+                content: params.pdfBuffer,
+              },
+            ]
+          : undefined,
+      });
+
+      const byTutor = new Map<number, typeof params.lines>();
+      for (const line of params.lines) {
+        if (line.tutorUserId == null) {
+          this.logger.warn(
+            `CLASS_BOOKED skipped tutor mail for order ${params.orderId}: missing tutor user`,
+          );
+          continue;
+        }
+        const group = byTutor.get(line.tutorUserId) ?? [];
+        group.push(line);
+        byTutor.set(line.tutorUserId, group);
+      }
+
+      for (const [tutorUserId, lines] of byTutor) {
+        const tutorTable = buildClassBookingTable(lines, { includeAmount: false });
+        const tutorClassCount = lines.reduce((sum, line) => sum + line.classCount, 0);
+        const tutorAmountInr = lines.reduce((sum, line) => sum + line.lineAmountInr, 0);
+        await this.communicationService.emit({
+          event: CommunicationEvent.CLASS_BOOKED,
+          userId: tutorUserId,
+          audience: CommunicationAudience.TUTOR,
+          entityType: 'commerce_order',
+          entityId: params.orderId,
+          payload: {
+            tutorName: lines[0]?.tutorName ?? 'Tutor',
+            studentName,
+            classCount: String(tutorClassCount),
+            amountPaid: formatInrAmount(tutorAmountInr),
+            linesHtml: tutorTable.html,
+            linesText: tutorTable.text,
+          },
+        });
+      }
+    } catch (error) {
+      this.logger.warn(
+        `CLASS_BOOKED emit failed for order ${params.orderId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   private async getOrCreateCart(studentId: number): Promise<StudentCartEntity> {

@@ -10,16 +10,19 @@ import { StudentTutorBookingScreen } from '../student-tutor-booking/StudentTutor
 import type { StudentClassCredit } from './StudentClassCreditsScreen';
 
 type StudentClassScheduleScreenProps = {
-  credit: StudentClassCredit;
+  credits: StudentClassCredit[];
   onScheduled: () => void;
 };
 
 export const StudentClassScheduleScreen: React.FC<StudentClassScheduleScreenProps> = ({
-  credit,
+  credits,
   onScheduled,
 }) => {
+  const [index, setIndex] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const isReschedule = credit.status === 'scheduled';
+  const credit = credits[Math.min(index, credits.length - 1)];
+  const remaining = credits.length - index;
+  const isReschedule = credit?.status === 'scheduled';
   const [scheduleCredit, { loading: scheduling }] = useMutation(SCHEDULE_CLASS_CREDIT, {
     refetchQueries: [{ query: MY_CLASS_CREDITS }],
   });
@@ -30,6 +33,10 @@ export const StudentClassScheduleScreen: React.FC<StudentClassScheduleScreenProp
     },
   );
 
+  if (!credit) {
+    return null;
+  }
+
   return (
     <View style={{ flex: 1 }}>
       {errorMessage ? (
@@ -37,7 +44,13 @@ export const StudentClassScheduleScreen: React.FC<StudentClassScheduleScreenProp
           {errorMessage}
         </Text>
       ) : null}
+      {!isReschedule && credits.length > 1 ? (
+        <Text style={{ paddingHorizontal: 20, paddingTop: 8, fontWeight: '700', color: '#143055' }}>
+          {remaining} {remaining === 1 ? 'class' : 'classes'} left to schedule
+        </Text>
+      ) : null}
       <StudentTutorBookingScreen
+        key={credit.id}
         tutorId={String(credit.tutorId)}
         offeringId={String(credit.offeringId)}
         lockedDeliveryMode={credit.deliveryMode}
@@ -62,7 +75,11 @@ export const StudentClassScheduleScreen: React.FC<StudentClassScheduleScreenProp
               } else {
                 await scheduleCredit({ variables });
               }
-              onScheduled();
+              if (index + 1 < credits.length) {
+                setIndex(index + 1);
+              } else {
+                onScheduled();
+              }
             } catch (error) {
               setErrorMessage(
                 error instanceof Error ? error.message : 'Could not save this slot.',

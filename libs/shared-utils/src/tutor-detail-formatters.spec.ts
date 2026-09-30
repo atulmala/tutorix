@@ -1,4 +1,6 @@
 import {
+  collapseTutorOfferingsSharingProficiencyTest,
+  formatExperienceBadgeLabel,
   formatExperiencePeriod,
   formatQualificationGrade,
   formatQualificationInstitutionGrade,
@@ -50,6 +52,59 @@ describe('tutor student profile helpers', () => {
     expect(formatQualificationInstitutionGrade('Delhi University', 'CGPA', '8.2')).toBe(
       'Delhi University · CGPA: 8.2',
     );
+  });
+
+  it('builds an experience badge from total months', () => {
+    expect(formatExperienceBadgeLabel(0)).toBeNull();
+    expect(formatExperienceBadgeLabel(30)).toBe('2 years 6 months experience');
+  });
+
+  it('lists one passed row when class levels share a proficiency test', () => {
+    const class11 = {
+      id: 1,
+      proficiencyTestId: 9,
+      status: 'pt_passed',
+      rateCard: { isComplete: true },
+    };
+    const class12 = {
+      id: 2,
+      proficiencyTestId: 9,
+      status: 'pt_passed',
+      rateCard: { isComplete: true },
+    };
+    const physics = {
+      id: 3,
+      proficiencyTestId: 10,
+      status: 'pt_passed',
+      rateCard: null,
+    };
+
+    expect(
+      collapseTutorOfferingsSharingProficiencyTest([class12, class11, physics]).map(
+        (offering) => offering.id,
+      ),
+    ).toEqual([1, 3]);
+  });
+
+  it('keeps the passed row when a later class is still pending the same test', () => {
+    const class11 = {
+      id: 1,
+      proficiencyTestId: 9,
+      status: 'pt_passed',
+      rateCard: null,
+    };
+    const class12 = {
+      id: 2,
+      proficiencyTestId: 9,
+      status: 'pending_pt',
+      rateCard: null,
+    };
+
+    expect(
+      collapseTutorOfferingsSharingProficiencyTest([class12, class11]).map(
+        (offering) => offering.id,
+      ),
+    ).toEqual([1]);
   });
 
   it('keeps the top two qualifications by level', () => {

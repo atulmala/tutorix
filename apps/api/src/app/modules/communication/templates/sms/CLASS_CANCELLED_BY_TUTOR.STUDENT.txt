@@ -1,0 +1,7 @@
+---
+dltTemplateId: 
+dltEntityId: 
+dltHeader: 
+variableMapping: {"tutorName":"1","offeringName":"2","amountRefunded":"3"}
+---
+Tutorix: {{tutorName}} cancelled {{offeringName}}. Refunded {{amountRefunded}} to your wallet.

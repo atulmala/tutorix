@@ -1,0 +1,5 @@
+---
+whatsappTemplateName: 
+variableMapping: {"studentName":"1","tutorName":"2","offeringName":"3","amountRefunded":"4"}
+---
+Hi {{studentName}}, {{tutorName}} cancelled your {{offeringName}} class. {{amountRefunded}} has been refunded to your wallet.

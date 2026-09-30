@@ -1,0 +1,7 @@
+---
+dltTemplateId: 
+dltEntityId: 
+dltHeader: 
+variableMapping: {"tutorName":"1","offeringName":"2"}
+---
+Tutorix: {{tutorName}} asked you to reschedule {{offeringName}}. Open the app to pick a new time.

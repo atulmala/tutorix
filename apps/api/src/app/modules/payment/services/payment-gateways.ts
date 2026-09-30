@@ -197,6 +197,38 @@ export class RazorpayGateway implements PaymentGateway {
     return `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}`;
   }
 
+  async refundPayment(paymentId: string, amountInr: number): Promise<string> {
+    if (!this.isConfigured()) {
+      throw new Error('Razorpay credentials are not configured');
+    }
+    if (amountInr < 1) {
+      throw new Error('Refund amount must be at least ₹1');
+    }
+    const response = await fetch(
+      `https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}/refund`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: this.getAuthHeader(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: amountInr * 100,
+          speed: 'normal',
+        }),
+      },
+    );
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Razorpay refund failed (${response.status}): ${body}`);
+    }
+    const payload = (await response.json()) as { id?: string };
+    if (!payload.id) {
+      throw new Error('Razorpay refund did not return an id');
+    }
+    return payload.id;
+  }
+
   async fetchSettlementForPayment(
     paymentId: string,
   ): Promise<PaymentSettlementDetails | null> {
