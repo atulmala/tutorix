@@ -1,4 +1,4 @@
 ---
 title: New class booking
 ---
-{{studentName}} booked {{classCount}} classes with you.
+{{studentName}} booked {{classCount}} classes with you. Amount paid {{amountPaid}}.

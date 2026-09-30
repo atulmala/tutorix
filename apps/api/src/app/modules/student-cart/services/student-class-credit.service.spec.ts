@@ -253,4 +253,23 @@ describe('StudentClassCreditService', () => {
       BadRequestException,
     );
   });
+
+  it('rejects a student reschedule inside the offline lead time', async () => {
+    creditFindOne.mockResolvedValue({
+      id: 12,
+      studentId: 21,
+      status: ClassCreditStatusEnum.scheduled,
+      deliveryMode: ClassSessionDeliveryModeEnum.offline,
+      enrollment: {
+        session: {
+          tutorCalendar: { startsAt: new Date(Date.now() + 20 * 60 * 1000) },
+        },
+      },
+      tutorOffering,
+    });
+
+    await expect(service.reschedule(studentUser as never, 12, 90)).rejects.toThrow(
+      /30 minutes before/,
+    );
+  });
 });

@@ -68,6 +68,14 @@ export function istHomeScheduleRange(
   return { from, to: addIstDaysUtc(from, dayCount) };
 }
 
+/** Every confirmed class through the home schedule horizon, including ones that already ended. */
+export function istBookedClassQueryRange(
+  now = new Date(),
+  dayCount = HOME_SCHEDULE_DAY_COUNT,
+): { from: Date; to: Date } {
+  return { from: new Date(0), to: istHomeScheduleRange(now, dayCount).to };
+}
+
 /** Today (IST) through the next two weeks, excluding past days. */
 export function istHomeScheduleDays(
   now = new Date(),

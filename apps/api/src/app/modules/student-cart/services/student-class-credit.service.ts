@@ -8,6 +8,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Not, Repository } from 'typeorm';
 import {
+  canChangeScheduledClass,
+  classChangeDeadlineMessage,
   formatIstBookingDateLabel,
   formatIstBookingTimeRange,
   getBatchSizeForMode,
@@ -190,6 +192,9 @@ export class StudentClassCreditService {
         'tutorOffering.offering',
         'tutorOffering.tutor',
         'tutorOffering.tutor.user',
+        'enrollment',
+        'enrollment.session',
+        'enrollment.session.tutorCalendar',
       ],
     });
     if (!credit) {
@@ -203,6 +208,15 @@ export class StudentClassCreditService {
     }
     if (credit.status === ClassCreditStatusEnum.unscheduled && allowReschedule) {
       throw new BadRequestException('This class is not scheduled yet');
+    }
+    if (
+      allowReschedule &&
+      !canChangeScheduledClass(
+        credit.enrollment?.session?.tutorCalendar?.startsAt,
+        credit.deliveryMode,
+      )
+    ) {
+      throw new BadRequestException(classChangeDeadlineMessage(credit.deliveryMode));
     }
 
     const tutorOffering = credit.tutorOffering;

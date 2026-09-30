@@ -1,4 +1,4 @@
-import { Field, Int, ObjectType } from '@nestjs/graphql';
+import { Field, ID, Int, ObjectType } from '@nestjs/graphql';
 import { ClassSessionDeliveryModeEnum } from '../../tutor-class-session/enums/class-session-delivery-mode.enum';
 import { ClassCreditRefundMethodEnum } from '../enums/class-credit-refund-method.enum';
 import { ClassCreditStatusEnum } from '../enums/class-credit-status.enum';
@@ -124,6 +124,15 @@ export class CancelClassCreditsResult {
 
   @Field(() => Int, { nullable: true })
   walletBalanceInr?: number | null;
+}
+
+@ObjectType()
+export class TutorScheduledClassActionResult {
+  @Field(() => ID)
+  enrollmentId!: number;
+
+  @Field(() => Int)
+  amountRefundedInr!: number;
 }
 
 @ObjectType()

@@ -3,7 +3,10 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { useMutation, useQuery } from '@apollo/client';
 import { CANCEL_CLASS_CREDITS } from '@tutorix/shared-graphql/mutations';
 import { MY_CLASS_CREDITS, MY_WALLET } from '@tutorix/shared-graphql/queries';
-import { formatIstBookingDateLabel } from '@tutorix/shared-utils/student-booking';
+import {
+  canChangeScheduledClass,
+  formatIstBookingDateLabel,
+} from '@tutorix/shared-utils/student-booking';
 import { groupUnscheduledClassCredits } from '@tutorix/shared-utils/student-class-credit-groups';
 
 export type StudentClassCredit = {
@@ -21,14 +24,11 @@ export type StudentClassCredit = {
   isDemo?: boolean;
 };
 
-function canCancelCredit(credit: StudentClassCredit): boolean {
-  if (credit.status === 'unscheduled') {
-    return true;
-  }
-  if (credit.status !== 'scheduled' || !credit.startsAt) {
-    return false;
-  }
-  return new Date(credit.startsAt).getTime() > Date.now();
+function canChangeScheduledCredit(credit: StudentClassCredit): boolean {
+  return (
+    credit.status === 'scheduled' &&
+    canChangeScheduledClass(credit.startsAt, credit.deliveryMode)
+  );
 }
 
 function formatInr(amount: number): string {
@@ -182,10 +182,12 @@ export const StudentClassCreditsScreen: React.FC<StudentClassCreditsScreenProps>
                   : ''}
               </Text>
               <View style={styles.actions}>
-                <Pressable onPress={() => onSchedule([credit])} accessibilityRole="button">
-                  <Text style={styles.link}>Reschedule</Text>
-                </Pressable>
-                {canCancelCredit(credit) ? (
+                {canChangeScheduledCredit(credit) ? (
+                  <Pressable onPress={() => onSchedule([credit])} accessibilityRole="button">
+                    <Text style={styles.link}>Reschedule</Text>
+                  </Pressable>
+                ) : null}
+                {canChangeScheduledCredit(credit) ? (
                   <Pressable
                     onPress={() => openCancel([credit])}
                     accessibilityRole="button"

@@ -320,7 +320,7 @@ describe('StudentCartService', () => {
     });
     expect(tutorMail.emailAttachments).toBeUndefined();
     expect(tutorMail.payload.linesHtml).toContain('Mathematics');
-    expect(tutorMail.payload.linesHtml).not.toContain('₹');
+    expect(tutorMail.payload.amountPaid).toBe('₹2,000');
   });
 
   it('leaves the cart intact when the wallet cannot cover the total', async () => {

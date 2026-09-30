@@ -1,0 +1,16 @@
+---
+subject: Please reschedule your class
+text: Hi {{studentName}}, {{tutorName}} asked you to pick a new time for {{offeringName}} ({{classTime}}). Open Tutorix and schedule the class again.
+
+{{linesText}}
+---
+<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial, Helvetica, sans-serif; color: #111827; line-height: 1.5;">
+    <p>Hi {{studentName}},</p>
+    <p><strong>{{tutorName}}</strong> asked you to pick a new time for <strong>{{offeringName}}</strong> ({{classTime}}).</p>
+    <p>Open Tutorix and schedule the class again.</p>
+    {{{linesHtml}}}
+    <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">— Tutorix</p>
+  </body>
+</html>

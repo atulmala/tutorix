@@ -3,16 +3,19 @@ import { useQuery } from '@apollo/client';
 import { MY_CLASS_CREDITS, STUDENT_BOOKED_CLASS_SESSIONS } from '@tutorix/shared-graphql';
 import type { StudentClassCredit } from '../student-cart/StudentClassCreditsPage';
 import {
+  canChangeScheduledClass,
   formatIstBookingTimeRange,
+  istBookedClassQueryRange,
   istDayKey,
   istHomeScheduleDays,
-  istHomeScheduleRange,
+  scheduledClassHasEnded,
 } from '@tutorix/shared-utils';
 
 type StudentHomePageProps = {
   onOpenTutorSearch: () => void;
   onScheduleCredits?: () => void;
   onRescheduleCredit?: (credit: StudentClassCredit) => void;
+  onOpenConcludedClasses?: () => void;
 };
 
 type BookedClass = {
@@ -28,9 +31,10 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
   onOpenTutorSearch,
   onScheduleCredits,
   onRescheduleCredit,
+  onOpenConcludedClasses,
 }) => {
   const weekDays = useMemo(() => istHomeScheduleDays(), []);
-  const scheduleRange = useMemo(() => istHomeScheduleRange(), []);
+  const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
   const todayKey = weekDays.find((d) => d.isToday)?.key ?? weekDays[0]?.key;
   const [selectedKey, setSelectedKey] = useState(todayKey);
   const selected = weekDays.find((d) => d.key === selectedKey) ?? weekDays[0];
@@ -48,10 +52,19 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
   const booked = (data?.studentBookedClassSessions ?? []) as BookedClass[];
   const credits = (creditData?.myClassCredits ?? []) as StudentClassCredit[];
   const unscheduledCount = credits.filter((row) => row.status === 'unscheduled').length;
-  const selectedClasses = booked.filter(
+  const dayClasses = booked.filter(
     (row) => istDayKey(new Date(row.startsAt)) === selected?.key,
   );
+  const selectedClasses = dayClasses.filter(
+    (row) => !scheduledClassHasEnded(row.startsAt, row.durationMinutes),
+  );
   const todayClasses = booked.filter((row) => istDayKey(new Date(row.startsAt)) === todayKey);
+  const concludedClasses = booked
+    .filter((row) => scheduledClassHasEnded(row.startsAt, row.durationMinutes))
+    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
+  const todayConcludedCount = concludedClasses.filter(
+    (row) => istDayKey(new Date(row.startsAt)) === todayKey,
+  ).length;
 
   return (
     <div className="w-full max-w-xl space-y-4">
@@ -143,8 +156,11 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
           </div>
           <div>
             <p className="text-[11px] font-semibold text-slate-500">Learning hours</p>
-            <p className="text-[15px] font-extrabold text-[#143055]">
-              {selectedClasses.length} {selectedClasses.length === 1 ? 'hour' : 'hours'}
+            <p className="text-[13px] font-extrabold leading-5 text-[#143055]">
+              Today: {todayConcludedCount} {todayConcludedCount === 1 ? 'hour' : 'hours'}
+            </p>
+            <p className="text-[13px] font-extrabold leading-5 text-[#143055]">
+              Till now: {concludedClasses.length}
             </p>
           </div>
         </div>
@@ -175,7 +191,8 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
                       const credit = credits.find(
                         (item) => String(item.enrollmentId) === String(row.enrollmentId),
                       );
-                      return credit ? (
+                      return credit &&
+                        canChangeScheduledClass(row.startsAt, row.deliveryMode) ? (
                         <button
                           type="button"
                           onClick={() => onRescheduleCredit(credit)}
@@ -200,10 +217,16 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
       </section>
 
       <section className="rounded-[20px] bg-white p-5">
-        <h2 className="text-base font-extrabold text-[#143055]">Concluded classes</h2>
-        <p className="mt-1.5 text-sm leading-6 text-slate-500">
-          Sessions you finish will be listed here so you can look back on them.
-        </p>
+        <h2 className="text-base font-extrabold text-[#143055]">
+          Concluded classes: {concludedClasses.length}
+        </h2>
+        <button
+          type="button"
+          onClick={onOpenConcludedClasses}
+          className="mt-3 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+        >
+          See details
+        </button>
       </section>
     </div>
   );

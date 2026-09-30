@@ -1,17 +1,25 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { useQuery } from '@apollo/client';
+import { useMutation, useQuery } from '@apollo/client';
+import {
+  TUTOR_CANCEL_SCHEDULED_CLASS,
+  TUTOR_REQUEST_CLASS_RESCHEDULE,
+} from '@tutorix/shared-graphql/mutations';
 import {
   GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
   GET_MY_TUTOR_DETAIL,
   TUTOR_BOOKED_CLASS_SESSIONS,
 } from '@tutorix/shared-graphql/queries';
-import { formatIstBookingTimeRange } from '@tutorix/shared-utils/student-booking';
 import {
+  canChangeScheduledClass,
+  formatIstBookingTimeRange,
+  scheduledClassHasEnded,
+} from '@tutorix/shared-utils/student-booking';
+import {
+  istBookedClassQueryRange,
   istDayKey,
   istHomeScheduleDays,
-  istHomeScheduleRange,
 } from '@tutorix/shared-utils/student-schedule';
 import {
   hasIncompleteRateCardOfferings,
@@ -28,6 +36,7 @@ import {
 type TutorHomeScreenProps = {
   onSetRateCard?: () => void;
   onUpdateCalendar?: () => void;
+  onOpenConcludedClasses?: () => void;
 };
 
 type MyTutorDetailData = {
@@ -95,25 +104,71 @@ function ClockIcon() {
 export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
   onSetRateCard,
   onUpdateCalendar,
+  onOpenConcludedClasses,
 }) => {
   const weekDays = useMemo(() => istHomeScheduleDays(), []);
-  const scheduleRange = useMemo(() => istHomeScheduleRange(), []);
+  const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
   const todayKey = weekDays.find((d) => d.isToday)?.key ?? weekDays[0]?.key;
   const [selectedKey, setSelectedKey] = useState(todayKey);
   const selected = weekDays.find((d) => d.key === selectedKey) ?? weekDays[0];
+  const sessionVariables = {
+    from: scheduleRange.from.toISOString(),
+    to: scheduleRange.to.toISOString(),
+  };
   const { data: sessionData } = useQuery(TUTOR_BOOKED_CLASS_SESSIONS, {
-    variables: {
-      from: scheduleRange.from.toISOString(),
-      to: scheduleRange.to.toISOString(),
-    },
+    variables: sessionVariables,
     fetchPolicy: 'network-only',
   });
+  const [cancelClass, { loading: cancelling }] = useMutation(TUTOR_CANCEL_SCHEDULED_CLASS, {
+    refetchQueries: [{ query: TUTOR_BOOKED_CLASS_SESSIONS, variables: sessionVariables }],
+  });
+  const [requestReschedule, { loading: rescheduling }] = useMutation(
+    TUTOR_REQUEST_CLASS_RESCHEDULE,
+    {
+      refetchQueries: [{ query: TUTOR_BOOKED_CLASS_SESSIONS, variables: sessionVariables }],
+    },
+  );
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingEnrollmentId, setPendingEnrollmentId] = useState<string | null>(null);
   const booked = (sessionData?.tutorBookedClassSessions ?? []) as TutorBookedClass[];
-  const selectedClasses = booked.filter(
+  const dayClasses = booked.filter(
     (row) => istDayKey(new Date(row.startsAt)) === selected?.key,
   );
+  const selectedClasses = dayClasses.filter(
+    (row) => !scheduledClassHasEnded(row.startsAt, row.durationMinutes),
+  );
   const todayClasses = booked.filter((row) => istDayKey(new Date(row.startsAt)) === todayKey);
+  const concludedClasses = booked
+    .filter((row) => scheduledClassHasEnded(row.startsAt, row.durationMinutes))
+    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
   const todaySessionCount = new Set(todayClasses.map((row) => String(row.sessionId))).size;
+  const changing = cancelling || rescheduling;
+
+  const confirmClassAction = (
+    enrollmentId: string,
+    title: string,
+    message: string,
+    action: (enrollmentId: string) => Promise<unknown>,
+  ) => {
+    Alert.alert(title, message, [
+      { text: 'Keep class', style: 'cancel' },
+      {
+        text: title,
+        style: 'destructive',
+        onPress: () => {
+          setActionError(null);
+          setPendingEnrollmentId(enrollmentId);
+          void action(enrollmentId)
+            .catch((err: unknown) => {
+              setActionError(
+                err instanceof Error ? err.message : 'Could not update this class.',
+              );
+            })
+            .finally(() => setPendingEnrollmentId(null));
+        },
+      },
+    ]);
+  };
 
   const { data: detailData, loading: detailLoading } = useQuery<MyTutorDetailData>(
     GET_MY_TUTOR_DETAIL,
@@ -227,7 +282,7 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
           </View>
           <View style={styles.statCopy}>
             <Text style={styles.statLabel}>Teaching hours</Text>
-            <Text style={styles.statValue}>{teachingHoursLabel(selectedClasses)}</Text>
+            <Text style={styles.statValue}>{teachingHoursLabel(dayClasses)}</Text>
           </View>
         </View>
       </View>
@@ -254,16 +309,66 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
               <Text style={styles.listEmptyCopy}>
                 {row.deliveryMode === 'online' ? 'Online' : 'Offline'} · {row.studentName}
               </Text>
+              {canChangeScheduledClass(row.startsAt, row.deliveryMode) ? (
+              <View style={styles.classActions}>
+                <Pressable
+                  disabled={changing}
+                  onPress={() =>
+                    confirmClassAction(
+                      String(row.enrollmentId),
+                      'Request reschedule',
+                      'Ask the student to pick a new time? This slot will be released.',
+                      (enrollmentId) => requestReschedule({ variables: { enrollmentId } }),
+                    )
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel="Request reschedule"
+                >
+                  <Text style={styles.rescheduleAction}>
+                    {pendingEnrollmentId === String(row.enrollmentId) && rescheduling
+                      ? 'Requesting…'
+                      : 'Request reschedule'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  disabled={changing}
+                  onPress={() =>
+                    confirmClassAction(
+                      String(row.enrollmentId),
+                      'Cancel class',
+                      'Cancel this class? The student will be refunded.',
+                      (enrollmentId) => cancelClass({ variables: { enrollmentId } }),
+                    )
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel class"
+                >
+                  <Text style={styles.cancelAction}>
+                    {pendingEnrollmentId === String(row.enrollmentId) && cancelling
+                      ? 'Cancelling…'
+                      : 'Cancel class'}
+                  </Text>
+                </Pressable>
+              </View>
+              ) : null}
             </View>
           ))
         )}
+        {actionError ? <Text style={styles.actionError}>{actionError}</Text> : null}
       </View>
 
       <View style={styles.concludedCard}>
-        <Text style={styles.concludedTitle}>Concluded classes</Text>
-        <Text style={styles.listEmptyCopy}>
-          Sessions you finish will be listed here so you can look back on them.
+        <Text style={styles.concludedTitle}>
+          Concluded classes: {concludedClasses.length}
         </Text>
+        <Pressable
+          style={styles.detailsButton}
+          onPress={onOpenConcludedClasses}
+          accessibilityRole="button"
+          accessibilityLabel="See details"
+        >
+          <Text style={styles.detailsButtonText}>See details</Text>
+        </Pressable>
       </View>
     </ScrollView>
   );
@@ -359,10 +464,23 @@ const styles = StyleSheet.create({
   },
   classTime: { fontSize: 14, fontWeight: '800', color: '#143055' },
   classSubject: { marginTop: 4, fontSize: 14, color: '#143055' },
+  classActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 },
+  rescheduleAction: { color: '#143055', fontWeight: '700' },
+  cancelAction: { color: '#b91c1c', fontWeight: '700' },
+  actionError: { marginTop: 8, color: '#dc2626', fontWeight: '700' },
   concludedCard: {
     backgroundColor: '#fff',
     borderRadius: 20,
     padding: 20,
   },
   concludedTitle: { fontSize: 16, fontWeight: '800', color: '#143055' },
+  detailsButton: {
+    alignSelf: 'flex-start',
+    marginTop: 12,
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  detailsButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });

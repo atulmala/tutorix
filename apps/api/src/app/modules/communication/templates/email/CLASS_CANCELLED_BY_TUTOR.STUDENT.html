@@ -1,0 +1,16 @@
+---
+subject: Your class was cancelled
+text: Hi {{studentName}}, {{tutorName}} cancelled your {{offeringName}} class on {{classTime}}. {{amountRefunded}} has been refunded to your Tutorix wallet.
+
+{{linesText}}
+---
+<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial, Helvetica, sans-serif; color: #111827; line-height: 1.5;">
+    <p>Hi {{studentName}},</p>
+    <p><strong>{{tutorName}}</strong> cancelled your <strong>{{offeringName}}</strong> class on {{classTime}}.</p>
+    <p><strong>{{amountRefunded}}</strong> has been refunded to your Tutorix wallet.</p>
+    {{{linesHtml}}}
+    <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">— Tutorix</p>
+  </body>
+</html>

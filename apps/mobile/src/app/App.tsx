@@ -15,6 +15,7 @@ import { TutorOnboarding } from './components/tutor-onboarding';
 import { StudentOnboarding } from './components/student-onboarding';
 import { StudentDetailScreen } from './components/student-profile/StudentDetailScreen';
 import { StudentHomeScreen } from './components/student-home/StudentHomeScreen';
+import { StudentConcludedClassesScreen } from './components/student-home/StudentConcludedClassesScreen';
 import { StudentTutorSearchScreen } from './components/student-tutor-search/StudentTutorSearchScreen';
 import { StudentTutorSearchResultsScreen } from './components/student-tutor-search/StudentTutorSearchResultsScreen';
 import type { StudentTutorSearchParams } from './components/student-tutor-search/student-tutor-search-params';
@@ -33,6 +34,7 @@ import {
 } from './components/student-nav';
 import { TutorDetailScreen } from './components/tutor-profile/TutorDetailScreen';
 import { TutorHomeScreen } from './components/tutor-home/TutorHomeScreen';
+import { TutorConcludedClassesScreen } from './components/tutor-home/TutorConcludedClassesScreen';
 import { TutorBankSetupScreen } from './components/tutor-bank-setup/TutorBankSetupScreen';
 import {
   TutorRateCardSetupScreen,
@@ -514,6 +516,7 @@ function AppContent() {
             setScheduleCredits([credit]);
             setCurrentView('studentClassSchedule');
           }}
+          onOpenConcludedClasses={() => setCurrentView('studentConcludedClasses')}
         />
         <StudentTabBar
           active="home"
@@ -586,6 +589,20 @@ function AppContent() {
           offeringId={tutorPreview.offeringId}
           onViewCart={openStudentCart}
         />
+      </View>
+    );
+  } else if (currentView === 'studentConcludedClasses') {
+    screen = (
+      <View style={{ flex: 1, backgroundColor: '#e8f4ff' }}>
+        <StudentNavHeader
+          title="Concluded classes"
+          onBack={() => setCurrentView('studentHome')}
+          onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('studentProfile')}
+          onOpenWallet={() => handleOpenWallet('studentConcludedClasses')}
+          onOpenCart={openStudentCart}
+        />
+        <StudentConcludedClassesScreen />
       </View>
     );
   } else if (currentView === 'studentClassCredits') {
@@ -687,7 +704,20 @@ function AppContent() {
         <TutorHomeScreen
           onSetRateCard={() => setCurrentView('tutorRateCardSetup')}
           onUpdateCalendar={() => openTutorCalendar('tutorHome')}
+          onOpenConcludedClasses={() => setCurrentView('tutorConcludedClasses')}
         />
+      </View>
+    );
+  } else if (currentView === 'tutorConcludedClasses') {
+    screen = (
+      <View style={{ flex: 1, backgroundColor: '#e8f4ff' }}>
+        <TutorNavHeader
+          title="Concluded classes"
+          onBack={() => setCurrentView('tutorHome')}
+          onLogout={handleLogout}
+          onOpenWallet={() => handleOpenWallet('tutorConcludedClasses')}
+        />
+        <TutorConcludedClassesScreen />
       </View>
     );
   } else if (currentView === 'tutorCalendar') {

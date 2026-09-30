@@ -11,6 +11,7 @@ import { ResetPassword } from './components/ResetPassword';
 import { PasswordResetAcknowledgement } from './components/PasswordResetAcknowledgement';
 import { TutorOnboarding } from './components/tutor-onboarding';
 import { TutorHomePage } from './components/tutor-home';
+import { TutorConcludedClassesPage } from './components/tutor-home/TutorConcludedClassesPage';
 import { TutorBankSetupPage } from './components/tutor-bank-setup';
 import {
   TutorRateCardSetupPage,
@@ -20,6 +21,7 @@ import { TutorCalendarPage } from './components/tutor-calendar';
 import { TutorProfilePage } from './components/tutor-profile/TutorProfilePage';
 import { StudentOnboarding } from './components/student-onboarding';
 import { StudentHomePage } from './components/student-home';
+import { StudentConcludedClassesPage } from './components/student-home/StudentConcludedClassesPage';
 import { StudentProfilePage } from './components/student-profile';
 import { StudentTutorSearchPage } from './components/student-tutor-search/StudentTutorSearchPage';
 import { clearStudentTutorSearchDraft } from './components/student-tutor-search/student-tutor-search-draft';
@@ -523,6 +525,7 @@ function AppContent() {
               setScheduleCredits([credit]);
               setCurrentView('student-class-schedule');
             }}
+            onOpenConcludedClasses={() => setCurrentView('student-concluded-classes')}
           />
         </main>
       </div>
@@ -562,6 +565,24 @@ function AppContent() {
               onViewCart={openStudentCart}
             />
           ) : null}
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'student-concluded-classes') {
+    return (
+      <div className="min-h-screen bg-[#e8f4ff] text-primary">
+        <AppHeader
+          title="Concluded classes"
+          onLogout={handleLogout}
+          onBack={() => setCurrentView('student-home')}
+          onProfilePress={() => setCurrentView('student-profile')}
+          onOpenWallet={() => handleOpenWallet('student-concluded-classes')}
+          onOpenCart={openStudentCart}
+        />
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-8">
+          <StudentConcludedClassesPage />
         </main>
       </div>
     );
@@ -737,7 +758,24 @@ function AppContent() {
           <TutorHomePage
             onSetRateCard={() => setCurrentView('tutor-rate-card-setup')}
             onUpdateCalendar={() => setCurrentView('tutor-calendar')}
+            onOpenConcludedClasses={() => setCurrentView('tutor-concluded-classes')}
           />
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'tutor-concluded-classes') {
+    return (
+      <div className="min-h-screen bg-[#e8f4ff] text-primary">
+        <AppHeader
+          title="Concluded classes"
+          onLogout={handleLogout}
+          onBack={() => setCurrentView('tutor-home')}
+          onOpenWallet={() => handleOpenWallet('tutor-concluded-classes')}
+        />
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-8">
+          <TutorConcludedClassesPage />
         </main>
       </div>
     );

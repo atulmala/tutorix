@@ -2,6 +2,6 @@
 dltTemplateId: 
 dltEntityId: 
 dltHeader: 
-variableMapping: {"studentName":"1","classCount":"2"}
+variableMapping: {"studentName":"1","classCount":"2","amountPaid":"3"}
 ---
-Tutorix: {{studentName}} booked {{classCount}} classes with you.
+Tutorix: {{studentName}} booked {{classCount}} classes with you. Amount paid {{amountPaid}}.

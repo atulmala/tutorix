@@ -1,0 +1,4 @@
+---
+title: Class cancelled
+---
+{{tutorName}} cancelled {{offeringName}} on {{classTime}}. Refunded {{amountRefunded}} to your wallet.

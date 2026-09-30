@@ -26,7 +26,8 @@ jest.mock('@tutorix/shared-graphql/queries', () => ({
 }));
 
 jest.mock('@apollo/client', () => ({
-  useQuery: (...args: unknown[]) => mockUseQuery(...args),
+  useQuery: (query: unknown, options?: unknown) => mockUseQuery(query, options),
+  useMutation: () => [jest.fn(), { loading: false }],
 }));
 
 const completeOffering = {
@@ -64,7 +65,7 @@ describe('TutorHomeScreen', () => {
     expect(getByText('My schedule')).toBeTruthy();
     expect(getByText("Today's classes")).toBeTruthy();
     expect(getByText('Teaching hours')).toBeTruthy();
-    expect(getByText('Concluded classes')).toBeTruthy();
+    expect(getByText('Concluded classes: 0')).toBeTruthy();
     const days = istHomeScheduleDays();
     expect(getByText(`${days[0].day} ${days[0].monthAbbr}`)).toBeTruthy();
     expect(getByText(`${days[13].day} ${days[13].monthAbbr}`)).toBeTruthy();
@@ -98,7 +99,7 @@ describe('TutorHomeScreen', () => {
   });
 
   it('shows a scheduled demo on the selected day', () => {
-    const startsAt = new Date();
+    const startsAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
     mockUseQuery.mockImplementation((query: { kind?: string }) => {
       if (query === TUTOR_BOOKED_CLASS_SESSIONS) {
         return {
@@ -132,5 +133,7 @@ describe('TutorHomeScreen', () => {
     expect(getByText('Offline · Ruchi Sharma')).toBeTruthy();
     expect(getByText('1 class')).toBeTruthy();
     expect(getByText('1 hour')).toBeTruthy();
+    expect(getByText('Cancel class')).toBeTruthy();
+    expect(getByText('Request reschedule')).toBeTruthy();
   });
 });

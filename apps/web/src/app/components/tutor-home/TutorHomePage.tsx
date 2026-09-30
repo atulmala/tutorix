@@ -1,17 +1,21 @@
 import React, { useMemo, useState } from 'react';
-import { useQuery } from '@apollo/client';
+import { useMutation, useQuery } from '@apollo/client';
 import {
   GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
   GET_MY_TUTOR_DETAIL,
   TUTOR_BOOKED_CLASS_SESSIONS,
+  TUTOR_CANCEL_SCHEDULED_CLASS,
+  TUTOR_REQUEST_CLASS_RESCHEDULE,
 } from '@tutorix/shared-graphql';
 import {
+  canChangeScheduledClass,
   formatIstBookingTimeRange,
   hasIncompleteRateCardOfferings,
+  istBookedClassQueryRange,
   istDayKey,
   istHomeScheduleDays,
-  istHomeScheduleRange,
   needsCalendarUpdateThroughSunday,
+  scheduledClassHasEnded,
   PENDING_CALENDAR_TASK_ACTION,
   PENDING_CALENDAR_TASK_MESSAGE,
   PENDING_RATE_CARD_TASK_ACTION,
@@ -22,6 +26,7 @@ import {
 type TutorHomePageProps = {
   onSetRateCard?: () => void;
   onUpdateCalendar?: () => void;
+  onOpenConcludedClasses?: () => void;
 };
 
 type MyTutorDetailData = {
@@ -63,9 +68,10 @@ function teachingHoursLabel(rows: TutorBookedClass[]): string {
 export const TutorHomePage: React.FC<TutorHomePageProps> = ({
   onSetRateCard,
   onUpdateCalendar,
+  onOpenConcludedClasses,
 }) => {
   const weekDays = useMemo(() => istHomeScheduleDays(), []);
-  const scheduleRange = useMemo(() => istHomeScheduleRange(), []);
+  const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
   const todayKey = weekDays.find((d) => d.isToday)?.key ?? weekDays[0]?.key;
   const [selectedKey, setSelectedKey] = useState(todayKey);
   const selected = weekDays.find((d) => d.key === selectedKey) ?? weekDays[0];
@@ -78,19 +84,57 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
     GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
     { fetchPolicy: 'cache-and-network' },
   );
+  const sessionVariables = {
+    from: scheduleRange.from.toISOString(),
+    to: scheduleRange.to.toISOString(),
+  };
   const { data: sessionData } = useQuery(TUTOR_BOOKED_CLASS_SESSIONS, {
-    variables: {
-      from: scheduleRange.from.toISOString(),
-      to: scheduleRange.to.toISOString(),
-    },
+    variables: sessionVariables,
     fetchPolicy: 'network-only',
   });
+  const [cancelClass, { loading: cancelling }] = useMutation(TUTOR_CANCEL_SCHEDULED_CLASS, {
+    refetchQueries: [{ query: TUTOR_BOOKED_CLASS_SESSIONS, variables: sessionVariables }],
+  });
+  const [requestReschedule, { loading: rescheduling }] = useMutation(
+    TUTOR_REQUEST_CLASS_RESCHEDULE,
+    {
+      refetchQueries: [{ query: TUTOR_BOOKED_CLASS_SESSIONS, variables: sessionVariables }],
+    },
+  );
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingEnrollmentId, setPendingEnrollmentId] = useState<string | null>(null);
   const booked = (sessionData?.tutorBookedClassSessions ?? []) as TutorBookedClass[];
-  const selectedClasses = booked.filter(
+  const dayClasses = booked.filter(
     (row) => istDayKey(new Date(row.startsAt)) === selected?.key,
   );
+  const selectedClasses = dayClasses.filter(
+    (row) => !scheduledClassHasEnded(row.startsAt, row.durationMinutes),
+  );
   const todayClasses = booked.filter((row) => istDayKey(new Date(row.startsAt)) === todayKey);
+  const concludedClasses = booked
+    .filter((row) => scheduledClassHasEnded(row.startsAt, row.durationMinutes))
+    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
   const todaySessionCount = new Set(todayClasses.map((row) => String(row.sessionId))).size;
+  const changing = cancelling || rescheduling;
+
+  const runClassAction = async (
+    enrollmentId: string,
+    confirmText: string,
+    action: (enrollmentId: string) => Promise<unknown>,
+  ) => {
+    if (!window.confirm(confirmText)) {
+      return;
+    }
+    setActionError(null);
+    setPendingEnrollmentId(enrollmentId);
+    try {
+      await action(enrollmentId);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not update this class.');
+    } finally {
+      setPendingEnrollmentId(null);
+    }
+  };
 
   const showRateCardTask =
     !detailLoading &&
@@ -216,7 +260,7 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
           <div>
             <p className="text-[11px] font-semibold text-slate-500">Teaching hours</p>
             <p className="text-[15px] font-extrabold text-[#143055]">
-              {teachingHoursLabel(selectedClasses)}
+              {teachingHoursLabel(dayClasses)}
             </p>
           </div>
         </div>
@@ -249,17 +293,63 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
                 <p className="mt-0.5 text-sm text-slate-500">
                   {row.deliveryMode === 'online' ? 'Online' : 'Offline'} · {row.studentName}
                 </p>
+                {canChangeScheduledClass(row.startsAt, row.deliveryMode) ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={changing}
+                    onClick={() =>
+                      void runClassAction(
+                        String(row.enrollmentId),
+                        'Ask the student to pick a new time? This slot will be released.',
+                        (enrollmentId) =>
+                          requestReschedule({ variables: { enrollmentId } }),
+                      )
+                    }
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-[#143055] disabled:text-slate-400"
+                  >
+                    {pendingEnrollmentId === String(row.enrollmentId) && rescheduling
+                      ? 'Requesting…'
+                      : 'Request reschedule'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={changing}
+                    onClick={() =>
+                      void runClassAction(
+                        String(row.enrollmentId),
+                        'Cancel this class? The student will be refunded.',
+                        (enrollmentId) => cancelClass({ variables: { enrollmentId } }),
+                      )
+                    }
+                    className="rounded-xl px-3 py-2 text-sm font-semibold text-[#b91c1c] disabled:text-slate-400"
+                  >
+                    {pendingEnrollmentId === String(row.enrollmentId) && cancelling
+                      ? 'Cancelling…'
+                      : 'Cancel class'}
+                  </button>
+                </div>
+                ) : null}
               </li>
             ))}
           </ul>
         )}
+        {actionError ? (
+          <p className="mt-3 text-sm font-semibold text-red-600">{actionError}</p>
+        ) : null}
       </section>
 
       <section className="rounded-[20px] bg-white p-5">
-        <h2 className="text-base font-extrabold text-[#143055]">Concluded classes</h2>
-        <p className="mt-1.5 text-sm leading-6 text-slate-500">
-          Sessions you finish will be listed here so you can look back on them.
-        </p>
+        <h2 className="text-base font-extrabold text-[#143055]">
+          Concluded classes: {concludedClasses.length}
+        </h2>
+        <button
+          type="button"
+          onClick={onOpenConcludedClasses}
+          className="mt-3 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+        >
+          See details
+        </button>
       </section>
     </div>
   );

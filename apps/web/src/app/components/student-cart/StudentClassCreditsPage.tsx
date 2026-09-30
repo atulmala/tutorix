@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import { CANCEL_CLASS_CREDITS, MY_CLASS_CREDITS, MY_WALLET } from '@tutorix/shared-graphql';
-import { formatIstBookingDateLabel, groupUnscheduledClassCredits } from '@tutorix/shared-utils';
+import {
+  canChangeScheduledClass,
+  formatIstBookingDateLabel,
+  groupUnscheduledClassCredits,
+} from '@tutorix/shared-utils';
 
 export type StudentClassCredit = {
   id: number;
@@ -18,14 +22,11 @@ export type StudentClassCredit = {
   isDemo?: boolean;
 };
 
-function canCancelCredit(credit: StudentClassCredit): boolean {
-  if (credit.status === 'unscheduled') {
-    return true;
-  }
-  if (credit.status !== 'scheduled' || !credit.startsAt) {
-    return false;
-  }
-  return new Date(credit.startsAt).getTime() > Date.now();
+function canChangeScheduledCredit(credit: StudentClassCredit): boolean {
+  return (
+    credit.status === 'scheduled' &&
+    canChangeScheduledClass(credit.startsAt, credit.deliveryMode)
+  );
 }
 
 function formatInr(amount: number): string {
@@ -178,14 +179,16 @@ export const StudentClassCreditsPage: React.FC<StudentClassCreditsPageProps> = (
                     : ''}
                 </p>
                 <div className="mt-2 flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => onSchedule([credit])}
-                    className="text-sm font-semibold text-[#2563eb]"
-                  >
-                    Reschedule
-                  </button>
-                  {canCancelCredit(credit) ? (
+                  {canChangeScheduledCredit(credit) ? (
+                    <button
+                      type="button"
+                      onClick={() => onSchedule([credit])}
+                      className="text-sm font-semibold text-[#2563eb]"
+                    >
+                      Reschedule
+                    </button>
+                  ) : null}
+                  {canChangeScheduledCredit(credit) ? (
                     <button
                       type="button"
                       onClick={() => openCancel([credit])}

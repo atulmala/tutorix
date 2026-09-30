@@ -79,6 +79,24 @@ export const CANCEL_CLASS_CREDITS = gql`
   }
 `;
 
+export const TUTOR_CANCEL_SCHEDULED_CLASS = gql`
+  mutation TutorCancelScheduledClass($enrollmentId: ID!) {
+    tutorCancelScheduledClass(enrollmentId: $enrollmentId) {
+      enrollmentId
+      amountRefundedInr
+    }
+  }
+`;
+
+export const TUTOR_REQUEST_CLASS_RESCHEDULE = gql`
+  mutation TutorRequestClassReschedule($enrollmentId: ID!) {
+    tutorRequestClassReschedule(enrollmentId: $enrollmentId) {
+      enrollmentId
+      amountRefundedInr
+    }
+  }
+`;
+
 export const RESCHEDULE_CLASS_CREDIT = gql`
   mutation RescheduleClassCredit($creditId: ID!, $tutorCalendarId: ID!) {
     rescheduleClassCredit(creditId: $creditId, tutorCalendarId: $tutorCalendarId) {

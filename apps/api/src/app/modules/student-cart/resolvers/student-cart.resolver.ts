@@ -14,6 +14,7 @@ import {
   ScheduleClassCreditResult,
   StudentCartDto,
   StudentClassCreditDto,
+  TutorScheduledClassActionResult,
 } from '../dto/student-cart.dto';
 import { ClassCreditRefundMethodEnum } from '../enums/class-credit-refund-method.enum';
 import { ClassCreditCancellationService } from '../services/class-credit-cancellation.service';
@@ -139,5 +140,29 @@ export class StudentCartResolver {
     refundMethod: ClassCreditRefundMethodEnum,
   ): Promise<CancelClassCreditsResult> {
     return this.cancellationService.cancel(user, creditIds, refundMethod);
+  }
+
+  @Mutation(() => TutorScheduledClassActionResult, {
+    name: 'tutorCancelScheduledClass',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TUTOR)
+  tutorCancelScheduledClass(
+    @CurrentUser() user: User,
+    @Args('enrollmentId', { type: () => ID }) enrollmentId: number,
+  ): Promise<TutorScheduledClassActionResult> {
+    return this.cancellationService.cancelScheduledClassByTutor(user, enrollmentId);
+  }
+
+  @Mutation(() => TutorScheduledClassActionResult, {
+    name: 'tutorRequestClassReschedule',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TUTOR)
+  tutorRequestClassReschedule(
+    @CurrentUser() user: User,
+    @Args('enrollmentId', { type: () => ID }) enrollmentId: number,
+  ): Promise<TutorScheduledClassActionResult> {
+    return this.cancellationService.requestRescheduleByTutor(user, enrollmentId);
   }
 }

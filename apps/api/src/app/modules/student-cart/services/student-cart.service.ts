@@ -502,6 +502,7 @@ export class StudentCartService {
       for (const [tutorUserId, lines] of byTutor) {
         const tutorTable = buildClassBookingTable(lines, { includeAmount: false });
         const tutorClassCount = lines.reduce((sum, line) => sum + line.classCount, 0);
+        const tutorAmountInr = lines.reduce((sum, line) => sum + line.lineAmountInr, 0);
         await this.communicationService.emit({
           event: CommunicationEvent.CLASS_BOOKED,
           userId: tutorUserId,
@@ -512,6 +513,7 @@ export class StudentCartService {
             tutorName: lines[0]?.tutorName ?? 'Tutor',
             studentName,
             classCount: String(tutorClassCount),
+            amountPaid: formatInrAmount(tutorAmountInr),
             linesHtml: tutorTable.html,
             linesText: tutorTable.text,
           },

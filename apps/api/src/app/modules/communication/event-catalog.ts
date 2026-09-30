@@ -35,6 +35,17 @@ const BOOKING_TUTOR_VARS = [
   'tutorName',
   'studentName',
   'classCount',
+  'amountPaid',
+  'linesHtml',
+  'linesText',
+];
+const TUTOR_CLASS_CHANGE_VARS = [
+  'studentName',
+  'tutorName',
+  'offeringName',
+  'deliveryMode',
+  'classTime',
+  'amountRefunded',
   'linesHtml',
   'linesText',
 ];
@@ -124,6 +135,22 @@ export const COMMUNICATION_CATALOG: CatalogEntry[] = [
     defaultChannels: { ...NONE, email: true, push: true },
     allowedVariables: SCHEDULE_VARS,
     label: 'Class scheduled (tutor)',
+  },
+  {
+    event: CommunicationEvent.CLASS_CANCELLED_BY_TUTOR,
+    audience: CommunicationAudience.STUDENT,
+    mandatory: false,
+    defaultChannels: { ...NONE, email: true, push: true },
+    allowedVariables: TUTOR_CLASS_CHANGE_VARS,
+    label: 'Tutor cancelled a class',
+  },
+  {
+    event: CommunicationEvent.CLASS_RESCHEDULE_REQUESTED,
+    audience: CommunicationAudience.STUDENT,
+    mandatory: false,
+    defaultChannels: { ...NONE, email: true, push: true },
+    allowedVariables: TUTOR_CLASS_CHANGE_VARS,
+    label: 'Tutor asked the student to reschedule',
   },
   {
     event: CommunicationEvent.CLASS_STARTING_SOON,
@@ -254,6 +281,18 @@ export function samplePayload(event: CommunicationEvent): Record<string, string>
         deliveryMode: 'Online',
         classTime: 'Mon 18 Aug, 5:00–6:00 PM',
         headline: 'Your class is scheduled',
+        linesHtml: '<table><tr><td>Class 10 Maths</td></tr></table>',
+        linesText: 'Priya Sharma | Class 10 Maths | Online | Mon 18 Aug, 5:00–6:00 PM',
+      };
+    case CommunicationEvent.CLASS_CANCELLED_BY_TUTOR:
+    case CommunicationEvent.CLASS_RESCHEDULE_REQUESTED:
+      return {
+        studentName: 'Ada Lovelace',
+        tutorName: 'Priya Sharma',
+        offeringName: 'Class 10 Maths',
+        deliveryMode: 'Online',
+        classTime: 'Mon 18 Aug, 5:00–6:00 PM',
+        amountRefunded: '₹500',
         linesHtml: '<table><tr><td>Class 10 Maths</td></tr></table>',
         linesText: 'Priya Sharma | Class 10 Maths | Online | Mon 18 Aug, 5:00–6:00 PM',
       };
