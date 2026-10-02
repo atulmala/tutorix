@@ -233,6 +233,7 @@ describe('TutorHomePage', () => {
     render(<TutorHomePage />);
 
     expect(screen.getByText('No classes on this day')).toBeTruthy();
+    expect(screen.getByText('Booking history')).toBeTruthy();
     expect(screen.getByText('Concluded classes: 1')).toBeTruthy();
     expect(screen.queryByText('Economics')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Cancel class' })).toBeNull();

@@ -53,6 +53,33 @@ export const PREPARE_CART_CHECKOUT = gql`
   }
 `;
 
+export const TUTOR_CLASS_BOOKINGS = gql`
+  query TutorClassBookings($input: TutorClassBookingListInput!) {
+    tutorClassBookings(input: $input) {
+      items {
+        orderItemId
+        bookedAt
+        studentName
+        offeringLabel
+        classCount
+        deliveryMode
+        schedulingStatus
+        conclusionStatus
+        scheduledCount
+        unscheduledCount
+        cancelledCount
+        concludedCount
+        linePaidInr
+        isDemo
+      }
+      totalCount
+      page
+      pageSize
+      totalPages
+    }
+  }
+`;
+
 export const MY_CLASS_CREDITS = gql`
   query MyClassCredits {
     myClassCredits {

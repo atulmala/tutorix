@@ -155,6 +155,8 @@ describe('TutorHomeScreen', () => {
     expect(getByText('Ruchi Sharma')).toBeTruthy();
     expect(getByText('1 class')).toBeTruthy();
     expect(getByText('1 hour')).toBeTruthy();
+    expect(getByText('Booking history')).toBeTruthy();
+    fireEvent.press(getByText('See details'));
     expect(getByText('Cancel class')).toBeTruthy();
     expect(getByText('Request reschedule')).toBeTruthy();
   });

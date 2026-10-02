@@ -16,10 +16,13 @@ import {
   StudentClassCreditDto,
   TutorScheduledClassActionResult,
 } from '../dto/student-cart.dto';
+import { TutorClassBookingListResult } from '../dto/tutor-class-booking.dto';
+import { TutorClassBookingListInput } from '../dto/tutor-class-booking-list.input';
 import { ClassCreditRefundMethodEnum } from '../enums/class-credit-refund-method.enum';
 import { ClassCreditCancellationService } from '../services/class-credit-cancellation.service';
 import { StudentCartService } from '../services/student-cart.service';
 import { StudentClassCreditService } from '../services/student-class-credit.service';
+import { TutorClassBookingService } from '../services/tutor-class-booking.service';
 
 @Resolver()
 export class StudentCartResolver {
@@ -28,6 +31,7 @@ export class StudentCartResolver {
     private readonly creditService: StudentClassCreditService,
     private readonly cancellationService: ClassCreditCancellationService,
     private readonly walletService: WalletService,
+    private readonly tutorClassBookingService: TutorClassBookingService,
   ) {}
 
   @Query(() => StudentCartDto, { name: 'myCart' })
@@ -58,6 +62,19 @@ export class StudentCartResolver {
   @Roles(UserRole.STUDENT)
   myClassCredits(@CurrentUser() user: User): Promise<StudentClassCreditDto[]> {
     return this.creditService.listCredits(user);
+  }
+
+  @Query(() => TutorClassBookingListResult, {
+    name: 'tutorClassBookings',
+    description: 'Purchase history for the signed-in tutor, one row per order line',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TUTOR)
+  tutorClassBookings(
+    @CurrentUser() user: User,
+    @Args('input') input: TutorClassBookingListInput,
+  ): Promise<TutorClassBookingListResult> {
+    return this.tutorClassBookingService.list(user, input);
   }
 
   @Mutation(() => StudentCartDto, { name: 'addToCart' })

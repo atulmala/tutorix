@@ -37,6 +37,7 @@ type TutorHomeScreenProps = {
   onSetRateCard?: () => void;
   onUpdateCalendar?: () => void;
   onOpenConcludedClasses?: () => void;
+  onOpenBookingHistory?: () => void;
 };
 
 type MyTutorDetailData = {
@@ -177,6 +178,7 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
   onSetRateCard,
   onUpdateCalendar,
   onOpenConcludedClasses,
+  onOpenBookingHistory,
 }) => {
   const weekDays = useMemo(() => istHomeScheduleDays(), []);
   const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
@@ -547,6 +549,18 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
             </Pressable>
           </Pressable>
         </Modal>
+      </View>
+
+      <View style={styles.concludedCard}>
+        <Text style={styles.concludedTitle}>Booking history</Text>
+        <Pressable
+          style={styles.detailsButton}
+          onPress={onOpenBookingHistory}
+          accessibilityRole="button"
+          accessibilityLabel="See booking history"
+        >
+          <Text style={styles.detailsButtonText}>See details</Text>
+        </Pressable>
       </View>
 
       <View style={styles.concludedCard}>
