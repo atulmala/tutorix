@@ -87,7 +87,7 @@ export function WeeklyTutorAvailabilityCalendar({
       <div>
         <h2 className="text-lg font-bold text-slate-900">Weekly schedule</h2>
         <p className="mt-1 text-sm text-slate-600">
-          Weekdays default to unavailable before 2 PM (school hours); weekends are open. Tap to
+          Weekdays default to unavailable before 4 PM; weekends are open. Tap to
           toggle unavailable (U). This pattern repeats every week.
         </p>
       </div>

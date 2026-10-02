@@ -45,9 +45,17 @@ describe('StudentClassSchedulePage', () => {
 
   it('keeps the student on the picker until every class in the pack has a slot', async () => {
     const onScheduled = jest.fn();
+    const onScheduleLater = jest.fn();
     render(
-      <StudentClassSchedulePage credits={[credit(12), credit(13)]} onScheduled={onScheduled} />,
+      <StudentClassSchedulePage
+        credits={[credit(12), credit(13)]}
+        onScheduled={onScheduled}
+        onScheduleLater={onScheduleLater}
+      />,
     );
+
+    fireEvent.click(screen.getByRole('button', { name: 'I will schedule later' }));
+    expect(onScheduleLater).toHaveBeenCalledTimes(1);
 
     expect(screen.getByText('2 classes left to schedule')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Save slot' }));

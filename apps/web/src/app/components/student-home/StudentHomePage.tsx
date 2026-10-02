@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@apollo/client';
 import { MY_CLASS_CREDITS, STUDENT_BOOKED_CLASS_SESSIONS } from '@tutorix/shared-graphql';
 import type { StudentClassCredit } from '../student-cart/StudentClassCreditsPage';
@@ -17,6 +17,37 @@ type StudentHomePageProps = {
   onRescheduleCredit?: (credit: StudentClassCredit) => void;
   onOpenConcludedClasses?: () => void;
 };
+
+function weekdayTitle(abbr: string): string {
+  return abbr.charAt(0) + abbr.slice(1).toLowerCase();
+}
+
+function ordinalDay(day: number): string {
+  const mod100 = day % 100;
+  if (mod100 >= 11 && mod100 <= 13) {
+    return `${day}th`;
+  }
+  switch (day % 10) {
+    case 1:
+      return `${day}st`;
+    case 2:
+      return `${day}nd`;
+    case 3:
+      return `${day}rd`;
+    default:
+      return `${day}th`;
+  }
+}
+
+function classesHeading(
+  day: { day: number; abbr: string; monthAbbr: string } | undefined,
+  count: number,
+): string {
+  if (!day) {
+    return `Classes: ${count}`;
+  }
+  return `Classes on ${weekdayTitle(day.abbr)}, ${ordinalDay(day.day)} ${day.monthAbbr}: ${count}`;
+}
 
 type BookedClass = {
   enrollmentId: string;
@@ -37,6 +68,8 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
   const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
   const todayKey = weekDays.find((d) => d.isToday)?.key ?? weekDays[0]?.key;
   const [selectedKey, setSelectedKey] = useState(todayKey);
+  const [activeClassIndex, setActiveClassIndex] = useState(0);
+  const classScrollerRef = useRef<HTMLUListElement>(null);
   const selected = weekDays.find((d) => d.key === selectedKey) ?? weekDays[0];
 
   const { data } = useQuery(STUDENT_BOOKED_CLASS_SESSIONS, {
@@ -55,9 +88,16 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
   const dayClasses = booked.filter(
     (row) => istDayKey(new Date(row.startsAt)) === selected?.key,
   );
-  const selectedClasses = dayClasses.filter(
-    (row) => !scheduledClassHasEnded(row.startsAt, row.durationMinutes),
-  );
+  const selectedClasses = dayClasses
+    .filter((row) => !scheduledClassHasEnded(row.startsAt, row.durationMinutes))
+    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+
+  useEffect(() => {
+    setActiveClassIndex(0);
+    if (classScrollerRef.current) {
+      classScrollerRef.current.scrollLeft = 0;
+    }
+  }, [selected?.key]);
   const todayClasses = booked.filter((row) => istDayKey(new Date(row.startsAt)) === todayKey);
   const concludedClasses = booked
     .filter((row) => scheduledClassHasEnded(row.startsAt, row.durationMinutes))
@@ -166,54 +206,114 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
         </div>
       </div>
 
-      <section className="rounded-[20px] bg-white p-5">
+      <section>
+        <h2 className="text-base font-extrabold text-[#143055]">
+          {classesHeading(selected, selectedClasses.length)}
+        </h2>
         {selectedClasses.length === 0 ? (
-          <>
-            <h2 className="text-base font-extrabold text-[#143055]">No classes on this day</h2>
+          <div className="mt-3 rounded-[20px] bg-white p-5">
+            <p className="text-base font-extrabold text-[#143055]">No classes on this day</p>
             <p className="mt-1.5 text-sm leading-6 text-slate-500">
               Book a certified tutor and your upcoming sessions will appear here, with time,
               subject, and a join action when it is time to start.
             </p>
-          </>
+            <button
+              type="button"
+              onClick={onOpenTutorSearch}
+              className="mt-4 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+            >
+              Find a tutor
+            </button>
+          </div>
         ) : (
-          <ul className="space-y-3">
-            {selectedClasses.map((row) => (
-              <li key={row.enrollmentId} className="rounded-2xl bg-sky-50 px-4 py-3">
-                <p className="text-sm font-extrabold text-[#143055]">
-                  {formatIstBookingTimeRange(new Date(row.startsAt), row.durationMinutes)}
-                </p>
-                <p className="mt-1 text-sm text-[#143055]">{row.offeringLabel}</p>
-                <p className="mt-0.5 text-sm text-slate-500">
-                  {row.deliveryMode === 'online' ? 'Online' : 'Offline'} · {row.tutorName}
-                </p>
-                {onRescheduleCredit
-                  ? (() => {
-                      const credit = credits.find(
-                        (item) => String(item.enrollmentId) === String(row.enrollmentId),
-                      );
-                      return credit &&
-                        canChangeScheduledClass(row.startsAt, row.deliveryMode) ? (
+          <>
+            <div className="relative mt-3">
+              <ul
+                ref={classScrollerRef}
+                className="flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none]"
+                onScroll={(event) => {
+                  const el = event.currentTarget;
+                  if (el.clientWidth <= 0) {
+                    return;
+                  }
+                  setActiveClassIndex(Math.round(el.scrollLeft / el.clientWidth));
+                }}
+              >
+                {selectedClasses.map((row) => {
+                  const credit = credits.find(
+                    (item) => String(item.enrollmentId) === String(row.enrollmentId),
+                  );
+                  const canReschedule =
+                    Boolean(onRescheduleCredit) &&
+                    Boolean(credit) &&
+                    canChangeScheduledClass(row.startsAt, row.deliveryMode);
+                  return (
+                    <li
+                      key={row.enrollmentId}
+                      className="w-full shrink-0 grow-0 basis-full snap-start rounded-[20px] bg-white p-5"
+                    >
+                      <p className="text-sm font-extrabold text-[#143055]">
+                        {formatIstBookingTimeRange(new Date(row.startsAt), row.durationMinutes)}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {row.deliveryMode === 'online' ? 'Online' : 'Offline'}
+                      </p>
+                      <p className="mt-1 text-sm text-[#143055]">{row.offeringLabel}</p>
+                      <p className="mt-1 text-sm text-[#143055]">{row.tutorName}</p>
+                      {canReschedule && credit && onRescheduleCredit ? (
                         <button
                           type="button"
                           onClick={() => onRescheduleCredit(credit)}
-                          className="mt-2 text-sm font-semibold text-[#2563eb]"
+                          className="mt-3 text-sm font-semibold text-[#2563eb]"
                         >
                           Reschedule
                         </button>
-                      ) : null;
-                    })()
-                  : null}
-              </li>
-            ))}
-          </ul>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+              {selectedClasses.length > 1 && activeClassIndex < selectedClasses.length - 1 ? (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white text-xl font-bold text-[#2563eb] shadow"
+                >
+                  ›
+                </span>
+              ) : null}
+            </div>
+            {selectedClasses.length > 1 ? (
+              <div className="mt-3 flex items-center justify-center gap-1.5">
+                {selectedClasses.map((row, index) => (
+                  <button
+                    key={row.enrollmentId}
+                    type="button"
+                    aria-label={`Class ${index + 1} of ${selectedClasses.length}`}
+                    aria-current={index === activeClassIndex}
+                    onClick={() => {
+                      const el = classScrollerRef.current;
+                      if (!el) {
+                        return;
+                      }
+                      el.scrollLeft = index * el.clientWidth;
+                      setActiveClassIndex(index);
+                    }}
+                    className={`h-2 rounded-full ${
+                      index === activeClassIndex ? 'w-5 bg-[#2563eb]' : 'w-2 bg-slate-300'
+                    }`}
+                  />
+                ))}
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={onOpenTutorSearch}
+              className="mt-4 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+            >
+              Find a tutor
+            </button>
+          </>
         )}
-        <button
-          type="button"
-          onClick={onOpenTutorSearch}
-          className="mt-4 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
-        >
-          Find a tutor
-        </button>
       </section>
 
       <section className="rounded-[20px] bg-white p-5">

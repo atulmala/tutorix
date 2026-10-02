@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 const DEFAULT_TIME_MINUTES = 30;
 const DEFAULT_MAX_MARKS = 30;
@@ -119,14 +119,19 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
         ) : null}
         {paymentRequired && onPayFee ? (
           <TouchableOpacity
-            style={[styles.primaryButton, payLoading && styles.buttonDisabled]}
+            style={[styles.primaryButton, payLoading && styles.payButtonDisabled]}
             onPress={onPayFee}
             disabled={payLoading}
             activeOpacity={0.7}
+            accessibilityState={{ disabled: payLoading, busy: payLoading }}
           >
-            <Text style={styles.primaryButtonText}>
-              {payLoading ? 'Processing…' : `Pay ₹${amountDueInr ?? ''}`}
-            </Text>
+            {payLoading ? (
+              <ActivityIndicator color="#475569" />
+            ) : (
+              <Text style={styles.primaryButtonText}>
+                {paymentError ? 'Retry payment' : `Pay ₹${amountDueInr ?? ''}`}
+              </Text>
+            )}
           </TouchableOpacity>
         ) : null}
         <TouchableOpacity
@@ -219,6 +224,9 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
+  },
+  payButtonDisabled: {
+    backgroundColor: '#cbd5e1',
   },
   noteCard: {
     backgroundColor: '#f8fafc',

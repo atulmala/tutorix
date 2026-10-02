@@ -30,6 +30,24 @@ jest.mock('@apollo/client', () => ({
   useMutation: () => [jest.fn(), { loading: false }],
 }));
 
+function classesHeadingFor(
+  day: { day: number; abbr: string; monthAbbr: string } | undefined,
+  count: number,
+): string {
+  if (!day) {
+    return `Classes: ${count}`;
+  }
+  const weekday = day.abbr.charAt(0) + day.abbr.slice(1).toLowerCase();
+  const mod100 = day.day % 100;
+  let suffix = 'th';
+  if (mod100 < 11 || mod100 > 13) {
+    if (day.day % 10 === 1) suffix = 'st';
+    else if (day.day % 10 === 2) suffix = 'nd';
+    else if (day.day % 10 === 3) suffix = 'rd';
+  }
+  return `Classes on ${weekday}, ${day.day}${suffix} ${day.monthAbbr}: ${count}`;
+}
+
 const completeOffering = {
   status: 'pt_passed',
   rateCard: { isComplete: true, offlineEnabled: true, offlineBaseRate: 400 },
@@ -130,7 +148,11 @@ describe('TutorHomeScreen', () => {
 
     expect(getByText(formatIstBookingTimeRange(startsAt, 60))).toBeTruthy();
     expect(getByText('Economics · Free demo')).toBeTruthy();
-    expect(getByText('Offline · Ruchi Sharma')).toBeTruthy();
+    expect(getByText('Offline')).toBeTruthy();
+    const today = istHomeScheduleDays().find((day) => day.isToday);
+    expect(getByText(classesHeadingFor(today, 1))).toBeTruthy();
+    fireEvent.press(getByText('1 student'));
+    expect(getByText('Ruchi Sharma')).toBeTruthy();
     expect(getByText('1 class')).toBeTruthy();
     expect(getByText('1 hour')).toBeTruthy();
     expect(getByText('Cancel class')).toBeTruthy();

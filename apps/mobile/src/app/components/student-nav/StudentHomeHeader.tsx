@@ -7,6 +7,7 @@ import {
   profilePictureAvatarUrl,
 } from '@tutorix/shared-utils';
 import { CartChip } from '../student-cart/CartChip';
+import { LogoutIcon } from '../LogoutIcon';
 import { WalletBalanceChip } from '../wallet';
 import { BRAND_NAME } from '../../config';
 
@@ -14,12 +15,14 @@ type StudentHomeHeaderProps = {
   onProfilePress: () => void;
   onOpenWallet: () => void;
   onOpenCart?: () => void;
+  onLogout: () => void;
 };
 
 export const StudentHomeHeader: React.FC<StudentHomeHeaderProps> = ({
   onProfilePress,
   onOpenWallet,
   onOpenCart,
+  onLogout,
 }) => {
   const { data } = useQuery(GET_MY_STUDENT_PROFILE, {
     fetchPolicy: 'cache-and-network',
@@ -48,6 +51,14 @@ export const StudentHomeHeader: React.FC<StudentHomeHeaderProps> = ({
                 <Text style={styles.initialsText}>{initials || '?'}</Text>
               </View>
             )}
+          </Pressable>
+          <Pressable
+            onPress={onLogout}
+            accessibilityRole="button"
+            accessibilityLabel="Logout"
+            style={styles.logoutButton}
+          >
+            <LogoutIcon size={22} color="#0f172a" />
           </Pressable>
         </View>
       </View>
@@ -82,4 +93,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   initialsText: { fontSize: 13, fontWeight: '700', color: '#1d4ed8' },
+  logoutButton: { padding: 4 },
 });

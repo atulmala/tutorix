@@ -29,6 +29,7 @@ type Props = {
 
 export const TutorRegistrationPayment: React.FC<Props> = () => {
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [paying, setPaying] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const { data: feeData, loading: feeLoading } = useQuery(GET_PLATFORM_FEE, {
     variables: { code: 'TUTOR_REGISTRATION' },
@@ -48,7 +49,11 @@ export const TutorRegistrationPayment: React.FC<Props> = () => {
   );
 
   const handleContinue = async () => {
+    if (paying) {
+      return;
+    }
     setErrorText(null);
+    setPaying(true);
     try {
       const initiateResult = await initiatePayment({
         variables: { feeCode: 'TUTOR_REGISTRATION' },
@@ -81,10 +86,13 @@ export const TutorRegistrationPayment: React.FC<Props> = () => {
           ? error.message
           : 'Could not complete registration payment. Try again or contact support.',
       );
+    } finally {
+      setPaying(false);
     }
   };
 
-  const loading = feeLoading || completing;
+  const busy = paying || completing;
+  const loading = feeLoading || busy;
 
   return (
     <View style={styles.placeholder}>
@@ -104,18 +112,29 @@ export const TutorRegistrationPayment: React.FC<Props> = () => {
       {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
       <View style={styles.placeholderButtons}>
         <TouchableOpacity
-          style={styles.placeholderContinue}
+          style={[
+            styles.placeholderContinue,
+            (loading || !fee) && styles.placeholderContinueDisabled,
+          ]}
           onPress={() => void handleContinue()}
           activeOpacity={0.7}
           disabled={loading || !fee}
+          accessibilityState={{ disabled: loading || !fee, busy }}
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
+          {busy ? (
+            <ActivityIndicator color="#475569" />
           ) : (
-            <Text style={styles.placeholderContinueText}>
-              {summary?.requiresPayment
-                ? `Pay ₹${fee?.effectiveAmountInr ?? ''}`
-                : 'Continue'}
+            <Text
+              style={[
+                styles.placeholderContinueText,
+                (loading || !fee) && styles.placeholderContinueTextDisabled,
+              ]}
+            >
+              {errorText && summary?.requiresPayment
+                ? 'Retry payment'
+                : summary?.requiresPayment
+                  ? `Pay ₹${fee?.effectiveAmountInr ?? ''}`
+                  : 'Continue'}
             </Text>
           )}
         </TouchableOpacity>
@@ -174,9 +193,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  placeholderContinueDisabled: {
+    backgroundColor: '#cbd5e1',
+  },
   placeholderContinueText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#fff',
+  },
+  placeholderContinueTextDisabled: {
+    color: '#475569',
   },
 });

@@ -605,6 +605,7 @@ function AppContent() {
               setScheduleCredits(credits);
               setCurrentView('student-class-schedule');
             }}
+            onScheduleLater={() => setCurrentView('student-home')}
           />
         </main>
       </div>
@@ -625,6 +626,10 @@ function AppContent() {
           <StudentClassSchedulePage
             credits={scheduleCredits}
             onScheduled={() => {
+              setScheduleCredits(null);
+              setCurrentView('student-home');
+            }}
+            onScheduleLater={() => {
               setScheduleCredits(null);
               setCurrentView('student-home');
             }}
@@ -968,10 +973,6 @@ function AppContent() {
           />
         ) : (
           <StudentCartCheckoutPage
-            onPaid={() => {
-              closeStudentCartOverlay();
-              setCurrentView('student-home');
-            }}
             onScheduleNow={() => {
               closeStudentCartOverlay();
               setCurrentView('student-class-credits');

@@ -36,6 +36,26 @@ describe('razorpay-checkout.util', () => {
     ).toBe('Student Registration Fee');
   });
 
+  it('prefers the purchase fee over a wallet top-up description', () => {
+    expect(
+      buildRazorpayCheckoutDescription({
+        feeCode: 'CLASS_BOOKING',
+        description: 'Wallet top-up',
+      }),
+    ).toBe('Class Booking Fee');
+    expect(
+      buildRazorpayCheckoutDescription({
+        feeCode: 'PROFICIENCY_TEST',
+        description: 'Wallet top-up',
+      }),
+    ).toBe('Proficiency Test Fee');
+    expect(
+      buildRazorpayCheckoutDescription({
+        description: 'Wallet top-up',
+      }),
+    ).toBe('Wallet Top-up');
+  });
+
   it('title-cases display name fallback', () => {
     expect(
       buildRazorpayCheckoutDescription({

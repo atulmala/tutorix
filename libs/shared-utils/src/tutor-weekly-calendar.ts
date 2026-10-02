@@ -118,12 +118,12 @@ export function materializedAvailableSlotStarts(
   return starts;
 }
 
-/** Mon–Fri: unavailable before 14:00 (school hours). Sat–Sun: fully available. */
+/** Mon–Fri: unavailable before 16:00 IST. Sat–Sun: fully available. */
 export function defaultWeeklyUnavailableKeys(): Set<string> {
   const keys = new Set<string>();
   for (const dow of [1, 2, 3, 4, 5]) {
     for (const slot of listDailySlotStarts()) {
-      if (slot.hour < 14) {
+      if (slot.hour < 16) {
         keys.add(weeklyUnavailabilityKey(dow, slot.hour, slot.minute));
       }
     }

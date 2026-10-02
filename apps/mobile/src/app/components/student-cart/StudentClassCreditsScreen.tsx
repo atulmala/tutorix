@@ -37,10 +37,12 @@ function formatInr(amount: number): string {
 
 type StudentClassCreditsScreenProps = {
   onSchedule: (credits: StudentClassCredit[]) => void;
+  onScheduleLater: () => void;
 };
 
 export const StudentClassCreditsScreen: React.FC<StudentClassCreditsScreenProps> = ({
   onSchedule,
+  onScheduleLater,
 }) => {
   const [pending, setPending] = useState<StudentClassCredit[] | null>(null);
   const [cancelCountText, setCancelCountText] = useState('1');
@@ -201,6 +203,14 @@ export const StudentClassCreditsScreen: React.FC<StudentClassCreditsScreenProps>
           ))}
         </View>
       ) : null}
+      <Pressable
+        style={styles.later}
+        onPress={onScheduleLater}
+        accessibilityRole="button"
+        accessibilityLabel="I will schedule later"
+      >
+        <Text style={styles.laterText}>I will schedule later</Text>
+      </Pressable>
     </ScrollView>
       <Modal
         visible={pending != null}
@@ -345,6 +355,15 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   secondaryText: { color: '#143055', fontWeight: '700' },
+  later: {
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#fff',
+    paddingVertical: 12,
+  },
+  laterText: { color: '#143055', fontWeight: '700' },
   hint: { padding: 24, color: '#6b7280', textAlign: 'center' },
   overlay: {
     flex: 1,

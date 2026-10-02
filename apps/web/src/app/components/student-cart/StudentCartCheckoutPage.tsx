@@ -15,7 +15,6 @@ import {
   type WalletPurchaseIntent,
   type WalletPurchasePreview,
 } from '@tutorix/shared-utils';
-import { CartCheckoutSuccessSection } from './CartCheckoutSuccessSection';
 
 type CheckoutItem = {
   id: number;
@@ -27,17 +26,14 @@ type CheckoutItem = {
 };
 
 type StudentCartCheckoutPageProps = {
-  onPaid: () => void;
   onScheduleNow: () => void;
 };
 
 export const StudentCartCheckoutPage: React.FC<StudentCartCheckoutPageProps> = ({
-  onPaid,
   onScheduleNow,
 }) => {
-  const [paid, setPaid] = useState(false);
-  const [purchaseOrderId, setPurchaseOrderId] = useState<number | undefined>();
-  const [purchaseOrderNumber, setPurchaseOrderNumber] = useState<string | undefined>();
+  const [paying, setPaying] = useState(false);
+  const [paymentFailed, setPaymentFailed] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { data, loading, error } = useQuery(PREPARE_CART_CHECKOUT, {
     fetchPolicy: 'network-only',
@@ -56,17 +52,19 @@ export const StudentCartCheckoutPage: React.FC<StudentCartCheckoutPageProps> = (
   const items = (preview?.items ?? []) as CheckoutItem[];
 
   const pay = async () => {
-    if (!preview) {
+    if (!preview || paying) {
       return;
     }
     setErrorMessage(null);
+    setPaymentFailed(false);
+    setPaying(true);
     const purchaseIntent: WalletPurchaseIntent = {
       itemType: 'CLASS_BOOKING',
       referenceType: 'cart',
       referenceId: preview.cartId,
     };
     try {
-      const checkoutResult = await runWalletAwarePurchaseCheckout(
+      await runWalletAwarePurchaseCheckout(
         purchaseIntent,
         async (intent) => {
           const response = await prepareWalletPurchaseQuery({
@@ -94,13 +92,14 @@ export const StudentCartCheckoutPage: React.FC<StudentCartCheckoutPageProps> = (
         },
         async (walletPreview) => walletPreview.shortfallInr,
       );
-      setPurchaseOrderId(checkoutResult.purchaseOrderId);
-      setPurchaseOrderNumber(checkoutResult.purchaseOrderNumber);
-      setPaid(true);
+      onScheduleNow();
     } catch (payError) {
+      setPaymentFailed(true);
       setErrorMessage(
         payError instanceof Error ? payError.message : 'Payment failed. Your cart is unchanged.',
       );
+    } finally {
+      setPaying(false);
     }
   };
 
@@ -109,17 +108,6 @@ export const StudentCartCheckoutPage: React.FC<StudentCartCheckoutPageProps> = (
   }
   if (error || !preview) {
     return <p className="text-sm text-danger">Could not prepare checkout.</p>;
-  }
-
-  if (paid) {
-    return (
-      <CartCheckoutSuccessSection
-        purchaseOrderId={purchaseOrderId}
-        purchaseOrderNumber={purchaseOrderNumber}
-        onScheduleNow={onScheduleNow}
-        onLater={onPaid}
-      />
-    );
   }
 
   return (
@@ -161,13 +149,29 @@ export const StudentCartCheckoutPage: React.FC<StudentCartCheckoutPageProps> = (
           </p>
         ) : null}
       </div>
-      {errorMessage ? <p className="text-sm text-danger">{errorMessage}</p> : null}
+      {errorMessage ? (
+        <p className="text-sm text-danger" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
       <button
         type="button"
         onClick={() => void pay()}
-        className="w-full rounded-xl bg-[#2563eb] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+        disabled={paying}
+        aria-busy={paying}
+        aria-label={paying ? 'Processing payment' : undefined}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#2563eb] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 disabled:hover:bg-slate-300"
       >
-        Pay {formatInr(preview.purchaseAmountInr)}
+        {paying ? (
+          <span
+            className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-transparent"
+            aria-hidden
+          />
+        ) : paymentFailed ? (
+          'Retry payment'
+        ) : (
+          `Pay ${formatInr(preview.purchaseAmountInr)}`
+        )}
       </button>
     </div>
   );

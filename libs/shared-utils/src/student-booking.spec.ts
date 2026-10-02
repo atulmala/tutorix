@@ -1,6 +1,7 @@
 import { istSlotToUtc } from './tutor-calendar';
 import {
   canChangeScheduledClass,
+  canScheduleClassAt,
   scheduledClassHasEnded,
   bookingCalendarFromDraft,
   bookingDaysWithSlots,
@@ -18,6 +19,15 @@ describe('student booking helpers', () => {
     expect(lockedDeliveryMode(false, true)).toBe('online');
     expect(lockedDeliveryMode(true, true)).toBeNull();
     expect(lockedDeliveryMode(false, false)).toBeNull();
+  });
+
+  it('allows a class that starts exactly 2 hours ahead and rejects anything sooner', () => {
+    const now = new Date('2026-10-01T10:30:00.000Z');
+    const inTwoHours = new Date('2026-10-01T12:30:00.000Z');
+    const oneMinuteShort = new Date('2026-10-01T12:29:00.000Z');
+    expect(canScheduleClassAt(inTwoHours, now)).toBe(true);
+    expect(canScheduleClassAt(oneMinuteShort, now)).toBe(false);
+    expect(canScheduleClassAt(new Date('2026-10-01T10:00:00.000Z'), now)).toBe(false);
   });
 
   it('keeps class changes open until 30 minutes offline and 15 minutes online', () => {

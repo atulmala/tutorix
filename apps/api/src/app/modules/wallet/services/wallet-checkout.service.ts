@@ -221,6 +221,7 @@ export class WalletCheckoutService {
       );
     }
 
+    let attachedPurchase: ResolvedPurchase | null = null;
     let minAmountInr = WALLET_STANDALONE_TOP_UP_MIN_INR;
     if (input.purchaseIntent) {
       const preview = await this.prepareWalletPurchase(user, input.purchaseIntent);
@@ -235,6 +236,7 @@ export class WalletCheckoutService {
           `Top-up amount must be at least ₹${minAmountInr} to complete this purchase`,
         );
       }
+      attachedPurchase = await this.resolvePurchase(user, input.purchaseIntent);
     } else if (input.amountInr < WALLET_STANDALONE_TOP_UP_MIN_INR) {
       throw new BadRequestException(
         `Top-up amount must be at least ₹${WALLET_STANDALONE_TOP_UP_MIN_INR}`,
@@ -269,11 +271,11 @@ export class WalletCheckoutService {
     const session = await gateway.createOrder({
       amountInr: input.amountInr,
       receipt,
-      notes: {
-        description: 'Wallet top-up',
-        commerceOrderNumber: order.orderNumber,
-        amountDueInr: String(input.amountInr),
-      },
+      notes: this.gatewayCheckoutNotes(
+        attachedPurchase,
+        order.orderNumber,
+        input.amountInr,
+      ),
       customer: {
         id: String(user.id),
         email: user.email ?? undefined,
@@ -394,6 +396,33 @@ export class WalletCheckoutService {
       purchaseOrderId: purchaseResult?.orderId,
       purchaseOrderNumber: purchaseResult?.orderNumber,
     };
+  }
+
+  /**
+   * Razorpay shows this label beside the logo. A shortfall top-up is still a
+   * class booking or proficiency-test payment; only a standalone top-up is labeled
+   * as a wallet top-up.
+   */
+  private gatewayCheckoutNotes(
+    purchase: ResolvedPurchase | null,
+    orderNumber: string,
+    amountInr: number,
+  ): Record<string, string> {
+    const notes: Record<string, string> = {
+      commerceOrderNumber: orderNumber,
+      amountDueInr: String(amountInr),
+    };
+    if (!purchase) {
+      notes.description = 'Wallet top-up';
+      return notes;
+    }
+    if (purchase.itemType === OrderItemTypeEnum.CLASS_BOOKING) {
+      notes.feeCode = 'CLASS_BOOKING';
+    } else if (purchase.itemType === OrderItemTypeEnum.PROFICIENCY_TEST) {
+      notes.feeCode = PlatformFeeCodeEnum.PROFICIENCY_TEST;
+    }
+    notes.description = purchase.description;
+    return notes;
   }
 
   private async resolvePurchase(

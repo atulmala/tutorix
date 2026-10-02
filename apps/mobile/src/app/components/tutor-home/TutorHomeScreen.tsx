@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useMutation, useQuery } from '@apollo/client';
 import {
@@ -59,6 +59,78 @@ type TutorBookedClass = {
   studentName: string;
   isDemo: boolean;
 };
+
+type DaySession = {
+  sessionId: string;
+  startsAt: string;
+  durationMinutes: number;
+  deliveryMode: 'online' | 'offline';
+  offeringLabel: string;
+  isDemo: boolean;
+  students: { enrollmentId: string; name: string }[];
+};
+
+function groupDaySessions(rows: TutorBookedClass[]): DaySession[] {
+  const bySession = new Map<string, DaySession>();
+  for (const row of rows) {
+    const sessionId = String(row.sessionId);
+    const student = { enrollmentId: String(row.enrollmentId), name: row.studentName };
+    const existing = bySession.get(sessionId);
+    if (!existing) {
+      bySession.set(sessionId, {
+        sessionId,
+        startsAt: row.startsAt,
+        durationMinutes: row.durationMinutes,
+        deliveryMode: row.deliveryMode,
+        offeringLabel: row.offeringLabel,
+        isDemo: row.isDemo,
+        students: [student],
+      });
+      continue;
+    }
+    if (!existing.students.some((item) => item.enrollmentId === student.enrollmentId)) {
+      existing.students.push(student);
+    }
+  }
+  return [...bySession.values()].sort(
+    (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+  );
+}
+
+function weekdayTitle(abbr: string): string {
+  return abbr.charAt(0) + abbr.slice(1).toLowerCase();
+}
+
+function ordinalDay(day: number): string {
+  const mod100 = day % 100;
+  if (mod100 >= 11 && mod100 <= 13) {
+    return `${day}th`;
+  }
+  switch (day % 10) {
+    case 1:
+      return `${day}st`;
+    case 2:
+      return `${day}nd`;
+    case 3:
+      return `${day}rd`;
+    default:
+      return `${day}th`;
+  }
+}
+
+function classesHeading(
+  day: { day: number; abbr: string; monthAbbr: string } | undefined,
+  count: number,
+): string {
+  if (!day) {
+    return `Classes: ${count}`;
+  }
+  return `Classes on ${weekdayTitle(day.abbr)}, ${ordinalDay(day.day)} ${day.monthAbbr}: ${count}`;
+}
+
+function studentCountLabel(count: number): string {
+  return `${count} ${count === 1 ? 'student' : 'students'}`;
+}
 
 function teachingHoursLabel(rows: TutorBookedClass[]): string {
   const seen = new Set<string>();
@@ -130,6 +202,10 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
   );
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingEnrollmentId, setPendingEnrollmentId] = useState<string | null>(null);
+  const [openStudentsSessionId, setOpenStudentsSessionId] = useState<string | null>(null);
+  const [carouselWidth, setCarouselWidth] = useState(0);
+  const [activeClassIndex, setActiveClassIndex] = useState(0);
+  const classCarouselRef = useRef<ScrollView>(null);
   const booked = (sessionData?.tutorBookedClassSessions ?? []) as TutorBookedClass[];
   const dayClasses = booked.filter(
     (row) => istDayKey(new Date(row.startsAt)) === selected?.key,
@@ -137,6 +213,14 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
   const selectedClasses = dayClasses.filter(
     (row) => !scheduledClassHasEnded(row.startsAt, row.durationMinutes),
   );
+  const daySessions = groupDaySessions(selectedClasses);
+  const openSession =
+    daySessions.find((session) => session.sessionId === openStudentsSessionId) ?? null;
+
+  useEffect(() => {
+    setActiveClassIndex(0);
+    classCarouselRef.current?.scrollTo({ x: 0, animated: false });
+  }, [selected?.key]);
   const todayClasses = booked.filter((row) => istDayKey(new Date(row.startsAt)) === todayKey);
   const concludedClasses = booked
     .filter((row) => scheduledClassHasEnded(row.startsAt, row.durationMinutes))
@@ -249,7 +333,10 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
               <Pressable
                 key={day.key}
                 style={[styles.dayCell, on && styles.dayCellOn]}
-                onPress={() => setSelectedKey(day.key)}
+                onPress={() => {
+                  setSelectedKey(day.key);
+                  setOpenStudentsSessionId(null);
+                }}
                 accessibilityRole="button"
                 accessibilityLabel={`${day.abbr} ${day.day} ${day.monthAbbr}`}
                 accessibilityState={{ selected: on }}
@@ -287,74 +374,179 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
         </View>
       </View>
 
-      <View style={styles.listCard}>
-        {selectedClasses.length === 0 ? (
-          <>
+      <View>
+        <Text style={styles.classesHeading}>
+          {classesHeading(selected, daySessions.length)}
+        </Text>
+        {daySessions.length === 0 ? (
+          <View style={styles.listCard}>
             <Text style={styles.listEmptyTitle}>No classes on this day</Text>
             <Text style={styles.listEmptyCopy}>
               When students book you, upcoming sessions will appear here, with time, subject,
               and a start action when it is time to begin.
             </Text>
-          </>
+          </View>
         ) : (
-          selectedClasses.map((row) => (
-            <View key={row.enrollmentId} style={styles.classRow}>
-              <Text style={styles.classTime}>
-                {formatIstBookingTimeRange(new Date(row.startsAt), row.durationMinutes)}
-              </Text>
-              <Text style={styles.classSubject}>
-                {row.offeringLabel}
-                {row.isDemo ? ' · Free demo' : ''}
-              </Text>
-              <Text style={styles.listEmptyCopy}>
-                {row.deliveryMode === 'online' ? 'Online' : 'Offline'} · {row.studentName}
-              </Text>
-              {canChangeScheduledClass(row.startsAt, row.deliveryMode) ? (
-              <View style={styles.classActions}>
-                <Pressable
-                  disabled={changing}
-                  onPress={() =>
-                    confirmClassAction(
-                      String(row.enrollmentId),
-                      'Request reschedule',
-                      'Ask the student to pick a new time? This slot will be released.',
-                      (enrollmentId) => requestReschedule({ variables: { enrollmentId } }),
-                    )
-                  }
-                  accessibilityRole="button"
-                  accessibilityLabel="Request reschedule"
+          <>
+          <View
+            style={styles.classCarousel}
+            onLayout={(event) => setCarouselWidth(event.nativeEvent.layout.width)}
+          >
+            <ScrollView
+              ref={classCarouselRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(event) => {
+                const width = event.nativeEvent.layoutMeasurement.width;
+                if (width <= 0) {
+                  return;
+                }
+                setActiveClassIndex(
+                  Math.round(event.nativeEvent.contentOffset.x / width),
+                );
+              }}
+            >
+            {daySessions.map((session) => {
+              const studentsOpen = openStudentsSessionId === session.sessionId;
+              const canChange = canChangeScheduledClass(
+                session.startsAt,
+                session.deliveryMode,
+              );
+              const actionEnrollmentId = session.students[0]?.enrollmentId;
+              const rescheduleConfirm =
+                session.students.length > 1
+                  ? 'Ask every student in this class to pick a new time? This slot will be released.'
+                  : 'Ask the student to pick a new time? This slot will be released.';
+              const cancelConfirm =
+                session.students.length > 1
+                  ? 'Cancel this class for every student? Each student will be refunded.'
+                  : 'Cancel this class? The student will be refunded.';
+              return (
+                <View
+                  key={session.sessionId}
+                  style={[styles.classRow, carouselWidth > 0 ? { width: carouselWidth } : null]}
                 >
-                  <Text style={styles.rescheduleAction}>
-                    {pendingEnrollmentId === String(row.enrollmentId) && rescheduling
-                      ? 'Requesting…'
-                      : 'Request reschedule'}
+                  <Text style={styles.classTime}>
+                    {formatIstBookingTimeRange(
+                      new Date(session.startsAt),
+                      session.durationMinutes,
+                    )}
                   </Text>
-                </Pressable>
-                <Pressable
-                  disabled={changing}
-                  onPress={() =>
-                    confirmClassAction(
-                      String(row.enrollmentId),
-                      'Cancel class',
-                      'Cancel this class? The student will be refunded.',
-                      (enrollmentId) => cancelClass({ variables: { enrollmentId } }),
-                    )
-                  }
-                  accessibilityRole="button"
-                  accessibilityLabel="Cancel class"
-                >
-                  <Text style={styles.cancelAction}>
-                    {pendingEnrollmentId === String(row.enrollmentId) && cancelling
-                      ? 'Cancelling…'
-                      : 'Cancel class'}
+                  <Text style={styles.listEmptyCopy}>
+                    {session.deliveryMode === 'online' ? 'Online' : 'Offline'}
                   </Text>
-                </Pressable>
+                  <Text style={styles.classSubject}>
+                    {session.offeringLabel}
+                    {session.isDemo ? ' · Free demo' : ''}
+                  </Text>
+                  <Pressable
+                    onPress={() =>
+                      setOpenStudentsSessionId(studentsOpen ? null : session.sessionId)
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel={studentCountLabel(session.students.length)}
+                    accessibilityState={{ expanded: studentsOpen }}
+                  >
+                    <Text style={styles.studentCount}>
+                      {studentCountLabel(session.students.length)}
+                    </Text>
+                  </Pressable>
+                  {canChange && actionEnrollmentId ? (
+                    <View style={styles.classActions}>
+                      <Pressable
+                        disabled={changing}
+                        onPress={() =>
+                          confirmClassAction(
+                            session.sessionId,
+                            'Request reschedule',
+                            rescheduleConfirm,
+                            () =>
+                              requestReschedule({
+                                variables: { enrollmentId: actionEnrollmentId },
+                              }),
+                          )
+                        }
+                        accessibilityRole="button"
+                        accessibilityLabel="Request reschedule"
+                      >
+                        <Text style={styles.rescheduleAction}>
+                          {pendingEnrollmentId === session.sessionId && rescheduling
+                            ? 'Requesting…'
+                            : 'Request reschedule'}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        disabled={changing}
+                        onPress={() =>
+                          confirmClassAction(
+                            session.sessionId,
+                            'Cancel class',
+                            cancelConfirm,
+                            () =>
+                              cancelClass({
+                                variables: { enrollmentId: actionEnrollmentId },
+                              }),
+                          )
+                        }
+                        accessibilityRole="button"
+                        accessibilityLabel="Cancel class"
+                      >
+                        <Text style={styles.cancelAction}>
+                          {pendingEnrollmentId === session.sessionId && cancelling
+                            ? 'Cancelling…'
+                            : 'Cancel class'}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })}
+            </ScrollView>
+            {daySessions.length > 1 && activeClassIndex < daySessions.length - 1 ? (
+              <View pointerEvents="none" style={styles.scrollHint}>
+                <Text style={styles.scrollHintText}>›</Text>
               </View>
-              ) : null}
+            ) : null}
+          </View>
+          {daySessions.length > 1 ? (
+            <View
+              style={styles.classDots}
+              accessibilityLabel={`Class ${activeClassIndex + 1} of ${daySessions.length}`}
+            >
+              {daySessions.map((session, index) => (
+                <View
+                  key={session.sessionId}
+                  style={[styles.classDot, index === activeClassIndex && styles.classDotOn]}
+                />
+              ))}
             </View>
-          ))
+          ) : null}
+          </>
         )}
         {actionError ? <Text style={styles.actionError}>{actionError}</Text> : null}
+        <Modal
+          visible={openSession != null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setOpenStudentsSessionId(null)}
+        >
+          <Pressable
+            style={styles.studentOverlay}
+            onPress={() => setOpenStudentsSessionId(null)}
+            accessibilityLabel="Close student names"
+          >
+            <Pressable style={styles.studentOverlayCard} onPress={() => undefined}>
+              <Text style={styles.studentOverlayTitle}>Students</Text>
+              {openSession?.students.map((student) => (
+                <View key={student.enrollmentId} style={styles.studentOverlayRow}>
+                  <Text style={styles.studentName}>{student.name}</Text>
+                </View>
+              ))}
+            </Pressable>
+          </Pressable>
+        </Modal>
       </View>
 
       <View style={styles.concludedCard}>
@@ -448,20 +640,81 @@ const styles = StyleSheet.create({
   statCopy: { flex: 1 },
   statLabel: { fontSize: 11, color: '#64748b', fontWeight: '600' },
   statValue: { marginTop: 2, fontSize: 15, fontWeight: '800', color: '#143055' },
+  classesHeading: { fontSize: 16, fontWeight: '800', color: '#143055' },
+  classCarousel: { marginTop: 12, position: 'relative' },
+  scrollHint: {
+    position: 'absolute',
+    right: 8,
+    top: '42%',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollHintText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#2563eb',
+    marginTop: -2,
+  },
+  classDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
+  classDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#cbd5e1',
+  },
+  classDotOn: {
+    width: 18,
+    backgroundColor: '#2563eb',
+  },
   listCard: {
     backgroundColor: '#fff',
     borderRadius: 20,
     padding: 20,
+    marginTop: 12,
   },
   listEmptyTitle: { fontSize: 16, fontWeight: '800', color: '#143055' },
   listEmptyCopy: { marginTop: 6, fontSize: 13, lineHeight: 19, color: '#64748b' },
   classRow: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 10,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
   },
+  studentCount: {
+    marginTop: 8,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2563eb',
+    textDecorationLine: 'underline',
+  },
+  studentOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  studentOverlayCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+  },
+  studentOverlayTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#143055',
+    marginBottom: 8,
+  },
+  studentOverlayRow: { marginTop: 6 },
+  studentName: { fontSize: 14, fontWeight: '600', color: '#143055' },
   classTime: { fontSize: 14, fontWeight: '800', color: '#143055' },
   classSubject: { marginTop: 4, fontSize: 14, color: '#143055' },
   classActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 },

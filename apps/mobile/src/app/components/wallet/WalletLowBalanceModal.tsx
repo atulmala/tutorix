@@ -98,15 +98,20 @@ export const WalletLowBalanceModal: React.FC<WalletLowBalanceModalProps> = ({
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.confirmButton, !canConfirm && styles.confirmDisabled]}
+              style={[
+                styles.confirmButton,
+                !canConfirm && (loading ? styles.confirmDisabled : styles.confirmInactive),
+              ]}
               onPress={onConfirm}
               disabled={!canConfirm}
               activeOpacity={0.7}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" size="small" />
+                <ActivityIndicator color="#475569" size="small" />
               ) : (
-                <Text style={styles.confirmText}>Pay ₹{topUpAmount}</Text>
+                <Text style={styles.confirmText}>
+                  {error ? 'Retry payment' : `Pay ₹${topUpAmount}`}
+                </Text>
               )}
             </TouchableOpacity>
           </View>
@@ -182,6 +187,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   confirmDisabled: {
+    backgroundColor: '#cbd5e1',
+  },
+  confirmInactive: {
     opacity: 0.6,
   },
   confirmText: {

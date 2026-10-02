@@ -42,9 +42,14 @@ describe('StudentClassCreditsPage', () => {
     });
 
     const onSchedule = jest.fn();
-    render(<StudentClassCreditsPage onSchedule={onSchedule} />);
+    const onScheduleLater = jest.fn();
+    render(
+      <StudentClassCreditsPage onSchedule={onSchedule} onScheduleLater={onScheduleLater} />,
+    );
 
     expect(screen.getAllByText('1 class to schedule').length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'I will schedule later' }));
+    expect(onScheduleLater).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: 'Pick a slot' }));
     expect(onSchedule).toHaveBeenCalledWith([
       expect.objectContaining({ id: 12, status: 'unscheduled' }),
@@ -70,7 +75,7 @@ describe('StudentClassCreditsPage', () => {
     });
 
     const onSchedule = jest.fn();
-    render(<StudentClassCreditsPage onSchedule={onSchedule} />);
+    render(<StudentClassCreditsPage onSchedule={onSchedule} onScheduleLater={jest.fn()} />);
 
     expect(screen.getAllByRole('button', { name: 'Pick slots' })).toHaveLength(1);
     expect(screen.getAllByText('4 classes to schedule').length).toBeGreaterThan(0);
@@ -98,7 +103,7 @@ describe('StudentClassCreditsPage', () => {
     });
     mockCancelClassCredits.mockResolvedValue({});
 
-    render(<StudentClassCreditsPage onSchedule={jest.fn()} />);
+    render(<StudentClassCreditsPage onSchedule={jest.fn()} onScheduleLater={jest.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Cancel classes' }));
     expect(screen.getByRole('dialog', { name: 'Cancel classes' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Add ₹1,000 to wallet' }));

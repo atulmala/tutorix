@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -14,6 +14,10 @@ import {
   GET_MY_WEEKLY_UNAVAILABILITY,
 } from '@tutorix/shared-graphql/queries';
 import { SAVE_MY_WEEKLY_UNAVAILABILITY } from '@tutorix/shared-graphql/mutations';
+import {
+  defaultWeeklyUnavailableKeys,
+  unavailableKeysToBlocks,
+} from '@tutorix/shared-utils';
 import { useWeeklyAvailabilityEditor } from '../../hooks/useWeeklyAvailabilityEditor';
 
 type WeeklyAvailabilityEditorProps = {
@@ -29,16 +33,27 @@ export function WeeklyAvailabilityEditor({
     fetchPolicy: 'network-only',
   });
 
-  const { data: tutorData, refetch: refetchTutorDetail } = useQuery(GET_MY_TUTOR_DETAIL, {
-    fetchPolicy: 'cache-first',
+  const {
+    data: tutorData,
+    loading: tutorLoading,
+    refetch: refetchTutorDetail,
+  } = useQuery(GET_MY_TUTOR_DETAIL, {
+    fetchPolicy: 'cache-and-network',
   });
+  const tutorKnown = tutorData?.myTutorDetail != null;
   const schedulePersisted = Boolean(tutorData?.myTutorDetail?.availabilityConfiguredAt);
+  const loadedUnavailable = useMemo(() => {
+    if (tutorKnown && !schedulePersisted) {
+      return unavailableKeysToBlocks(defaultWeeklyUnavailableKeys());
+    }
+    return data?.myWeeklyUnavailability ?? [];
+  }, [data?.myWeeklyUnavailability, schedulePersisted, tutorKnown]);
 
   useQuery(GET_MY_TUTOR_CALENDAR_UPDATED_TILL, { fetchPolicy: 'network-only' });
 
   const ui = useWeeklyAvailabilityEditor({
-    loadedUnavailable: data?.myWeeklyUnavailability ?? [],
-    loading,
+    loadedUnavailable,
+    loading: loading || (tutorLoading && !tutorKnown),
   });
 
   const [saveWeekly, { loading: saving }] = useMutation(SAVE_MY_WEEKLY_UNAVAILABILITY);
@@ -68,7 +83,7 @@ export function WeeklyAvailabilityEditor({
   return (
     <View>
       <Text style={styles.hint}>
-        Weekdays default to unavailable before 2 PM; weekends are open. Tap to toggle unavailable
+        Weekdays default to unavailable before 4 PM; weekends are open. Tap to toggle unavailable
         (U). This repeats every week.
       </Text>
 

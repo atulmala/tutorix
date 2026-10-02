@@ -89,7 +89,26 @@ describe('TutorClassSessionService', () => {
     });
     offeringFindOne = jest.fn().mockResolvedValue(tutorOffering);
     sessionFind = jest.fn().mockResolvedValue([]);
-    enrollmentQuery = jest.fn();
+    enrollmentQuery = jest.fn(() => {
+      const chain: Record<string, jest.Mock> = {};
+      const self = () => chain;
+      for (const method of [
+        'innerJoinAndSelect',
+        'innerJoin',
+        'leftJoinAndSelect',
+        'leftJoinAndMapOne',
+        'innerJoinAndMapOne',
+        'where',
+        'andWhere',
+        'orderBy',
+        'setLock',
+      ]) {
+        chain[method] = jest.fn(self);
+      }
+      chain.getMany = jest.fn().mockResolvedValue([]);
+      chain.getOne = jest.fn().mockResolvedValue(null);
+      return chain;
+    });
     findTutor = jest.fn().mockResolvedValue({ id: 3, userId: 4 });
     ensureWallet = jest.fn().mockResolvedValue({ id: 1, balanceInr: 1000 });
     debitWithManager = jest.fn().mockResolvedValue({ balanceInr: 600 });
@@ -205,6 +224,28 @@ describe('TutorClassSessionService', () => {
     expect(slots).toEqual([]);
   });
 
+  it('hides slots that start less than 2 hours from now', async () => {
+    const tooSoon = new Date(Date.now() + 90 * 60 * 1000);
+    const farEnough = new Date(Date.now() + 3 * 60 * 60 * 1000);
+    calendarFind.mockResolvedValue([
+      { id: 11, tutorId: 3, startsAt: tooSoon, durationMinutes: 60 },
+      { id: 12, tutorId: 3, startsAt: farEnough, durationMinutes: 60 },
+    ]);
+
+    const slots = await service.listBookableSlots(
+      studentUser as never,
+      3,
+      30,
+      ClassSessionDeliveryModeEnum.offline,
+      new Date(),
+      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    );
+
+    expect(slots).toEqual([
+      { tutorCalendarId: 12, startsAt: farEnough, seatsLeft: 1, batchSize: 1 },
+    ]);
+  });
+
   it('shows the rate-card batch size for an empty 1:1 slot', async () => {
     calendarFind.mockResolvedValue([
       { id: 11, tutorId: 3, startsAt: future, durationMinutes: 60 },
@@ -256,6 +297,85 @@ describe('TutorClassSessionService', () => {
 
     expect(slots).toEqual([
       { tutorCalendarId: 11, startsAt: future, seatsLeft: 3, batchSize: 4 },
+    ]);
+  });
+
+  it('hides an online booking from offline scheduling and keeps online seats', async () => {
+    calendarFind.mockResolvedValue([
+      { id: 11, tutorId: 3, startsAt: future, durationMinutes: 60 },
+    ]);
+    sessionFind.mockResolvedValue([
+      {
+        tutorCalendarId: 11,
+        tutorOfferingId: 80,
+        deliveryMode: ClassSessionDeliveryModeEnum.online,
+        batchSize: 4,
+        status: ClassSessionStatusEnum.open,
+        enrollments: [
+          {
+            studentId: 99,
+            deleted: false,
+            status: ClassSessionEnrollmentStatusEnum.confirmed,
+          },
+        ],
+      },
+    ]);
+    const rangeEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const offline = await service.listBookableSlots(
+      studentUser as never,
+      3,
+      30,
+      ClassSessionDeliveryModeEnum.offline,
+      new Date(),
+      rangeEnd,
+    );
+    const online = await service.listBookableSlots(
+      studentUser as never,
+      3,
+      30,
+      ClassSessionDeliveryModeEnum.online,
+      new Date(),
+      rangeEnd,
+    );
+
+    expect(offline).toEqual([]);
+    expect(online).toEqual([
+      { tutorCalendarId: 11, startsAt: future, seatsLeft: 3, batchSize: 4 },
+    ]);
+  });
+
+  it('hides a slot the student already booked with another tutor', async () => {
+    const later = new Date(future.getTime() + 2 * 60 * 60 * 1000);
+    calendarFind.mockResolvedValue([
+      { id: 11, tutorId: 3, startsAt: future, durationMinutes: 60 },
+      { id: 12, tutorId: 3, startsAt: later, durationMinutes: 60 },
+    ]);
+    const chain: Record<string, jest.Mock> = {};
+    const self = () => chain;
+    for (const method of ['innerJoinAndSelect', 'where', 'andWhere']) {
+      chain[method] = jest.fn(self);
+    }
+    chain.getMany = jest.fn().mockResolvedValue([
+      {
+        session: {
+          tutorCalendar: { id: 40, startsAt: future, durationMinutes: 60 },
+        },
+      },
+    ]);
+    enrollmentQuery.mockReturnValue(chain);
+
+    const slots = await service.listBookableSlots(
+      studentUser as never,
+      3,
+      30,
+      ClassSessionDeliveryModeEnum.offline,
+      new Date(),
+      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    );
+
+    expect(slots).toEqual([
+      { tutorCalendarId: 12, startsAt: later, seatsLeft: 1, batchSize: 1 },
     ]);
   });
 

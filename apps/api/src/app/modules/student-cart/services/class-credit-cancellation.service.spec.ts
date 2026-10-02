@@ -258,6 +258,93 @@ describe('ClassCreditCancellationService', () => {
     );
   });
 
+  it('refunds every student when a tutor cancels a shared class', async () => {
+    const startsAt = new Date(Date.now() + 60 * 60 * 1000);
+    const session = { id: 8, tutorCalendar: { startsAt, durationMinutes: 60 } };
+    const shared = {
+      tutorId: 71,
+      orderId: 40,
+      status: ClassCreditStatusEnum.scheduled,
+      deliveryMode: 'online',
+      orderItem,
+      tutorOffering: {
+        offering: { displayName: 'Economics' },
+        tutor: { user: { firstName: 'Navya', lastName: 'Iyer' } },
+      },
+      enrollment: { session },
+    };
+    const first = {
+      ...shared,
+      id: 12,
+      studentId: 21,
+      enrollmentId: 5,
+      student: { userId: 9, user: { firstName: 'Ruchi', lastName: 'Shah' } },
+    };
+    const second = {
+      ...shared,
+      id: 13,
+      studentId: 22,
+      enrollmentId: 6,
+      student: { userId: 10, user: { firstName: 'Amit', lastName: 'Kumar' } },
+    };
+    creditFindOne.mockResolvedValue(first);
+    creditFind.mockResolvedValue([first, second]);
+    const locked = [{ ...first }, { ...second }];
+    let lockIndex = 0;
+    transaction.mockImplementation(async (fn: (mgr: unknown) => unknown) =>
+      fn({
+        getRepository: (entity: unknown) => {
+          if (entity === StudentClassCreditEntity) {
+            return {
+              createQueryBuilder: () => ({
+                setLock: () => ({
+                  where: () => ({
+                    andWhere: () => ({
+                      andWhere: () => ({
+                        getOne: async () => locked[lockIndex++],
+                      }),
+                    }),
+                  }),
+                }),
+              }),
+              save: creditSave,
+            };
+          }
+          if (entity === ClassCreditCancellationEntity) {
+            return { create: (row: unknown) => row, save: cancellationSave };
+          }
+          return {
+            createQueryBuilder: () => queryBuilder(null),
+            count: jest.fn().mockResolvedValue(0),
+            create: (row: unknown) => row,
+            save: jest.fn(async (row) => row),
+          };
+        },
+      }),
+    );
+
+    const result = await service.cancelScheduledClassByTutor(
+      { id: 4, role: UserRole.TUTOR } as never,
+      5,
+    );
+
+    expect(result.amountRefundedInr).toBe(1000);
+    expect(locked.map((row) => row.status)).toEqual([
+      ClassCreditStatusEnum.cancelled,
+      ClassCreditStatusEnum.cancelled,
+    ]);
+    expect(creditClassRefund).toHaveBeenCalledTimes(2);
+    expect(creditClassRefund).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ userId: 9, amountInr: 500 }),
+    );
+    expect(creditClassRefund).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ userId: 10, amountInr: 500 }),
+    );
+    expect(emitMail).toHaveBeenCalledTimes(2);
+  });
+
   it('returns a class to unscheduled when the tutor asks for a new time', async () => {
     const startsAt = new Date(Date.now() + 60 * 60 * 1000);
     const credit = {

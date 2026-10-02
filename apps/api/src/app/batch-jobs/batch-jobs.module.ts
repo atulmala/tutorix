@@ -4,10 +4,12 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { DocumentModule } from '../modules/document/document.module';
 import { TutorModule } from '../modules/tutor/tutor.module';
 import { CommerceModule } from '../modules/commerce/commerce.module';
+import { StudentCartModule } from '../modules/student-cart/student-cart.module';
 import { BatchJobAuditModule } from './batch-job-audit.module';
 import { DocumentScreeningBatchCron } from './document-screening/document-screening-batch.cron';
 import { TutorOnboardingApprovalBatchCron } from './tutor-onboarding-approval/tutor-onboarding-approval-batch.cron';
 import { PaymentSettlementBatchCron } from './payment-settlement/payment-settlement-batch.cron';
+import { TutorClassEmailBatchCron } from './tutor-class-email/tutor-class-email-batch.cron';
 
 /**
  * Central module for scheduled batch jobs.
@@ -21,11 +23,13 @@ import { PaymentSettlementBatchCron } from './payment-settlement/payment-settlem
     DocumentModule,
     TutorModule,
     CommerceModule,
+    StudentCartModule,
   ],
   providers: [
     DocumentScreeningBatchCron,
     TutorOnboardingApprovalBatchCron,
     PaymentSettlementBatchCron,
+    TutorClassEmailBatchCron,
   ],
 })
 export class BatchJobsModule {}

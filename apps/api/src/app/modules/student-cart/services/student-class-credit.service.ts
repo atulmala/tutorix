@@ -9,7 +9,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Not, Repository } from 'typeorm';
 import {
   canChangeScheduledClass,
+  canScheduleClassAt,
   classChangeDeadlineMessage,
+  classScheduleLeadMessage,
   formatIstBookingDateLabel,
   formatIstBookingTimeRange,
   getBatchSizeForMode,
@@ -24,8 +26,10 @@ import {
   OrderItemTypeEnum,
 } from '../../commerce/enums/commerce.enums';
 import { CommunicationAudience } from '../../communication/enums/communication-audience.enum';
+import { CommunicationChannel } from '../../communication/enums/communication-channel.enum';
 import { CommunicationEvent } from '../../communication/enums/communication-event.enum';
 import { CommunicationService } from '../../communication/communication.service';
+import { TutorClassEmailBatchService } from './tutor-class-email-batch.service';
 import { StudentService } from '../../student/services/student.service';
 import { TutorCalendar } from '../../tutor-calendar/entities/tutor-calendar.entity';
 import { TutorClassSessionEnrollmentEntity } from '../../tutor-class-session/entities/tutor-class-session-enrollment.entity';
@@ -33,6 +37,10 @@ import { TutorClassSessionEntity } from '../../tutor-class-session/entities/tuto
 import { ClassSessionDeliveryModeEnum } from '../../tutor-class-session/enums/class-session-delivery-mode.enum';
 import { ClassSessionEnrollmentStatusEnum } from '../../tutor-class-session/enums/class-session-enrollment-status.enum';
 import { ClassSessionStatusEnum } from '../../tutor-class-session/enums/class-session-status.enum';
+import {
+  classWindowsOverlap,
+  STUDENT_SLOT_CONFLICT_MESSAGE,
+} from '../../tutor-class-session/student-slot-conflict.util';
 import { TutorOfferingEntity } from '../../tutor/entities/tutor-offering.entity';
 import { OfferingService } from '../../offerings/services/offering.service';
 import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
@@ -78,6 +86,7 @@ export class StudentClassCreditService {
     private readonly orderItemRepo: Repository<OrderItemEntity>,
     @InjectRepository(TutorOfferingEntity)
     private readonly tutorOfferingRepo: Repository<TutorOfferingEntity>,
+    private readonly tutorEmailBatch: TutorClassEmailBatchService,
   ) {}
 
   async fulfillPaidOrder(
@@ -246,9 +255,10 @@ export class StudentClassCreditService {
       if (slot.tutorId !== tutorOffering.tutorId) {
         throw new BadRequestException('This slot is no longer available');
       }
-      if (slot.startsAt.getTime() <= Date.now()) {
-        throw new BadRequestException('This slot is in the past');
+      if (!canScheduleClassAt(slot.startsAt)) {
+        throw new BadRequestException(classScheduleLeadMessage());
       }
+      await this.assertStudentFreeAt(manager, student.id, slot);
 
       let session = await manager
         .getRepository(TutorClassSessionEntity)
@@ -258,9 +268,14 @@ export class StudentClassCreditService {
         .andWhere('s.deleted = false')
         .getOne();
 
-      if (session) {
+      if (session?.status === ClassSessionStatusEnum.cancelled) {
+        session.tutorOfferingId = tutorOffering.id;
+        session.deliveryMode = credit.deliveryMode;
+        session.batchSize = batchSize;
+        session.status = ClassSessionStatusEnum.open;
+        session = await manager.getRepository(TutorClassSessionEntity).save(session);
+      } else if (session) {
         if (
-          session.status === ClassSessionStatusEnum.cancelled ||
           session.tutorOfferingId !== tutorOffering.id ||
           session.deliveryMode !== credit.deliveryMode
         ) {
@@ -293,26 +308,34 @@ export class StudentClassCreditService {
       if (confirmed.some((row) => row.studentId === student.id)) {
         throw new BadRequestException('You have already booked this class');
       }
-      if (confirmed.length >= session.batchSize) {
+      if (confirmed.length >= batchSize) {
         throw new BadRequestException('This class is full');
       }
+      const batchSizeChanged = session.batchSize !== batchSize;
+      if (batchSizeChanged) {
+        session.batchSize = batchSize;
+      }
 
-      const enrollment = await manager
-        .getRepository(TutorClassSessionEnrollmentEntity)
-        .save(
-          manager.getRepository(TutorClassSessionEnrollmentEntity).create({
-            sessionId: session.id,
-            studentId: student.id,
+      const priorEnrollment = enrollments.find((row) => row.studentId === student.id);
+      const enrollment = priorEnrollment
+        ? await manager.getRepository(TutorClassSessionEnrollmentEntity).save({
+            ...priorEnrollment,
             status: ClassSessionEnrollmentStatusEnum.confirmed,
-          }),
-        );
+          })
+        : await manager.getRepository(TutorClassSessionEnrollmentEntity).save(
+            manager.getRepository(TutorClassSessionEnrollmentEntity).create({
+              sessionId: session.id,
+              studentId: student.id,
+              status: ClassSessionEnrollmentStatusEnum.confirmed,
+            }),
+          );
 
       const nextConfirmed = confirmed.length + 1;
       const nextStatus =
-        nextConfirmed >= session.batchSize
+        nextConfirmed >= batchSize
           ? ClassSessionStatusEnum.full
           : ClassSessionStatusEnum.open;
-      if (session.status !== nextStatus) {
+      if (session.status !== nextStatus || batchSizeChanged) {
         session.status = nextStatus;
         await manager.getRepository(TutorClassSessionEntity).save(session);
       }
@@ -339,6 +362,7 @@ export class StudentClassCreditService {
       startsAt: result.slot.startsAt,
       durationMinutes: result.slot.durationMinutes,
       sessionId: result.session.id,
+      enrollmentId: result.enrollment.id,
       isReschedule: allowReschedule,
     });
 
@@ -347,6 +371,52 @@ export class StudentClassCreditService {
       enrollmentId: result.enrollment.id,
       sessionId: result.session.id,
     };
+  }
+
+  /** Rejects a second class that overlaps a confirmed booking, including with another tutor. */
+  private async assertStudentFreeAt(
+    manager: DataSource['manager'],
+    studentId: number,
+    slot: TutorCalendar,
+  ): Promise<void> {
+    const duration = slot.durationMinutes ?? 60;
+    const slotEnd = new Date(slot.startsAt.getTime() + duration * 60_000);
+    const windowFrom = new Date(slot.startsAt.getTime() - 60 * 60_000);
+    const rows = await manager
+      .getRepository(TutorClassSessionEnrollmentEntity)
+      .createQueryBuilder('e')
+      .innerJoinAndSelect('e.session', 's')
+      .innerJoinAndSelect('s.tutorCalendar', 'c')
+      .where('e.student_id = :studentId', { studentId })
+      .andWhere('e.deleted = false')
+      .andWhere('e.status = :confirmed', {
+        confirmed: ClassSessionEnrollmentStatusEnum.confirmed,
+      })
+      .andWhere('s.deleted = false')
+      .andWhere('s.status != :cancelled', {
+        cancelled: ClassSessionStatusEnum.cancelled,
+      })
+      .andWhere('c.deleted = false')
+      .andWhere('c.id != :slotId', { slotId: slot.id })
+      .andWhere('c.startsAt < :slotEnd', { slotEnd })
+      .andWhere('c.startsAt >= :windowFrom', { windowFrom })
+      .getMany();
+
+    const clash = rows.some((row) => {
+      const calendar = row.session?.tutorCalendar;
+      if (!calendar?.startsAt || calendar.id === slot.id) {
+        return false;
+      }
+      return classWindowsOverlap(
+        calendar.startsAt,
+        calendar.durationMinutes ?? 60,
+        slot.startsAt,
+        duration,
+      );
+    });
+    if (clash) {
+      throw new BadRequestException(STUDENT_SLOT_CONFLICT_MESSAGE);
+    }
   }
 
   private async releaseEnrollment(
@@ -512,6 +582,7 @@ export class StudentClassCreditService {
     startsAt: Date;
     durationMinutes: number;
     sessionId: number;
+    enrollmentId: number;
     isReschedule: boolean;
   }): Promise<void> {
     const classTime = `${formatIstBookingDateLabel(params.startsAt)} ${formatIstBookingTimeRange(params.startsAt, params.durationMinutes)}`;
@@ -557,12 +628,23 @@ export class StudentClassCreditService {
         },
       });
       if (params.tutorUserId) {
+        await this.tutorEmailBatch.enqueueSchedule({
+          tutorUserId: params.tutorUserId,
+          tutorName: params.tutorName,
+          studentName: params.studentName,
+          offeringLabel: params.offeringName,
+          deliveryMode: params.deliveryMode,
+          startsAt: params.startsAt,
+          durationMinutes: params.durationMinutes,
+          enrollmentId: params.enrollmentId,
+        });
         await this.communicationService.emit({
           event: CommunicationEvent.CLASS_SCHEDULED,
           userId: params.tutorUserId,
           audience: CommunicationAudience.TUTOR,
           entityType: params.isReschedule ? 'class_session_reschedule' : 'class_session',
           entityId: params.sessionId,
+          excludeChannels: [CommunicationChannel.EMAIL],
           payload: {
             ...shared,
             headline: tutorHeadline,

@@ -15,6 +15,31 @@ export type StudentBookingDeliveryMode = 'online' | 'offline';
 export const OFFLINE_CLASS_CHANGE_LEAD_MINUTES = 30;
 export const ONLINE_CLASS_CHANGE_LEAD_MINUTES = 15;
 
+/** A class must start at least this far ahead. Exactly 2 hours is allowed. */
+export const CLASS_SCHEDULE_LEAD_MINUTES = 120;
+
+export function earliestClassStart(now: Date = new Date()): Date {
+  return new Date(now.getTime() + CLASS_SCHEDULE_LEAD_MINUTES * 60 * 1000);
+}
+
+export function canScheduleClassAt(
+  startsAt: Date | string | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  if (startsAt == null || startsAt === '') {
+    return false;
+  }
+  const startMs = new Date(startsAt).getTime();
+  if (Number.isNaN(startMs)) {
+    return false;
+  }
+  return startMs - now.getTime() >= CLASS_SCHEDULE_LEAD_MINUTES * 60 * 1000;
+}
+
+export function classScheduleLeadMessage(): string {
+  return 'Classes can only be scheduled at least 2 hours in advance';
+}
+
 export function classChangeLeadMinutes(
   deliveryMode: StudentBookingDeliveryMode | string,
 ): number {
@@ -90,7 +115,7 @@ const IST_MONTH_SHORT = [
 ] as const;
 
 export function bookingHorizonRange(now = new Date()): { from: Date; to: Date } {
-  return { from: now, to: maxHorizonEndUtc(now) };
+  return { from: earliestClassStart(now), to: maxHorizonEndUtc(now) };
 }
 
 export function lockedDeliveryMode(

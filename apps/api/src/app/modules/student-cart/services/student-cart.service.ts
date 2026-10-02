@@ -34,6 +34,7 @@ import { OrderService } from '../../commerce/services/order.service';
 import { CommunicationAudience } from '../../communication/enums/communication-audience.enum';
 import { CommunicationEvent } from '../../communication/enums/communication-event.enum';
 import { CommunicationService } from '../../communication/communication.service';
+import { TutorClassEmailBatchService } from './tutor-class-email-batch.service';
 import { PlatformFeeLineInput } from '../../commerce/services/order-pricing.service';
 import { WalletPurchaseResultDto } from '../../wallet/dto/wallet-checkout.dto';
 import { WalletPurchaseReferenceTypeEnum } from '../../wallet/enums/wallet.enums';
@@ -91,6 +92,7 @@ export class StudentCartService {
     private readonly tutorOfferingRepo: Repository<TutorOfferingEntity>,
     private readonly offeringService: OfferingService,
     private readonly communicationService: CommunicationService,
+    private readonly tutorEmailBatch: TutorClassEmailBatchService,
   ) {}
 
   async myCart(user: User): Promise<StudentCartDto> {
@@ -412,6 +414,7 @@ export class StudentCartService {
             deliveryMode,
             classCount: 1,
             lineAmountInr: 0,
+            isDemo: true,
           },
         ],
         pdfBuffer: generated.pdfBuffer,
@@ -499,25 +502,20 @@ export class StudentCartService {
         byTutor.set(line.tutorUserId, group);
       }
 
-      for (const [tutorUserId, lines] of byTutor) {
-        const tutorTable = buildClassBookingTable(lines, { includeAmount: false });
-        const tutorClassCount = lines.reduce((sum, line) => sum + line.classCount, 0);
-        const tutorAmountInr = lines.reduce((sum, line) => sum + line.lineAmountInr, 0);
-        await this.communicationService.emit({
-          event: CommunicationEvent.CLASS_BOOKED,
-          userId: tutorUserId,
-          audience: CommunicationAudience.TUTOR,
-          entityType: 'commerce_order',
-          entityId: params.orderId,
-          payload: {
-            tutorName: lines[0]?.tutorName ?? 'Tutor',
+      for (const [tutorUserId, tutorLines] of byTutor) {
+        await this.tutorEmailBatch.enqueueBookings(
+          tutorLines.map((line, index) => ({
+            tutorUserId,
+            tutorName: line.tutorName,
             studentName,
-            classCount: String(tutorClassCount),
-            amountPaid: formatInrAmount(tutorAmountInr),
-            linesHtml: tutorTable.html,
-            linesText: tutorTable.text,
-          },
-        });
+            offeringLabel: line.offeringLabel,
+            deliveryMode: line.deliveryMode,
+            classCount: line.classCount,
+            amountInr: line.lineAmountInr,
+            isDemo: line.isDemo === true,
+            sourceKey: `booking:${params.orderId}:${tutorUserId}:${index}:${line.offeringLabel}:${line.deliveryMode}`,
+          })),
+        );
       }
     } catch (error) {
       this.logger.warn(
