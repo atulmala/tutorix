@@ -81,36 +81,61 @@ describe('StudentCartCheckoutPage', () => {
     });
   });
 
-  it('pays the cart without sending the student to the wallet page', async () => {
-    (runWalletAwarePurchaseCheckout as jest.Mock).mockResolvedValue({
-      walletBalanceInr: 0,
-      usedGateway: true,
-      purchaseOrderId: 42,
-      purchaseOrderNumber: 'TX250926ABC',
-    });
-    const onPaid = jest.fn();
+  it('pays the cart and opens class scheduling', async () => {
+    let resolvePay: (value: unknown) => void = () => undefined;
+    (runWalletAwarePurchaseCheckout as jest.Mock).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePay = resolve;
+        }),
+    );
     const onScheduleNow = jest.fn();
-    render(<StudentCartCheckoutPage onPaid={onPaid} onScheduleNow={onScheduleNow} />);
+    render(<StudentCartCheckoutPage onScheduleNow={onScheduleNow} />);
 
     expect(screen.getByText('Mathematics')).toBeTruthy();
     expect(screen.getByText(/Razorpay will add ₹800/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Pay ₹1,000' }));
 
     await waitFor(() => {
-      expect(runWalletAwarePurchaseCheckout).toHaveBeenCalledWith(
-        { itemType: 'CLASS_BOOKING', referenceType: 'cart', referenceId: 5 },
-        expect.any(Function),
-        expect.any(Function),
-        expect.any(Function),
-        expect.any(Function),
-        expect.any(Function),
-      );
+      expect(
+        (screen.getByRole('button', { name: 'Processing payment' }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
     });
-    expect(screen.getByText('TX250926ABC')).toBeTruthy();
-    expect(screen.getByText('INV202609TEST')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Download invoice PDF' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Schedule now' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Later' }));
-    expect(onPaid).toHaveBeenCalledTimes(1);
+
+    resolvePay({
+      walletBalanceInr: 0,
+      usedGateway: true,
+      purchaseOrderId: 42,
+      purchaseOrderNumber: 'TX250926ABC',
+    });
+
+    await waitFor(() => {
+      expect(onScheduleNow).toHaveBeenCalledTimes(1);
+    });
+    expect(runWalletAwarePurchaseCheckout).toHaveBeenCalledWith(
+      { itemType: 'CLASS_BOOKING', referenceType: 'cart', referenceId: 5 },
+      expect.any(Function),
+      expect.any(Function),
+      expect.any(Function),
+      expect.any(Function),
+      expect.any(Function),
+    );
+  });
+
+  it('shows the gateway error and a retry action', async () => {
+    (runWalletAwarePurchaseCheckout as jest.Mock).mockRejectedValue(
+      new Error('Payment failed. Please try again.'),
+    );
+    render(<StudentCartCheckoutPage onScheduleNow={jest.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pay ₹1,000' }));
+
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'Payment failed. Please try again.',
+    );
+    expect(
+      (screen.getByRole('button', { name: 'Retry payment' }) as HTMLButtonElement).disabled,
+    ).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useQuery } from '@apollo/client';
@@ -21,6 +21,37 @@ type StudentHomeScreenProps = {
   onRescheduleCredit?: (credit: StudentClassCredit) => void;
   onOpenConcludedClasses?: () => void;
 };
+
+function weekdayTitle(abbr: string): string {
+  return abbr.charAt(0) + abbr.slice(1).toLowerCase();
+}
+
+function ordinalDay(day: number): string {
+  const mod100 = day % 100;
+  if (mod100 >= 11 && mod100 <= 13) {
+    return `${day}th`;
+  }
+  switch (day % 10) {
+    case 1:
+      return `${day}st`;
+    case 2:
+      return `${day}nd`;
+    case 3:
+      return `${day}rd`;
+    default:
+      return `${day}th`;
+  }
+}
+
+function classesHeading(
+  day: { day: number; abbr: string; monthAbbr: string } | undefined,
+  count: number,
+): string {
+  if (!day) {
+    return `Classes: ${count}`;
+  }
+  return `Classes on ${weekdayTitle(day.abbr)}, ${ordinalDay(day.day)} ${day.monthAbbr}: ${count}`;
+}
 
 type BookedClass = {
   enrollmentId: string;
@@ -67,6 +98,9 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
   const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
   const todayKey = weekDays.find((d) => d.isToday)?.key ?? weekDays[0]?.key;
   const [selectedKey, setSelectedKey] = useState(todayKey);
+  const [carouselWidth, setCarouselWidth] = useState(0);
+  const [activeClassIndex, setActiveClassIndex] = useState(0);
+  const classCarouselRef = useRef<ScrollView>(null);
   const selected = weekDays.find((d) => d.key === selectedKey) ?? weekDays[0];
   const { data } = useQuery(STUDENT_BOOKED_CLASS_SESSIONS, {
     variables: {
@@ -84,9 +118,14 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
   const dayClasses = booked.filter(
     (row) => istDayKey(new Date(row.startsAt)) === selected?.key,
   );
-  const selectedClasses = dayClasses.filter(
-    (row) => !scheduledClassHasEnded(row.startsAt, row.durationMinutes),
-  );
+  const selectedClasses = dayClasses
+    .filter((row) => !scheduledClassHasEnded(row.startsAt, row.durationMinutes))
+    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+
+  useEffect(() => {
+    setActiveClassIndex(0);
+    classCarouselRef.current?.scrollTo({ x: 0, animated: false });
+  }, [selected?.key]);
   const todayClasses = booked.filter((row) => istDayKey(new Date(row.startsAt)) === todayKey);
   const concludedClasses = booked
     .filter((row) => scheduledClassHasEnded(row.startsAt, row.durationMinutes))
@@ -176,48 +215,105 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
         </View>
       </View>
 
-      <View style={styles.listCard}>
+      <View>
+        <Text style={styles.classesHeading}>
+          {classesHeading(selected, selectedClasses.length)}
+        </Text>
         {selectedClasses.length === 0 ? (
-          <>
+          <View style={styles.listCard}>
             <Text style={styles.listEmptyTitle}>No classes on this day</Text>
             <Text style={styles.listEmptyCopy}>
               Book a certified tutor and your upcoming sessions will appear here, with time,
               subject, and a join action when it is time to start.
             </Text>
-          </>
+            <Pressable
+              style={styles.findButton}
+              onPress={onOpenTutorSearch}
+              accessibilityRole="button"
+              accessibilityLabel="Find a tutor"
+            >
+              <Text style={styles.findButtonText}>Find a tutor</Text>
+            </Pressable>
+          </View>
         ) : (
-          selectedClasses.map((row) => (
-            <View key={row.enrollmentId} style={styles.classRow}>
-              <Text style={styles.classTime}>
-                {formatIstBookingTimeRange(new Date(row.startsAt), row.durationMinutes)}
-              </Text>
-              <Text style={styles.classSubject}>{row.offeringLabel}</Text>
-              <Text style={styles.listEmptyCopy}>
-                {row.deliveryMode === 'online' ? 'Online' : 'Offline'} · {row.tutorName}
-              </Text>
-              {onRescheduleCredit
-                ? (() => {
-                    const credit = credits.find(
-                      (item) => String(item.enrollmentId) === String(row.enrollmentId),
-                    );
-                    return credit && canChangeScheduledClass(row.startsAt, row.deliveryMode) ? (
-                      <Pressable onPress={() => onRescheduleCredit(credit)}>
-                        <Text style={styles.reschedule}>Reschedule</Text>
-                      </Pressable>
-                    ) : null;
-                  })()
-                : null}
+          <>
+            <View
+              style={styles.classCarousel}
+              onLayout={(event) => setCarouselWidth(event.nativeEvent.layout.width)}
+            >
+              <ScrollView
+                ref={classCarouselRef}
+                horizontal
+                pagingEnabled
+                nestedScrollEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={(event) => {
+                  const width = event.nativeEvent.layoutMeasurement.width;
+                  if (width <= 0) {
+                    return;
+                  }
+                  setActiveClassIndex(Math.round(event.nativeEvent.contentOffset.x / width));
+                }}
+              >
+                {selectedClasses.map((row) => {
+                  const credit = credits.find(
+                    (item) => String(item.enrollmentId) === String(row.enrollmentId),
+                  );
+                  const canReschedule =
+                    Boolean(onRescheduleCredit) &&
+                    Boolean(credit) &&
+                    canChangeScheduledClass(row.startsAt, row.deliveryMode);
+                  return (
+                    <View
+                      key={row.enrollmentId}
+                      style={[styles.classRow, carouselWidth > 0 ? { width: carouselWidth } : null]}
+                    >
+                      <Text style={styles.classTime}>
+                        {formatIstBookingTimeRange(new Date(row.startsAt), row.durationMinutes)}
+                      </Text>
+                      <Text style={styles.listEmptyCopy}>
+                        {row.deliveryMode === 'online' ? 'Online' : 'Offline'}
+                      </Text>
+                      <Text style={styles.classSubject}>{row.offeringLabel}</Text>
+                      <Text style={styles.classSubject}>{row.tutorName}</Text>
+                      {canReschedule && credit && onRescheduleCredit ? (
+                        <Pressable onPress={() => onRescheduleCredit(credit)}>
+                          <Text style={styles.reschedule}>Reschedule</Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+              {selectedClasses.length > 1 && activeClassIndex < selectedClasses.length - 1 ? (
+                <View pointerEvents="none" style={styles.scrollHint}>
+                  <Text style={styles.scrollHintText}>›</Text>
+                </View>
+              ) : null}
             </View>
-          ))
+            {selectedClasses.length > 1 ? (
+              <View
+                style={styles.classDots}
+                accessibilityLabel={`Class ${activeClassIndex + 1} of ${selectedClasses.length}`}
+              >
+                {selectedClasses.map((row, index) => (
+                  <View
+                    key={row.enrollmentId}
+                    style={[styles.classDot, index === activeClassIndex && styles.classDotOn]}
+                  />
+                ))}
+              </View>
+            ) : null}
+            <Pressable
+              style={styles.findButton}
+              onPress={onOpenTutorSearch}
+              accessibilityRole="button"
+              accessibilityLabel="Find a tutor"
+            >
+              <Text style={styles.findButtonText}>Find a tutor</Text>
+            </Pressable>
+          </>
         )}
-        <Pressable
-          style={styles.findButton}
-          onPress={onOpenTutorSearch}
-          accessibilityRole="button"
-          accessibilityLabel="Find a tutor"
-        >
-          <Text style={styles.findButtonText}>Find a tutor</Text>
-        </Pressable>
       </View>
 
       <View style={styles.concludedCard}>
@@ -299,10 +395,13 @@ const styles = StyleSheet.create({
   statCopy: { flex: 1 },
   statLabel: { fontSize: 11, color: '#64748b', fontWeight: '600' },
   statValue: { marginTop: 2, fontSize: 15, fontWeight: '800', color: '#143055' },
+  classesHeading: { fontSize: 16, fontWeight: '800', color: '#143055' },
+  classCarousel: { marginTop: 12, position: 'relative' },
   listCard: {
     backgroundColor: '#fff',
     borderRadius: 20,
     padding: 20,
+    marginTop: 12,
   },
   listEmptyTitle: { fontSize: 16, fontWeight: '800', color: '#143055' },
   listEmptyCopy: { marginTop: 6, fontSize: 13, lineHeight: 19, color: '#64748b' },
@@ -316,11 +415,43 @@ const styles = StyleSheet.create({
   },
   findButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   classRow: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 10,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+  },
+  scrollHint: {
+    position: 'absolute',
+    right: 8,
+    top: '42%',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollHintText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#2563eb',
+    marginTop: -2,
+  },
+  classDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
+  classDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#cbd5e1',
+  },
+  classDotOn: {
+    width: 18,
+    backgroundColor: '#2563eb',
   },
   classTime: { fontSize: 14, fontWeight: '800', color: '#143055' },
   classSubject: { marginTop: 4, fontSize: 14, color: '#143055' },

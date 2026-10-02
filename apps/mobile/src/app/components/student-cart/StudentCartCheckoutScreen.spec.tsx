@@ -36,11 +36,8 @@ jest.mock('../../../lib/mobile-payment-checkout', () => ({
 }));
 
 describe('StudentCartCheckoutScreen', () => {
-  it('pays the cart without sending the student to the wallet page', async () => {
+  it('pays the cart and opens class scheduling', async () => {
     mockUseQuery.mockImplementation((query: { kind?: string }) => {
-      if (query.kind === 'invoice') {
-        return { loading: false, data: null };
-      }
       if (query === PREPARE_CART_CHECKOUT) {
         return {
           loading: false,
@@ -73,15 +70,15 @@ describe('StudentCartCheckoutScreen', () => {
       purchaseOrderNumber: 'TX250926ABC',
     });
 
-    const onPaid = jest.fn();
+    const onScheduleNow = jest.fn();
     const { getByText, getByLabelText } = render(
-      <StudentCartCheckoutScreen onPaid={onPaid} onScheduleNow={jest.fn()} />,
+      <StudentCartCheckoutScreen onScheduleNow={onScheduleNow} />,
     );
 
     expect(getByText('Mathematics')).toBeTruthy();
     fireEvent.press(getByLabelText('Pay ₹1,000'));
     await waitFor(() => {
-      expect(runWalletAwarePurchaseCheckout).toHaveBeenCalled();
+      expect(onScheduleNow).toHaveBeenCalledTimes(1);
     });
     expect(runWalletAwarePurchaseCheckout).toHaveBeenCalledWith(
       expect.objectContaining({ itemType: 'CLASS_BOOKING', referenceType: 'cart' }),
@@ -92,7 +89,37 @@ describe('StudentCartCheckoutScreen', () => {
       expect.any(Function),
       openMobilePaymentCheckout,
     );
-    fireEvent.press(getByText('Later'));
-    expect(onPaid).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the gateway error and a retry action', async () => {
+    mockUseQuery.mockImplementation((query: { kind?: string }) => {
+      if (query === PREPARE_CART_CHECKOUT) {
+        return {
+          loading: false,
+          data: {
+            prepareCartCheckout: {
+              cartId: 5,
+              purchaseAmountInr: 1000,
+              walletBalanceInr: 0,
+              shortfallInr: 1000,
+              canPayFromWallet: false,
+              items: [],
+            },
+          },
+        };
+      }
+      return { loading: false, data: null };
+    });
+    (runWalletAwarePurchaseCheckout as jest.Mock).mockRejectedValue(
+      new Error('Payment failed. Please try again.'),
+    );
+
+    const { getByLabelText, findByText } = render(
+      <StudentCartCheckoutScreen onScheduleNow={jest.fn()} />,
+    );
+    fireEvent.press(getByLabelText('Pay ₹1,000'));
+
+    expect(await findByText('Payment failed. Please try again.')).toBeTruthy();
+    expect(getByLabelText('Retry payment')).toBeTruthy();
   });
 });

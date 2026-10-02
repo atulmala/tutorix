@@ -11,11 +11,13 @@ import type { StudentClassCredit } from './StudentClassCreditsPage';
 type StudentClassSchedulePageProps = {
   credits: StudentClassCredit[];
   onScheduled: () => void;
+  onScheduleLater: () => void;
 };
 
 export const StudentClassSchedulePage: React.FC<StudentClassSchedulePageProps> = ({
   credits,
   onScheduled,
+  onScheduleLater,
 }) => {
   const [index, setIndex] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -83,6 +85,15 @@ export const StudentClassSchedulePage: React.FC<StudentClassSchedulePageProps> =
           })();
         }}
       />
+      {!isReschedule ? (
+        <button
+          type="button"
+          onClick={onScheduleLater}
+          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-[#143055]"
+        >
+          I will schedule later
+        </button>
+      ) : null}
     </div>
   );
 };

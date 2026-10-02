@@ -35,10 +35,12 @@ function formatInr(amount: number): string {
 
 type StudentClassCreditsPageProps = {
   onSchedule: (credits: StudentClassCredit[]) => void;
+  onScheduleLater: () => void;
 };
 
 export const StudentClassCreditsPage: React.FC<StudentClassCreditsPageProps> = ({
   onSchedule,
+  onScheduleLater,
 }) => {
   const [pending, setPending] = useState<StudentClassCredit[] | null>(null);
   const [cancelCount, setCancelCount] = useState(1);
@@ -203,6 +205,13 @@ export const StudentClassCreditsPage: React.FC<StudentClassCreditsPageProps> = (
           </ul>
         </section>
       ) : null}
+      <button
+        type="button"
+        onClick={onScheduleLater}
+        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-[#143055]"
+      >
+        I will schedule later
+      </button>
       {pending && selected.length > 0 ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"

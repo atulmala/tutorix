@@ -10,6 +10,8 @@ import { And, DataSource, In, LessThan, MoreThanOrEqual, Repository } from 'type
 import {
   formatIstBookingDateLabel,
   formatIstBookingTimeRange,
+  canScheduleClassAt,
+  earliestClassStart,
   getBatchSizeForMode,
   maxHorizonEndUtc,
 } from '@tutorix/shared-utils';
@@ -39,6 +41,7 @@ import { TutorClassSessionEntity } from '../entities/tutor-class-session.entity'
 import { ClassSessionDeliveryModeEnum } from '../enums/class-session-delivery-mode.enum';
 import { ClassSessionEnrollmentStatusEnum } from '../enums/class-session-enrollment-status.enum';
 import { ClassSessionStatusEnum } from '../enums/class-session-status.enum';
+import { classWindowsOverlap } from '../student-slot-conflict.util';
 
 function asId(value: string | number): number {
   const id = Number(value);
@@ -99,7 +102,8 @@ export class TutorClassSessionService {
     const rateBatchSize = getBatchSizeForMode(rateCard, deliveryMode);
 
     const now = new Date();
-    const rangeFrom = from > now ? from : now;
+    const earliest = earliestClassStart(now);
+    const rangeFrom = from > earliest ? from : earliest;
     const horizon = maxHorizonEndUtc(now);
     const rangeTo = to < horizon ? to : horizon;
     if (!(rangeFrom < rangeTo)) {
@@ -128,11 +132,28 @@ export class TutorClassSessionService {
     const sessionByCalendarId = new Map(
       sessions.map((session) => [session.tutorCalendarId, session]),
     );
+    const busy = await this.studentBusyWindows(student.id, rangeFrom, rangeTo);
 
     const bookable: TutorBookableSlot[] = [];
     for (const slot of slots) {
+      if (!canScheduleClassAt(slot.startsAt, now)) {
+        continue;
+      }
+      const duration = slot.durationMinutes ?? 60;
+      if (
+        busy.some((window) =>
+          classWindowsOverlap(
+            window.startsAt,
+            window.durationMinutes,
+            slot.startsAt,
+            duration,
+          ),
+        )
+      ) {
+        continue;
+      }
       const session = sessionByCalendarId.get(slot.id);
-      if (!session) {
+      if (!session || session.status === ClassSessionStatusEnum.cancelled) {
         bookable.push({
           tutorCalendarId: slot.id,
           startsAt: slot.startsAt,
@@ -141,11 +162,11 @@ export class TutorClassSessionService {
         });
         continue;
       }
-      if (
-        session.status === ClassSessionStatusEnum.cancelled ||
-        session.tutorOfferingId !== tutorOffering.id ||
-        session.deliveryMode !== deliveryMode
-      ) {
+      const sameOffering = Number(session.tutorOfferingId) === Number(tutorOffering.id);
+      const sameMode = session.deliveryMode === deliveryMode;
+      // An online booking blocks that hour for offline (and for any other offering).
+      // The same offering can keep filling the online batch up to the rate-card size.
+      if (!sameOffering || !sameMode) {
         continue;
       }
       const confirmed = confirmedCount(session.enrollments);
@@ -155,17 +176,56 @@ export class TutorClassSessionService {
           row.studentId === student.id &&
           row.status === ClassSessionEnrollmentStatusEnum.confirmed,
       );
-      if (alreadyBooked || confirmed >= session.batchSize) {
+      if (alreadyBooked || confirmed >= rateBatchSize) {
         continue;
       }
       bookable.push({
         tutorCalendarId: slot.id,
         startsAt: slot.startsAt,
-        seatsLeft: session.batchSize - confirmed,
-        batchSize: session.batchSize,
+        seatsLeft: rateBatchSize - confirmed,
+        batchSize: rateBatchSize,
       });
     }
     return bookable;
+  }
+
+  /** Confirmed classes this student already holds in the window, including with other tutors. */
+  private async studentBusyWindows(
+    studentId: number,
+    rangeFrom: Date,
+    rangeTo: Date,
+  ): Promise<Array<{ startsAt: Date; durationMinutes: number }>> {
+    const windowFrom = new Date(rangeFrom.getTime() - 60 * 60_000);
+    const rows = await this.enrollmentRepo
+      .createQueryBuilder('e')
+      .innerJoinAndSelect('e.session', 's')
+      .innerJoinAndSelect('s.tutorCalendar', 'c')
+      .where('e.student_id = :studentId', { studentId })
+      .andWhere('e.deleted = false')
+      .andWhere('e.status = :confirmed', {
+        confirmed: ClassSessionEnrollmentStatusEnum.confirmed,
+      })
+      .andWhere('s.deleted = false')
+      .andWhere('s.status != :cancelled', {
+        cancelled: ClassSessionStatusEnum.cancelled,
+      })
+      .andWhere('c.deleted = false')
+      .andWhere('c.startsAt < :rangeTo', { rangeTo })
+      .andWhere('c.startsAt >= :windowFrom', { windowFrom })
+      .getMany();
+
+    return rows.flatMap((row) => {
+      const calendar = row.session?.tutorCalendar;
+      if (!calendar?.startsAt) {
+        return [];
+      }
+      return [
+        {
+          startsAt: calendar.startsAt,
+          durationMinutes: calendar.durationMinutes ?? 60,
+        },
+      ];
+    });
   }
 
   async listTutorBookedSessions(
@@ -239,11 +299,15 @@ export class TutorClassSessionService {
   }
 
   async bookTutorClass(
-    _user: User,
-    _tutorCalendarIdInput: string | number,
-    _offeringIdInput: string | number,
-    _deliveryMode: ClassSessionDeliveryModeEnum,
+    user: User,
+    tutorCalendarIdInput: string | number,
+    offeringIdInput: string | number,
+    deliveryMode: ClassSessionDeliveryModeEnum,
   ): Promise<BookTutorClassResult> {
+    void user;
+    void tutorCalendarIdInput;
+    void offeringIdInput;
+    void deliveryMode;
     throw new BadRequestException(
       'Direct class booking is no longer supported. Add classes to your cart from the tutor profile, pay at checkout, then schedule your class credits.',
     );

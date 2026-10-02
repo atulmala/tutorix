@@ -26,12 +26,12 @@ describe('tutor-weekly-calendar', () => {
     );
   });
 
-  it('default weekly pattern blocks Mon–Fri before 2 PM; weekends open', () => {
+  it('default weekly pattern blocks Mon–Fri before 4 PM; weekends open', () => {
     const keys = defaultWeeklyUnavailableKeys();
     expect(keys.has(weeklyUnavailabilityKey(1, 8, 0))).toBe(true);
-    expect(keys.has(weeklyUnavailabilityKey(1, 13, 30))).toBe(true);
-    expect(keys.has(weeklyUnavailabilityKey(1, 14, 0))).toBe(false);
+    expect(keys.has(weeklyUnavailabilityKey(1, 15, 30))).toBe(true);
+    expect(keys.has(weeklyUnavailabilityKey(1, 16, 0))).toBe(false);
     expect(keys.has(weeklyUnavailabilityKey(6, 8, 0))).toBe(false);
-    expect(keys.has(weeklyUnavailabilityKey(0, 13, 30))).toBe(false);
+    expect(keys.has(weeklyUnavailabilityKey(0, 15, 30))).toBe(false);
   });
 });

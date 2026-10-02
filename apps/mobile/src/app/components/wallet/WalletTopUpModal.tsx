@@ -119,16 +119,19 @@ export const WalletTopUpModal: React.FC<WalletTopUpModalProps> = ({
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.confirmButton, !canConfirm && styles.confirmDisabled]}
+              style={[
+                styles.confirmButton,
+                !canConfirm && (loading ? styles.confirmDisabled : styles.confirmInactive),
+              ]}
               onPress={onConfirm}
               disabled={!canConfirm}
               activeOpacity={0.7}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" size="small" />
+                <ActivityIndicator color="#475569" size="small" />
               ) : (
                 <Text style={styles.confirmText}>
-                  Pay ₹{topUpAmount.toLocaleString('en-IN')}
+                  {error ? 'Retry payment' : `Pay ₹${topUpAmount.toLocaleString('en-IN')}`}
                 </Text>
               )}
             </TouchableOpacity>
@@ -230,6 +233,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   confirmDisabled: {
+    backgroundColor: '#cbd5e1',
+  },
+  confirmInactive: {
     opacity: 0.6,
   },
   confirmText: {

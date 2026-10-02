@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQuery } from '@apollo/client';
 import {
   GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
@@ -49,6 +50,119 @@ type TutorBookedClass = {
   studentName: string;
   isDemo: boolean;
 };
+
+type DaySession = {
+  sessionId: string;
+  startsAt: string;
+  durationMinutes: number;
+  deliveryMode: 'online' | 'offline';
+  offeringLabel: string;
+  isDemo: boolean;
+  students: { enrollmentId: string; name: string }[];
+};
+
+function groupDaySessions(rows: TutorBookedClass[]): DaySession[] {
+  const bySession = new Map<string, DaySession>();
+  for (const row of rows) {
+    const sessionId = String(row.sessionId);
+    const student = { enrollmentId: String(row.enrollmentId), name: row.studentName };
+    const existing = bySession.get(sessionId);
+    if (!existing) {
+      bySession.set(sessionId, {
+        sessionId,
+        startsAt: row.startsAt,
+        durationMinutes: row.durationMinutes,
+        deliveryMode: row.deliveryMode,
+        offeringLabel: row.offeringLabel,
+        isDemo: row.isDemo,
+        students: [student],
+      });
+      continue;
+    }
+    if (!existing.students.some((item) => item.enrollmentId === student.enrollmentId)) {
+      existing.students.push(student);
+    }
+  }
+  return [...bySession.values()].sort(
+    (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+  );
+}
+
+function weekdayTitle(abbr: string): string {
+  return abbr.charAt(0) + abbr.slice(1).toLowerCase();
+}
+
+function ordinalDay(day: number): string {
+  const mod100 = day % 100;
+  if (mod100 >= 11 && mod100 <= 13) {
+    return `${day}th`;
+  }
+  switch (day % 10) {
+    case 1:
+      return `${day}st`;
+    case 2:
+      return `${day}nd`;
+    case 3:
+      return `${day}rd`;
+    default:
+      return `${day}th`;
+  }
+}
+
+function classesHeading(
+  day: { day: number; abbr: string; monthAbbr: string } | undefined,
+  count: number,
+): string {
+  if (!day) {
+    return `Classes: ${count}`;
+  }
+  return `Classes on ${weekdayTitle(day.abbr)}, ${ordinalDay(day.day)} ${day.monthAbbr}: ${count}`;
+}
+
+function studentCountLabel(count: number): string {
+  return `${count} ${count === 1 ? 'student' : 'students'}`;
+}
+
+function StudentNamesPopup({
+  anchor,
+  students,
+  onClose,
+}: {
+  anchor: { top: number; bottom: number; left: number };
+  students: { enrollmentId: string; name: string }[];
+  onClose: () => void;
+}) {
+  const popupWidth = 220;
+  const left = Math.max(12, Math.min(anchor.left, window.innerWidth - popupWidth - 12));
+  const belowTop = anchor.bottom + 8;
+  const placeAbove = belowTop + 160 > window.innerHeight && anchor.top > 180;
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Close student names"
+        className="fixed inset-0 z-40 cursor-default"
+        onClick={onClose}
+      />
+      <ul
+        role="dialog"
+        aria-label="Students"
+        className="fixed z-50 w-[220px] rounded-xl border border-slate-200 bg-white p-3 shadow-lg"
+        style={
+          placeAbove
+            ? { left, bottom: window.innerHeight - anchor.top + 8 }
+            : { left, top: belowTop }
+        }
+      >
+        {students.map((student) => (
+          <li key={student.enrollmentId} className="py-1 text-sm text-[#143055]">
+            {student.name}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
 
 function teachingHoursLabel(rows: TutorBookedClass[]): string {
   const seen = new Set<string>();
@@ -103,6 +217,14 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
   );
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingEnrollmentId, setPendingEnrollmentId] = useState<string | null>(null);
+  const [openStudentsSessionId, setOpenStudentsSessionId] = useState<string | null>(null);
+  const [studentPopupAnchor, setStudentPopupAnchor] = useState<{
+    top: number;
+    bottom: number;
+    left: number;
+  } | null>(null);
+  const [activeClassIndex, setActiveClassIndex] = useState(0);
+  const classScrollerRef = useRef<HTMLUListElement>(null);
   const booked = (sessionData?.tutorBookedClassSessions ?? []) as TutorBookedClass[];
   const dayClasses = booked.filter(
     (row) => istDayKey(new Date(row.startsAt)) === selected?.key,
@@ -110,6 +232,32 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
   const selectedClasses = dayClasses.filter(
     (row) => !scheduledClassHasEnded(row.startsAt, row.durationMinutes),
   );
+  const daySessions = groupDaySessions(selectedClasses);
+  const openSession =
+    daySessions.find((session) => session.sessionId === openStudentsSessionId) ?? null;
+
+  useEffect(() => {
+    setActiveClassIndex(0);
+    if (classScrollerRef.current) {
+      classScrollerRef.current.scrollLeft = 0;
+    }
+  }, [selected?.key]);
+
+  useEffect(() => {
+    if (!openStudentsSessionId) {
+      return;
+    }
+    const close = () => {
+      setOpenStudentsSessionId(null);
+      setStudentPopupAnchor(null);
+    };
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [openStudentsSessionId]);
   const todayClasses = booked.filter((row) => istDayKey(new Date(row.startsAt)) === todayKey);
   const concludedClasses = booked
     .filter((row) => scheduledClassHasEnded(row.startsAt, row.durationMinutes))
@@ -199,7 +347,11 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
               <button
                 key={day.key}
                 type="button"
-                onClick={() => setSelectedKey(day.key)}
+                onClick={() => {
+                  setSelectedKey(day.key);
+                  setOpenStudentsSessionId(null);
+                  setStudentPopupAnchor(null);
+                }}
                 aria-label={`${day.abbr} ${day.day} ${day.monthAbbr}`}
                 aria-pressed={on}
                 className={`flex min-w-[4.25rem] flex-col items-center rounded-xl px-2 py-2 ${
@@ -266,77 +418,188 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
         </div>
       </div>
 
-      <section className="rounded-[20px] bg-white p-5">
-        {selectedClasses.length === 0 ? (
-          <>
-            <h2 className="text-base font-extrabold text-[#143055]">No classes on this day</h2>
+      <section>
+        <h2 className="text-base font-extrabold text-[#143055]">
+          {classesHeading(selected, daySessions.length)}
+        </h2>
+        {daySessions.length === 0 ? (
+          <div className="mt-3 rounded-[20px] bg-white p-5">
+            <p className="text-base font-extrabold text-[#143055]">No classes on this day</p>
             <p className="mt-1.5 text-sm leading-6 text-slate-500">
               When students book you, upcoming sessions will appear here, with time, subject,
               and a start action when it is time to begin.
             </p>
-          </>
+          </div>
         ) : (
-          <ul className="space-y-3">
-            {selectedClasses.map((row) => (
-              <li key={row.enrollmentId} className="rounded-2xl bg-sky-50 px-4 py-3">
-                <p className="text-sm font-extrabold text-[#143055]">
-                  {formatIstBookingTimeRange(new Date(row.startsAt), row.durationMinutes)}
-                </p>
-                <p className="mt-1 text-sm text-[#143055]">
-                  {row.offeringLabel}
-                  {row.isDemo ? (
-                    <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">
-                      Free demo
-                    </span>
-                  ) : null}
-                </p>
-                <p className="mt-0.5 text-sm text-slate-500">
-                  {row.deliveryMode === 'online' ? 'Online' : 'Offline'} · {row.studentName}
-                </p>
-                {canChangeScheduledClass(row.startsAt, row.deliveryMode) ? (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={changing}
-                    onClick={() =>
-                      void runClassAction(
-                        String(row.enrollmentId),
-                        'Ask the student to pick a new time? This slot will be released.',
-                        (enrollmentId) =>
-                          requestReschedule({ variables: { enrollmentId } }),
-                      )
-                    }
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-[#143055] disabled:text-slate-400"
+          <>
+          <div className="relative mt-3">
+          <ul
+            ref={classScrollerRef}
+            className="flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none]"
+            onScroll={(event) => {
+              const el = event.currentTarget;
+              if (el.clientWidth <= 0) {
+                return;
+              }
+              setActiveClassIndex(Math.round(el.scrollLeft / el.clientWidth));
+            }}
+          >
+              {daySessions.map((session) => {
+                const studentsOpen = openStudentsSessionId === session.sessionId;
+                const canChange = canChangeScheduledClass(
+                  session.startsAt,
+                  session.deliveryMode,
+                );
+                const actionEnrollmentId = session.students[0]?.enrollmentId;
+                const rescheduleConfirm =
+                  session.students.length > 1
+                    ? 'Ask every student in this class to pick a new time? This slot will be released.'
+                    : 'Ask the student to pick a new time? This slot will be released.';
+                const cancelConfirm =
+                  session.students.length > 1
+                    ? 'Cancel this class for every student? Each student will be refunded.'
+                    : 'Cancel this class? The student will be refunded.';
+                return (
+                  <li
+                    key={session.sessionId}
+                    className="w-full shrink-0 grow-0 basis-full snap-start rounded-[20px] bg-white p-5"
                   >
-                    {pendingEnrollmentId === String(row.enrollmentId) && rescheduling
-                      ? 'Requesting…'
-                      : 'Request reschedule'}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={changing}
-                    onClick={() =>
-                      void runClassAction(
-                        String(row.enrollmentId),
-                        'Cancel this class? The student will be refunded.',
-                        (enrollmentId) => cancelClass({ variables: { enrollmentId } }),
-                      )
-                    }
-                    className="rounded-xl px-3 py-2 text-sm font-semibold text-[#b91c1c] disabled:text-slate-400"
-                  >
-                    {pendingEnrollmentId === String(row.enrollmentId) && cancelling
-                      ? 'Cancelling…'
-                      : 'Cancel class'}
-                  </button>
-                </div>
-                ) : null}
-              </li>
-            ))}
+                    <p className="text-sm font-extrabold text-[#143055]">
+                      {formatIstBookingTimeRange(
+                        new Date(session.startsAt),
+                        session.durationMinutes,
+                      )}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {session.deliveryMode === 'online' ? 'Online' : 'Offline'}
+                    </p>
+                    <p className="mt-1 text-sm text-[#143055]">
+                      {session.offeringLabel}
+                      {session.isDemo ? (
+                        <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">
+                          Free demo
+                        </span>
+                      ) : null}
+                    </p>
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        aria-expanded={studentsOpen}
+                        onClick={(event) => {
+                          if (studentsOpen) {
+                            setOpenStudentsSessionId(null);
+                            setStudentPopupAnchor(null);
+                            return;
+                          }
+                          const rect = event.currentTarget.getBoundingClientRect();
+                          setStudentPopupAnchor({
+                            top: rect.top,
+                            bottom: rect.bottom,
+                            left: rect.left,
+                          });
+                          setOpenStudentsSessionId(session.sessionId);
+                        }}
+                        className="text-sm font-semibold text-[#2563eb] underline decoration-[#2563eb]/40 underline-offset-2"
+                      >
+                        {studentCountLabel(session.students.length)}
+                      </button>
+                    </div>
+                    {canChange && actionEnrollmentId ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={changing}
+                          onClick={() =>
+                            void runClassAction(
+                              session.sessionId,
+                              rescheduleConfirm,
+                              () =>
+                                requestReschedule({
+                                  variables: { enrollmentId: actionEnrollmentId },
+                                }),
+                            )
+                          }
+                          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-[#143055] disabled:text-slate-400"
+                        >
+                          {pendingEnrollmentId === session.sessionId && rescheduling
+                            ? 'Requesting…'
+                            : 'Request reschedule'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={changing}
+                          onClick={() =>
+                            void runClassAction(
+                              session.sessionId,
+                              cancelConfirm,
+                              () =>
+                                cancelClass({
+                                  variables: { enrollmentId: actionEnrollmentId },
+                                }),
+                            )
+                          }
+                          className="rounded-xl px-3 py-2 text-sm font-semibold text-[#b91c1c] disabled:text-slate-400"
+                        >
+                          {pendingEnrollmentId === session.sessionId && cancelling
+                            ? 'Cancelling…'
+                            : 'Cancel class'}
+                        </button>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
           </ul>
+          {daySessions.length > 1 && activeClassIndex < daySessions.length - 1 ? (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white text-xl font-bold text-[#2563eb] shadow"
+            >
+              ›
+            </span>
+          ) : null}
+          </div>
+          {daySessions.length > 1 ? (
+            <div className="mt-3 flex items-center justify-center gap-1.5">
+              {daySessions.map((session, index) => (
+                <button
+                  key={session.sessionId}
+                  type="button"
+                  aria-label={`Class ${index + 1} of ${daySessions.length}`}
+                  aria-current={index === activeClassIndex}
+                  onClick={() => {
+                    const el = classScrollerRef.current;
+                    if (!el) {
+                      return;
+                    }
+                    el.scrollLeft = index * el.clientWidth;
+                    setActiveClassIndex(index);
+                  }}
+                  className={`h-2 rounded-full ${
+                    index === activeClassIndex ? 'w-5 bg-[#2563eb]' : 'w-2 bg-slate-300'
+                  }`}
+                />
+              ))}
+            </div>
+          ) : null}
+          </>
         )}
         {actionError ? (
           <p className="mt-3 text-sm font-semibold text-red-600">{actionError}</p>
         ) : null}
+        {openSession && studentPopupAnchor
+          ? createPortal(
+              <StudentNamesPopup
+                anchor={studentPopupAnchor}
+                students={openSession.students}
+                onClose={() => {
+                  setOpenStudentsSessionId(null);
+                  setStudentPopupAnchor(null);
+                }}
+              />,
+              document.body,
+            )
+          : null}
       </section>
 
       <section className="rounded-[20px] bg-white p-5">

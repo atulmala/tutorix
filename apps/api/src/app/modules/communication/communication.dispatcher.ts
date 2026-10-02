@@ -38,6 +38,10 @@ export type CommunicationEmitInput = {
   entityId?: string | number;
   payload: Record<string, unknown>;
   emailAttachments?: EmailAttachment[];
+  /** When set, only these enabled channels are sent. */
+  onlyChannels?: CommunicationChannel[];
+  /** Enabled channels to skip. Tutor class emails are sent in an hourly batch. */
+  excludeChannels?: CommunicationChannel[];
 };
 
 @Injectable()
@@ -76,11 +80,19 @@ export class CommunicationDispatcher {
       return;
     }
 
-    const channels = rule
+    let channels = rule
       ? enabledChannelsFromRule(rule)
       : catalog
         ? enabledChannelsFromFlags(catalog.defaultChannels)
         : [];
+    if (input.onlyChannels?.length) {
+      const allow = new Set(input.onlyChannels);
+      channels = channels.filter((channel) => allow.has(channel));
+    }
+    if (input.excludeChannels?.length) {
+      const skip = new Set(input.excludeChannels);
+      channels = channels.filter((channel) => !skip.has(channel));
+    }
     if (!rule) {
       this.logger.warn(
         `No communication_rule for ${input.event}/${audience}; using catalog defaults (${channels.join(',') || 'none'})`,

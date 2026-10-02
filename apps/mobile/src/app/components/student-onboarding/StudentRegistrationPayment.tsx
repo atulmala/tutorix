@@ -28,6 +28,7 @@ export const StudentRegistrationPayment: React.FC<StudentStepComponentProps> = (
   onComplete,
 }) => {
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [paying, setPaying] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const { data: feeData, loading: feeLoading } = useQuery(GET_PLATFORM_FEE, {
     variables: { code: 'STUDENT_REGISTRATION' },
@@ -48,7 +49,11 @@ export const StudentRegistrationPayment: React.FC<StudentStepComponentProps> = (
   );
 
   const handleContinue = async () => {
+    if (paying) {
+      return;
+    }
     setErrorText(null);
+    setPaying(true);
     try {
       const initiateResult = await initiatePayment({
         variables: { feeCode: 'STUDENT_REGISTRATION' },
@@ -81,10 +86,13 @@ export const StudentRegistrationPayment: React.FC<StudentStepComponentProps> = (
           ? error.message
           : 'Could not complete registration payment. Try again or contact support.',
       );
+    } finally {
+      setPaying(false);
     }
   };
 
-  const loading = feeLoading || completing;
+  const busy = paying || completing;
+  const loading = feeLoading || busy;
 
   return (
     <View style={styles.container}>
@@ -103,17 +111,20 @@ export const StudentRegistrationPayment: React.FC<StudentStepComponentProps> = (
       ) : null}
       {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
       <TouchableOpacity
-        style={styles.button}
+        style={[styles.button, (loading || !fee) && styles.buttonDisabled]}
         onPress={() => void handleContinue()}
         disabled={loading || !fee}
+        accessibilityState={{ disabled: loading || !fee, busy }}
       >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
+        {busy ? (
+          <ActivityIndicator color="#475569" />
         ) : (
-          <Text style={styles.buttonText}>
-            {summary?.requiresPayment
-              ? `Pay ₹${fee?.effectiveAmountInr ?? ''}`
-              : 'Continue'}
+          <Text style={[styles.buttonText, (loading || !fee) && styles.buttonTextDisabled]}>
+            {errorText && summary?.requiresPayment
+              ? 'Retry payment'
+              : summary?.requiresPayment
+                ? `Pay ₹${fee?.effectiveAmountInr ?? ''}`
+                : 'Continue'}
           </Text>
         )}
       </TouchableOpacity>
@@ -149,5 +160,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#5fa8ff',
     alignItems: 'center',
   },
+  buttonDisabled: { backgroundColor: '#cbd5e1' },
   buttonText: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  buttonTextDisabled: { color: '#475569' },
 });

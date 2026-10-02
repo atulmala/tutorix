@@ -136,9 +136,18 @@ export const PTIntroScreen: React.FC<PTIntroScreenProps> = ({
             type="button"
             onClick={onPayFee}
             disabled={payLoading}
-            className="h-11 rounded-lg bg-[#5fa8ff] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5] disabled:opacity-50"
+            className="flex h-11 items-center justify-center rounded-lg bg-[#5fa8ff] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:hover:bg-slate-300"
           >
-            {payLoading ? 'Processing…' : `Pay ₹${amountDueInr ?? ''}`}
+            {payLoading ? (
+              <span
+                className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-transparent"
+                aria-hidden
+              />
+            ) : paymentError ? (
+              'Retry payment'
+            ) : (
+              `Pay ₹${amountDueInr ?? ''}`
+            )}
           </button>
         ) : null}
         <button

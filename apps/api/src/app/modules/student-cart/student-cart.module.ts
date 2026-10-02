@@ -21,10 +21,12 @@ import { ClassCreditGatewayRefundEntity } from './entities/class-credit-gateway-
 import { StudentCartItemEntity } from './entities/student-cart-item.entity';
 import { StudentCartEntity } from './entities/student-cart.entity';
 import { StudentClassCreditEntity } from './entities/student-class-credit.entity';
+import { TutorClassEmailQueueEntity } from './entities/tutor-class-email-queue.entity';
 import { StudentCartResolver } from './resolvers/student-cart.resolver';
 import { StudentCartService } from './services/student-cart.service';
 import { ClassCreditCancellationService } from './services/class-credit-cancellation.service';
 import { StudentClassCreditService } from './services/student-class-credit.service';
+import { TutorClassEmailBatchService } from './services/tutor-class-email-batch.service';
 import { AdminClassBookingService } from './services/admin-class-booking.service';
 
 @Module({
@@ -41,6 +43,7 @@ import { AdminClassBookingService } from './services/admin-class-booking.service
       TutorClassSessionEntity,
       TutorClassSessionEnrollmentEntity,
       OrderItemEntity,
+      TutorClassEmailQueueEntity,
     ]),
     StudentModule,
     OfferingsModule,
@@ -54,10 +57,16 @@ import { AdminClassBookingService } from './services/admin-class-booking.service
   providers: [
     StudentCartService,
     StudentClassCreditService,
+    TutorClassEmailBatchService,
     ClassCreditCancellationService,
     AdminClassBookingService,
     StudentCartResolver,
   ],
-  exports: [StudentCartService, StudentClassCreditService, AdminClassBookingService],
+  exports: [
+    StudentCartService,
+    StudentClassCreditService,
+    TutorClassEmailBatchService,
+    AdminClassBookingService,
+  ],
 })
 export class StudentCartModule {}

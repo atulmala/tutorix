@@ -67,6 +67,7 @@ describe('StudentCartService', () => {
   let hasActiveDemo: jest.Mock;
   let issueDemoCredit: jest.Mock;
   let emit: jest.Mock;
+  let enqueueBookings: jest.Mock;
   let getWallet: jest.Mock;
   let cart: {
     id: number;
@@ -128,6 +129,7 @@ describe('StudentCartService', () => {
       offeringLabel: 'Mathematics',
     });
     emit = jest.fn().mockResolvedValue(undefined);
+    enqueueBookings = jest.fn().mockResolvedValue(undefined);
     getWallet = jest.fn().mockResolvedValue({ balanceInr: 5000 });
 
     service = new StudentCartService(
@@ -170,6 +172,7 @@ describe('StudentCartService', () => {
       { findOne: offeringFindOne } as never,
       { findAll: jest.fn().mockResolvedValue([]) } as never,
       { emit } as never,
+      { enqueueBookings } as never,
     );
   });
 
@@ -294,7 +297,7 @@ describe('StudentCartService', () => {
     expect(generateInvoice).toHaveBeenCalledTimes(1);
     expect(itemDelete).toHaveBeenCalledWith({ cartId: 5 });
     expect(result.orderNumber).toBe('ORD-1');
-    expect(emit).toHaveBeenCalledTimes(2);
+    expect(emit).toHaveBeenCalledTimes(1);
     const studentMail = emit.mock.calls.find(
       (call) => call[0].audience === CommunicationAudience.STUDENT,
     )?.[0];
@@ -314,13 +317,17 @@ describe('StudentCartService', () => {
     ]);
     expect(studentMail.payload.linesHtml).toContain('Priya Sharma');
     expect(studentMail.payload.linesHtml).toContain('₹2,000');
-    expect(tutorMail).toMatchObject({
-      event: CommunicationEvent.CLASS_BOOKED,
-      userId: 4,
-    });
-    expect(tutorMail.emailAttachments).toBeUndefined();
-    expect(tutorMail.payload.linesHtml).toContain('Mathematics');
-    expect(tutorMail.payload.amountPaid).toBe('₹2,000');
+    expect(tutorMail).toBeUndefined();
+    expect(enqueueBookings).toHaveBeenCalledWith([
+      expect.objectContaining({
+        tutorUserId: 4,
+        studentName: expect.any(String),
+        offeringLabel: 'Mathematics',
+        classCount: 2,
+        amountInr: 2000,
+        deliveryMode: ClassSessionDeliveryModeEnum.offline,
+      }),
+    ]);
   });
 
   it('leaves the cart intact when the wallet cannot cover the total', async () => {
@@ -371,6 +378,13 @@ describe('StudentCartService', () => {
         ],
       }),
     );
+    expect(enqueueBookings).toHaveBeenCalledWith([
+      expect.objectContaining({
+        amountInr: 0,
+        isDemo: true,
+        classCount: 1,
+      }),
+    ]);
     expect(issueDemoCredit).toHaveBeenCalledWith(
       expect.objectContaining({
         studentId: 21,

@@ -196,83 +196,160 @@ export class ClassCreditCancellationService {
     user: User,
     enrollmentIdInput: string | number,
   ): Promise<TutorScheduledClassActionResult> {
-    const credit = await this.requireTutorScheduledCredit(user, enrollmentIdInput);
-    const amountInr = credit.orderItem
-      ? orderItemPaidInrPerCredit(credit.orderItem)
-      : 0;
-    const studentUserId = credit.student?.userId ?? credit.student?.user?.id;
-    if (!studentUserId) {
-      throw new NotFoundException('Student not found');
-    }
+    const anchor = await this.requireTutorScheduledCredit(user, enrollmentIdInput);
+    const credits = await this.creditsSharingSession(anchor);
+    let amountRefundedInr = 0;
+    const notified: Array<{
+      credit: StudentClassCreditEntity;
+      studentUserId: number;
+      amountInr: number;
+    }> = [];
 
     await this.dataSource.transaction(async (manager) => {
-      const locked = await this.lockTutorCredit(manager, credit.id, credit.tutorId);
-      if (locked.enrollmentId) {
-        await this.releaseEnrollment(manager, locked.enrollmentId, credit.studentId);
+      for (const credit of credits) {
+        const studentUserId = credit.student?.userId ?? credit.student?.user?.id;
+        if (!studentUserId) {
+          throw new NotFoundException('Student not found');
+        }
+        const amountInr = credit.orderItem
+          ? orderItemPaidInrPerCredit(credit.orderItem)
+          : 0;
+        const locked = await this.lockTutorCredit(manager, credit.id, credit.tutorId);
+        if (locked.enrollmentId) {
+          await this.releaseEnrollment(manager, locked.enrollmentId, credit.studentId);
+        }
+        locked.status = ClassCreditStatusEnum.cancelled;
+        locked.enrollmentId = null;
+        await manager.getRepository(StudentClassCreditEntity).save(locked);
+        await manager.getRepository(ClassCreditCancellationEntity).save(
+          manager.getRepository(ClassCreditCancellationEntity).create({
+            creditId: locked.id,
+            studentId: credit.studentId,
+            userId: user.id,
+            amountInr,
+            refundMethod: ClassCreditRefundMethodEnum.wallet,
+          }),
+        );
+        if (amountInr > 0) {
+          await this.walletService.creditClassRefundWithManager(manager, {
+            userId: studentUserId,
+            amountInr,
+            commerceOrderId: credit.orderId,
+            referenceType: 'class_credit',
+            referenceId: credit.id,
+            description: 'Class cancelled by tutor',
+          });
+        }
+        amountRefundedInr += amountInr;
+        notified.push({ credit, studentUserId, amountInr });
       }
-      locked.status = ClassCreditStatusEnum.cancelled;
-      locked.enrollmentId = null;
-      await manager.getRepository(StudentClassCreditEntity).save(locked);
-      await manager.getRepository(ClassCreditCancellationEntity).save(
-        manager.getRepository(ClassCreditCancellationEntity).create({
-          creditId: locked.id,
-          studentId: credit.studentId,
-          userId: user.id,
-          amountInr,
-          refundMethod: ClassCreditRefundMethodEnum.wallet,
-        }),
-      );
-      if (amountInr > 0) {
-        await this.walletService.creditClassRefundWithManager(manager, {
-          userId: studentUserId,
-          amountInr,
-          commerceOrderId: credit.orderId,
-          referenceType: 'class_credit',
-          referenceId: credit.id,
-          description: 'Class cancelled by tutor',
-        });
-      }
+      await this.markSessionCancelled(manager, anchor.enrollment?.session?.id);
     });
 
-    await this.emitTutorClassChange({
-      event: CommunicationEvent.CLASS_CANCELLED_BY_TUTOR,
-      credit,
-      studentUserId,
-      amountInr,
-    });
+    for (const item of notified) {
+      await this.emitTutorClassChange({
+        event: CommunicationEvent.CLASS_CANCELLED_BY_TUTOR,
+        credit: item.credit,
+        studentUserId: item.studentUserId,
+        amountInr: item.amountInr,
+      });
+    }
 
-    return { enrollmentId: credit.enrollmentId ?? asId(enrollmentIdInput), amountRefundedInr: amountInr };
+    return {
+      enrollmentId: anchor.enrollmentId ?? asId(enrollmentIdInput),
+      amountRefundedInr,
+    };
   }
 
   async requestRescheduleByTutor(
     user: User,
     enrollmentIdInput: string | number,
   ): Promise<TutorScheduledClassActionResult> {
-    const credit = await this.requireTutorScheduledCredit(user, enrollmentIdInput);
-    const studentUserId = credit.student?.userId ?? credit.student?.user?.id;
-    if (!studentUserId) {
-      throw new NotFoundException('Student not found');
-    }
-    const enrollmentId = credit.enrollmentId ?? asId(enrollmentIdInput);
+    const anchor = await this.requireTutorScheduledCredit(user, enrollmentIdInput);
+    const credits = await this.creditsSharingSession(anchor);
+    const enrollmentId = anchor.enrollmentId ?? asId(enrollmentIdInput);
+    const notified: Array<{ credit: StudentClassCreditEntity; studentUserId: number }> = [];
 
     await this.dataSource.transaction(async (manager) => {
-      const locked = await this.lockTutorCredit(manager, credit.id, credit.tutorId);
-      if (locked.enrollmentId) {
-        await this.releaseEnrollment(manager, locked.enrollmentId, credit.studentId);
+      for (const credit of credits) {
+        const studentUserId = credit.student?.userId ?? credit.student?.user?.id;
+        if (!studentUserId) {
+          throw new NotFoundException('Student not found');
+        }
+        const locked = await this.lockTutorCredit(manager, credit.id, credit.tutorId);
+        if (locked.enrollmentId) {
+          await this.releaseEnrollment(manager, locked.enrollmentId, credit.studentId);
+        }
+        locked.status = ClassCreditStatusEnum.unscheduled;
+        locked.enrollmentId = null;
+        await manager.getRepository(StudentClassCreditEntity).save(locked);
+        notified.push({ credit, studentUserId });
       }
-      locked.status = ClassCreditStatusEnum.unscheduled;
-      locked.enrollmentId = null;
-      await manager.getRepository(StudentClassCreditEntity).save(locked);
+      await this.markSessionCancelled(manager, anchor.enrollment?.session?.id);
     });
 
-    await this.emitTutorClassChange({
-      event: CommunicationEvent.CLASS_RESCHEDULE_REQUESTED,
-      credit,
-      studentUserId,
-      amountInr: 0,
-    });
+    for (const item of notified) {
+      await this.emitTutorClassChange({
+        event: CommunicationEvent.CLASS_RESCHEDULE_REQUESTED,
+        credit: item.credit,
+        studentUserId: item.studentUserId,
+        amountInr: 0,
+      });
+    }
 
     return { enrollmentId, amountRefundedInr: 0 };
+  }
+
+  /** Every student still scheduled on the same class session. */
+  private async creditsSharingSession(
+    anchor: StudentClassCreditEntity,
+  ): Promise<StudentClassCreditEntity[]> {
+    const sessionId = anchor.enrollment?.session?.id;
+    if (sessionId == null) {
+      return [anchor];
+    }
+    const credits = await this.creditRepo.find({
+      where: {
+        tutorId: anchor.tutorId,
+        status: ClassCreditStatusEnum.scheduled,
+        deleted: false,
+        enrollment: { sessionId },
+      },
+      relations: [
+        'orderItem',
+        'student',
+        'student.user',
+        'enrollment',
+        'enrollment.session',
+        'enrollment.session.tutorCalendar',
+        'tutorOffering',
+        'tutorOffering.offering',
+        'tutorOffering.tutor',
+        'tutorOffering.tutor.user',
+      ],
+    });
+    return credits.length > 0 ? credits : [anchor];
+  }
+
+  private async markSessionCancelled(
+    manager: DataSource['manager'],
+    sessionId: number | undefined,
+  ): Promise<void> {
+    if (sessionId == null) {
+      return;
+    }
+    const session = await manager
+      .getRepository(TutorClassSessionEntity)
+      .createQueryBuilder('s')
+      .setLock('pessimistic_write')
+      .where('s.id = :id', { id: sessionId })
+      .andWhere('s.deleted = false')
+      .getOne();
+    if (!session) {
+      return;
+    }
+    session.status = ClassSessionStatusEnum.cancelled;
+    await manager.getRepository(TutorClassSessionEntity).save(session);
   }
 
   private assertCancellable(credit: StudentClassCreditEntity): void {

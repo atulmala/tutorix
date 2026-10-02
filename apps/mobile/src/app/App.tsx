@@ -147,6 +147,9 @@ function AppContent() {
   } | null>(null);
   const [loginNotice, setLoginNotice] = useState<string | null>(null);
   const [rateCardCanDefer, setRateCardCanDefer] = useState(false);
+  const [forceWeeklyAvailability, setForceWeeklyAvailability] = useState(false);
+  const forceWeeklyAvailabilityRef = useRef(false);
+  forceWeeklyAvailabilityRef.current = forceWeeklyAvailability;
   const [pushBanner, setPushBanner] = useState<PushPayload | null>(null);
   const currentViewRef = useRef(currentView);
   currentViewRef.current = currentView;
@@ -158,6 +161,7 @@ function AppContent() {
     await removeAuthToken();
     await apolloClient.clearStore();
     setCurrentView('login');
+    setForceWeeklyAvailability(false);
     setTutorProfileForOnboarding(null);
     setStudentProfileForOnboarding(null);
     setTutorPreview(null);
@@ -173,6 +177,7 @@ function AppContent() {
   }, [apolloClient]);
 
   const openTutorCalendar = useCallback((returnTo: AppView) => {
+    setForceWeeklyAvailability(false);
     setTutorCalendarReturnView(returnTo);
     setCurrentView('tutorCalendar');
   }, []);
@@ -182,6 +187,7 @@ function AppContent() {
     await removeAuthToken();
     await apolloClient.clearStore();
     setCurrentView('login');
+    setForceWeeklyAvailability(false);
     setTutorProfileForOnboarding(null);
     setStudentProfileForOnboarding(null);
     setTutorPreview(null);
@@ -262,16 +268,19 @@ function AppContent() {
       } catch {
         rateCardSetupNeeded = false;
       }
-      setCurrentView(
-        tutorViewAfterProfile({
-          onBoardingComplete: tutor.onBoardingComplete,
-          onboardingCelebrationSeen: tutor.onboardingCelebrationSeen,
-          bankDetailsComplete,
-          needsRateCardSetup: rateCardSetupNeeded,
-          needsWeeklyAvailabilitySetup,
-        }),
+      const nextView = tutorViewAfterProfile({
+        onBoardingComplete: tutor.onBoardingComplete,
+        onboardingCelebrationSeen: tutor.onboardingCelebrationSeen,
+        bankDetailsComplete,
+        needsRateCardSetup: rateCardSetupNeeded,
+        needsWeeklyAvailabilitySetup,
+      });
+      setForceWeeklyAvailability(
+        nextView === 'tutorCalendar' && needsWeeklyAvailabilitySetup,
       );
+      setCurrentView(nextView);
     } catch {
+      setForceWeeklyAvailability(false);
       setCurrentView('home');
     }
   }, [getMyTutorDetail, getMyTutorProfile]);
@@ -385,7 +394,8 @@ function AppContent() {
     (from: WalletReturnView) => {
       if (
         currentViewRef.current === 'tutorBankSetup' ||
-        currentViewRef.current === 'tutorRateCardSetup'
+        currentViewRef.current === 'tutorRateCardSetup' ||
+        forceWeeklyAvailabilityRef.current
       ) {
         return;
       }
@@ -410,7 +420,11 @@ function AppContent() {
   }, [walletReturnView, walletReturnCartOverlay]);
 
   const openWalletFromPush = useCallback(() => {
-    if (currentViewRef.current === 'tutorBankSetup' || currentViewRef.current === 'tutorRateCardSetup') {
+    if (
+      currentViewRef.current === 'tutorBankSetup' ||
+      currentViewRef.current === 'tutorRateCardSetup' ||
+      forceWeeklyAvailabilityRef.current
+    ) {
       return;
     }
     const nextReturn = walletReturnFromPush(currentViewRef.current);
@@ -508,6 +522,7 @@ function AppContent() {
           onProfilePress={() => setCurrentView('studentProfile')}
           onOpenWallet={() => handleOpenWallet('studentHome')}
           onOpenCart={openStudentCart}
+          onLogout={handleLogout}
         />
         <StudentHomeScreen
           onOpenTutorSearch={() => setCurrentView('studentTutorSearch')}
@@ -621,6 +636,7 @@ function AppContent() {
             setScheduleCredits(credits);
             setCurrentView('studentClassSchedule');
           }}
+          onScheduleLater={() => setCurrentView('studentHome')}
         />
       </View>
     );
@@ -637,6 +653,10 @@ function AppContent() {
         <StudentClassScheduleScreen
           credits={scheduleCredits}
           onScheduled={() => {
+            setScheduleCredits(null);
+            setCurrentView('studentHome');
+          }}
+          onScheduleLater={() => {
             setScheduleCredits(null);
             setCurrentView('studentHome');
           }}
@@ -681,13 +701,19 @@ function AppContent() {
           onLogout={handleLogout}
           onBack={
             rateCardCanDefer
-              ? () => confirmRateCardLater(() => setCurrentView('tutorProfile'))
+              ? () => confirmRateCardLater(() => {
+                  void routeLoggedInTutor();
+                })
               : undefined
           }
         />
         <TutorRateCardSetupScreen
-          onComplete={() => setCurrentView('tutorHome')}
-          onLater={() => setCurrentView('tutorProfile')}
+          onComplete={() => {
+            void routeLoggedInTutor();
+          }}
+          onLater={() => {
+            void routeLoggedInTutor();
+          }}
           onDeferChange={setRateCardCanDefer}
         />
       </View>
@@ -723,12 +749,16 @@ function AppContent() {
   } else if (currentView === 'tutorCalendar') {
     screen = (
       <View style={{ flex: 1 }}>
-        <TutorNavHeader
-          title="Calendar"
-          onBack={() => setCurrentView(tutorCalendarReturnView)}
-          onLogout={handleLogout}
-          onOpenWallet={() => handleOpenWallet('tutorHome')}
-        />
+        {forceWeeklyAvailability ? (
+          <NavHeader title="Weekly availability" onLogout={handleLogout} />
+        ) : (
+          <TutorNavHeader
+            title="Calendar"
+            onBack={() => setCurrentView(tutorCalendarReturnView)}
+            onLogout={handleLogout}
+            onOpenWallet={() => handleOpenWallet('tutorHome')}
+          />
+        )}
         <TutorCalendarScreen
           onSetupComplete={() => {
             void routeLoggedInTutor();
@@ -843,10 +873,6 @@ function AppContent() {
             onOpenWallet={() => handleOpenWallet('studentCartCheckout')}
           />
           <StudentCartCheckoutScreen
-            onPaid={() => {
-              closeStudentCartOverlay();
-              setCurrentView('studentHome');
-            }}
             onScheduleNow={() => {
               closeStudentCartOverlay();
               setCurrentView('studentClassCredits');

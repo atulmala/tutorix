@@ -7,6 +7,7 @@ import { TutorClassSessionEntity } from '../../tutor-class-session/entities/tuto
 import { ClassSessionDeliveryModeEnum } from '../../tutor-class-session/enums/class-session-delivery-mode.enum';
 import { ClassSessionEnrollmentStatusEnum } from '../../tutor-class-session/enums/class-session-enrollment-status.enum';
 import { CommunicationAudience } from '../../communication/enums/communication-audience.enum';
+import { CommunicationChannel } from '../../communication/enums/communication-channel.enum';
 import { CommunicationEvent } from '../../communication/enums/communication-event.enum';
 import { ClassCreditStatusEnum } from '../enums/class-credit-status.enum';
 import { StudentClassCreditService } from './student-class-credit.service';
@@ -35,9 +36,12 @@ describe('StudentClassCreditService', () => {
   let offeringFindOne: jest.Mock;
   let orderItemSave: jest.Mock;
   let emit: jest.Mock;
+  let enqueueSchedule: jest.Mock;
   let lockedSlot: TutorCalendar | null;
   let lockedSession: TutorClassSessionEntity | null;
   let lockedEnrollments: TutorClassSessionEnrollmentEntity[];
+  let conflictingBookings: TutorClassSessionEnrollmentEntity[];
+  let enrollmentReads: number;
   let savedEnrollment: TutorClassSessionEnrollmentEntity;
   let service: StudentClassCreditService;
 
@@ -77,6 +81,7 @@ describe('StudentClassCreditService', () => {
     offeringFindOne = jest.fn().mockResolvedValue({ id: 80, tutorId: 3 });
     orderItemSave = jest.fn(async (item) => item);
     emit = jest.fn().mockResolvedValue(undefined);
+    enqueueSchedule = jest.fn().mockResolvedValue(undefined);
     lockedSlot = {
       id: 90,
       tutorId: 3,
@@ -85,6 +90,8 @@ describe('StudentClassCreditService', () => {
     } as TutorCalendar;
     lockedSession = null;
     lockedEnrollments = [];
+    conflictingBookings = [];
+    enrollmentReads = 0;
     savedEnrollment = {
       id: 70,
       sessionId: 55,
@@ -113,8 +120,29 @@ describe('StudentClassCreditService', () => {
         }
         if (entity === TutorClassSessionEnrollmentEntity) {
           return {
-            createQueryBuilder: () =>
-              createQueryBuilder(() => lockedEnrollments[0] ?? null, () => lockedEnrollments),
+            createQueryBuilder: () => {
+              const builder: Record<string, unknown> = {};
+              const chain = () => builder;
+              for (const method of [
+                'setLock',
+                'innerJoin',
+                'innerJoinAndSelect',
+                'leftJoin',
+                'leftJoinAndSelect',
+                'where',
+                'andWhere',
+                'orderBy',
+                'select',
+              ]) {
+                builder[method] = chain;
+              }
+              builder.getOne = async () => lockedEnrollments[0] ?? null;
+              builder.getMany = async () => {
+                enrollmentReads += 1;
+                return enrollmentReads === 1 ? conflictingBookings : lockedEnrollments;
+              };
+              return builder;
+            },
             count: jest.fn().mockResolvedValue(0),
             create: (row: TutorClassSessionEnrollmentEntity) => row,
             save: jest.fn(async (row: TutorClassSessionEnrollmentEntity) => {
@@ -144,6 +172,7 @@ describe('StudentClassCreditService', () => {
       } as never,
       { find: jest.fn(), save: orderItemSave } as never,
       { findOne: offeringFindOne } as never,
+      { enqueueSchedule } as never,
     );
   });
 
@@ -226,9 +255,18 @@ describe('StudentClassCreditService', () => {
         event: CommunicationEvent.CLASS_SCHEDULED,
         audience: CommunicationAudience.TUTOR,
         userId: 4,
+        excludeChannels: [CommunicationChannel.EMAIL],
         payload: expect.objectContaining({
           headline: 'A class is scheduled with you',
         }),
+      }),
+    );
+    expect(enqueueSchedule).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tutorUserId: 4,
+        studentName: 'Ada Lovelace',
+        offeringLabel: 'Mathematics',
+        enrollmentId: 70,
       }),
     );
     expect(
@@ -238,6 +276,121 @@ describe('StudentClassCreditService', () => {
     ).toBe(true);
     expect(emit.mock.calls[0][0].payload.linesHtml).toContain('Mathematics');
     expect(emit.mock.calls[0][0].payload.linesHtml).toContain('Priya Sharma');
+  });
+
+  it('rejects booking a time the student already has with another tutor', async () => {
+    creditFindOne.mockResolvedValue({
+      id: 12,
+      studentId: 21,
+      status: ClassCreditStatusEnum.unscheduled,
+      deliveryMode: ClassSessionDeliveryModeEnum.offline,
+      enrollmentId: null,
+      tutorOffering,
+    });
+    conflictingBookings = [
+      {
+        id: 8,
+        studentId: 21,
+        status: ClassSessionEnrollmentStatusEnum.confirmed,
+        session: {
+          status: 'open',
+          tutorCalendar: {
+            id: 40,
+            tutorId: 9,
+            startsAt: future,
+            durationMinutes: 60,
+          },
+        },
+      },
+    ] as TutorClassSessionEnrollmentEntity[];
+
+    await expect(service.schedule(studentUser as never, 12, 90)).rejects.toThrow(
+      'You already have a class at this time',
+    );
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it('rejects a slot that overlaps a class the student already has', async () => {
+    const staggered = new Date(future.getTime() + 30 * 60 * 1000);
+    lockedSlot = {
+      id: 91,
+      tutorId: 3,
+      startsAt: staggered,
+      durationMinutes: 60,
+    } as TutorCalendar;
+    creditFindOne.mockResolvedValue({
+      id: 12,
+      studentId: 21,
+      status: ClassCreditStatusEnum.unscheduled,
+      deliveryMode: ClassSessionDeliveryModeEnum.offline,
+      enrollmentId: null,
+      tutorOffering,
+    });
+    conflictingBookings = [
+      {
+        id: 8,
+        studentId: 21,
+        status: ClassSessionEnrollmentStatusEnum.confirmed,
+        session: {
+          tutorCalendar: {
+            id: 40,
+            tutorId: 9,
+            startsAt: future,
+            durationMinutes: 60,
+          },
+        },
+      },
+    ] as TutorClassSessionEnrollmentEntity[];
+
+    await expect(service.schedule(studentUser as never, 12, 91)).rejects.toThrow(
+      'You already have a class at this time',
+    );
+  });
+
+  it('rejects a class that starts less than 2 hours from now', async () => {
+    lockedSlot = {
+      id: 90,
+      tutorId: 3,
+      startsAt: new Date(Date.now() + 119 * 60 * 1000),
+      durationMinutes: 60,
+    } as TutorCalendar;
+    creditFindOne.mockResolvedValue({
+      id: 12,
+      studentId: 21,
+      status: ClassCreditStatusEnum.unscheduled,
+      deliveryMode: ClassSessionDeliveryModeEnum.offline,
+      enrollmentId: null,
+      tutorOffering,
+    });
+
+    await expect(service.schedule(studentUser as never, 12, 90)).rejects.toThrow(
+      'at least 2 hours in advance',
+    );
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it('rejects rescheduling onto a class that starts less than 2 hours from now', async () => {
+    lockedSlot = {
+      id: 90,
+      tutorId: 3,
+      startsAt: new Date(Date.now() + 119 * 60 * 1000),
+      durationMinutes: 60,
+    } as TutorCalendar;
+    creditFindOne.mockResolvedValue({
+      id: 12,
+      studentId: 21,
+      status: ClassCreditStatusEnum.scheduled,
+      deliveryMode: ClassSessionDeliveryModeEnum.offline,
+      enrollmentId: 8,
+      enrollment: {
+        session: { tutorCalendar: { startsAt: future } },
+      },
+      tutorOffering,
+    });
+
+    await expect(service.reschedule(studentUser as never, 12, 90)).rejects.toThrow(
+      'at least 2 hours in advance',
+    );
   });
 
   it('rejects scheduling a credit that is already scheduled', async () => {

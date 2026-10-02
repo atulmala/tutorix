@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useMutation } from '@apollo/client';
 import { MY_CLASS_CREDITS } from '@tutorix/shared-graphql/queries';
 import {
@@ -12,11 +12,13 @@ import type { StudentClassCredit } from './StudentClassCreditsScreen';
 type StudentClassScheduleScreenProps = {
   credits: StudentClassCredit[];
   onScheduled: () => void;
+  onScheduleLater: () => void;
 };
 
 export const StudentClassScheduleScreen: React.FC<StudentClassScheduleScreenProps> = ({
   credits,
   onScheduled,
+  onScheduleLater,
 }) => {
   const [index, setIndex] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -88,6 +90,30 @@ export const StudentClassScheduleScreen: React.FC<StudentClassScheduleScreenProp
           })();
         }}
       />
+      {!isReschedule ? (
+        <Pressable
+          style={styles.later}
+          onPress={onScheduleLater}
+          accessibilityRole="button"
+          accessibilityLabel="I will schedule later"
+        >
+          <Text style={styles.laterText}>I will schedule later</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  later: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#fff',
+    paddingVertical: 12,
+  },
+  laterText: { color: '#143055', fontWeight: '700' },
+});

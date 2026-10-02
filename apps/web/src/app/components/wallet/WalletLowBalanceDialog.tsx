@@ -74,9 +74,18 @@ export const WalletLowBalanceDialog: React.FC<WalletLowBalanceDialogProps> = ({
             type="button"
             onClick={onConfirm}
             disabled={!canConfirm}
-            className="h-10 rounded-lg bg-[#5fa8ff] px-4 text-sm font-semibold text-white transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex h-10 min-w-[7.5rem] items-center justify-center rounded-lg bg-[#5fa8ff] px-4 text-sm font-semibold text-white transition hover:bg-[#4a97f5] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 disabled:hover:bg-slate-300"
           >
-            {loading ? 'Processing…' : `Pay ₹${topUpAmount}`}
+            {loading ? (
+              <span
+                className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-transparent"
+                aria-hidden
+              />
+            ) : error ? (
+              'Retry payment'
+            ) : (
+              `Pay ₹${topUpAmount}`
+            )}
           </button>
         </div>
       </div>

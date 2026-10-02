@@ -1,15 +1,18 @@
 ---
-subject: A student booked classes with you
-text: Dear {{tutorName}}, {{studentName}} booked {{classCount}} classes with you. Amount paid: {{amountPaid}}.
+subject: Classes booked with you
+text: Dear {{tutorName}}, here are the classes booked with you.
 
 {{linesText}}
+
+Total amount paid: {{amountPaid}}
 ---
 <!DOCTYPE html>
 <html>
   <body style="font-family: Arial, Helvetica, sans-serif; color: #111827; line-height: 1.5;">
     <p>Dear {{tutorName}},</p>
-    <p><strong>{{studentName}}</strong> booked <strong>{{classCount}}</strong> classes with you. Amount paid: <strong>{{amountPaid}}</strong>.</p>
+    <p>Here are the classes booked with you.</p>
     {{{linesHtml}}}
+    <p>Total amount paid: <strong>{{amountPaid}}</strong></p>
     <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">— Tutorix</p>
   </body>
 </html>
