@@ -21,6 +21,7 @@ export type AppView =
   | 'studentClassSchedule'
   | 'studentConcludedClasses'
   | 'tutorConcludedClasses'
+  | 'tutorBookingHistory'
   | 'wallet'
   | 'home';
 
@@ -36,6 +37,7 @@ export type WalletReturnView =
   | 'studentClassSchedule'
   | 'studentConcludedClasses'
   | 'tutorConcludedClasses'
+  | 'tutorBookingHistory'
   /** @deprecated Checkout is a cart overlay; prefer restoring overlay state. */
   | 'studentCartCheckout';
 
@@ -89,6 +91,9 @@ export function walletReturnFromPush(view: AppView): WalletReturnView | null {
   }
   if (view === 'tutorConcludedClasses') {
     return 'tutorConcludedClasses';
+  }
+  if (view === 'tutorBookingHistory') {
+    return 'tutorBookingHistory';
   }
   if (view === 'tutorHome' || view === 'tutorOnboarding' || view === 'tutorBankSetup' || view === 'tutorRateCardSetup' || view === 'tutorCalendar') {
     return 'tutorHome';

@@ -35,6 +35,7 @@ import {
 import { TutorDetailScreen } from './components/tutor-profile/TutorDetailScreen';
 import { TutorHomeScreen } from './components/tutor-home/TutorHomeScreen';
 import { TutorConcludedClassesScreen } from './components/tutor-home/TutorConcludedClassesScreen';
+import { TutorBookingHistoryScreen } from './components/tutor-home/TutorBookingHistoryScreen';
 import { TutorBankSetupScreen } from './components/tutor-bank-setup/TutorBankSetupScreen';
 import {
   TutorRateCardSetupScreen,
@@ -731,7 +732,20 @@ function AppContent() {
           onSetRateCard={() => setCurrentView('tutorRateCardSetup')}
           onUpdateCalendar={() => openTutorCalendar('tutorHome')}
           onOpenConcludedClasses={() => setCurrentView('tutorConcludedClasses')}
+          onOpenBookingHistory={() => setCurrentView('tutorBookingHistory')}
         />
+      </View>
+    );
+  } else if (currentView === 'tutorBookingHistory') {
+    screen = (
+      <View style={{ flex: 1, backgroundColor: '#e8f4ff' }}>
+        <TutorNavHeader
+          title="Booking history"
+          onBack={() => setCurrentView('tutorHome')}
+          onLogout={handleLogout}
+          onOpenWallet={() => handleOpenWallet('tutorBookingHistory')}
+        />
+        <TutorBookingHistoryScreen />
       </View>
     );
   } else if (currentView === 'tutorConcludedClasses') {

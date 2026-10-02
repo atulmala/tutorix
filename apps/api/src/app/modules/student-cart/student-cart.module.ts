@@ -11,11 +11,13 @@ import { StudentModule } from '../student/student.module';
 import { TutorCalendar } from '../tutor-calendar/entities/tutor-calendar.entity';
 import { TutorClassSessionEnrollmentEntity } from '../tutor-class-session/entities/tutor-class-session-enrollment.entity';
 import { TutorClassSessionEntity } from '../tutor-class-session/entities/tutor-class-session.entity';
+import { Tutor } from '../tutor/entities/tutor.entity';
 import { TutorOfferingEntity } from '../tutor/entities/tutor-offering.entity';
 import { TutorRateCardModule } from '../tutor-rate-card/tutor-rate-card.module';
 import { WalletModule } from '../wallet/wallet.module';
 import './enums/class-credit-status.enum';
 import './enums/class-credit-refund-method.enum';
+import './enums/tutor-booking-status.enum';
 import { ClassCreditCancellationEntity } from './entities/class-credit-cancellation.entity';
 import { ClassCreditGatewayRefundEntity } from './entities/class-credit-gateway-refund.entity';
 import { StudentCartItemEntity } from './entities/student-cart-item.entity';
@@ -28,6 +30,7 @@ import { ClassCreditCancellationService } from './services/class-credit-cancella
 import { StudentClassCreditService } from './services/student-class-credit.service';
 import { TutorClassEmailBatchService } from './services/tutor-class-email-batch.service';
 import { AdminClassBookingService } from './services/admin-class-booking.service';
+import { TutorClassBookingService } from './services/tutor-class-booking.service';
 
 @Module({
   imports: [
@@ -38,6 +41,7 @@ import { AdminClassBookingService } from './services/admin-class-booking.service
       ClassCreditCancellationEntity,
       ClassCreditGatewayRefundEntity,
       PaymentAttemptEntity,
+      Tutor,
       TutorOfferingEntity,
       TutorCalendar,
       TutorClassSessionEntity,
@@ -60,6 +64,7 @@ import { AdminClassBookingService } from './services/admin-class-booking.service
     TutorClassEmailBatchService,
     ClassCreditCancellationService,
     AdminClassBookingService,
+    TutorClassBookingService,
     StudentCartResolver,
   ],
   exports: [

@@ -12,6 +12,7 @@ import { PasswordResetAcknowledgement } from './components/PasswordResetAcknowle
 import { TutorOnboarding } from './components/tutor-onboarding';
 import { TutorHomePage } from './components/tutor-home';
 import { TutorConcludedClassesPage } from './components/tutor-home/TutorConcludedClassesPage';
+import { TutorBookingHistoryPage } from './components/tutor-home/TutorBookingHistoryPage';
 import { TutorBankSetupPage } from './components/tutor-bank-setup';
 import {
   TutorRateCardSetupPage,
@@ -764,6 +765,7 @@ function AppContent() {
             onSetRateCard={() => setCurrentView('tutor-rate-card-setup')}
             onUpdateCalendar={() => setCurrentView('tutor-calendar')}
             onOpenConcludedClasses={() => setCurrentView('tutor-concluded-classes')}
+            onOpenBookingHistory={() => setCurrentView('tutor-booking-history')}
           />
         </main>
       </div>
@@ -781,6 +783,22 @@ function AppContent() {
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-8">
           <TutorConcludedClassesPage />
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'tutor-booking-history') {
+    return (
+      <div className="min-h-screen bg-[#e8f4ff] text-primary">
+        <AppHeader
+          title="Booking history"
+          onLogout={handleLogout}
+          onBack={() => setCurrentView('tutor-home')}
+          onOpenWallet={() => handleOpenWallet('tutor-booking-history')}
+        />
+        <main className="mx-auto min-h-screen max-w-6xl px-4 py-8">
+          <TutorBookingHistoryPage />
         </main>
       </div>
     );

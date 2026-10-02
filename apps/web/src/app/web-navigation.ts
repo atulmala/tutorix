@@ -24,6 +24,7 @@ export type WebView =
   | 'student-class-schedule'
   | 'student-concluded-classes'
   | 'tutor-concluded-classes'
+  | 'tutor-booking-history'
   | 'wallet'
   | 'privacy'
   | 'terms';
@@ -39,6 +40,7 @@ export type WalletReturnView =
   | 'student-class-schedule'
   | 'student-concluded-classes'
   | 'tutor-concluded-classes'
+  | 'tutor-booking-history'
   /** @deprecated Checkout is a cart overlay; prefer restoring overlay state. */
   | 'student-cart-checkout';
 
@@ -118,6 +120,9 @@ export function walletReturnFromView(view: WebView): WalletReturnView | null {
   }
   if (view === 'tutor-concluded-classes') {
     return 'tutor-concluded-classes';
+  }
+  if (view === 'tutor-booking-history') {
+    return 'tutor-booking-history';
   }
   if (view === 'tutor-home' || view === 'tutor-onboarding' || view === 'tutor-bank-setup' || view === 'tutor-rate-card-setup' || view === 'tutor-calendar') {
     return 'tutor-home';

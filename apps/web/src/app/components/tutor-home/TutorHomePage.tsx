@@ -28,6 +28,7 @@ type TutorHomePageProps = {
   onSetRateCard?: () => void;
   onUpdateCalendar?: () => void;
   onOpenConcludedClasses?: () => void;
+  onOpenBookingHistory?: () => void;
 };
 
 type MyTutorDetailData = {
@@ -183,6 +184,7 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
   onSetRateCard,
   onUpdateCalendar,
   onOpenConcludedClasses,
+  onOpenBookingHistory,
 }) => {
   const weekDays = useMemo(() => istHomeScheduleDays(), []);
   const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
@@ -600,6 +602,18 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
               document.body,
             )
           : null}
+      </section>
+
+      <section className="rounded-[20px] bg-white p-5">
+        <h2 className="text-base font-extrabold text-[#143055]">Booking history</h2>
+        <button
+          type="button"
+          onClick={onOpenBookingHistory}
+          aria-label="See booking history"
+          className="mt-3 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+        >
+          See details
+        </button>
       </section>
 
       <section className="rounded-[20px] bg-white p-5">
