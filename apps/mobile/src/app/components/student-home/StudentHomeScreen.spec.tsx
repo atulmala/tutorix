@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
 import { STUDENT_BOOKED_CLASS_SESSIONS } from '@tutorix/shared-graphql/queries';
-import { istHomeScheduleDays } from '@tutorix/shared-utils/student-schedule';
+import { istDayKey, istHomeScheduleDays } from '@tutorix/shared-utils/student-schedule';
 import { StudentHomeScreen } from './StudentHomeScreen';
 
 const mockUseQuery = jest.fn();
@@ -91,5 +91,42 @@ describe('StudentHomeScreen', () => {
     );
     fireEvent.press(getByText('1 class to schedule'));
     expect(onScheduleCredits).toHaveBeenCalled();
+  });
+
+  it('says there are no upcoming classes when today’s sessions have ended', () => {
+    const startsAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const todayKey = istHomeScheduleDays().find((day) => day.isToday)?.key;
+    mockUseQuery.mockImplementation((query: { kind?: string }) => {
+      if (query === STUDENT_BOOKED_CLASS_SESSIONS) {
+        return {
+          loading: false,
+          data: {
+            studentBookedClassSessions: [
+              {
+                enrollmentId: '38',
+                startsAt: startsAt.toISOString(),
+                durationMinutes: 60,
+                deliveryMode: 'offline',
+                offeringLabel: 'Economics',
+                tutorName: 'Navya',
+              },
+            ],
+          },
+        };
+      }
+      return { loading: false, data: null };
+    });
+
+    const { getByText, queryByText } = render(
+      <StudentHomeScreen onOpenTutorSearch={jest.fn()} />,
+    );
+    expect(
+      getByText(
+        istDayKey(startsAt) === todayKey
+          ? 'No upcoming classes today'
+          : 'No classes on this day',
+      ),
+    ).toBeTruthy();
+    expect(queryByText('Economics')).toBeNull();
   });
 });

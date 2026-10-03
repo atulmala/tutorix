@@ -9,6 +9,7 @@ import {
   applyTutorClassBookingStudentSearch,
   groupTutorClassBookings,
   offeringLabelMatchesSearch,
+  pageStudentClassBookings,
   pageTutorClassBookings,
   TutorClassBookingCreditSource,
 } from './tutor-class-booking.util';
@@ -262,5 +263,57 @@ describe('pageTutorClassBookings', () => {
     });
     expect(notConcluded.items.map((item) => item.orderItemId)).toEqual([1]);
     expect(notConcluded.items.some((item) => item.conclusionStatus == null)).toBe(false);
+  });
+});
+
+describe('pageStudentClassBookings', () => {
+  const now = new Date('2026-10-02T12:00:00Z');
+  const groups = groupTutorClassBookings(
+    [
+      credit({
+        orderItemId: 1,
+        tutorId: 4,
+        tutorFirstName: 'Grace',
+        tutorLastName: 'Hopper',
+        offeringLabel: 'CBSE | Economics | Classes 11',
+        createdDate: new Date('2026-08-01T00:00:00Z'),
+      }),
+      credit({
+        orderItemId: 2,
+        tutorId: 8,
+        tutorFirstName: 'Alan',
+        tutorLastName: 'Turing',
+        offeringLabel: 'Mathematics',
+        createdDate: new Date('2026-09-01T00:00:00Z'),
+      }),
+    ],
+    now,
+  );
+
+  it('keeps every tutor and subject while filtering an exact match', () => {
+    const page = pageStudentClassBookings(groups, {
+      tutorId: 4,
+      offeringLabel: 'CBSE | Economics | Classes 11',
+      page: 1,
+      pageSize: 20,
+    });
+    expect(page.items.map((item) => item.orderItemId)).toEqual([1]);
+    expect(page.items[0]).toMatchObject({ tutorId: 4, tutorName: 'Grace Hopper' });
+    expect(page.tutors).toEqual([
+      { id: 8, name: 'Alan Turing' },
+      { id: 4, name: 'Grace Hopper' },
+    ]);
+    expect(page.subjects).toEqual(['CBSE | Economics | Classes 11', 'Mathematics']);
+
+    const miss = pageStudentClassBookings(groups, { offeringLabel: 'Economics' });
+    expect(miss.items).toHaveLength(0);
+    expect(miss.subjects).toHaveLength(2);
+  });
+
+  it('paginates student rows', () => {
+    const page = pageStudentClassBookings(groups, { page: 2, pageSize: 1 });
+    expect(page.totalCount).toBe(2);
+    expect(page.totalPages).toBe(2);
+    expect(page.items.map((item) => item.orderItemId)).toEqual([1]);
   });
 });

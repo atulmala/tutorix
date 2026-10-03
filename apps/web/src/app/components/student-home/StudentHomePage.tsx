@@ -16,6 +16,7 @@ type StudentHomePageProps = {
   onScheduleCredits?: () => void;
   onRescheduleCredit?: (credit: StudentClassCredit) => void;
   onOpenConcludedClasses?: () => void;
+  onOpenBookingHistory?: () => void;
 };
 
 function weekdayTitle(abbr: string): string {
@@ -63,6 +64,7 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
   onScheduleCredits,
   onRescheduleCredit,
   onOpenConcludedClasses,
+  onOpenBookingHistory,
 }) => {
   const weekDays = useMemo(() => istHomeScheduleDays(), []);
   const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
@@ -91,6 +93,8 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
   const selectedClasses = dayClasses
     .filter((row) => !scheduledClassHasEnded(row.startsAt, row.durationMinutes))
     .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  const noUpcomingToday =
+    Boolean(selected?.isToday) && selectedClasses.length === 0 && dayClasses.length > 0;
 
   useEffect(() => {
     setActiveClassIndex(0);
@@ -212,7 +216,9 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
         </h2>
         {selectedClasses.length === 0 ? (
           <div className="mt-3 rounded-[20px] bg-white p-5">
-            <p className="text-base font-extrabold text-[#143055]">No classes on this day</p>
+            <p className="text-base font-extrabold text-[#143055]">
+              {noUpcomingToday ? 'No upcoming classes today' : 'No classes on this day'}
+            </p>
             <p className="mt-1.5 text-sm leading-6 text-slate-500">
               Book a certified tutor and your upcoming sessions will appear here, with time,
               subject, and a join action when it is time to start.
@@ -314,6 +320,18 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
             </button>
           </>
         )}
+      </section>
+
+      <section className="rounded-[20px] bg-white p-5">
+        <h2 className="text-base font-extrabold text-[#143055]">Booking history</h2>
+        <button
+          type="button"
+          onClick={onOpenBookingHistory}
+          aria-label="See booking history"
+          className="mt-3 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+        >
+          See details
+        </button>
       </section>
 
       <section className="rounded-[20px] bg-white p-5">

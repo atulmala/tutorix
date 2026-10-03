@@ -148,7 +148,13 @@ describe('StudentHomePage', () => {
       />,
     );
 
-    expect(screen.getByText('No classes on this day')).toBeTruthy();
+    expect(
+      screen.getByText(
+        istDayKey(endedToday) === todayKey
+          ? 'No upcoming classes today'
+          : 'No classes on this day',
+      ),
+    ).toBeTruthy();
     expect(screen.getByText('Concluded classes: 2')).toBeTruthy();
     expect(
       screen.getByText(`Today: ${todayCount} ${todayCount === 1 ? 'hour' : 'hours'}`),

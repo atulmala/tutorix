@@ -235,6 +235,8 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
     (row) => !scheduledClassHasEnded(row.startsAt, row.durationMinutes),
   );
   const daySessions = groupDaySessions(selectedClasses);
+  const noUpcomingToday =
+    Boolean(selected?.isToday) && daySessions.length === 0 && dayClasses.length > 0;
   const openSession =
     daySessions.find((session) => session.sessionId === openStudentsSessionId) ?? null;
 
@@ -426,7 +428,9 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
         </h2>
         {daySessions.length === 0 ? (
           <div className="mt-3 rounded-[20px] bg-white p-5">
-            <p className="text-base font-extrabold text-[#143055]">No classes on this day</p>
+            <p className="text-base font-extrabold text-[#143055]">
+              {noUpcomingToday ? 'No upcoming classes today' : 'No classes on this day'}
+            </p>
             <p className="mt-1.5 text-sm leading-6 text-slate-500">
               When students book you, upcoming sessions will appear here, with time, subject,
               and a start action when it is time to begin.

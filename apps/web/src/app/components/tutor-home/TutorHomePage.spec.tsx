@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import {
   formatIstBookingTimeRange,
+  istDayKey,
   istHomeScheduleDays,
   PENDING_CALENDAR_TASK_ACTION,
   PENDING_CALENDAR_TASK_MESSAGE,
@@ -232,7 +233,14 @@ describe('TutorHomePage', () => {
 
     render(<TutorHomePage />);
 
-    expect(screen.getByText('No classes on this day')).toBeTruthy();
+    const todayKey = istHomeScheduleDays().find((day) => day.isToday)?.key;
+    expect(
+      screen.getByText(
+        istDayKey(startsAt) === todayKey
+          ? 'No upcoming classes today'
+          : 'No classes on this day',
+      ),
+    ).toBeTruthy();
     expect(screen.getByText('Booking history')).toBeTruthy();
     expect(screen.getByText('Concluded classes: 1')).toBeTruthy();
     expect(screen.queryByText('Economics')).toBeNull();
