@@ -17,6 +17,9 @@ export type TutorClassBookingCreditSource = {
   orderItemId: number;
   studentFirstName: string | null;
   studentLastName: string | null;
+  tutorId?: number;
+  tutorFirstName?: string | null;
+  tutorLastName?: string | null;
   offeringLabel: string;
   deliveryMode: ClassSessionDeliveryModeEnum;
   status: ClassCreditStatusEnum;
@@ -27,10 +30,17 @@ export type TutorClassBookingCreditSource = {
   isDemo: boolean;
 };
 
+export type ClassBookingGroup = TutorClassBookingRow & {
+  tutorId: number;
+  tutorName: string;
+};
+
 type GroupAccumulator = {
   orderItemId: number;
   bookedAt: Date;
   studentName: string;
+  tutorId: number;
+  tutorName: string;
   offeringLabel: string;
   deliveryMode: ClassSessionDeliveryModeEnum;
   classCount: number;
@@ -114,7 +124,7 @@ export function deriveTutorBookingConclusionStatus(counts: {
 export function groupTutorClassBookings(
   sources: TutorClassBookingCreditSource[],
   now: Date = new Date(),
-): TutorClassBookingRow[] {
+): ClassBookingGroup[] {
   const buckets = new Map<number, GroupAccumulator>();
 
   for (const row of sources) {
@@ -125,6 +135,8 @@ export function groupTutorClassBookings(
         bookedAt: row.createdDate,
         studentName:
           personDisplayName(row.studentFirstName, row.studentLastName) || 'Student',
+        tutorId: row.tutorId ?? 0,
+        tutorName: personDisplayName(row.tutorFirstName, row.tutorLastName) || 'Tutor',
         offeringLabel: row.offeringLabel || 'Class',
         deliveryMode: row.deliveryMode,
         classCount: 0,
@@ -163,6 +175,8 @@ export function groupTutorClassBookings(
       orderItemId: group.orderItemId,
       bookedAt: group.bookedAt,
       studentName: group.studentName,
+      tutorId: group.tutorId,
+      tutorName: group.tutorName,
       offeringLabel: group.offeringLabel,
       classCount: group.classCount,
       deliveryMode: group.deliveryMode,
@@ -208,6 +222,69 @@ export function pageTutorClassBookings(
   const start = (page - 1) * pageSize;
 
   return {
+    items: filtered.slice(start, start + pageSize),
+    totalCount,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
+  };
+}
+
+export function studentBookingFilterOptions(groups: ClassBookingGroup[]): {
+  tutors: { id: number; name: string }[];
+  subjects: string[];
+} {
+  const tutors = new Map<number, string>();
+  const subjects = new Set<string>();
+  for (const group of groups) {
+    if (group.tutorId > 0) {
+      tutors.set(group.tutorId, group.tutorName);
+    }
+    if (group.offeringLabel) {
+      subjects.add(group.offeringLabel);
+    }
+  }
+  return {
+    tutors: [...tutors.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name) || a.id - b.id),
+    subjects: [...subjects].sort((a, b) => a.localeCompare(b)),
+  };
+}
+
+export function pageStudentClassBookings(
+  groups: ClassBookingGroup[],
+  input: {
+    tutorId?: number | null;
+    offeringLabel?: string | null;
+    page?: number;
+    pageSize?: number;
+  },
+): {
+  items: ClassBookingGroup[];
+  tutors: { id: number; name: string }[];
+  subjects: string[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+} {
+  const page = Math.max(1, input.page ?? 1);
+  const pageSize = Math.min(20, Math.max(1, input.pageSize ?? 20));
+  const offeringLabel = input.offeringLabel?.trim();
+  const filtered = groups.filter((group) => {
+    if (input.tutorId && group.tutorId !== input.tutorId) {
+      return false;
+    }
+    if (offeringLabel && group.offeringLabel !== offeringLabel) {
+      return false;
+    }
+    return true;
+  });
+  const totalCount = filtered.length;
+  const start = (page - 1) * pageSize;
+  return {
+    ...studentBookingFilterOptions(groups),
     items: filtered.slice(start, start + pageSize),
     totalCount,
     page,

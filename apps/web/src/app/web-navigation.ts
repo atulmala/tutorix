@@ -23,6 +23,7 @@ export type WebView =
   | 'student-class-credits'
   | 'student-class-schedule'
   | 'student-concluded-classes'
+  | 'student-booking-history'
   | 'tutor-concluded-classes'
   | 'tutor-booking-history'
   | 'wallet'
@@ -39,6 +40,7 @@ export type WalletReturnView =
   | 'student-class-credits'
   | 'student-class-schedule'
   | 'student-concluded-classes'
+  | 'student-booking-history'
   | 'tutor-concluded-classes'
   | 'tutor-booking-history'
   /** @deprecated Checkout is a cart overlay; prefer restoring overlay state. */
@@ -54,6 +56,7 @@ const STUDENT_CART_RETURN_VIEWS = [
   'student-class-credits',
   'student-class-schedule',
   'student-concluded-classes',
+  'student-booking-history',
 ] as const satisfies readonly WebView[];
 
 export type StudentCartReturnView = (typeof STUDENT_CART_RETURN_VIEWS)[number];

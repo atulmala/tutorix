@@ -20,6 +20,7 @@ export type AppView =
   | 'studentClassCredits'
   | 'studentClassSchedule'
   | 'studentConcludedClasses'
+  | 'studentBookingHistory'
   | 'tutorConcludedClasses'
   | 'tutorBookingHistory'
   | 'wallet'
@@ -36,6 +37,7 @@ export type WalletReturnView =
   | 'studentClassCredits'
   | 'studentClassSchedule'
   | 'studentConcludedClasses'
+  | 'studentBookingHistory'
   | 'tutorConcludedClasses'
   | 'tutorBookingHistory'
   /** @deprecated Checkout is a cart overlay; prefer restoring overlay state. */
@@ -52,6 +54,7 @@ const STUDENT_CART_RETURN_VIEWS = [
   'studentClassCredits',
   'studentClassSchedule',
   'studentConcludedClasses',
+  'studentBookingHistory',
 ] as const satisfies readonly AppView[];
 
 export type StudentCartReturnView = (typeof STUDENT_CART_RETURN_VIEWS)[number];

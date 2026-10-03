@@ -28,15 +28,20 @@ describe('TutorClassBookingService', () => {
     const offeringService = {
       findAll: jest.fn().mockResolvedValue([]),
     };
+    const studentService = {
+      findByUserId: jest.fn().mockResolvedValue({ id: 21 }),
+    };
     return {
       service: new TutorClassBookingService(
         creditRepo as never,
         tutorRepo as never,
         offeringService as never,
+        studentService as never,
       ),
       andWhere,
       tutorRepo,
       offeringService,
+      studentService,
     };
   }
 
@@ -185,5 +190,187 @@ describe('TutorClassBookingService', () => {
     await expect(
       service.list({ id: 1, role: UserRole.STUDENT } as never, {}, now),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('scopes student history and keeps dropdown options when a filter is active', async () => {
+    const { service, andWhere, studentService } = serviceWith([
+      {
+        orderItemId: '30',
+        studentFirstName: 'Ada',
+        studentLastName: 'Lovelace',
+        tutorId: '4',
+        tutorFirstName: 'Grace',
+        tutorLastName: 'Hopper',
+        catalogOfferingId: null,
+        tutorCatalogOfferingId: null,
+        tutorLeafDisplayName: 'Mathematics',
+        deliveryMode: ClassSessionDeliveryModeEnum.online,
+        status: ClassCreditStatusEnum.unscheduled,
+        startsAt: null,
+        durationMinutes: 60,
+        unitRateInr: '400',
+        orderItemQuantity: '1',
+        lineSubtotalInr: '400',
+        orderItemDiscountInr: '0',
+        orderItemCgstInr: '0',
+        orderItemSgstInr: '0',
+        orderItemIgstInr: '0',
+        createdDate: '2026-09-10T00:00:00.000Z',
+        isDemo: false,
+      },
+      {
+        orderItemId: '31',
+        studentFirstName: 'Ada',
+        studentLastName: 'Lovelace',
+        tutorId: '8',
+        tutorFirstName: 'Alan',
+        tutorLastName: 'Turing',
+        catalogOfferingId: null,
+        tutorCatalogOfferingId: null,
+        tutorLeafDisplayName: 'Physics',
+        deliveryMode: ClassSessionDeliveryModeEnum.offline,
+        status: ClassCreditStatusEnum.unscheduled,
+        startsAt: null,
+        durationMinutes: 60,
+        unitRateInr: '600',
+        orderItemQuantity: '1',
+        lineSubtotalInr: '600',
+        orderItemDiscountInr: '0',
+        orderItemCgstInr: '0',
+        orderItemSgstInr: '0',
+        orderItemIgstInr: '0',
+        createdDate: '2026-09-12T00:00:00.000Z',
+        isDemo: false,
+      },
+    ]);
+
+    const studentUser = { id: 12, role: UserRole.STUDENT } as never;
+    const result = await service.listForStudent(
+      studentUser,
+      { tutorId: 4, page: 1, pageSize: 20 },
+      now,
+    );
+
+    expect(studentService.findByUserId).toHaveBeenCalledWith(12);
+    expect(andWhere).toHaveBeenCalledWith('credit.student_id = :studentId', { studentId: 21 });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      tutorId: 4,
+      tutorName: 'Grace Hopper',
+      offeringLabel: 'Mathematics',
+    });
+    expect(result.tutors).toEqual([
+      { id: 8, name: 'Alan Turing' },
+      { id: 4, name: 'Grace Hopper' },
+    ]);
+    expect(result.subjects).toEqual(['Mathematics', 'Physics']);
+
+    const exactSubject = await service.listForStudent(
+      studentUser,
+      { offeringLabel: 'Physics' },
+      now,
+    );
+    expect(exactSubject.items.map((item) => item.orderItemId)).toEqual([31]);
+    expect(exactSubject.tutors).toHaveLength(2);
+
+    const miss = await service.listForStudent(
+      studentUser,
+      { offeringLabel: 'Math' },
+      now,
+    );
+    expect(miss.items).toHaveLength(0);
+    expect(miss.subjects).toEqual(['Mathematics', 'Physics']);
+  });
+
+  it('paginates student bookings and rejects non-students', async () => {
+    const rows = Array.from({ length: 3 }, (_, index) => ({
+      orderItemId: String(40 + index),
+      studentFirstName: 'Ada',
+      studentLastName: 'Lovelace',
+      tutorId: '4',
+      tutorFirstName: 'Grace',
+      tutorLastName: 'Hopper',
+      catalogOfferingId: null,
+      tutorCatalogOfferingId: null,
+      tutorLeafDisplayName: 'Mathematics',
+      deliveryMode: ClassSessionDeliveryModeEnum.online,
+      status: ClassCreditStatusEnum.unscheduled,
+      startsAt: null,
+      durationMinutes: 60,
+      unitRateInr: '100',
+      orderItemQuantity: '1',
+      lineSubtotalInr: '100',
+      orderItemDiscountInr: '0',
+      orderItemCgstInr: '0',
+      orderItemSgstInr: '0',
+      orderItemIgstInr: '0',
+      createdDate: `2026-09-${10 + index}T00:00:00.000Z`,
+      isDemo: false,
+    }));
+    const { service } = serviceWith(rows);
+    const page = await service.listForStudent(
+      { id: 12, role: UserRole.STUDENT } as never,
+      { page: 2, pageSize: 1 },
+      now,
+    );
+    expect(page.totalCount).toBe(3);
+    expect(page.totalPages).toBe(3);
+    expect(page.items).toHaveLength(1);
+    expect(page.items[0].orderItemId).toBe(41);
+
+    await expect(
+      service.listForStudent({ id: 4, role: UserRole.TUTOR } as never, {}, now),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    const missing = serviceWith([]);
+    missing.studentService.findByUserId.mockResolvedValue(null);
+    await expect(
+      missing.service.listForStudent({ id: 12, role: UserRole.STUDENT } as never, {}, now),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('shows the booked catalog offering for the student', async () => {
+    const { service, offeringService } = serviceWith([
+      {
+        orderItemId: '21',
+        studentFirstName: 'Ada',
+        studentLastName: 'Lovelace',
+        tutorId: '4',
+        tutorFirstName: 'Grace',
+        tutorLastName: 'Hopper',
+        catalogOfferingId: '11011',
+        tutorCatalogOfferingId: '11001',
+        tutorLeafDisplayName: 'Economics',
+        deliveryMode: ClassSessionDeliveryModeEnum.online,
+        status: ClassCreditStatusEnum.unscheduled,
+        startsAt: null,
+        durationMinutes: 60,
+        unitRateInr: '500',
+        orderItemQuantity: '1',
+        lineSubtotalInr: '500',
+        orderItemDiscountInr: '0',
+        orderItemCgstInr: '0',
+        orderItemSgstInr: '0',
+        orderItemIgstInr: '0',
+        createdDate: '2026-09-20T00:00:00.000Z',
+        isDemo: false,
+      },
+    ]);
+    offeringService.findAll.mockResolvedValue([
+      { id: 1, displayName: 'School Education', level: 0, mediumOfInstruction: 1, parentOffering: null },
+      { id: 10, displayName: 'CBSE', level: 1, mediumOfInstruction: 1, parentOffering: { id: 1 } },
+      { id: 101, displayName: 'Class 1', level: 2, mediumOfInstruction: 1, parentOffering: { id: 10 } },
+      { id: 111, displayName: 'Class 11', level: 2, mediumOfInstruction: 1, parentOffering: { id: 10 } },
+      { id: 11001, displayName: 'Economics', level: 3, mediumOfInstruction: 1, parentOffering: { id: 101 } },
+      { id: 11011, displayName: 'Economics', level: 3, mediumOfInstruction: 1, parentOffering: { id: 111 } },
+    ]);
+
+    const result = await service.listForStudent(
+      { id: 12, role: UserRole.STUDENT } as never,
+      {},
+      now,
+    );
+    expect(result.items[0].offeringLabel).toBe('CBSE | Economics | Classes 11');
+    expect(result.subjects).toEqual(['CBSE | Economics | Classes 11']);
   });
 });

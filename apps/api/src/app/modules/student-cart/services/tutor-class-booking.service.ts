@@ -4,8 +4,11 @@ import { Repository } from 'typeorm';
 import { User } from '../../auth/entities/user.entity';
 import { UserRole } from '../../auth/enums/user-role.enum';
 import { OfferingService } from '../../offerings/services/offering.service';
+import { StudentService } from '../../student/services/student.service';
 import { Tutor } from '../../tutor/entities/tutor.entity';
 import { ClassSessionDeliveryModeEnum } from '../../tutor-class-session/enums/class-session-delivery-mode.enum';
+import { StudentClassBookingListResult } from '../dto/student-class-booking.dto';
+import { StudentClassBookingListInput } from '../dto/student-class-booking.dto';
 import { TutorClassBookingListResult } from '../dto/tutor-class-booking.dto';
 import { TutorClassBookingListInput } from '../dto/tutor-class-booking-list.input';
 import { StudentClassCreditEntity } from '../entities/student-class-credit.entity';
@@ -18,6 +21,7 @@ import {
   applyTutorClassBookingStudentSearch,
   groupTutorClassBookings,
   offeringLabelMatchesSearch,
+  pageStudentClassBookings,
   pageTutorClassBookings,
   TutorClassBookingCreditSource,
 } from '../tutor-class-booking.util';
@@ -26,6 +30,9 @@ type RawTutorClassBookingRow = {
   orderItemId: string;
   studentFirstName: string | null;
   studentLastName: string | null;
+  tutorId: string | null;
+  tutorFirstName: string | null;
+  tutorLastName: string | null;
   catalogOfferingId: string | null;
   tutorCatalogOfferingId: string | null;
   tutorLeafDisplayName: string | null;
@@ -48,6 +55,9 @@ const CREDIT_SELECT = [
   'credit.order_item_id AS "orderItemId"',
   'studentUser.firstName AS "studentFirstName"',
   'studentUser.lastName AS "studentLastName"',
+  'credit.tutor_id AS "tutorId"',
+  'tutorUser.firstName AS "tutorFirstName"',
+  'tutorUser.lastName AS "tutorLastName"',
   'credit.catalog_offering_id AS "catalogOfferingId"',
   'tutorOffering.offering_id AS "tutorCatalogOfferingId"',
   'offering.display_name AS "tutorLeafDisplayName"',
@@ -86,6 +96,7 @@ export class TutorClassBookingService {
     @InjectRepository(Tutor)
     private readonly tutorRepo: Repository<Tutor>,
     private readonly offeringService: OfferingService,
+    private readonly studentService: StudentService,
   ) {}
 
   async list(
@@ -107,6 +118,8 @@ export class TutorClassBookingService {
       .createQueryBuilder('credit')
       .innerJoin('credit.student', 'student')
       .innerJoin('student.user', 'studentUser')
+      .innerJoin('credit.tutor', 'bookingTutor')
+      .innerJoin('bookingTutor.user', 'tutorUser')
       .innerJoin('credit.tutorOffering', 'tutorOffering')
       .innerJoin('tutorOffering.offering', 'offering')
       .innerJoin('credit.orderItem', 'orderItem')
@@ -135,6 +148,9 @@ export class TutorClassBookingService {
           orderItemId: asNumber(row.orderItemId),
           studentFirstName: row.studentFirstName,
           studentLastName: row.studentLastName,
+          tutorId: asNumber(row.tutorId),
+          tutorFirstName: row.tutorFirstName,
+          tutorLastName: row.tutorLastName,
           offeringLabel,
           deliveryMode: row.deliveryMode,
           status: row.status,
@@ -156,5 +172,78 @@ export class TutorClassBookingService {
     });
 
     return pageTutorClassBookings(groupTutorClassBookings(sources, now), input);
+  }
+
+  async listForStudent(
+    user: User,
+    input: StudentClassBookingListInput,
+    now: Date = new Date(),
+  ): Promise<StudentClassBookingListResult> {
+    if (String(user.role).toUpperCase() !== UserRole.STUDENT) {
+      throw new ForbiddenException('Only students can view booking history');
+    }
+    const student = await this.studentService.findByUserId(user.id);
+    if (!student) {
+      throw new ForbiddenException('Student profile not found');
+    }
+
+    const rows = await this.bookingQuery()
+      .andWhere('credit.student_id = :studentId', { studentId: student.id })
+      .select([...CREDIT_SELECT])
+      .getRawMany<RawTutorClassBookingRow>();
+    const offeringsById = offeringsByIdFromCatalog(await this.offeringService.findAll());
+    const sources = rows.map((row) => this.toSource(row, offeringsById));
+    return pageStudentClassBookings(groupTutorClassBookings(sources, now), input);
+  }
+
+  private bookingQuery() {
+    return this.creditRepo
+      .createQueryBuilder('credit')
+      .innerJoin('credit.student', 'student')
+      .innerJoin('student.user', 'studentUser')
+      .innerJoin('credit.tutor', 'bookingTutor')
+      .innerJoin('bookingTutor.user', 'tutorUser')
+      .innerJoin('credit.tutorOffering', 'tutorOffering')
+      .innerJoin('tutorOffering.offering', 'offering')
+      .innerJoin('credit.orderItem', 'orderItem')
+      .leftJoin('credit.enrollment', 'enrollment')
+      .leftJoin('enrollment.session', 'session')
+      .leftJoin('session.tutorCalendar', 'calendar')
+      .where('credit.deleted = false');
+  }
+
+  private toSource(
+    row: RawTutorClassBookingRow,
+    offeringsById: ReturnType<typeof offeringsByIdFromCatalog>,
+  ): TutorClassBookingCreditSource {
+    const offeringLabel = resolveStudentCartOfferingDisplay(
+      row.catalogOfferingId == null ? null : asNumber(row.catalogOfferingId),
+      row.tutorCatalogOfferingId == null ? null : asNumber(row.tutorCatalogOfferingId),
+      row.tutorLeafDisplayName,
+      offeringsById,
+    ).offeringLabel;
+    return {
+      orderItemId: asNumber(row.orderItemId),
+      studentFirstName: row.studentFirstName,
+      studentLastName: row.studentLastName,
+      tutorId: asNumber(row.tutorId),
+      tutorFirstName: row.tutorFirstName,
+      tutorLastName: row.tutorLastName,
+      offeringLabel,
+      deliveryMode: row.deliveryMode,
+      status: row.status,
+      startsAt: row.startsAt,
+      durationMinutes: row.durationMinutes == null ? null : asNumber(row.durationMinutes, 60),
+      orderItemPaidParts: {
+        lineSubtotalInr: asNumber(row.lineSubtotalInr),
+        discountInr: asNumber(row.orderItemDiscountInr),
+        cgstInr: asNumber(row.orderItemCgstInr),
+        sgstInr: asNumber(row.orderItemSgstInr),
+        igstInr: asNumber(row.orderItemIgstInr),
+        quantity: asNumber(row.orderItemQuantity, 1),
+      },
+      createdDate: new Date(row.createdDate),
+      isDemo: asBool(row.isDemo),
+    };
   }
 }

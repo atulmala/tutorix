@@ -15,6 +15,7 @@ import { TutorOnboarding } from './components/tutor-onboarding';
 import { StudentOnboarding } from './components/student-onboarding';
 import { StudentDetailScreen } from './components/student-profile/StudentDetailScreen';
 import { StudentHomeScreen } from './components/student-home/StudentHomeScreen';
+import { StudentBookingHistoryScreen } from './components/student-home/StudentBookingHistoryScreen';
 import { StudentConcludedClassesScreen } from './components/student-home/StudentConcludedClassesScreen';
 import { StudentTutorSearchScreen } from './components/student-tutor-search/StudentTutorSearchScreen';
 import { StudentTutorSearchResultsScreen } from './components/student-tutor-search/StudentTutorSearchResultsScreen';
@@ -533,6 +534,7 @@ function AppContent() {
             setCurrentView('studentClassSchedule');
           }}
           onOpenConcludedClasses={() => setCurrentView('studentConcludedClasses')}
+          onOpenBookingHistory={() => setCurrentView('studentBookingHistory')}
         />
         <StudentTabBar
           active="home"
@@ -605,6 +607,20 @@ function AppContent() {
           offeringId={tutorPreview.offeringId}
           onViewCart={openStudentCart}
         />
+      </View>
+    );
+  } else if (currentView === 'studentBookingHistory') {
+    screen = (
+      <View style={{ flex: 1, backgroundColor: '#e8f4ff' }}>
+        <StudentNavHeader
+          title="Booking history"
+          onBack={() => setCurrentView('studentHome')}
+          onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('studentProfile')}
+          onOpenWallet={() => handleOpenWallet('studentBookingHistory')}
+          onOpenCart={openStudentCart}
+        />
+        <StudentBookingHistoryScreen />
       </View>
     );
   } else if (currentView === 'studentConcludedClasses') {

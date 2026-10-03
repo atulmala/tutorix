@@ -22,6 +22,7 @@ import { TutorCalendarPage } from './components/tutor-calendar';
 import { TutorProfilePage } from './components/tutor-profile/TutorProfilePage';
 import { StudentOnboarding } from './components/student-onboarding';
 import { StudentHomePage } from './components/student-home';
+import { StudentBookingHistoryPage } from './components/student-home/StudentBookingHistoryPage';
 import { StudentConcludedClassesPage } from './components/student-home/StudentConcludedClassesPage';
 import { StudentProfilePage } from './components/student-profile';
 import { StudentTutorSearchPage } from './components/student-tutor-search/StudentTutorSearchPage';
@@ -527,6 +528,7 @@ function AppContent() {
               setCurrentView('student-class-schedule');
             }}
             onOpenConcludedClasses={() => setCurrentView('student-concluded-classes')}
+            onOpenBookingHistory={() => setCurrentView('student-booking-history')}
           />
         </main>
       </div>
@@ -566,6 +568,24 @@ function AppContent() {
               onViewCart={openStudentCart}
             />
           ) : null}
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'student-booking-history') {
+    return (
+      <div className="min-h-screen bg-[#e8f4ff] text-primary">
+        <AppHeader
+          title="Booking history"
+          onLogout={handleLogout}
+          onBack={() => setCurrentView('student-home')}
+          onProfilePress={() => setCurrentView('student-profile')}
+          onOpenWallet={() => handleOpenWallet('student-booking-history')}
+          onOpenCart={openStudentCart}
+        />
+        <main className="mx-auto min-h-screen max-w-6xl px-4 py-8">
+          <StudentBookingHistoryPage />
         </main>
       </div>
     );

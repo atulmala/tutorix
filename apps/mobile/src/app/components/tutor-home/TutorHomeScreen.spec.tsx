@@ -14,7 +14,7 @@ import {
   TUTOR_BOOKED_CLASS_SESSIONS,
 } from '@tutorix/shared-graphql/queries';
 import { formatIstBookingTimeRange } from '@tutorix/shared-utils/student-booking';
-import { istHomeScheduleDays } from '@tutorix/shared-utils/student-schedule';
+import { istDayKey, istHomeScheduleDays } from '@tutorix/shared-utils/student-schedule';
 import { TutorHomeScreen } from './TutorHomeScreen';
 
 const mockUseQuery = jest.fn();
@@ -144,7 +144,7 @@ describe('TutorHomeScreen', () => {
       return { loading: false, data: { myTutorCalendarUpdatedTill: '2099-12-31T00:00:00.000Z' } };
     });
 
-    const { getByText } = render(<TutorHomeScreen />);
+    const { getByText, getByLabelText } = render(<TutorHomeScreen />);
 
     expect(getByText(formatIstBookingTimeRange(startsAt, 60))).toBeTruthy();
     expect(getByText('Economics · Free demo')).toBeTruthy();
@@ -156,8 +156,48 @@ describe('TutorHomeScreen', () => {
     expect(getByText('1 class')).toBeTruthy();
     expect(getByText('1 hour')).toBeTruthy();
     expect(getByText('Booking history')).toBeTruthy();
-    fireEvent.press(getByText('See details'));
+    fireEvent.press(getByLabelText('See details'));
     expect(getByText('Cancel class')).toBeTruthy();
     expect(getByText('Request reschedule')).toBeTruthy();
+  });
+
+  it('says there are no upcoming classes when today’s sessions have ended', () => {
+    const startsAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const todayKey = istHomeScheduleDays().find((day) => day.isToday)?.key;
+    mockUseQuery.mockImplementation((query: { kind?: string }) => {
+      if (query === TUTOR_BOOKED_CLASS_SESSIONS) {
+        return {
+          loading: false,
+          data: {
+            tutorBookedClassSessions: [
+              {
+                enrollmentId: '5',
+                sessionId: '5',
+                startsAt: startsAt.toISOString(),
+                durationMinutes: 60,
+                deliveryMode: 'offline',
+                offeringLabel: 'Economics',
+                studentName: 'Ruchi Sharma',
+                isDemo: false,
+              },
+            ],
+          },
+        };
+      }
+      if (query === GET_MY_TUTOR_DETAIL) {
+        return { loading: false, data: { myTutorDetail: { offerings: [completeOffering] } } };
+      }
+      return { loading: false, data: { myTutorCalendarUpdatedTill: '2099-12-31T00:00:00.000Z' } };
+    });
+
+    const { getByText, queryByText } = render(<TutorHomeScreen />);
+    expect(
+      getByText(
+        istDayKey(startsAt) === todayKey
+          ? 'No upcoming classes today'
+          : 'No classes on this day',
+      ),
+    ).toBeTruthy();
+    expect(queryByText('Economics')).toBeNull();
   });
 });

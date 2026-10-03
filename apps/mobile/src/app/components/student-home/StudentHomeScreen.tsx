@@ -20,6 +20,7 @@ type StudentHomeScreenProps = {
   onScheduleCredits?: () => void;
   onRescheduleCredit?: (credit: StudentClassCredit) => void;
   onOpenConcludedClasses?: () => void;
+  onOpenBookingHistory?: () => void;
 };
 
 function weekdayTitle(abbr: string): string {
@@ -93,6 +94,7 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
   onScheduleCredits,
   onRescheduleCredit,
   onOpenConcludedClasses,
+  onOpenBookingHistory,
 }) => {
   const weekDays = useMemo(() => istHomeScheduleDays(), []);
   const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
@@ -121,6 +123,8 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
   const selectedClasses = dayClasses
     .filter((row) => !scheduledClassHasEnded(row.startsAt, row.durationMinutes))
     .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  const noUpcomingToday =
+    Boolean(selected?.isToday) && selectedClasses.length === 0 && dayClasses.length > 0;
 
   useEffect(() => {
     setActiveClassIndex(0);
@@ -221,7 +225,9 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
         </Text>
         {selectedClasses.length === 0 ? (
           <View style={styles.listCard}>
-            <Text style={styles.listEmptyTitle}>No classes on this day</Text>
+            <Text style={styles.listEmptyTitle}>
+              {noUpcomingToday ? 'No upcoming classes today' : 'No classes on this day'}
+            </Text>
             <Text style={styles.listEmptyCopy}>
               Book a certified tutor and your upcoming sessions will appear here, with time,
               subject, and a join action when it is time to start.
@@ -314,6 +320,18 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
             </Pressable>
           </>
         )}
+      </View>
+
+      <View style={styles.concludedCard}>
+        <Text style={styles.concludedTitle}>Booking history</Text>
+        <Pressable
+          style={styles.detailsButton}
+          onPress={onOpenBookingHistory}
+          accessibilityRole="button"
+          accessibilityLabel="See booking history"
+        >
+          <Text style={styles.detailsButtonText}>See details</Text>
+        </Pressable>
       </View>
 
       <View style={styles.concludedCard}>

@@ -216,6 +216,8 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
     (row) => !scheduledClassHasEnded(row.startsAt, row.durationMinutes),
   );
   const daySessions = groupDaySessions(selectedClasses);
+  const noUpcomingToday =
+    Boolean(selected?.isToday) && daySessions.length === 0 && dayClasses.length > 0;
   const openSession =
     daySessions.find((session) => session.sessionId === openStudentsSessionId) ?? null;
 
@@ -382,7 +384,9 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
         </Text>
         {daySessions.length === 0 ? (
           <View style={styles.listCard}>
-            <Text style={styles.listEmptyTitle}>No classes on this day</Text>
+            <Text style={styles.listEmptyTitle}>
+              {noUpcomingToday ? 'No upcoming classes today' : 'No classes on this day'}
+            </Text>
             <Text style={styles.listEmptyCopy}>
               When students book you, upcoming sessions will appear here, with time, subject,
               and a start action when it is time to begin.
