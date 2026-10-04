@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
   Switch,
 } from 'react-native';
 import {
@@ -20,6 +21,7 @@ import {
   MAX_BATCH_SIZE,
   rateCardToFormInput,
   RATE_CARD_SLABS,
+  singleModeRateCardConfirmMessage,
   validateRateCardForm,
   type RateCardFormInput,
   type RateCardFormValues,
@@ -366,6 +368,19 @@ export function RateCardModal({
       return;
     }
     setValidationError(null);
+    const confirmMessage = singleModeRateCardConfirmMessage(result.normalized);
+    if (confirmMessage) {
+      Alert.alert('Rate card', confirmMessage, [
+        {
+          text: 'No',
+          style: 'cancel',
+          onPress: () =>
+            setActiveTab(result.normalized.offlineEnabled ? 'online' : 'offline'),
+        },
+        { text: 'Yes', onPress: () => onSubmit(result.normalized) },
+      ]);
+      return;
+    }
     onSubmit(result.normalized);
   };
 

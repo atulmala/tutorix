@@ -7,6 +7,7 @@ import {
   RATE_CARD_LATER_WARNING,
   RATE_CARD_SETUP_REQUIRED_MESSAGE,
 } from '@tutorix/shared-utils/rate-card';
+import { RateCardModal } from '../tutor-profile/RateCardModal';
 import { TutorRateCardSetupScreen } from './TutorRateCardSetupScreen';
 
 const mockUseQuery = jest.fn();
@@ -178,6 +179,30 @@ describe('TutorRateCardSetupScreen', () => {
     fireEvent.press(getByText(RATE_CARD_LATER_ACTION));
 
     expect(onLater).not.toHaveBeenCalled();
+    alertSpy.mockRestore();
+  });
+
+  it('asks before saving a rate card that covers only one mode', () => {
+    const onSubmit = jest.fn();
+    let actions: { text?: string; onPress?: () => void }[] | undefined;
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      actions = buttons as typeof actions;
+    });
+    const screen = render(<RateCardModal visible offeringName="Mathematics" onSubmit={onSubmit} />);
+
+    fireEvent.changeText(screen.getAllByPlaceholderText('500')[0], '500');
+    fireEvent.press(screen.getByText('Save rate card'));
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Rate card',
+      'Are you sure you do not want to conduct online classes?',
+      expect.any(Array),
+    );
+    expect(onSubmit).not.toHaveBeenCalled();
+    actions?.find((button) => button.text === 'Yes')?.onPress?.();
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ offlineEnabled: true, onlineEnabled: false, offlineBaseRate: 500 }),
+    );
     alertSpy.mockRestore();
   });
 });

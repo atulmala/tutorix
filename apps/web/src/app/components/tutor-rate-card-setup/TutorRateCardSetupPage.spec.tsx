@@ -5,6 +5,7 @@ import {
   RATE_CARD_LATER_WARNING,
   RATE_CARD_SETUP_REQUIRED_MESSAGE,
 } from '@tutorix/shared-utils';
+import { RateCardModal } from '@tutorix/tutor-detail-ui';
 import { TutorRateCardSetupPage } from './TutorRateCardSetupPage';
 
 const mockUseQuery = jest.fn();
@@ -16,6 +17,7 @@ jest.mock('@tutorix/shared-graphql', () => ({
 }));
 
 jest.mock('@apollo/client', () => ({
+  gql: (literals: TemplateStringsArray) => literals.join(''),
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
   useMutation: () => [jest.fn(), { loading: false }],
 }));
@@ -158,6 +160,33 @@ describe('TutorRateCardSetupPage', () => {
     fireEvent.click(screen.getByRole('button', { name: RATE_CARD_LATER_ACTION }));
 
     expect(onLater).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it('asks before saving a rate card that covers only one mode', () => {
+    const onSubmit = jest.fn();
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<RateCardModal open offeringName="Mathematics" onSubmit={onSubmit} />);
+
+    const rateInput = screen
+      .getAllByPlaceholderText('500')
+      .find((input) => !input.hasAttribute('disabled'));
+    fireEvent.change(rateInput as HTMLElement, { target: { value: '500' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save rate card' }));
+
+    expect(confirmSpy).toHaveBeenCalledWith(
+      'Are you sure you do not want to conduct online classes?',
+    );
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByRole('tab', { name: 'Online classes' }).getAttribute('aria-selected')).toBe(
+      'true',
+    );
+
+    confirmSpy.mockReturnValue(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Save rate card' }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ offlineEnabled: true, onlineEnabled: false, offlineBaseRate: 500 }),
+    );
     confirmSpy.mockRestore();
   });
 });

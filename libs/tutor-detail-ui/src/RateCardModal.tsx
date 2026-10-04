@@ -7,6 +7,7 @@ import {
   MAX_BATCH_SIZE,
   rateCardToFormInput,
   RATE_CARD_SLABS,
+  singleModeRateCardConfirmMessage,
   validateRateCardForm,
   type RateCardFormInput,
   type RateCardFormValues,
@@ -407,6 +408,15 @@ export function RateCardModal({
       return;
     }
     setValidationError(null);
+    const confirmMessage = singleModeRateCardConfirmMessage(result.normalized);
+    if (
+      confirmMessage &&
+      typeof window !== 'undefined' &&
+      !window.confirm(confirmMessage)
+    ) {
+      setActiveTab(result.normalized.offlineEnabled ? 'online' : 'offline');
+      return;
+    }
     onSubmit(result.normalized);
   };
 

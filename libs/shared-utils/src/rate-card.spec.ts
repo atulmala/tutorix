@@ -13,6 +13,7 @@ import {
   ptPassResultMessage,
   PT_PASSED_ONBOARDING_MESSAGE,
   PT_PASSED_RATE_CARD_MESSAGE,
+  singleModeRateCardConfirmMessage,
   validateRateCardForm,
 } from './rate-card';
 
@@ -320,6 +321,20 @@ describe('rate-card', () => {
         },
       });
       expect(result.ok).toBe(false);
+    });
+  });
+
+  describe('singleModeRateCardConfirmMessage', () => {
+    it('names the mode that was left off', () => {
+      expect(
+        singleModeRateCardConfirmMessage({ offlineEnabled: true, onlineEnabled: false }),
+      ).toBe('Are you sure you do not want to conduct online classes?');
+      expect(
+        singleModeRateCardConfirmMessage({ offlineEnabled: false, onlineEnabled: true }),
+      ).toBe('Are you sure you do not want to conduct offline classes?');
+      expect(
+        singleModeRateCardConfirmMessage({ offlineEnabled: true, onlineEnabled: true }),
+      ).toBeNull();
     });
   });
 

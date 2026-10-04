@@ -444,6 +444,20 @@ export function validateRateCardForm(
   };
 }
 
+/** Asked when a save enables exactly one delivery mode. */
+export function singleModeRateCardConfirmMessage(values: {
+  offlineEnabled: boolean;
+  onlineEnabled: boolean;
+}): string | null {
+  if (values.offlineEnabled && !values.onlineEnabled) {
+    return 'Are you sure you do not want to conduct online classes?';
+  }
+  if (values.onlineEnabled && !values.offlineEnabled) {
+    return 'Are you sure you do not want to conduct offline classes?';
+  }
+  return null;
+}
+
 export function formatRateCardSummary(rateCard: RateCardLike | null | undefined): string | null {
   if (!isRateCardComplete(rateCard)) {
     return null;
