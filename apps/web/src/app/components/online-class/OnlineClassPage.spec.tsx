@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { OnlineClassPage } from './OnlineClassPage';
+import AgoraRTM from 'agora-rtm-sdk';
+import { OnlineClassPage, resetOnlineClassChatForTests } from './OnlineClassPage';
 
 const mockJoin = jest.fn();
 const mockEnd = jest.fn();
@@ -47,7 +48,7 @@ jest.mock('agora-rtm-sdk', () => {
     __esModule: true,
     RTM,
     RTMClient: RTM,
-    default: { RTM },
+    default: { RTM, setParameter: jest.fn() },
   };
 });
 
@@ -58,8 +59,10 @@ jest.mock('@netless/fastboard', () => ({
 
 describe('OnlineClassPage', () => {
   beforeEach(() => {
+    resetOnlineClassChatForTests();
     mockJoin.mockReset();
     mockEnd.mockReset();
+    (AgoraRTM.RTM as jest.Mock).mockClear();
     mockEnd.mockResolvedValue({ data: { endOnlineClass: true } });
     mockJoin.mockResolvedValue({
       data: {
@@ -101,6 +104,17 @@ describe('OnlineClassPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'End class' }));
     expect(await screen.findByText('This class has ended')).toBeTruthy();
     expect(mockEnd).toHaveBeenCalledWith({ variables: { sessionId: '9' } });
+  });
+
+  it('reuses the chat client when the same student joins again', async () => {
+    const first = render(<OnlineClassPage sessionId="9" displayName="Student" onLeave={jest.fn()} />);
+    await screen.findByRole('dialog', { name: 'Wrap up' });
+    first.unmount();
+
+    render(<OnlineClassPage sessionId="9" displayName="Student" onLeave={jest.fn()} />);
+    await screen.findByRole('dialog', { name: 'Wrap up' });
+
+    expect(AgoraRTM.RTM).toHaveBeenCalledTimes(1);
   });
 
   it('sends a chat message', async () => {

@@ -39,6 +39,54 @@ type ChatLine = {
   mine: boolean;
 };
 
+type ClassChatMessage = { message: string | Uint8Array; publisher: string };
+
+type ClassChat = {
+  key: string;
+  client: RTMClient;
+  onMessage?: (event: ClassChatMessage) => void;
+};
+
+/**
+ * The Signaling SDK records each appId+userId in a process-wide set and never
+ * removes it. A second `new RTM(...)` for that id throws -10027 even when the
+ * student is logged out. Keep one client and log in again on it.
+ */
+let classChat: ClassChat | null = null;
+let classChatQueue: Promise<void> = Promise.resolve();
+
+function enqueueClassChat(task: () => Promise<void>): Promise<void> {
+  const run = classChatQueue.then(task, task);
+  classChatQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+export function resetOnlineClassChatForTests(): void {
+  classChat = null;
+  classChatQueue = Promise.resolve();
+}
+
+async function connectClassChat(appId: string, userId: string, token: string): Promise<RTMClient> {
+  try {
+    AgoraRTM.setParameter('IGNORE_DUPLICATE_USER_ID_ERR', true);
+  } catch {
+    // Reusing the existing client still avoids the duplicate-id check.
+  }
+  const key = `${appId}:${userId}`;
+  if (classChat && classChat.key !== key) {
+    await classChat.client.logout().catch(() => undefined);
+    classChat = null;
+  }
+  const client = classChat?.client ?? new AgoraRTM.RTM(appId, userId);
+  classChat = { key, client };
+  await client.logout().catch(() => undefined);
+  await client.login({ token });
+  return client;
+}
+
 export type OnlineClassPageProps = {
   sessionId: string;
   displayName: string;
@@ -92,8 +140,17 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
       micRef.current = null;
       await clientRef.current?.leave().catch(() => undefined);
       clientRef.current = null;
-      await rtmRef.current?.logout().catch(() => undefined);
+      const rtm = rtmRef.current;
       rtmRef.current = null;
+      if (rtm) {
+        await enqueueClassChat(async () => {
+          if (classChat?.client === rtm && classChat.onMessage) {
+            rtm.removeEventListener('message', classChat.onMessage);
+            classChat.onMessage = undefined;
+          }
+          await rtm.logout().catch(() => undefined);
+        });
+      }
       boardDestroy?.();
       boardDestroy = null;
     };
@@ -169,8 +226,6 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
         }
         await client.publish([mic, cam]);
 
-        const rtm = new AgoraRTM.RTM(creds.appId, String(creds.uid));
-        rtmRef.current = rtm;
         const onMessage = (event: { message: string | Uint8Array; publisher: string }) => {
           const raw = typeof event.message === 'string' ? event.message : '';
           if (isOnlineClassEndedMessage(raw)) {
@@ -199,9 +254,25 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
             },
           ]);
         };
-        rtm.addEventListener('message', onMessage);
-        await rtm.login({ token: creds.rtmToken });
-        await rtm.subscribe(creds.channelName);
+        await enqueueClassChat(async () => {
+          if (cancelled) {
+            return;
+          }
+          const rtm = await connectClassChat(creds.appId, String(creds.uid), creds.rtmToken);
+          if (cancelled) {
+            await rtm.logout().catch(() => undefined);
+            return;
+          }
+          rtmRef.current = rtm;
+          if (classChat?.onMessage) {
+            rtm.removeEventListener('message', classChat.onMessage);
+          }
+          rtm.addEventListener('message', onMessage);
+          if (classChat) {
+            classChat.onMessage = onMessage;
+          }
+          await rtm.subscribe(creds.channelName);
+        });
 
         if (
           creds.whiteboardAppIdentifier &&
