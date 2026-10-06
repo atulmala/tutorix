@@ -15,6 +15,7 @@ import { TutorOnboarding } from './components/tutor-onboarding';
 import { StudentOnboarding } from './components/student-onboarding';
 import { StudentDetailScreen } from './components/student-profile/StudentDetailScreen';
 import { StudentHomeScreen } from './components/student-home/StudentHomeScreen';
+import { OnlineClassScreen } from './components/online-class/OnlineClassScreen';
 import { StudentBookingHistoryScreen } from './components/student-home/StudentBookingHistoryScreen';
 import { StudentConcludedClassesScreen } from './components/student-home/StudentConcludedClassesScreen';
 import { StudentTutorSearchScreen } from './components/student-tutor-search/StudentTutorSearchScreen';
@@ -118,6 +119,12 @@ function isAuthedView(view: AppView): boolean {
 function AppContent() {
   const apolloClient = useApolloClient();
   const [currentView, setCurrentView] = useState<AppView>('splash');
+  const [onlineClassSession, setOnlineClassSession] = useState<{
+    sessionId: string;
+    returnView: 'studentHome' | 'tutorHome';
+    displayName: string;
+    canEndClass: boolean;
+  } | null>(null);
   const [walletReturnView, setWalletReturnView] =
     useState<WalletReturnView>('tutorHome');
   const [walletReturnCartOverlay, setWalletReturnCartOverlay] =
@@ -517,6 +524,15 @@ function AppContent() {
         onLogout={handleLogout}
       />
     );
+  } else if (currentView === 'onlineClass' && onlineClassSession) {
+    screen = (
+      <OnlineClassScreen
+        sessionId={onlineClassSession.sessionId}
+        displayName={onlineClassSession.displayName}
+        canEndClass={onlineClassSession.canEndClass}
+        onLeave={() => setCurrentView(onlineClassSession.returnView)}
+      />
+    );
   } else if (currentView === 'studentHome') {
     screen = (
       <View style={{ flex: 1, backgroundColor: '#e8f4ff' }}>
@@ -535,6 +551,15 @@ function AppContent() {
           }}
           onOpenConcludedClasses={() => setCurrentView('studentConcludedClasses')}
           onOpenBookingHistory={() => setCurrentView('studentBookingHistory')}
+          onJoinOnlineClass={(sessionId) => {
+            setOnlineClassSession({
+              sessionId,
+              returnView: 'studentHome',
+              displayName: 'Student',
+              canEndClass: false,
+            });
+            setCurrentView('onlineClass');
+          }}
         />
         <StudentTabBar
           active="home"
@@ -749,6 +774,15 @@ function AppContent() {
           onUpdateCalendar={() => openTutorCalendar('tutorHome')}
           onOpenConcludedClasses={() => setCurrentView('tutorConcludedClasses')}
           onOpenBookingHistory={() => setCurrentView('tutorBookingHistory')}
+          onJoinOnlineClass={(sessionId) => {
+            setOnlineClassSession({
+              sessionId,
+              returnView: 'tutorHome',
+              displayName: 'Tutor',
+              canEndClass: true,
+            });
+            setCurrentView('onlineClass');
+          }}
         />
       </View>
     );

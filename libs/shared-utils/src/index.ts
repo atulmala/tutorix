@@ -26,6 +26,7 @@ export * from './tutor-search';
 export * from './student-education-offering';
 export * from './student-schedule';
 export * from './student-booking';
+export * from './online-class-window';
 export * from './tutor-booking-history';
 export * from './student-class-credit-groups';
 export * from './student-onboarding-types';

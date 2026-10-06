@@ -4,6 +4,7 @@ import { MY_CLASS_CREDITS, STUDENT_BOOKED_CLASS_SESSIONS } from '@tutorix/shared
 import type { StudentClassCredit } from '../student-cart/StudentClassCreditsPage';
 import {
   canChangeScheduledClass,
+  canJoinOnlineClass,
   formatIstBookingTimeRange,
   istBookedClassQueryRange,
   istDayKey,
@@ -17,6 +18,7 @@ type StudentHomePageProps = {
   onRescheduleCredit?: (credit: StudentClassCredit) => void;
   onOpenConcludedClasses?: () => void;
   onOpenBookingHistory?: () => void;
+  onJoinOnlineClass?: (sessionId: string) => void;
 };
 
 function weekdayTitle(abbr: string): string {
@@ -52,6 +54,7 @@ function classesHeading(
 
 type BookedClass = {
   enrollmentId: string;
+  sessionId?: string;
   startsAt: string;
   durationMinutes: number;
   deliveryMode: 'online' | 'offline';
@@ -65,12 +68,14 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
   onRescheduleCredit,
   onOpenConcludedClasses,
   onOpenBookingHistory,
+  onJoinOnlineClass,
 }) => {
   const weekDays = useMemo(() => istHomeScheduleDays(), []);
   const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
   const todayKey = weekDays.find((d) => d.isToday)?.key ?? weekDays[0]?.key;
   const [selectedKey, setSelectedKey] = useState(todayKey);
   const [activeClassIndex, setActiveClassIndex] = useState(0);
+  const [now, setNow] = useState(() => new Date());
   const classScrollerRef = useRef<HTMLUListElement>(null);
   const selected = weekDays.find((d) => d.key === selectedKey) ?? weekDays[0];
 
@@ -95,6 +100,11 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
     .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
   const noUpcomingToday =
     Boolean(selected?.isToday) && selectedClasses.length === 0 && dayClasses.length > 0;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 15000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     setActiveClassIndex(0);
@@ -253,6 +263,11 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
                     Boolean(onRescheduleCredit) &&
                     Boolean(credit) &&
                     canChangeScheduledClass(row.startsAt, row.deliveryMode);
+                  const canJoin =
+                    Boolean(onJoinOnlineClass) &&
+                    Boolean(row.sessionId) &&
+                    row.deliveryMode === 'online' &&
+                    canJoinOnlineClass(row.startsAt, row.durationMinutes, now);
                   return (
                     <li
                       key={row.enrollmentId}
@@ -266,6 +281,15 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
                       </p>
                       <p className="mt-1 text-sm text-[#143055]">{row.offeringLabel}</p>
                       <p className="mt-1 text-sm text-[#143055]">{row.tutorName}</p>
+                      {canJoin && row.sessionId && onJoinOnlineClass ? (
+                        <button
+                          type="button"
+                          onClick={() => onJoinOnlineClass(String(row.sessionId))}
+                          className="mt-3 rounded-xl bg-[#2563eb] px-3 py-2 text-sm font-semibold text-white"
+                        >
+                          Join class
+                        </button>
+                      ) : null}
                       {canReschedule && credit && onRescheduleCredit ? (
                         <button
                           type="button"

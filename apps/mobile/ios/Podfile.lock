@@ -1,4 +1,74 @@
 PODS:
+  - agora-react-native-rtm (2.2.6):
+    - AgoraIrisRTM_iOS (= 2.2.6-build.1)
+    - AgoraRtm (= 2.2.6)
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.11.18.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
+  - AgoraInfra_iOS (1.3.5)
+  - AgoraIrisRTC_iOS (4.6.4-build.6)
+  - AgoraIrisRTM_iOS (2.2.6-build.1)
+  - AgoraRtcEngine_iOS (4.6.4):
+    - AgoraRtcEngine_iOS/AIAEC (= 4.6.4)
+    - AgoraRtcEngine_iOS/AIAECLL (= 4.6.4)
+    - AgoraRtcEngine_iOS/AINS (= 4.6.4)
+    - AgoraRtcEngine_iOS/AINSLL (= 4.6.4)
+    - AgoraRtcEngine_iOS/AudioBeauty (= 4.6.4)
+    - AgoraRtcEngine_iOS/ClearVision (= 4.6.4)
+    - AgoraRtcEngine_iOS/ContentInspect (= 4.6.4)
+    - AgoraRtcEngine_iOS/FaceCapture (= 4.6.4)
+    - AgoraRtcEngine_iOS/FaceDetection (= 4.6.4)
+    - AgoraRtcEngine_iOS/LipSync (= 4.6.4)
+    - AgoraRtcEngine_iOS/ReplayKit (= 4.6.4)
+    - AgoraRtcEngine_iOS/RtcBasic (= 4.6.4)
+    - AgoraRtcEngine_iOS/SpatialAudio (= 4.6.4)
+    - AgoraRtcEngine_iOS/VideoAv1CodecEnc (= 4.6.4)
+    - AgoraRtcEngine_iOS/VideoCodecEnc (= 4.6.4)
+    - AgoraRtcEngine_iOS/VirtualBackground (= 4.6.4)
+    - AgoraRtcEngine_iOS/VQA (= 4.6.4)
+  - AgoraRtcEngine_iOS/AIAEC (4.6.4)
+  - AgoraRtcEngine_iOS/AIAECLL (4.6.4)
+  - AgoraRtcEngine_iOS/AINS (4.6.4)
+  - AgoraRtcEngine_iOS/AINSLL (4.6.4)
+  - AgoraRtcEngine_iOS/AudioBeauty (4.6.4)
+  - AgoraRtcEngine_iOS/ClearVision (4.6.4)
+  - AgoraRtcEngine_iOS/ContentInspect (4.6.4)
+  - AgoraRtcEngine_iOS/FaceCapture (4.6.4)
+  - AgoraRtcEngine_iOS/FaceDetection (4.6.4)
+  - AgoraRtcEngine_iOS/LipSync (4.6.4)
+  - AgoraRtcEngine_iOS/ReplayKit (4.6.4)
+  - AgoraRtcEngine_iOS/RtcBasic (4.6.4):
+    - AgoraInfra_iOS (= 1.3.5)
+  - AgoraRtcEngine_iOS/SpatialAudio (4.6.4)
+  - AgoraRtcEngine_iOS/VideoAv1CodecEnc (4.6.4)
+  - AgoraRtcEngine_iOS/VideoCodecEnc (4.6.4)
+  - AgoraRtcEngine_iOS/VirtualBackground (4.6.4)
+  - AgoraRtcEngine_iOS/VQA (4.6.4)
+  - AgoraRtm (2.2.6):
+    - AgoraRtm/RtmBasic (= 2.2.6)
+    - AgoraRtm/RtmKit (= 2.2.6)
+  - AgoraRtm/RtmBasic (2.2.6)
+  - AgoraRtm/RtmKit (2.2.6)
   - boost (1.84.0)
   - DoubleConversion (1.1.6)
   - fast_float (6.1.4)
@@ -1477,6 +1547,32 @@ PODS:
     - React-jsiexecutor
     - React-RCTFBReactNativeSpec
     - ReactCommon/turbomodule/core
+  - react-native-agora (4.6.4):
+    - AgoraIrisRTC_iOS (= 4.6.4-build.6)
+    - AgoraRtcEngine_iOS (= 4.6.4)
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.11.18.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
   - react-native-document-picker (12.0.1):
     - DoubleConversion
     - glog
@@ -1550,6 +1646,32 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - react-native-webview (14.0.1):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.11.18.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
+  - react-native-whiteboard (0.0.14):
+    - React-Core
   - React-NativeModulesApple (0.79.7):
     - glog
     - hermes-engine
@@ -2103,6 +2225,7 @@ PODS:
   - Yoga (0.0.0)
 
 DEPENDENCIES:
+  - agora-react-native-rtm (from `../../../node_modules/agora-react-native-rtm`)
   - boost (from `../node_modules/react-native/third-party-podspecs/boost.podspec`)
   - DoubleConversion (from `../node_modules/react-native/third-party-podspecs/DoubleConversion.podspec`)
   - fast_float (from `../node_modules/react-native/third-party-podspecs/fast_float.podspec`)
@@ -2156,9 +2279,12 @@ DEPENDENCIES:
   - React-logger (from `../node_modules/react-native/ReactCommon/logger`)
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
+  - react-native-agora (from `../../../node_modules/react-native-agora`)
   - "react-native-document-picker (from `../node_modules/@react-native-documents/picker`)"
   - react-native-image-picker (from `../node_modules/react-native-image-picker`)
   - react-native-razorpay (from `../node_modules/react-native-razorpay`)
+  - react-native-webview (from `../../../node_modules/react-native-webview`)
+  - "react-native-whiteboard (from `../../../node_modules/@netless/react-native-whiteboard`)"
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-oscompat (from `../node_modules/react-native/ReactCommon/oscompat`)
   - React-perflogger (from `../node_modules/react-native/ReactCommon/reactperflogger`)
@@ -2202,6 +2328,11 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
+    - AgoraInfra_iOS
+    - AgoraIrisRTC_iOS
+    - AgoraIrisRTM_iOS
+    - AgoraRtcEngine_iOS
+    - AgoraRtm
     - Firebase
     - FirebaseABTesting
     - FirebaseAnalytics
@@ -2226,6 +2357,8 @@ SPEC REPOS:
     - SocketRocket
 
 EXTERNAL SOURCES:
+  agora-react-native-rtm:
+    :path: "../../../node_modules/agora-react-native-rtm"
   boost:
     :podspec: "../node_modules/react-native/third-party-podspecs/boost.podspec"
   DoubleConversion:
@@ -2303,12 +2436,18 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   React-microtasksnativemodule:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
+  react-native-agora:
+    :path: "../../../node_modules/react-native-agora"
   react-native-document-picker:
     :path: "../node_modules/@react-native-documents/picker"
   react-native-image-picker:
     :path: "../node_modules/react-native-image-picker"
   react-native-razorpay:
     :path: "../node_modules/react-native-razorpay"
+  react-native-webview:
+    :path: "../../../node_modules/react-native-webview"
+  react-native-whiteboard:
+    :path: "../../../node_modules/@netless/react-native-whiteboard"
   React-NativeModulesApple:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios"
   React-oscompat:
@@ -2391,6 +2530,12 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
+  agora-react-native-rtm: 3b7478dad3ede8bd380147ef068592018cdc302d
+  AgoraInfra_iOS: 0bf927aad4fc425b24ca5d094b333361960f5cb0
+  AgoraIrisRTC_iOS: 617c544eae2240cbc21516f0938f6a46a1ea3646
+  AgoraIrisRTM_iOS: 0a2d1de847cb1ce402a887bb19b774ff9998d5de
+  AgoraRtcEngine_iOS: 2ac3c06dd68eff8e895b5529e59a10a05da63878
+  AgoraRtm: bd7a04a21f8063f7105540da0243e6b0a93c116e
   boost: 7e761d76ca2ce687f7cc98e698152abd03a18f90
   DoubleConversion: cb417026b2400c8f53ae97020b2be961b59470cb
   fast_float: 06eeec4fe712a76acc9376682e4808b05ce978b6
@@ -2450,9 +2595,12 @@ SPEC CHECKSUMS:
   React-logger: 6d6f432994f3d58b769945551af2bd4fb21ad866
   React-Mapbuffer: b47a3289a3fe38e665347e48579f67a37be42bb3
   React-microtasksnativemodule: c1a3d5195c3985a2246f130ad3f3cad587b79b03
+  react-native-agora: d7e7a3282cb5ed9d92ca6fb234babb93d80ed487
   react-native-document-picker: cb6b9add778edf8d6ba3db436aaf69d897af266f
   react-native-image-picker: c73e6edfdbc2bbc1c12b3fe9c2149441fa08f149
   react-native-razorpay: 80ac5bad8523d7b0785cd8360a63759bdb7ef2f7
+  react-native-webview: 3c2e5f028195662626374391bcf7cfde0fe7081f
+  react-native-whiteboard: d56d2ffa0392b8572bfc613954845e48c6dfd38e
   React-NativeModulesApple: 1ed1401e841d89df68c9a429c785d51272fc21a5
   React-oscompat: 0047f0ce53a328ce225777a6c617970556602c7c
   React-perflogger: 1c412889c280d87f3e3a21d9c848ff0dca2500a7
@@ -2495,6 +2643,6 @@ SPEC CHECKSUMS:
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: 9663a18d096f7f7e17a535cf00849db756709955
 
-PODFILE CHECKSUM: 193bc74d39c283f7a25932226039c209f40fed21
+PODFILE CHECKSUM: ebad9fd5f9152ad63b1a0ae1077847c4c94fdf05
 
 COCOAPODS: 1.16.2

@@ -15,6 +15,27 @@ if linkage != nil
   use_frameworks! :linkage => linkage.to_sym
 end
 
+# Agora RTC and Signaling both ship aosl.xcframework. Keep the RTC copy.
+pre_install do |installer|
+  installer.pod_targets.each do |pod|
+    next unless pod.name.include?('AgoraRtm')
+
+    pod.specs.each do |spec|
+      frameworks = spec.attributes_hash['vendored_frameworks']
+      next if frameworks.nil?
+
+      filtered = Array(frameworks).reject { |path| path.to_s.include?('aosl') }
+      if filtered.empty?
+        spec.attributes_hash.delete('vendored_frameworks')
+      elsif frameworks.is_a?(Array)
+        spec.attributes_hash['vendored_frameworks'] = filtered
+      else
+        spec.attributes_hash['vendored_frameworks'] = filtered.first
+      end
+    end
+  end
+end
+
 target 'Mobile' do
   config = use_native_modules!
 

@@ -33,7 +33,7 @@ const { assetExts, sourceExts } = defaultConfig.resolver;
  * @type {import('metro-config').MetroConfig}
  */
 const customConfig = {
-  cacheVersion: 'mobile',
+  cacheVersion: 'mobile-react-native-single',
   transformer: {
     babelTransformerPath: require.resolve('react-native-svg-transformer'),
   },
@@ -66,8 +66,33 @@ const customConfig = {
   },
 };
 
-module.exports = withNxMetro(mergeConfig(defaultConfig, customConfig), {
-  debug: false,
-  extensions: [],
-  watchFolders: [path.resolve(__dirname, '../..')],
-});
+module.exports = (async () => {
+  const metroConfig = await withNxMetro(mergeConfig(defaultConfig, customConfig), {
+    debug: false,
+    extensions: [],
+    watchFolders: [path.resolve(__dirname, '../..')],
+  });
+
+  // The workspace root and apps/mobile each have react and react-native.
+  // A second copy leaves the view registry and hook dispatcher empty.
+  const previousResolveRequest = metroConfig.resolver.resolveRequest;
+  const mobilePackageRoot = path.join(__dirname, 'node_modules/react-native/package.json');
+  metroConfig.resolver.resolveRequest = (context, moduleName, platform) => {
+    if (moduleName === 'react' || moduleName.startsWith('react/')) {
+      return {
+        type: 'sourceFile',
+        filePath: require.resolve(moduleName, { paths: [__dirname] }),
+      };
+    }
+    const redirected =
+      moduleName === 'react-native' || moduleName.startsWith('react-native/')
+        ? { ...context, originModulePath: mobilePackageRoot }
+        : context;
+    if (typeof previousResolveRequest === 'function') {
+      return previousResolveRequest(redirected, moduleName, platform);
+    }
+    return context.resolveRequest(redirected, moduleName, platform);
+  };
+
+  return metroConfig;
+})();

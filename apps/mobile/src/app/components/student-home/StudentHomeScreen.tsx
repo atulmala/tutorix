@@ -9,6 +9,7 @@ import {
   formatIstBookingTimeRange,
   scheduledClassHasEnded,
 } from '@tutorix/shared-utils/student-booking';
+import { canJoinOnlineClass } from '@tutorix/shared-utils/online-class-window';
 import {
   istBookedClassQueryRange,
   istDayKey,
@@ -21,6 +22,7 @@ type StudentHomeScreenProps = {
   onRescheduleCredit?: (credit: StudentClassCredit) => void;
   onOpenConcludedClasses?: () => void;
   onOpenBookingHistory?: () => void;
+  onJoinOnlineClass?: (sessionId: string) => void;
 };
 
 function weekdayTitle(abbr: string): string {
@@ -56,6 +58,7 @@ function classesHeading(
 
 type BookedClass = {
   enrollmentId: string;
+  sessionId?: string;
   startsAt: string;
   durationMinutes: number;
   deliveryMode: 'online' | 'offline';
@@ -95,6 +98,7 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
   onRescheduleCredit,
   onOpenConcludedClasses,
   onOpenBookingHistory,
+  onJoinOnlineClass,
 }) => {
   const weekDays = useMemo(() => istHomeScheduleDays(), []);
   const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
@@ -102,6 +106,7 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
   const [selectedKey, setSelectedKey] = useState(todayKey);
   const [carouselWidth, setCarouselWidth] = useState(0);
   const [activeClassIndex, setActiveClassIndex] = useState(0);
+  const [now, setNow] = useState(() => new Date());
   const classCarouselRef = useRef<ScrollView>(null);
   const selected = weekDays.find((d) => d.key === selectedKey) ?? weekDays[0];
   const { data } = useQuery(STUDENT_BOOKED_CLASS_SESSIONS, {
@@ -125,6 +130,11 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
     .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
   const noUpcomingToday =
     Boolean(selected?.isToday) && selectedClasses.length === 0 && dayClasses.length > 0;
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 15000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     setActiveClassIndex(0);
@@ -269,6 +279,11 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
                     Boolean(onRescheduleCredit) &&
                     Boolean(credit) &&
                     canChangeScheduledClass(row.startsAt, row.deliveryMode);
+                  const canJoin =
+                    Boolean(onJoinOnlineClass) &&
+                    Boolean(row.sessionId) &&
+                    row.deliveryMode === 'online' &&
+                    canJoinOnlineClass(row.startsAt, row.durationMinutes, now);
                   return (
                     <View
                       key={row.enrollmentId}
@@ -282,6 +297,15 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
                       </Text>
                       <Text style={styles.classSubject}>{row.offeringLabel}</Text>
                       <Text style={styles.classSubject}>{row.tutorName}</Text>
+                      {canJoin && row.sessionId && onJoinOnlineClass ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel="Join class"
+                          onPress={() => onJoinOnlineClass(String(row.sessionId))}
+                        >
+                          <Text style={styles.reschedule}>Join class</Text>
+                        </Pressable>
+                      ) : null}
                       {canReschedule && credit && onRescheduleCredit ? (
                         <Pressable onPress={() => onRescheduleCredit(credit)}>
                           <Text style={styles.reschedule}>Reschedule</Text>

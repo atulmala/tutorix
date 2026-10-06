@@ -18,8 +18,27 @@ export const ONLINE_CLASS_CHANGE_LEAD_MINUTES = 15;
 /** A class must start at least this far ahead. Exactly 2 hours is allowed. */
 export const CLASS_SCHEDULE_LEAD_MINUTES = 120;
 
+/**
+ * Lead time in minutes. `CLASS_SCHEDULE_LEAD_MINUTES` in the environment
+ * overrides the default. Local dev sets it to 0; unset keeps 120.
+ */
+export function classScheduleLeadMinutes(): number {
+  if (typeof process === 'undefined' || process.env == null) {
+    return CLASS_SCHEDULE_LEAD_MINUTES;
+  }
+  const raw = process.env.CLASS_SCHEDULE_LEAD_MINUTES;
+  if (raw == null || raw.trim() === '') {
+    return CLASS_SCHEDULE_LEAD_MINUTES;
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return CLASS_SCHEDULE_LEAD_MINUTES;
+  }
+  return parsed;
+}
+
 export function earliestClassStart(now: Date = new Date()): Date {
-  return new Date(now.getTime() + CLASS_SCHEDULE_LEAD_MINUTES * 60 * 1000);
+  return new Date(now.getTime() + classScheduleLeadMinutes() * 60 * 1000);
 }
 
 export function canScheduleClassAt(
@@ -33,11 +52,18 @@ export function canScheduleClassAt(
   if (Number.isNaN(startMs)) {
     return false;
   }
-  return startMs - now.getTime() >= CLASS_SCHEDULE_LEAD_MINUTES * 60 * 1000;
+  return startMs - now.getTime() >= classScheduleLeadMinutes() * 60 * 1000;
 }
 
 export function classScheduleLeadMessage(): string {
-  return 'Classes can only be scheduled at least 2 hours in advance';
+  const minutes = classScheduleLeadMinutes();
+  if (minutes <= 0) {
+    return 'This class has already started';
+  }
+  if (minutes === CLASS_SCHEDULE_LEAD_MINUTES) {
+    return 'Classes can only be scheduled at least 2 hours in advance';
+  }
+  return `Classes can only be scheduled at least ${minutes} minutes in advance`;
 }
 
 export function classChangeLeadMinutes(
@@ -115,7 +141,8 @@ const IST_MONTH_SHORT = [
 ] as const;
 
 export function bookingHorizonRange(now = new Date()): { from: Date; to: Date } {
-  return { from: earliestClassStart(now), to: maxHorizonEndUtc(now) };
+  // Ask from now. The API applies the schedule lead, including a local override.
+  return { from: now, to: maxHorizonEndUtc(now) };
 }
 
 export function lockedDeliveryMode(

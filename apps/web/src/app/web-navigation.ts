@@ -26,6 +26,7 @@ export type WebView =
   | 'student-booking-history'
   | 'tutor-concluded-classes'
   | 'tutor-booking-history'
+  | 'online-class'
   | 'wallet'
   | 'privacy'
   | 'terms';

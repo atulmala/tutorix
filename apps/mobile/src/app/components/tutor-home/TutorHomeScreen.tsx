@@ -16,6 +16,7 @@ import {
   formatIstBookingTimeRange,
   scheduledClassHasEnded,
 } from '@tutorix/shared-utils/student-booking';
+import { canJoinOnlineClass } from '@tutorix/shared-utils/online-class-window';
 import {
   istBookedClassQueryRange,
   istDayKey,
@@ -38,6 +39,7 @@ type TutorHomeScreenProps = {
   onUpdateCalendar?: () => void;
   onOpenConcludedClasses?: () => void;
   onOpenBookingHistory?: () => void;
+  onJoinOnlineClass?: (sessionId: string) => void;
 };
 
 type MyTutorDetailData = {
@@ -179,6 +181,7 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
   onUpdateCalendar,
   onOpenConcludedClasses,
   onOpenBookingHistory,
+  onJoinOnlineClass,
 }) => {
   const weekDays = useMemo(() => istHomeScheduleDays(), []);
   const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
@@ -207,6 +210,7 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
   const [openStudentsSessionId, setOpenStudentsSessionId] = useState<string | null>(null);
   const [carouselWidth, setCarouselWidth] = useState(0);
   const [activeClassIndex, setActiveClassIndex] = useState(0);
+  const [now, setNow] = useState(() => new Date());
   const classCarouselRef = useRef<ScrollView>(null);
   const booked = (sessionData?.tutorBookedClassSessions ?? []) as TutorBookedClass[];
   const dayClasses = booked.filter(
@@ -220,6 +224,11 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
     Boolean(selected?.isToday) && daySessions.length === 0 && dayClasses.length > 0;
   const openSession =
     daySessions.find((session) => session.sessionId === openStudentsSessionId) ?? null;
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 15000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     setActiveClassIndex(0);
@@ -419,6 +428,10 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
                 session.startsAt,
                 session.deliveryMode,
               );
+              const canJoin =
+                Boolean(onJoinOnlineClass) &&
+                session.deliveryMode === 'online' &&
+                canJoinOnlineClass(session.startsAt, session.durationMinutes, now);
               const actionEnrollmentId = session.students[0]?.enrollmentId;
               const rescheduleConfirm =
                 session.students.length > 1
@@ -442,6 +455,15 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
                   <Text style={styles.listEmptyCopy}>
                     {session.deliveryMode === 'online' ? 'Online' : 'Offline'}
                   </Text>
+                  {canJoin && onJoinOnlineClass ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Join class"
+                      onPress={() => onJoinOnlineClass(session.sessionId)}
+                    >
+                      <Text style={styles.rescheduleAction}>Join class</Text>
+                    </Pressable>
+                  ) : null}
                   <Text style={styles.classSubject}>
                     {session.offeringLabel}
                     {session.isDemo ? ' · Free demo' : ''}

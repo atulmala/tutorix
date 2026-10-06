@@ -27,5 +27,6 @@ export * from './wallet.queries';
 export * from './registration-settings.queries';
 export * from './communication.queries';
 export * from './tutor-class-session.queries';
+export * from './online-class.queries';
 export * from './student-cart.queries';
 // export * from './class.queries';

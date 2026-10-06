@@ -2,6 +2,7 @@ import { istSlotToUtc } from './tutor-calendar';
 import {
   canChangeScheduledClass,
   canScheduleClassAt,
+  classScheduleLeadMinutes,
   scheduledClassHasEnded,
   bookingCalendarFromDraft,
   bookingDaysWithSlots,
@@ -22,12 +23,39 @@ describe('student booking helpers', () => {
   });
 
   it('allows a class that starts exactly 2 hours ahead and rejects anything sooner', () => {
-    const now = new Date('2026-10-01T10:30:00.000Z');
-    const inTwoHours = new Date('2026-10-01T12:30:00.000Z');
-    const oneMinuteShort = new Date('2026-10-01T12:29:00.000Z');
-    expect(canScheduleClassAt(inTwoHours, now)).toBe(true);
-    expect(canScheduleClassAt(oneMinuteShort, now)).toBe(false);
-    expect(canScheduleClassAt(new Date('2026-10-01T10:00:00.000Z'), now)).toBe(false);
+    const previous = process.env.CLASS_SCHEDULE_LEAD_MINUTES;
+    delete process.env.CLASS_SCHEDULE_LEAD_MINUTES;
+    try {
+      const now = new Date('2026-10-01T10:30:00.000Z');
+      const inTwoHours = new Date('2026-10-01T12:30:00.000Z');
+      const oneMinuteShort = new Date('2026-10-01T12:29:00.000Z');
+      expect(classScheduleLeadMinutes()).toBe(120);
+      expect(canScheduleClassAt(inTwoHours, now)).toBe(true);
+      expect(canScheduleClassAt(oneMinuteShort, now)).toBe(false);
+      expect(canScheduleClassAt(new Date('2026-10-01T10:00:00.000Z'), now)).toBe(false);
+    } finally {
+      if (previous == null) {
+        delete process.env.CLASS_SCHEDULE_LEAD_MINUTES;
+      } else {
+        process.env.CLASS_SCHEDULE_LEAD_MINUTES = previous;
+      }
+    }
+  });
+
+  it('allows an immediate class when CLASS_SCHEDULE_LEAD_MINUTES is 0', () => {
+    const previous = process.env.CLASS_SCHEDULE_LEAD_MINUTES;
+    process.env.CLASS_SCHEDULE_LEAD_MINUTES = '0';
+    try {
+      const now = new Date('2026-10-01T10:30:00.000Z');
+      expect(canScheduleClassAt(now, now)).toBe(true);
+      expect(canScheduleClassAt(new Date('2026-10-01T10:29:00.000Z'), now)).toBe(false);
+    } finally {
+      if (previous == null) {
+        delete process.env.CLASS_SCHEDULE_LEAD_MINUTES;
+      } else {
+        process.env.CLASS_SCHEDULE_LEAD_MINUTES = previous;
+      }
+    }
   });
 
   it('keeps class changes open until 30 minutes offline and 15 minutes online', () => {

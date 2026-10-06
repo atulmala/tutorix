@@ -25,7 +25,7 @@
       "continuous": true,
       "executor": "nx:run-commands",
       "options": {
-        "command": "react-native run-ios",
+        "command": "react-native run-ios --extra-params \"-allowProvisioningUpdates\"",
         "cwd": "apps/mobile"
       }
     },

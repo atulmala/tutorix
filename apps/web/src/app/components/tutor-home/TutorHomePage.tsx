@@ -10,6 +10,7 @@ import {
 } from '@tutorix/shared-graphql';
 import {
   canChangeScheduledClass,
+  canJoinOnlineClass,
   formatIstBookingTimeRange,
   hasIncompleteRateCardOfferings,
   istBookedClassQueryRange,
@@ -29,6 +30,7 @@ type TutorHomePageProps = {
   onUpdateCalendar?: () => void;
   onOpenConcludedClasses?: () => void;
   onOpenBookingHistory?: () => void;
+  onJoinOnlineClass?: (sessionId: string) => void;
 };
 
 type MyTutorDetailData = {
@@ -185,6 +187,7 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
   onUpdateCalendar,
   onOpenConcludedClasses,
   onOpenBookingHistory,
+  onJoinOnlineClass,
 }) => {
   const weekDays = useMemo(() => istHomeScheduleDays(), []);
   const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
@@ -226,6 +229,7 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
     left: number;
   } | null>(null);
   const [activeClassIndex, setActiveClassIndex] = useState(0);
+  const [now, setNow] = useState(() => new Date());
   const classScrollerRef = useRef<HTMLUListElement>(null);
   const booked = (sessionData?.tutorBookedClassSessions ?? []) as TutorBookedClass[];
   const dayClasses = booked.filter(
@@ -239,6 +243,11 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
     Boolean(selected?.isToday) && daySessions.length === 0 && dayClasses.length > 0;
   const openSession =
     daySessions.find((session) => session.sessionId === openStudentsSessionId) ?? null;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 15000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     setActiveClassIndex(0);
@@ -456,6 +465,10 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
                   session.startsAt,
                   session.deliveryMode,
                 );
+                const canJoin =
+                  Boolean(onJoinOnlineClass) &&
+                  session.deliveryMode === 'online' &&
+                  canJoinOnlineClass(session.startsAt, session.durationMinutes, now);
                 const actionEnrollmentId = session.students[0]?.enrollmentId;
                 const rescheduleConfirm =
                   session.students.length > 1
@@ -510,6 +523,15 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
                         {studentCountLabel(session.students.length)}
                       </button>
                     </div>
+                    {canJoin && onJoinOnlineClass ? (
+                      <button
+                        type="button"
+                        onClick={() => onJoinOnlineClass(session.sessionId)}
+                        className="mt-3 rounded-xl bg-[#2563eb] px-3 py-2 text-sm font-semibold text-white"
+                      >
+                        Join class
+                      </button>
+                    ) : null}
                     {canChange && actionEnrollmentId ? (
                       <div className="mt-3 flex flex-wrap gap-2">
                         <button
