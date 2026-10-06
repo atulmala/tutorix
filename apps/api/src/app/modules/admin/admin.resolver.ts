@@ -97,6 +97,18 @@ export class AdminResolver {
     return this.adminService.getTutorStageCounts(search);
   }
 
+  @Query(() => Int, {
+    description:
+      'Onboarding-complete tutors who have set a bank account, a complete rate card, and saved their calendar (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminReadyForBookingTutorCount(
+    @Args('search', { nullable: true }) search?: string,
+  ): Promise<number> {
+    return this.adminService.countReadyForBookingTutors(search);
+  }
+
   @Query(() => AdminStudentListResult, {
     description: 'Paginated students filtered by onboarding stage (admin only)',
   })

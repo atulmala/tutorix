@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,24 +8,30 @@ import {
   Modal,
   ScrollView,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   ActivityIndicator,
-  Alert,
   Switch,
 } from 'react-native';
+import { scrollFocusedInputToTop } from '../../lib/scrollFocusedInputIntoView';
 import {
+  BULK_DISCOUNT_OFFER_LABEL,
+  BULK_DISCOUNT_PROMPT,
+  BULK_DISCOUNT_SKIP_LABEL,
   calculateEffectiveRate,
   DEFAULT_BATCH_SIZE,
   formatInr,
   isRateCardComplete,
   MAX_BATCH_SIZE,
+  rateCardMissingBulkDiscount,
   rateCardToFormInput,
   RATE_CARD_SLABS,
-  singleModeRateCardConfirmMessage,
+  skippedRateCardModePrompt,
   validateRateCardForm,
   type RateCardFormInput,
   type RateCardFormValues,
   type RateCardLike,
+  type SkippedRateCardModePrompt,
 } from '@tutorix/shared-utils/rate-card';
 
 const BASE_RATE_TIP = 'Price per class, per student.';
@@ -34,6 +40,16 @@ const OFFLINE_OFFER_TIP = 'You conduct physical, face to face class.';
 const ONLINE_OFFER_TIP = 'You conduct online class using our web conferencing tool.';
 
 type RateCardModeTab = 'offline' | 'online';
+
+type PendingSkippedMode = SkippedRateCardModePrompt & {
+  formKey: string;
+  normalized: RateCardFormValues;
+};
+
+type PendingDiscountPrompt = {
+  formKey: string;
+  normalized: RateCardFormValues;
+};
 
 function FieldLabelWithTip({
   label,
@@ -94,6 +110,7 @@ type ModeSectionProps = {
   offerTip: string;
   values: RateCardFormInput['offline'];
   onChange: (next: RateCardFormInput['offline']) => void;
+  onInputFocus?: () => void;
   disabled?: boolean;
 };
 
@@ -134,7 +151,14 @@ function RateCardModeTabs({
   );
 }
 
-function ModeSection({ title, offerTip, values, onChange, disabled }: ModeSectionProps) {
+function ModeSection({
+  title,
+  offerTip,
+  values,
+  onChange,
+  onInputFocus,
+  disabled,
+}: ModeSectionProps) {
   const inputsDisabled = disabled || !values.enabled;
   const baseRateNum = Number.parseInt(values.baseRate.trim(), 10);
   const hasBaseRate = values.enabled && !Number.isNaN(baseRateNum) && baseRateNum >= 1;
@@ -203,6 +227,7 @@ function ModeSection({ title, offerTip, values, onChange, disabled }: ModeSectio
           value={values.enabled}
           onValueChange={(enabled) => onChange({ ...values, enabled })}
           disabled={disabled}
+          accessibilityLabel={title}
           trackColor={{ false: '#e2e8f0', true: '#a78bfa' }}
           thumbColor={values.enabled ? '#7c3aed' : '#f4f4f5'}
         />
@@ -242,6 +267,7 @@ function ModeSection({ title, offerTip, values, onChange, disabled }: ModeSectio
                 placeholderTextColor="#9ca3af"
                 keyboardType="number-pad"
                 editable={!inputsDisabled}
+                onFocus={onInputFocus}
               />
             </View>
           </View>
@@ -299,6 +325,7 @@ function ModeSection({ title, offerTip, values, onChange, disabled }: ModeSectio
                   placeholderTextColor="#9ca3af"
                   keyboardType="number-pad"
                   editable={!inputsDisabled}
+                  onFocus={onInputFocus}
                 />
                 <Text style={styles.percentSign}>%</Text>
                 {row.preview}
@@ -341,6 +368,17 @@ export function RateCardModal({
   const [form, setForm] = useState<RateCardFormInput>(() => rateCardToFormInput(initialValues));
   const [validationError, setValidationError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<RateCardModeTab>('offline');
+  const [skippedPrompt, setSkippedPrompt] = useState<PendingSkippedMode | null>(null);
+  const [discountPrompt, setDiscountPrompt] = useState<PendingDiscountPrompt | null>(null);
+  const [keyboardInset, setKeyboardInset] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollOffsetY = useRef(0);
+
+  const revealFocusedInput = () => {
+    requestAnimationFrame(() => {
+      scrollFocusedInputToTop(scrollRef, scrollOffsetY.current);
+    });
+  };
 
   useEffect(() => {
     if (!visible) {
@@ -349,10 +387,53 @@ export function RateCardModal({
     const nextForm = rateCardToFormInput(initialValues);
     setForm(nextForm);
     setValidationError(null);
+    setSkippedPrompt(null);
+    setDiscountPrompt(null);
     setActiveTab(
       nextForm.online.enabled && !nextForm.offline.enabled ? 'online' : 'offline',
     );
   }, [visible, initialValues]);
+
+  useEffect(() => {
+    const formKey = JSON.stringify(form);
+    setSkippedPrompt((current) => (!current || current.formKey === formKey ? current : null));
+    setDiscountPrompt((current) => (!current || current.formKey === formKey ? current : null));
+  }, [form]);
+
+  useEffect(() => {
+    if (skippedPrompt || discountPrompt) {
+      Keyboard.dismiss();
+    }
+  }, [skippedPrompt, discountPrompt]);
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+    const show = Keyboard.addListener('keyboardDidShow', (event) => {
+      setKeyboardInset(event.endCoordinates.height);
+      requestAnimationFrame(() => {
+        scrollFocusedInputToTop(scrollRef, scrollOffsetY.current);
+      });
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardInset(0);
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [visible]);
+
+  useEffect(() => {
+    if (!visible || keyboardInset === 0) {
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      scrollFocusedInputToTop(scrollRef, scrollOffsetY.current);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [keyboardInset, visible]);
 
   const modalTitle = useMemo(() => {
     if (heading) {
@@ -368,20 +449,64 @@ export function RateCardModal({
       return;
     }
     setValidationError(null);
-    const confirmMessage = singleModeRateCardConfirmMessage(result.normalized);
-    if (confirmMessage) {
-      Alert.alert('Rate card', confirmMessage, [
-        {
-          text: 'No',
-          style: 'cancel',
-          onPress: () =>
-            setActiveTab(result.normalized.offlineEnabled ? 'online' : 'offline'),
-        },
-        { text: 'Yes', onPress: () => onSubmit(result.normalized) },
-      ]);
+    if (rateCardMissingBulkDiscount(form)) {
+      setSkippedPrompt(null);
+      setDiscountPrompt({
+        formKey: JSON.stringify(form),
+        normalized: result.normalized,
+      });
       return;
     }
-    onSubmit(result.normalized);
+    continueSave(result.normalized);
+  };
+
+  const continueSave = (normalized: RateCardFormValues) => {
+    const prompt = skippedRateCardModePrompt(normalized);
+    if (prompt) {
+      setDiscountPrompt(null);
+      setSkippedPrompt({
+        ...prompt,
+        formKey: JSON.stringify(form),
+        normalized,
+      });
+      return;
+    }
+    setDiscountPrompt(null);
+    setSkippedPrompt(null);
+    onSubmit(normalized);
+  };
+
+  const handleOfferDiscount = () => {
+    setDiscountPrompt(null);
+  };
+
+  const handleSkipDiscount = () => {
+    if (!discountPrompt) {
+      return;
+    }
+    continueSave(discountPrompt.normalized);
+  };
+
+  const handleSetSkippedMode = () => {
+    if (!skippedPrompt) {
+      return;
+    }
+    const mode = skippedPrompt.skippedMode;
+    setActiveTab(mode);
+    setForm((prev) => ({
+      ...prev,
+      [mode]: { ...prev[mode], enabled: true },
+    }));
+    setSkippedPrompt(null);
+  };
+
+  const handleConductOnly = () => {
+    if (!skippedPrompt) {
+      return;
+    }
+    const values = skippedPrompt.normalized;
+    setSkippedPrompt(null);
+    onSubmit(values);
   };
 
   const displayError = validationError ?? error;
@@ -415,9 +540,19 @@ export function RateCardModal({
           </View>
 
           <ScrollView
+            ref={scrollRef}
             style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              keyboardInset > 0 ? { paddingBottom: keyboardInset } : null,
+            ]}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            automaticallyAdjustKeyboardInsets
+            scrollEventThrottle={16}
+            onScroll={(event) => {
+              scrollOffsetY.current = event.nativeEvent.contentOffset.y;
+            }}
           >
             <View style={styles.demoRow}>
               <Switch
@@ -441,6 +576,7 @@ export function RateCardModal({
                   offerTip={OFFLINE_OFFER_TIP}
                   values={form.offline}
                   onChange={(offline) => setForm((prev) => ({ ...prev, offline }))}
+                  onInputFocus={revealFocusedInput}
                   disabled={saving}
                 />
               ) : (
@@ -449,6 +585,7 @@ export function RateCardModal({
                   offerTip={ONLINE_OFFER_TIP}
                   values={form.online}
                   onChange={(online) => setForm((prev) => ({ ...prev, online }))}
+                  onInputFocus={revealFocusedInput}
                   disabled={saving}
                 />
               )}
@@ -459,31 +596,85 @@ export function RateCardModal({
                 {displayError}
               </Text>
             ) : null}
-
-            <View style={styles.actions}>
-              {required && !laterLabel ? null : (
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={onClose}
-                  disabled={saving}
-                  accessibilityLabel={laterLabel ?? 'Cancel'}
-                >
-                  <Text style={styles.cancelButtonText}>{laterLabel ?? 'Cancel'}</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-                onPress={handleSubmit}
-                disabled={saving}
-              >
-                {saving ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.saveButtonText}>Save rate card</Text>
-                )}
-              </TouchableOpacity>
-            </View>
           </ScrollView>
+
+          <View style={styles.footer}>
+            {discountPrompt ? (
+              <View style={styles.promptBox} accessibilityRole="text">
+                <Text style={styles.promptText}>{BULK_DISCOUNT_PROMPT}</Text>
+                <TouchableOpacity
+                  style={styles.promptPrimaryButton}
+                  onPress={handleOfferDiscount}
+                  disabled={saving}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.promptPrimaryButtonText}>{BULK_DISCOUNT_OFFER_LABEL}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.promptSecondaryButton}
+                  onPress={handleSkipDiscount}
+                  disabled={saving}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.promptSecondaryButtonText}>{BULK_DISCOUNT_SKIP_LABEL}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {skippedPrompt ? (
+              <View style={styles.promptBox} accessibilityRole="text">
+                <Text style={styles.promptText}>{skippedPrompt.message}</Text>
+                <TouchableOpacity
+                  style={styles.promptPrimaryButton}
+                  onPress={handleSetSkippedMode}
+                  disabled={saving}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.promptPrimaryButtonText}>
+                    {skippedPrompt.setRateCardLabel}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.promptSecondaryButton}
+                  onPress={handleConductOnly}
+                  disabled={saving}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.promptSecondaryButtonText}>
+                    {skippedPrompt.conductOnlyLabel}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {required && !laterLabel && (skippedPrompt || discountPrompt) ? null : (
+              <View style={styles.actions}>
+                {required && !laterLabel ? null : (
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={onClose}
+                    disabled={saving}
+                    accessibilityLabel={laterLabel ?? 'Cancel'}
+                  >
+                    <Text style={styles.cancelButtonText}>{laterLabel ?? 'Cancel'}</Text>
+                  </TouchableOpacity>
+                )}
+                {skippedPrompt || discountPrompt ? null : (
+                  <TouchableOpacity
+                    style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+                    onPress={handleSubmit}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={styles.saveButtonText}>Save rate card</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
         </View>
   );
 
@@ -500,10 +691,7 @@ export function RateCardModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={styles.overlay} behavior="padding">
         {formBody}
       </KeyboardAvoidingView>
     </Modal>
@@ -529,6 +717,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     maxHeight: '92%',
+    flexShrink: 1,
   },
   header: {
     flexDirection: 'row',
@@ -545,8 +734,8 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
   description: { fontSize: 14, color: '#143055', marginTop: 8, lineHeight: 20 },
   close: { fontSize: 22, color: '#64748b', paddingLeft: 8 },
-  scroll: { maxHeight: '100%' },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 28 },
+  scroll: { flexShrink: 1, minHeight: 0 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 12 },
   demoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -779,11 +968,60 @@ const styles = StyleSheet.create({
   percentSign: { fontSize: 14, color: '#64748b' },
   slabPreview: { fontSize: 13, color: '#7c3aed' },
   error: { fontSize: 14, color: '#b91c1c', marginTop: 12 },
+  footer: {
+    flexShrink: 0,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 16,
+    backgroundColor: '#fff',
+  },
+  promptBox: {
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+    backgroundColor: '#fffbeb',
+    gap: 10,
+  },
+  promptText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#78350f',
+    lineHeight: 20,
+  },
+  promptPrimaryButton: {
+    backgroundColor: '#0f766e',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  promptPrimaryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  promptSecondaryButton: {
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  promptSecondaryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0f172a',
+    textAlign: 'center',
+  },
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 12,
-    marginTop: 20,
+    marginTop: 12,
   },
   cancelButton: {
     borderWidth: 1,

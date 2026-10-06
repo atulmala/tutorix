@@ -26,6 +26,7 @@ import {
   countDocsStageTutorsPendingDocumentReview,
   findTutorIdsWithPendingDocumentReview,
   tutorHasPendingDocumentReviewExistsClause,
+  tutorReadyForBookingClause,
 } from './admin-tutor.utils';
 import { applyAdminStudentSearchFilter } from './admin-student.utils';
 import { mapProficiencyTestToListItem } from './admin-proficiency-test.utils';
@@ -130,8 +131,9 @@ export class AdminService {
       Math.max(1, input.pageSize ?? DEFAULT_PAGE_SIZE),
     );
     const hasOfferingFilter = input.offeringId != null;
+    const readyForBooking = input.readyForBooking === true && !hasOfferingFilter;
     const hasStageFilter =
-      !hasOfferingFilter && input.certificationStage != null;
+      !hasOfferingFilter && !readyForBooking && input.certificationStage != null;
     const isDocsStage =
       hasStageFilter &&
       input.certificationStage === TutorCertificationStageEnum.docs;
@@ -141,7 +143,9 @@ export class AdminService {
       .innerJoinAndSelect('tutor.user', 'user')
       .where('tutor.deleted = :deleted', { deleted: false });
 
-    if (hasOfferingFilter) {
+    if (readyForBooking) {
+      qb.andWhere(tutorReadyForBookingClause());
+    } else if (hasOfferingFilter) {
       qb.innerJoin(
         'tutor.tutorOfferings',
         'tutorOffering',
@@ -298,6 +302,17 @@ export class AdminService {
         ? { pendingDocumentReviewCount }
         : {}),
     }));
+  }
+
+  async countReadyForBookingTutors(search?: string): Promise<number> {
+    const qb = this.tutorRepo
+      .createQueryBuilder('tutor')
+      .innerJoin('tutor.user', 'user')
+      .where('tutor.deleted = :deleted', { deleted: false })
+      .andWhere(tutorReadyForBookingClause());
+
+    applyAdminTutorSearchFilter(qb, search);
+    return qb.getCount();
   }
 
   async listProficiencyTests(): Promise<AdminProficiencyTestListItem[]> {

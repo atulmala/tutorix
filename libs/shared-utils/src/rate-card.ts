@@ -7,6 +7,28 @@ export const RATE_CARD_SLABS = [
 export const DEFAULT_BATCH_SIZE = 1;
 export const MAX_BATCH_SIZE = 6;
 
+export const BULK_DISCOUNT_PROMPT =
+  'Offering a discount on bulk classes enhances your chances of bulk booking';
+export const BULK_DISCOUNT_OFFER_LABEL = 'Yes, I want to offer a discount';
+export const BULK_DISCOUNT_SKIP_LABEL = 'Continue without a discount';
+
+function hasPositiveDiscount(value: string): boolean {
+  const parsed = Number.parseInt(value.trim(), 10);
+  return !Number.isNaN(parsed) && parsed > 0;
+}
+
+/** True when every enabled mode has no bulk-class discount above 0%. Offering one is optional. */
+export function rateCardMissingBulkDiscount(values: RateCardFormInput): boolean {
+  const enabledModes = [values.offline, values.online].filter((mode) => mode.enabled);
+  if (enabledModes.length === 0) {
+    return false;
+  }
+  return enabledModes.every(
+    (mode) =>
+      !hasPositiveDiscount(mode.slab2DiscountPct) && !hasPositiveDiscount(mode.slab3DiscountPct),
+  );
+}
+
 export type RateCardDeliveryMode = 'online' | 'offline';
 
 export type RateCardModeValues = {
@@ -444,18 +466,36 @@ export function validateRateCardForm(
   };
 }
 
-/** Asked when a save enables exactly one delivery mode. */
-export function singleModeRateCardConfirmMessage(values: {
+export type SkippedRateCardModePrompt = {
+  /** Delivery mode the tutor left unset. */
+  skippedMode: RateCardDeliveryMode;
+  message: string;
+  setRateCardLabel: string;
+  /** Confirms saving with only the mode that already has a rate. */
+  conductOnlyLabel: string;
+};
+
+/** Shown when a save enables exactly one delivery mode. */
+export function skippedRateCardModePrompt(values: {
   offlineEnabled: boolean;
   onlineEnabled: boolean;
-}): string | null {
-  if (values.offlineEnabled && !values.onlineEnabled) {
-    return 'Are you sure you do not want to conduct online classes?';
+}): SkippedRateCardModePrompt | null {
+  const skippedMode: RateCardDeliveryMode | null =
+    values.offlineEnabled && !values.onlineEnabled
+      ? 'online'
+      : values.onlineEnabled && !values.offlineEnabled
+        ? 'offline'
+        : null;
+  if (!skippedMode) {
+    return null;
   }
-  if (values.onlineEnabled && !values.offlineEnabled) {
-    return 'Are you sure you do not want to conduct offline classes?';
-  }
-  return null;
+  const keptMode: RateCardDeliveryMode = skippedMode === 'online' ? 'offline' : 'online';
+  return {
+    skippedMode,
+    message: `You have not set the rate card for ${skippedMode} class`,
+    setRateCardLabel: `Yes, I want to set rate card for ${skippedMode} class`,
+    conductOnlyLabel: `I want to conduct ${keptMode} class only`,
+  };
 }
 
 export function formatRateCardSummary(rateCard: RateCardLike | null | undefined): string | null {

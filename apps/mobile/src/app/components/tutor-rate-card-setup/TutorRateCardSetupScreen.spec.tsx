@@ -182,27 +182,73 @@ describe('TutorRateCardSetupScreen', () => {
     alertSpy.mockRestore();
   });
 
-  it('asks before saving a rate card that covers only one mode', () => {
+  it('offers a bulk discount and still saves when the tutor skips it', () => {
     const onSubmit = jest.fn();
-    let actions: { text?: string; onPress?: () => void }[] | undefined;
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
-      actions = buttons as typeof actions;
-    });
     const screen = render(<RateCardModal visible offeringName="Mathematics" onSubmit={onSubmit} />);
 
     fireEvent.changeText(screen.getAllByPlaceholderText('500')[0], '500');
     fireEvent.press(screen.getByText('Save rate card'));
 
-    expect(alertSpy).toHaveBeenCalledWith(
-      'Rate card',
-      'Are you sure you do not want to conduct online classes?',
-      expect.any(Array),
-    );
+    expect(
+      screen.getByText(
+        'Offering a discount on bulk classes enhances your chances of bulk booking',
+      ),
+    ).toBeTruthy();
     expect(onSubmit).not.toHaveBeenCalled();
-    actions?.find((button) => button.text === 'Yes')?.onPress?.();
+
+    fireEvent.press(screen.getByText('Yes, I want to offer a discount'));
+    expect(
+      screen.queryByText(
+        'Offering a discount on bulk classes enhances your chances of bulk booking',
+      ),
+    ).toBeNull();
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByText('Save rate card'));
+    fireEvent.press(screen.getByText('Continue without a discount'));
+    fireEvent.press(screen.getByText('I want to conduct offline class only'));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        offlineEnabled: true,
+        offlineBaseRate: 500,
+        offlineSlab2DiscountPct: null,
+        offlineSlab3DiscountPct: null,
+      }),
+    );
+  });
+
+  it('offers to set the skipped mode or save a single-mode rate card', () => {
+    const onSubmit = jest.fn();
+    const screen = render(<RateCardModal visible offeringName="Mathematics" onSubmit={onSubmit} />);
+
+    fireEvent.changeText(screen.getAllByPlaceholderText('500')[0], '500');
+    fireEvent.press(screen.getByText('Save rate card'));
+    fireEvent.press(screen.getByText('Continue without a discount'));
+
+    expect(screen.getByText('You have not set the rate card for online class')).toBeTruthy();
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByText('Yes, I want to set rate card for online class'));
+
+    expect(screen.getByRole('tab', { name: 'Online classes' }).props.accessibilityState.selected).toBe(
+      true,
+    );
+    expect(screen.getByRole('switch', { name: 'Offer online class' }).props.value).toBe(true);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('saves only the configured mode when the tutor chooses to conduct that class only', () => {
+    const onSubmit = jest.fn();
+    const screen = render(<RateCardModal visible offeringName="Mathematics" onSubmit={onSubmit} />);
+
+    fireEvent.changeText(screen.getAllByPlaceholderText('500')[0], '500');
+    fireEvent.press(screen.getByText('Save rate card'));
+    fireEvent.press(screen.getByText('Continue without a discount'));
+    fireEvent.press(screen.getByText('I want to conduct offline class only'));
+
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ offlineEnabled: true, onlineEnabled: false, offlineBaseRate: 500 }),
     );
-    alertSpy.mockRestore();
   });
 });

@@ -33,6 +33,7 @@ type AdminTutorListItemRow = {
 
 type AdminTutorStageCountsData = {
   adminTutorStageCounts: AdminTutorStageCountRow[];
+  adminReadyForBookingTutorCount?: number | null;
 };
 
 type AdminTutorsData = {
@@ -47,6 +48,12 @@ const PAGE_SIZE = 20;
 
 const SELECT_CLASS_NAME =
   'h-11 w-full rounded-xl border border-sky-200/80 bg-white px-3 text-sm text-primary shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-muted';
+
+type TutorBrowseFilter = OnboardingStepId | 'readyForBooking';
+
+const READY_FOR_BOOKING_HEADER_STYLE =
+  'border-green-200 bg-gradient-to-r from-green-100/80 to-green-50/50 text-green-900';
+const READY_FOR_BOOKING_PANEL_STYLE = 'border-green-200/80 shadow-green-100/50';
 
 const STAGE_HEADER_STYLES: Record<OnboardingStepId, string> = {
   address: 'border-sky-200 bg-gradient-to-r from-sky-100/80 to-sky-50/50 text-sky-900',
@@ -124,7 +131,7 @@ function formatMobile(
 }
 
 export function TutorsPage() {
-  const [activeStage, setActiveStage] = useState<OnboardingStepId>('address');
+  const [activeStage, setActiveStage] = useState<TutorBrowseFilter>('address');
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
@@ -137,6 +144,7 @@ export function TutorsPage() {
 
   const searchArg = appliedSearch || undefined;
   const isOfferingSearch = appliedOfferingId != null;
+  const isReadyForBooking = activeStage === 'readyForBooking' && !isOfferingSearch;
   const isUniversalSearch = Boolean(searchArg) && !isOfferingSearch;
   const showStageColumn = isUniversalSearch || isOfferingSearch;
 
@@ -157,7 +165,7 @@ export function TutorsPage() {
     setSearchInput('');
   }
 
-  function handleStageChange(stage: OnboardingStepId) {
+  function handleStageChange(stage: TutorBrowseFilter) {
     setActiveStage(stage);
     setAppliedSearch('');
     setSearchInput('');
@@ -178,7 +186,8 @@ export function TutorsPage() {
   const { data, loading, error } = useQuery<AdminTutorsData>(GET_ADMIN_TUTORS, {
     variables: {
       input: {
-        certificationStage: showStageColumn ? null : activeStage,
+        certificationStage: showStageColumn || isReadyForBooking ? null : activeStage,
+        readyForBooking: isReadyForBooking ? true : undefined,
         page,
         pageSize: PAGE_SIZE,
         search: isUniversalSearch ? searchArg : undefined,
@@ -201,23 +210,30 @@ export function TutorsPage() {
     return docsRow?.pendingDocumentReviewCount ?? 0;
   }, [countsData]);
 
+  const readyForBookingCount = countsData?.adminReadyForBookingTutorCount ?? 0;
+
   const result = data?.adminTutors;
   const items = result?.items ?? [];
   const totalPages = result?.totalPages ?? 0;
   const totalCount = result?.totalCount ?? 0;
+  const stageLook = activeStage === 'readyForBooking' ? null : activeStage;
   const activeHeaderStyle = showStageColumn
     ? UNIVERSAL_SEARCH_HEADER_STYLE
-    : STAGE_HEADER_STYLES[activeStage];
+    : stageLook == null
+      ? READY_FOR_BOOKING_HEADER_STYLE
+      : STAGE_HEADER_STYLES[stageLook];
   const activePanelStyle = showStageColumn
     ? UNIVERSAL_SEARCH_PANEL_STYLE
-    : ACTIVE_PANEL_STYLES[activeStage];
+    : stageLook == null
+      ? READY_FOR_BOOKING_PANEL_STYLE
+      : ACTIVE_PANEL_STYLES[stageLook];
 
   return (
     <div>
       <div className="rounded-2xl border border-primary/10 bg-gradient-to-r from-primary/5 via-sky-50/80 to-violet-50/80 px-6 py-5">
         <h1 className="text-2xl font-semibold text-primary">Tutors</h1>
         <p className="mt-1 text-sm text-muted">
-          Browse tutors by onboarding stage. Search by name, email, or mobile, or by offering.
+          Browse tutors by onboarding stage, or list those ready for booking. Search by name, email, or mobile, or by offering.
         </p>
       </div>
 
@@ -266,7 +282,7 @@ export function TutorsPage() {
             id="tutor-stage"
             value={activeStage}
             disabled={isOfferingSearch}
-            onChange={(e) => handleStageChange(e.target.value as OnboardingStepId)}
+            onChange={(e) => handleStageChange(e.target.value as TutorBrowseFilter)}
             className={SELECT_CLASS_NAME}
           >
             {ONBOARDING_STEPS.map((step) => (
@@ -279,6 +295,7 @@ export function TutorsPage() {
                 )}
               </option>
             ))}
+            <option value="readyForBooking">Ready for booking ({readyForBookingCount})</option>
           </select>
         </div>
       </div>
@@ -315,9 +332,11 @@ export function TutorsPage() {
           <p className="bg-gradient-to-r from-gray-50 to-slate-50 p-6 text-sm text-muted">
             {isUniversalSearch
               ? 'No tutors match your search.'
-              : activeStage === 'complete'
-                ? 'No tutors with completed onboarding.'
-                : 'No tutors at this stage.'}
+              : isReadyForBooking
+                ? 'No tutors are ready for booking.'
+                : activeStage === 'complete'
+                  ? 'No tutors with completed onboarding.'
+                  : 'No tutors at this stage.'}
           </p>
         )}
 

@@ -32,6 +32,39 @@ export function applyAdminTutorSearchFilter(
   );
 }
 
+/**
+ * Onboarding-complete tutors who finished bank account, at least one complete
+ * rate card, and a saved availability calendar.
+ */
+export function tutorReadyForBookingClause(tutorAlias = 'tutor'): string {
+  return `(
+    ${tutorAlias}."certificationStage" = 'complete'
+    AND ${tutorAlias}.availability_configured_at IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM user_bank_details bank
+      WHERE bank.user_id = ${tutorAlias}.user_id
+        AND bank.deleted = false
+        AND NULLIF(BTRIM(bank.bank_name), '') IS NOT NULL
+        AND NULLIF(BTRIM(bank.account_number), '') IS NOT NULL
+        AND NULLIF(BTRIM(bank.ifsc_code), '') IS NOT NULL
+        AND UPPER(bank.pan_number) ~ '^[A-Z]{5}[0-9]{4}[A-Z]$'
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM tutor_offering offering
+      INNER JOIN tutor_offering_rate_card rate_card
+        ON rate_card.tutor_offering_id = offering.id
+        AND rate_card.deleted = false
+      WHERE offering.tutor_id = ${tutorAlias}.id
+        AND offering.deleted = false
+        AND (
+          (rate_card.offline_enabled = true AND rate_card.offline_base_rate >= 1)
+          OR (rate_card.online_enabled = true AND rate_card.online_base_rate >= 1)
+        )
+    )
+  )`;
+}
+
 export function tutorHasPendingDocumentReviewExistsClause(
   tutorAlias = 'tutor',
 ): string {

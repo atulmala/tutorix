@@ -44,6 +44,7 @@ export const GET_ADMIN_TUTOR_STAGE_COUNTS = gql`
       count
       pendingDocumentReviewCount
     }
+    adminReadyForBookingTutorCount(search: $search)
   }
 `;
 
