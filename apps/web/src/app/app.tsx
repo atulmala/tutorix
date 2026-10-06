@@ -22,6 +22,7 @@ import { TutorCalendarPage } from './components/tutor-calendar';
 import { TutorProfilePage } from './components/tutor-profile/TutorProfilePage';
 import { StudentOnboarding } from './components/student-onboarding';
 import { StudentHomePage } from './components/student-home';
+import { OnlineClassPage } from './components/online-class/OnlineClassPage';
 import { StudentBookingHistoryPage } from './components/student-home/StudentBookingHistoryPage';
 import { StudentConcludedClassesPage } from './components/student-home/StudentConcludedClassesPage';
 import { StudentProfilePage } from './components/student-profile';
@@ -59,6 +60,12 @@ import {
 function AppContent() {
   const { user: currentUser, refreshUser, logout } = useWebAuth();
   const [currentView, setCurrentViewInternal] = useState<WebView>('home');
+  const [onlineClassSession, setOnlineClassSession] = useState<{
+    sessionId: string;
+    returnView: 'student-home' | 'tutor-home';
+    displayName: string;
+    canEndClass: boolean;
+  } | null>(null);
   const [walletReturnView, setWalletReturnView] =
     useState<WalletReturnView>('tutor-home');
   const [walletReturnCartOverlay, setWalletReturnCartOverlay] =
@@ -505,6 +512,26 @@ function AppContent() {
     );
   }
 
+  if (currentView === 'online-class' && onlineClassSession) {
+    return (
+      <div className="min-h-screen bg-[#e8f4ff] text-primary">
+        <AppHeader
+          title="Online class"
+          onLogout={handleLogout}
+          onBack={() => setCurrentView(onlineClassSession.returnView)}
+        />
+        <main className="mx-auto min-h-screen max-w-6xl px-4 py-6">
+          <OnlineClassPage
+            sessionId={onlineClassSession.sessionId}
+            displayName={onlineClassSession.displayName}
+            canEndClass={onlineClassSession.canEndClass}
+            onLeave={() => setCurrentView(onlineClassSession.returnView)}
+          />
+        </main>
+      </div>
+    );
+  }
+
   if (currentView === 'student-home') {
     return (
       <div className="min-h-screen bg-[#e8f4ff] text-primary">
@@ -529,6 +556,15 @@ function AppContent() {
             }}
             onOpenConcludedClasses={() => setCurrentView('student-concluded-classes')}
             onOpenBookingHistory={() => setCurrentView('student-booking-history')}
+            onJoinOnlineClass={(sessionId) => {
+              setOnlineClassSession({
+                sessionId,
+                returnView: 'student-home',
+                displayName: 'Student',
+                canEndClass: false,
+              });
+              setCurrentView('online-class');
+            }}
           />
         </main>
       </div>
@@ -786,6 +822,15 @@ function AppContent() {
             onUpdateCalendar={() => setCurrentView('tutor-calendar')}
             onOpenConcludedClasses={() => setCurrentView('tutor-concluded-classes')}
             onOpenBookingHistory={() => setCurrentView('tutor-booking-history')}
+            onJoinOnlineClass={(sessionId) => {
+              setOnlineClassSession({
+                sessionId,
+                returnView: 'tutor-home',
+                displayName: 'Tutor',
+                canEndClass: true,
+              });
+              setCurrentView('online-class');
+            }}
           />
         </main>
       </div>

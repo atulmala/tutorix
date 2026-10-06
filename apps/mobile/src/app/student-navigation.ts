@@ -23,6 +23,7 @@ export type AppView =
   | 'studentBookingHistory'
   | 'tutorConcludedClasses'
   | 'tutorBookingHistory'
+  | 'onlineClass'
   | 'wallet'
   | 'home';
 

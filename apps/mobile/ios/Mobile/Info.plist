@@ -34,7 +34,9 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Connect to the Tutorix API on your local network while developing.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Take photos of your identity and qualification documents for verification.</string>
+	<string>Take photos of documents and show your camera during online classes.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Use the microphone so you can speak in online classes.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Tutorix uses Face ID so you can sign in quickly and securely.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

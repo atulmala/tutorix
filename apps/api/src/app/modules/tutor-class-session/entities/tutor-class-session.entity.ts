@@ -15,7 +15,7 @@ import { TutorClassSessionEnrollmentEntity } from './tutor-class-session-enrollm
 export class TutorClassSessionEntity extends QBaseEntity {
   @Column({ name: 'tutor_calendar_id', type: 'integer' })
   @Index()
-  tutorCalendarId: number;
+  tutorCalendarId!: number;
 
   @ManyToOne(() => TutorCalendar, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'tutor_calendar_id' })
@@ -23,7 +23,7 @@ export class TutorClassSessionEntity extends QBaseEntity {
 
   @Column({ name: 'tutor_offering_id', type: 'integer' })
   @Index()
-  tutorOfferingId: number;
+  tutorOfferingId!: number;
 
   @ManyToOne(() => TutorOfferingEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'tutor_offering_id' })
@@ -34,10 +34,18 @@ export class TutorClassSessionEntity extends QBaseEntity {
     enum: ClassSessionDeliveryModeEnum,
     name: 'delivery_mode',
   })
-  deliveryMode: ClassSessionDeliveryModeEnum;
+  deliveryMode!: ClassSessionDeliveryModeEnum;
 
   @Column({ name: 'batch_size', type: 'smallint' })
-  batchSize: number;
+  batchSize!: number;
+
+  /** Agora Interactive Whiteboard room, created on the first online join. */
+  @Column({ name: 'whiteboard_room_uuid', type: 'varchar', nullable: true })
+  whiteboardRoomUuid?: string | null;
+
+  /** Set when the tutor ends the online class before the scheduled hard end. */
+  @Column({ name: 'ended_at', type: 'timestamp', nullable: true })
+  endedAt?: Date | null;
 
   @Column({
     type: 'enum',
@@ -45,7 +53,7 @@ export class TutorClassSessionEntity extends QBaseEntity {
     default: ClassSessionStatusEnum.open,
   })
   @Index()
-  status: ClassSessionStatusEnum;
+  status: ClassSessionStatusEnum = ClassSessionStatusEnum.open;
 
   @OneToMany(() => TutorClassSessionEnrollmentEntity, (e) => e.session)
   enrollments?: TutorClassSessionEnrollmentEntity[];

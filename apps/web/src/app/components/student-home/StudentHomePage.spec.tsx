@@ -79,6 +79,37 @@ describe('StudentHomePage', () => {
     expect(screen.getByRole('button', { name: 'Find a tutor' })).toBeTruthy();
   });
 
+  it('joins an online class that is inside the open window', () => {
+    const onJoinOnlineClass = jest.fn();
+    mockUseQuery.mockImplementation((query: { kind?: string }) => {
+      if (query === STUDENT_BOOKED_CLASS_SESSIONS) {
+        return {
+          loading: false,
+          data: {
+            studentBookedClassSessions: [
+              {
+                enrollmentId: '70',
+                sessionId: '9',
+                startsAt: new Date().toISOString(),
+                durationMinutes: 60,
+                deliveryMode: 'online',
+                offeringLabel: 'Mathematics',
+                tutorName: 'Anita Sharma',
+              },
+            ],
+          },
+        };
+      }
+      return { loading: false, data: null };
+    });
+
+    render(
+      <StudentHomePage onOpenTutorSearch={jest.fn()} onJoinOnlineClass={onJoinOnlineClass} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Join class' }));
+    expect(onJoinOnlineClass).toHaveBeenCalledWith('9');
+  });
+
   it('shows unscheduled classes on home after login', () => {
     mockUseQuery.mockImplementation((query: { kind?: string }) => {
       if (query.kind === 'credits') {

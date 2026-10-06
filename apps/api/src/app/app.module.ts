@@ -18,6 +18,7 @@ import { UserBankDetailsModule } from './modules/user-bank-details/user-bank-det
 import { TutorRateCardModule } from './modules/tutor-rate-card/tutor-rate-card.module';
 import { TutorCalendarModule } from './modules/tutor-calendar/tutor-calendar.module';
 import { TutorClassSessionModule } from './modules/tutor-class-session/tutor-class-session.module';
+import { AgoraModule } from './modules/agora/agora.module';
 import { StudentModule } from './modules/student/student.module';
 import { StudentCartModule } from './modules/student-cart/student-cart.module';
 import { PlatformFeeModule } from './modules/platform-fee/platform-fee.module';
@@ -45,6 +46,7 @@ import { CommunicationModule } from './modules/communication/communication.modul
     TutorRateCardModule,
     TutorCalendarModule,
     TutorClassSessionModule,
+    AgoraModule,
     StudentModule,
     StudentCartModule,
     PlatformFeeModule,
