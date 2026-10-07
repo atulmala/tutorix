@@ -33,6 +33,7 @@ const rtcConfig = {
   whiteboardAk: 'ak',
   whiteboardSk: 'sk',
   whiteboardRegion: 'us-sv',
+  rtcWebhookSecret: '',
 };
 
 function session(overrides: Partial<TutorClassSessionEntity> = {}): TutorClassSessionEntity {

@@ -7,6 +7,8 @@ export type AgoraConfig = {
   whiteboardAk: string;
   whiteboardSk: string;
   whiteboardRegion: string;
+  /** HMAC secret for RTC channel event callbacks. Empty until set in the environment. */
+  rtcWebhookSecret: string;
 };
 
 export function readAgoraConfig(env: NodeJS.ProcessEnv = process.env): AgoraConfig {
@@ -19,5 +21,6 @@ export function readAgoraConfig(env: NodeJS.ProcessEnv = process.env): AgoraConf
     whiteboardAk: env.AGORA_WHITEBOARD_AK?.trim() ?? '',
     whiteboardSk: env.AGORA_WHITEBOARD_SK?.trim() ?? '',
     whiteboardRegion: env.AGORA_WHITEBOARD_REGION?.trim() || 'us-sv',
+    rtcWebhookSecret: env.AGORA_RTC_WEBHOOK_SECRET?.trim() ?? '',
   };
 }

@@ -90,6 +90,7 @@ describe('invoice-pdf.util', () => {
     const pdfText = pdfBuffer.toString('latin1');
     expect(pdfText).not.toContain('GST');
     expect(pdfText).not.toMatch(/\bTax:/);
+    expect(pdfBuffer.includes(Buffer.from('Total savings on this booking', 'utf8'))).toBe(false);
   });
 
   it('embeds rupee symbol in PDF when NotoSans font is available', async () => {
@@ -139,5 +140,8 @@ describe('invoice-pdf.util', () => {
     const pdfBuffer = await pdfDone;
     expect(pdfBuffer.includes(Buffer.from('Subtotal:', 'utf8'))).toBe(true);
     expect(pdfBuffer.includes(Buffer.from('\u20B9199', 'utf8'))).toBe(true);
+    expect(pdfBuffer.includes(Buffer.from('Total savings on this booking Rs 40', 'utf8'))).toBe(
+      true,
+    );
   });
 });

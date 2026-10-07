@@ -236,6 +236,9 @@ describe('StudentCartService', () => {
     expect(cart.items[0].quantity).toBe(5);
     expect(cart.items[0].unitRateInr).toBe(900);
     expect(cartDto.totalInr).toBe(4500);
+    expect(cartDto.items[0].discountPct).toBe(10);
+    expect(cartDto.items[0].savingsInr).toBe(500);
+    expect(cartDto.items[0].discountNudge).toBeNull();
   });
 
   it('reprices when quantity is updated', async () => {
@@ -281,6 +284,8 @@ describe('StudentCartService', () => {
             itemType: 'CLASS_BOOKING',
             quantity: 2,
             amountDueInr: 2000,
+            discountInr: 0,
+            lineSubtotalInr: 2000,
           }),
         ],
       }),
@@ -328,6 +333,37 @@ describe('StudentCartService', () => {
         deliveryMode: ClassSessionDeliveryModeEnum.offline,
       }),
     ]);
+  });
+
+  it('records pack savings on the order without changing the amount due', async () => {
+    cart.items = [
+      {
+        id: 11,
+        deleted: false,
+        tutorOfferingId: 80,
+        deliveryMode: ClassSessionDeliveryModeEnum.offline,
+        quantity: 5,
+        unitRateInr: 900,
+        tutorOffering,
+      },
+    ];
+
+    await service.completePaidCart(studentUser as never);
+
+    expect(createOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lines: [
+          expect.objectContaining({
+            quantity: 5,
+            unitRateInr: 900,
+            lineSubtotalInr: 5000,
+            discountInr: 500,
+            amountDueInr: 4500,
+          }),
+        ],
+      }),
+    );
+    expect(debitPurchase).toHaveBeenCalledWith(expect.objectContaining({ amountInr: 4500 }));
   });
 
   it('leaves the cart intact when the wallet cannot cover the total', async () => {

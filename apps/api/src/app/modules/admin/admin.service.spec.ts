@@ -318,6 +318,27 @@ describe('AdminService', () => {
       });
     });
 
+    it('lists tutors ready for booking without a stage filter', async () => {
+      const qb = createQueryBuilderMock();
+      qb.getManyAndCount.mockResolvedValue([[], 0]);
+      tutorRepo.createQueryBuilder.mockReturnValue(qb);
+
+      await service.listTutors({
+        certificationStage: TutorCertificationStageEnum.complete,
+        readyForBooking: true,
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('tutor.availability_configured_at IS NOT NULL'),
+      );
+      expect(qb.andWhere).not.toHaveBeenCalledWith(
+        'tutor.certificationStage = :stage',
+        expect.anything(),
+      );
+    });
+
     it('lists tutors who passed the proficiency test for an offering across stages', async () => {
       const qb = createQueryBuilderMock();
       qb.getManyAndCount.mockResolvedValue([[], 0]);

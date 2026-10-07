@@ -16,6 +16,9 @@ export type StudentCartLine = {
   quantity: number;
   unitRateInr: number;
   lineTotalInr: number;
+  discountPct?: number;
+  savingsInr?: number;
+  discountNudge?: string | null;
 };
 
 type StudentCartPageProps = {
@@ -133,6 +136,11 @@ export const StudentCartPage: React.FC<StudentCartPageProps> = ({
                     </button>
                   </div>
                 </div>
+                {item.discountNudge ? (
+                  <p className="mt-2 text-sm font-semibold text-amber-800" role="status">
+                    {item.discountNudge}
+                  </p>
+                ) : null}
               </li>
             ))}
           </ul>

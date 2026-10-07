@@ -53,8 +53,9 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
-  // Razorpay webhooks require the raw body for signature verification.
+  // Payment and Agora webhooks require the raw body for signature verification.
   app.use(`/${globalPrefix}/webhooks/razorpay`, raw({ type: 'application/json' }));
+  app.use(`/${globalPrefix}/webhooks/agora/rtc`, raw({ type: 'application/json' }));
 
   // Ensure JSON body parser is set up for Apollo Server
   app.use(json({ limit: '10mb' }));

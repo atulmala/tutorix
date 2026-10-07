@@ -1,5 +1,5 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { TutorCertificationStageEnum } from '../../tutor/enums/tutor.enums';
 
 @InputType()
@@ -8,6 +8,15 @@ export class AdminTutorListInput {
   @IsOptional()
   @IsEnum(TutorCertificationStageEnum)
   certificationStage?: TutorCertificationStageEnum;
+
+  @Field(() => Boolean, {
+    nullable: true,
+    description:
+      'When true, return onboarding-complete tutors who have set a bank account, a complete rate card, and saved their calendar.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  readyForBooking?: boolean;
 
   @Field(() => Int, { defaultValue: 1 })
   @IsOptional()

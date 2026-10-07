@@ -163,9 +163,8 @@ describe('TutorRateCardSetupPage', () => {
     confirmSpy.mockRestore();
   });
 
-  it('asks before saving a rate card that covers only one mode', () => {
+  it('offers a bulk discount and still saves when the tutor skips it', () => {
     const onSubmit = jest.fn();
-    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false);
     render(<RateCardModal open offeringName="Mathematics" onSubmit={onSubmit} />);
 
     const rateInput = screen
@@ -174,19 +173,76 @@ describe('TutorRateCardSetupPage', () => {
     fireEvent.change(rateInput as HTMLElement, { target: { value: '500' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save rate card' }));
 
-    expect(confirmSpy).toHaveBeenCalledWith(
-      'Are you sure you do not want to conduct online classes?',
-    );
+    expect(
+      screen.getByText(
+        'Offering a discount on bulk classes enhances your chances of bulk booking',
+      ),
+    ).toBeTruthy();
     expect(onSubmit).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, I want to offer a discount' }));
+    expect(
+      screen.queryByText(
+        'Offering a discount on bulk classes enhances your chances of bulk booking',
+      ),
+    ).toBeNull();
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save rate card' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue without a discount' }));
+    fireEvent.click(screen.getByRole('button', { name: 'I want to conduct offline class only' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        offlineEnabled: true,
+        offlineBaseRate: 500,
+        offlineSlab2DiscountPct: null,
+        offlineSlab3DiscountPct: null,
+      }),
+    );
+  });
+
+  it('offers to set the skipped mode or save a single-mode rate card', () => {
+    const onSubmit = jest.fn();
+    render(<RateCardModal open offeringName="Mathematics" onSubmit={onSubmit} />);
+
+    const rateInput = screen
+      .getAllByPlaceholderText('500')
+      .find((input) => !input.hasAttribute('disabled'));
+    fireEvent.change(rateInput as HTMLElement, { target: { value: '500' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save rate card' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue without a discount' }));
+
+    expect(screen.getByText('You have not set the rate card for online class')).toBeTruthy();
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Yes, I want to set rate card for online class' }),
+    );
+
     expect(screen.getByRole('tab', { name: 'Online classes' }).getAttribute('aria-selected')).toBe(
       'true',
     );
+    expect(
+      (screen.getByRole('checkbox', { name: 'Offer online class' }) as HTMLInputElement).checked,
+    ).toBe(true);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
 
-    confirmSpy.mockReturnValue(true);
+  it('saves only the configured mode when the tutor chooses to conduct that class only', () => {
+    const onSubmit = jest.fn();
+    render(<RateCardModal open offeringName="Mathematics" onSubmit={onSubmit} />);
+
+    const rateInput = screen
+      .getAllByPlaceholderText('500')
+      .find((input) => !input.hasAttribute('disabled'));
+    fireEvent.change(rateInput as HTMLElement, { target: { value: '500' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save rate card' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue without a discount' }));
+    fireEvent.click(screen.getByRole('button', { name: 'I want to conduct offline class only' }));
+
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ offlineEnabled: true, onlineEnabled: false, offlineBaseRate: 500 }),
     );
-    confirmSpy.mockRestore();
   });
 });

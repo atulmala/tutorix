@@ -2,6 +2,7 @@ import {
   applyAdminTutorSearchFilter,
   computeDaysInStage,
   tutorHasPendingDocumentReviewExistsClause,
+  tutorReadyForBookingClause,
 } from './admin-tutor.utils';
 import { DocumentScreeningStatusEnum } from '../document/enums/document-screening-status.enum';
 
@@ -32,6 +33,21 @@ describe('tutorHasPendingDocumentReviewExistsClause', () => {
     expect(clause).toContain('document_screening s');
     expect(clause).toContain(`d.tutor_id = tutor.id`);
     expect(clause).toContain(`s.status = '${DocumentScreeningStatusEnum.PENDING_HUMAN}'`);
+  });
+});
+
+describe('tutorReadyForBookingClause', () => {
+  it('requires a saved calendar, complete bank account, and complete rate card', () => {
+    const clause = tutorReadyForBookingClause('tutor');
+
+    expect(clause).toContain(`tutor."certificationStage" = 'complete'`);
+    expect(clause).toContain('tutor.availability_configured_at IS NOT NULL');
+    expect(clause).toContain('user_bank_details bank');
+    expect(clause).toContain('bank.user_id = tutor.user_id');
+    expect(clause).toContain("UPPER(bank.pan_number) ~ '^[A-Z]{5}[0-9]{4}[A-Z]$'");
+    expect(clause).toContain('tutor_offering_rate_card rate_card');
+    expect(clause).toContain('rate_card.offline_base_rate >= 1');
+    expect(clause).toContain('rate_card.online_base_rate >= 1');
   });
 });
 

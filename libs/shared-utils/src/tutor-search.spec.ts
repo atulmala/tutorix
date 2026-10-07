@@ -5,9 +5,11 @@ import {
 } from './tutor-calendar';
 import {
   rankTutorSearchHits,
+  bulkDiscountNudge,
   classPackSlabLinesForMode,
   catalogBaseRateInrForMode,
   discountedPackSlabLines,
+  quoteClassPack,
   rateForModeAndQuantity,
   tutorDistanceKmForDisplay,
   type TutorSearchCandidate,
@@ -222,5 +224,47 @@ describe('rateForModeAndQuantity', () => {
     expect(rateForModeAndQuantity(card, 'offline', 5)).toBe(900);
     expect(rateForModeAndQuantity(card, 'offline', 11)).toBe(800);
     expect(rateForModeAndQuantity(card, 'online', 3)).toBe(760);
+  });
+});
+
+describe('bulkDiscountNudge', () => {
+  const card = {
+    offlineEnabled: true,
+    offlineBaseRate: 1000,
+    offlineBaseDiscountPct: 0,
+    offlineSlab2DiscountPct: 5,
+    offlineSlab3DiscountPct: 10,
+  };
+
+  function nudge(quantity: number) {
+    return bulkDiscountNudge(classPackSlabLinesForMode(card, 'offline'), quantity);
+  }
+
+  it('prompts when the pack is one or two classes under the next discount', () => {
+    expect(nudge(2)).toBeNull();
+    expect(nudge(3)?.message).toBe(
+      'Book 2 more classes and avail 5% discount on your booking',
+    );
+    expect(nudge(4)?.message).toBe(
+      'Book 1 more class and avail 5% discount on your booking',
+    );
+    expect(nudge(5)).toBeNull();
+    expect(nudge(9)?.message).toBe(
+      'Book 2 more classes and avail 10% discount on your booking',
+    );
+    expect(nudge(10)?.message).toBe(
+      'Book 1 more class and avail 10% discount on your booking',
+    );
+    expect(nudge(11)).toBeNull();
+  });
+
+  it('quotes rupee savings against the list rate', () => {
+    expect(quoteClassPack(card, 'offline', 5)).toEqual({
+      unitRateInr: 950,
+      listUnitRateInr: 1000,
+      discountPct: 5,
+      savingsInr: 250,
+    });
+    expect(quoteClassPack(card, 'offline', 2)?.savingsInr).toBe(0);
   });
 });

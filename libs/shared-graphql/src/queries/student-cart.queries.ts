@@ -16,6 +16,9 @@ export const STUDENT_CART_FIELDS = gql`
       quantity
       unitRateInr
       lineTotalInr
+      discountPct
+      savingsInr
+      discountNudge
     }
   }
 `;
@@ -48,6 +51,9 @@ export const PREPARE_CART_CHECKOUT = gql`
         quantity
         unitRateInr
         lineTotalInr
+        discountPct
+        savingsInr
+        discountNudge
       }
     }
   }

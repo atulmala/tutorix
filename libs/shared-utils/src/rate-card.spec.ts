@@ -13,7 +13,11 @@ import {
   ptPassResultMessage,
   PT_PASSED_ONBOARDING_MESSAGE,
   PT_PASSED_RATE_CARD_MESSAGE,
-  singleModeRateCardConfirmMessage,
+  BULK_DISCOUNT_OFFER_LABEL,
+  BULK_DISCOUNT_PROMPT,
+  BULK_DISCOUNT_SKIP_LABEL,
+  rateCardMissingBulkDiscount,
+  skippedRateCardModePrompt,
   validateRateCardForm,
 } from './rate-card';
 
@@ -324,16 +328,62 @@ describe('rate-card', () => {
     });
   });
 
-  describe('singleModeRateCardConfirmMessage', () => {
-    it('names the mode that was left off', () => {
+  describe('rateCardMissingBulkDiscount', () => {
+    const mode = {
+      enabled: true,
+      baseRate: '500',
+      baseDiscountPct: '',
+      slab2DiscountPct: '',
+      slab3DiscountPct: '',
+      batchSize: '1',
+    };
+
+    it('is true when enabled modes have no bulk discount, which stays optional', () => {
+      expect(BULK_DISCOUNT_PROMPT).toBe(
+        'Offering a discount on bulk classes enhances your chances of bulk booking',
+      );
+      expect(BULK_DISCOUNT_OFFER_LABEL).toBe('Yes, I want to offer a discount');
+      expect(BULK_DISCOUNT_SKIP_LABEL).toBe('Continue without a discount');
       expect(
-        singleModeRateCardConfirmMessage({ offlineEnabled: true, onlineEnabled: false }),
-      ).toBe('Are you sure you do not want to conduct online classes?');
+        rateCardMissingBulkDiscount({
+          freeDemoOffered: false,
+          offline: mode,
+          online: { ...mode, enabled: false },
+        }),
+      ).toBe(true);
       expect(
-        singleModeRateCardConfirmMessage({ offlineEnabled: false, onlineEnabled: true }),
-      ).toBe('Are you sure you do not want to conduct offline classes?');
+        rateCardMissingBulkDiscount({
+          freeDemoOffered: false,
+          offline: { ...mode, slab2DiscountPct: '10' },
+          online: { ...mode, enabled: false },
+        }),
+      ).toBe(false);
       expect(
-        singleModeRateCardConfirmMessage({ offlineEnabled: true, onlineEnabled: true }),
+        rateCardMissingBulkDiscount({
+          freeDemoOffered: false,
+          offline: { ...mode, enabled: false },
+          online: { ...mode, enabled: false },
+        }),
+      ).toBe(false);
+    });
+  });
+
+  describe('skippedRateCardModePrompt', () => {
+    it('names the skipped mode and offers to keep only the mode that is set', () => {
+      expect(skippedRateCardModePrompt({ offlineEnabled: true, onlineEnabled: false })).toEqual({
+        skippedMode: 'online',
+        message: 'You have not set the rate card for online class',
+        setRateCardLabel: 'Yes, I want to set rate card for online class',
+        conductOnlyLabel: 'I want to conduct offline class only',
+      });
+      expect(skippedRateCardModePrompt({ offlineEnabled: false, onlineEnabled: true })).toEqual({
+        skippedMode: 'offline',
+        message: 'You have not set the rate card for offline class',
+        setRateCardLabel: 'Yes, I want to set rate card for offline class',
+        conductOnlyLabel: 'I want to conduct online class only',
+      });
+      expect(
+        skippedRateCardModePrompt({ offlineEnabled: true, onlineEnabled: true }),
       ).toBeNull();
     });
   });

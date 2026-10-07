@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  bulkDiscountNudge,
   formatInr,
   lockedDeliveryMode,
   discountedPackSlabLines,
@@ -87,6 +88,9 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
     return unitRateFromPackSlabs(slabs, quantity);
   }, [offering.onlinePackSlabs, offering.offlinePackSlabs, mode, quantity]);
   const lineTotal = unitRate != null ? unitRate * quantity : null;
+  const discountNudge = mode
+    ? bulkDiscountNudge(mode === 'online' ? onlineSlabs : offlineSlabs, quantity)
+    : null;
 
   const offlineDiscountSlabs = discountedPackSlabLines(offlineSlabs);
   const onlineDiscountSlabs = discountedPackSlabLines(onlineSlabs);
@@ -280,6 +284,11 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
                 <p className="mt-3 text-sm text-slate-600">
                   {formatInr(unitRate ?? 0)} / class × {quantity} ={' '}
                   <span className="font-extrabold text-[#143055]">{formatInr(lineTotal)}</span>
+                </p>
+              ) : null}
+              {discountNudge ? (
+                <p className="mt-2 text-sm font-semibold text-amber-800" role="status">
+                  {discountNudge.message}
                 </p>
               ) : null}
 

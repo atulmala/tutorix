@@ -144,4 +144,27 @@ describe('TutorsPage offering search', () => {
       certificationStage: null,
     });
   });
+
+  it('lists tutors who finished bank setup, a rate card, and a saved calendar', () => {
+    const view = render(
+      <MemoryRouter>
+        <TutorsPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(view.getByLabelText('Onboarding stage'), {
+      target: { value: 'readyForBooking' },
+    });
+
+    expect(view.getByText('No tutors are ready for booking.')).toBeTruthy();
+
+    const tutorCalls = mockUseQuery.mock.calls.filter(
+      (call) => call[0] === GET_ADMIN_TUTORS,
+    );
+    const lastCall = tutorCalls[tutorCalls.length - 1];
+    expect(lastCall[1].variables.input).toMatchObject({
+      certificationStage: null,
+      readyForBooking: true,
+    });
+  });
 });

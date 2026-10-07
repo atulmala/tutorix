@@ -1,17 +1,22 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
+  BULK_DISCOUNT_OFFER_LABEL,
+  BULK_DISCOUNT_PROMPT,
+  BULK_DISCOUNT_SKIP_LABEL,
   calculateEffectiveRate,
   DEFAULT_BATCH_SIZE,
   formatInr,
   isRateCardComplete,
   MAX_BATCH_SIZE,
+  rateCardMissingBulkDiscount,
   rateCardToFormInput,
   RATE_CARD_SLABS,
-  singleModeRateCardConfirmMessage,
+  skippedRateCardModePrompt,
   validateRateCardForm,
   type RateCardFormInput,
   type RateCardFormValues,
   type RateCardLike,
+  type SkippedRateCardModePrompt,
 } from '@tutorix/shared-utils';
 
 export type RateCardFormValuesExport = RateCardFormValues;
@@ -22,6 +27,16 @@ const OFFLINE_OFFER_TIP = 'You conduct physical, face to face class.';
 const ONLINE_OFFER_TIP = 'You conduct online class using our web conferencing tool.';
 
 type RateCardModeTab = 'offline' | 'online';
+
+type PendingSkippedMode = SkippedRateCardModePrompt & {
+  formKey: string;
+  normalized: RateCardFormValues;
+};
+
+type PendingDiscountPrompt = {
+  formKey: string;
+  normalized: RateCardFormValues;
+};
 
 function FieldLabelWithTip({
   label,
@@ -369,6 +384,8 @@ export function RateCardModal({
   const [form, setForm] = useState<RateCardFormInput>(() => rateCardToFormInput(initialValues));
   const [validationError, setValidationError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<RateCardModeTab>('offline');
+  const [skippedPrompt, setSkippedPrompt] = useState<PendingSkippedMode | null>(null);
+  const [discountPrompt, setDiscountPrompt] = useState<PendingDiscountPrompt | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -377,10 +394,18 @@ export function RateCardModal({
     const nextForm = rateCardToFormInput(initialValues);
     setForm(nextForm);
     setValidationError(null);
+    setSkippedPrompt(null);
+    setDiscountPrompt(null);
     setActiveTab(
       nextForm.online.enabled && !nextForm.offline.enabled ? 'online' : 'offline',
     );
   }, [open, initialValues]);
+
+  useEffect(() => {
+    const formKey = JSON.stringify(form);
+    setSkippedPrompt((current) => (!current || current.formKey === formKey ? current : null));
+    setDiscountPrompt((current) => (!current || current.formKey === formKey ? current : null));
+  }, [form]);
 
   const modalTitle = useMemo(() => {
     if (heading) {
@@ -408,16 +433,67 @@ export function RateCardModal({
       return;
     }
     setValidationError(null);
-    const confirmMessage = singleModeRateCardConfirmMessage(result.normalized);
-    if (
-      confirmMessage &&
-      typeof window !== 'undefined' &&
-      !window.confirm(confirmMessage)
-    ) {
-      setActiveTab(result.normalized.offlineEnabled ? 'online' : 'offline');
+    if (rateCardMissingBulkDiscount(form)) {
+      setSkippedPrompt(null);
+      setDiscountPrompt({
+        formKey: JSON.stringify(form),
+        normalized: result.normalized,
+      });
       return;
     }
-    onSubmit(result.normalized);
+    continueSave(result.normalized);
+  };
+
+  const continueSave = (normalized: RateCardFormValues) => {
+    if (!onSubmit) {
+      return;
+    }
+    const prompt = skippedRateCardModePrompt(normalized);
+    if (prompt) {
+      setDiscountPrompt(null);
+      setSkippedPrompt({
+        ...prompt,
+        formKey: JSON.stringify(form),
+        normalized,
+      });
+      return;
+    }
+    setDiscountPrompt(null);
+    setSkippedPrompt(null);
+    onSubmit(normalized);
+  };
+
+  const handleOfferDiscount = () => {
+    setDiscountPrompt(null);
+  };
+
+  const handleSkipDiscount = () => {
+    if (!discountPrompt) {
+      return;
+    }
+    continueSave(discountPrompt.normalized);
+  };
+
+  const handleSetSkippedMode = () => {
+    if (!skippedPrompt) {
+      return;
+    }
+    const mode = skippedPrompt.skippedMode;
+    setActiveTab(mode);
+    setForm((prev) => ({
+      ...prev,
+      [mode]: { ...prev[mode], enabled: true },
+    }));
+    setSkippedPrompt(null);
+  };
+
+  const handleConductOnly = () => {
+    if (!skippedPrompt || !onSubmit) {
+      return;
+    }
+    const values = skippedPrompt.normalized;
+    setSkippedPrompt(null);
+    onSubmit(values);
   };
 
   const displayError = readOnly ? null : validationError ?? error;
@@ -525,6 +601,60 @@ export function RateCardModal({
             </p>
           ) : null}
 
+          {discountPrompt ? (
+            <div
+              className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4"
+              role="status"
+            >
+              <p className="text-sm font-medium text-amber-950">{BULK_DISCOUNT_PROMPT}</p>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={handleOfferDiscount}
+                  disabled={saving}
+                  className="w-full rounded-lg bg-primary px-4 py-2.5 text-center text-sm font-semibold leading-snug text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {BULK_DISCOUNT_OFFER_LABEL}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSkipDiscount}
+                  disabled={saving}
+                  className="w-full rounded-lg border border-subtle bg-white px-4 py-2.5 text-center text-sm font-semibold leading-snug text-primary transition hover:bg-subtle disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {BULK_DISCOUNT_SKIP_LABEL}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {skippedPrompt ? (
+            <div
+              className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4"
+              role="status"
+            >
+              <p className="text-sm font-medium text-amber-950">{skippedPrompt.message}</p>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={handleSetSkippedMode}
+                  disabled={saving}
+                  className="w-full rounded-lg bg-primary px-4 py-2.5 text-center text-sm font-semibold leading-snug text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {skippedPrompt.setRateCardLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConductOnly}
+                  disabled={saving}
+                  className="w-full rounded-lg border border-subtle bg-white px-4 py-2.5 text-center text-sm font-semibold leading-snug text-primary transition hover:bg-subtle disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {skippedPrompt.conductOnlyLabel}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           <div className="flex justify-end gap-3 pt-2">
             {readOnly ? (
               <button
@@ -546,14 +676,16 @@ export function RateCardModal({
                     {laterLabel ?? 'Cancel'}
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={saving}
-                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {saving ? 'Saving…' : 'Save rate card'}
-                </button>
+                {skippedPrompt || discountPrompt ? null : (
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={saving}
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {saving ? 'Saving…' : 'Save rate card'}
+                  </button>
+                )}
               </>
             )}
           </div>
