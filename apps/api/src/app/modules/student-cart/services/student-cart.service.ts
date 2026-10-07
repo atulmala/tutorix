@@ -8,9 +8,11 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
+  bulkDiscountNudge,
+  classPackSlabLinesForMode,
   isWithinOfflineBookingDistance,
   OFFLINE_BOOKING_MAX_DISTANCE_KM,
-  rateForModeAndQuantity,
+  quoteClassPack,
   type OfferingNodeForLabel,
 } from '@tutorix/shared-utils';
 import { distanceKmBetweenStudentAndTutor } from '../../tutor/utils/student-tutor-distance.util';
@@ -221,13 +223,13 @@ export class StudentCartService {
     const lines: PlatformFeeLineInput[] = [];
     let totalInr = 0;
     for (const item of items) {
-      const unitRateInr = await this.unitRateFor(
+      const quote = await this.quoteFor(
         item.tutorOfferingId,
         item.deliveryMode,
         item.quantity,
       );
-      if (item.unitRateInr !== unitRateInr) {
-        item.unitRateInr = unitRateInr;
+      if (item.unitRateInr !== quote.unitRateInr) {
+        item.unitRateInr = quote.unitRateInr;
         await this.itemRepo.save(item);
       }
       const dto = this.toItemDto(item, offeringsById);
@@ -239,10 +241,10 @@ export class StudentCartService {
         description: `${dto.offeringLabel} · ${dto.tutorName} · ${modeLabel}`,
         referenceType: OrderItemReferenceTypeEnum.tutor_offering,
         referenceId: item.tutorOfferingId,
-        unitRateInr,
+        unitRateInr: quote.unitRateInr,
         quantity: item.quantity,
-        lineSubtotalInr: dto.lineTotalInr,
-        discountInr: 0,
+        lineSubtotalInr: quote.listUnitRateInr * item.quantity,
+        discountInr: quote.savingsInr,
         waiverApplied: false,
         amountDueInr: dto.lineTotalInr,
       });
@@ -550,6 +552,19 @@ export class StudentCartService {
     deliveryMode: ClassSessionDeliveryModeEnum,
     quantity: number,
   ): Promise<number> {
+    return (await this.quoteFor(tutorOfferingId, deliveryMode, quantity)).unitRateInr;
+  }
+
+  private async quoteFor(
+    tutorOfferingId: number,
+    deliveryMode: ClassSessionDeliveryModeEnum,
+    quantity: number,
+  ): Promise<{
+    unitRateInr: number;
+    listUnitRateInr: number;
+    discountPct: number;
+    savingsInr: number;
+  }> {
     const tutorOffering = await this.tutorOfferingRepo.findOne({
       where: { id: tutorOfferingId, deleted: false },
     });
@@ -560,13 +575,13 @@ export class StudentCartService {
       tutorOffering,
     ]);
     const rateCard = resolvedMap.get(tutorOfferingId) ?? null;
-    const rate = rateForModeAndQuantity(rateCard ?? {}, deliveryMode, quantity);
-    if (rate == null || rate < 1) {
+    const quote = quoteClassPack(rateCard ?? {}, deliveryMode, quantity);
+    if (quote == null || quote.unitRateInr < 1) {
       throw new BadRequestException(
         'This delivery mode is not available for this offering',
       );
     }
-    return rate;
+    return quote;
   }
 
   private async resolveTutorOffering(
@@ -660,27 +675,46 @@ export class StudentCartService {
     cart: StudentCartEntity,
   ): Promise<StudentCartDto> {
     const offeringsById = await this.loadOfferingsById();
-    return this.toCartDto(cart, offeringsById);
-  }
-
-  private async loadOfferingsById(): Promise<Map<number, OfferingNodeForLabel>> {
-    const catalog = await this.offeringService.findAll();
-    return offeringsByIdFromCatalog(catalog);
-  }
-
-  private toCartDto(
-    cart: StudentCartEntity,
-    offeringsById: Map<number, OfferingNodeForLabel>,
-  ): StudentCartDto {
-    const items = (cart.items ?? []).filter((item) => !item.deleted).map((item) =>
-      this.toItemDto(item, offeringsById),
-    );
+    const liveItems = (cart.items ?? []).filter((item) => !item.deleted);
+    const items = [];
+    for (const item of liveItems) {
+      const dto = this.toItemDto(item, offeringsById);
+      const offering =
+        item.tutorOffering ??
+        (await this.tutorOfferingRepo.findOne({
+          where: { id: item.tutorOfferingId, deleted: false },
+        }));
+      const rateCards = offering
+        ? await this.rateCardService.resolveCompleteRateCards([offering])
+        : new Map();
+      const rateCard = offering ? (rateCards.get(offering.id) ?? null) : null;
+      const quote = rateCard
+        ? quoteClassPack(rateCard, item.deliveryMode, item.quantity)
+        : null;
+      const nudge = rateCard
+        ? bulkDiscountNudge(
+            classPackSlabLinesForMode(rateCard, item.deliveryMode),
+            item.quantity,
+          )
+        : null;
+      items.push({
+        ...dto,
+        discountPct: quote?.discountPct ?? 0,
+        savingsInr: quote?.savingsInr ?? 0,
+        discountNudge: nudge?.message ?? null,
+      });
+    }
     return {
       id: cart.id,
       items,
       itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
       totalInr: items.reduce((sum, item) => sum + item.lineTotalInr, 0),
     };
+  }
+
+  private async loadOfferingsById(): Promise<Map<number, OfferingNodeForLabel>> {
+    const catalog = await this.offeringService.findAll();
+    return offeringsByIdFromCatalog(catalog);
   }
 
   private toItemDto(
@@ -705,6 +739,9 @@ export class StudentCartService {
       quantity: item.quantity,
       unitRateInr: item.unitRateInr,
       lineTotalInr: item.unitRateInr * item.quantity,
+      discountPct: 0,
+      savingsInr: 0,
+      discountNudge: null,
     };
   }
 }

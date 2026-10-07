@@ -34,6 +34,15 @@ export class StudentCartItemDto {
 
   @Field(() => Int)
   lineTotalInr!: number;
+
+  @Field(() => Int)
+  discountPct!: number;
+
+  @Field(() => Int)
+  savingsInr!: number;
+
+  @Field(() => String, { nullable: true })
+  discountNudge?: string | null;
 }
 
 @ObjectType()

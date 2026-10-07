@@ -123,6 +123,43 @@ describe('StudentCartCheckoutPage', () => {
     );
   });
 
+  it('mentions the discount and savings when the pack is discounted', () => {
+    mockUseQuery.mockImplementation((query: { kind?: string }) => {
+      if (query === PREPARE_CART_CHECKOUT) {
+        return {
+          loading: false,
+          data: {
+            prepareCartCheckout: {
+              cartId: 5,
+              purchaseAmountInr: 4500,
+              walletBalanceInr: 5000,
+              shortfallInr: 0,
+              canPayFromWallet: true,
+              items: [
+                {
+                  id: 1,
+                  tutorName: 'Anita Sharma',
+                  offeringLabel: 'Mathematics',
+                  deliveryMode: 'offline',
+                  quantity: 5,
+                  lineTotalInr: 4500,
+                  discountPct: 10,
+                  savingsInr: 500,
+                },
+              ],
+            },
+          },
+        };
+      }
+      return { loading: false, data: null };
+    });
+
+    render(<StudentCartCheckoutPage onScheduleNow={jest.fn()} />);
+
+    expect(screen.getByText('10% discount')).toBeTruthy();
+    expect(screen.getByText('Total savings on this booking ₹500')).toBeTruthy();
+  });
+
   it('shows the gateway error and a retry action', async () => {
     (runWalletAwarePurchaseCheckout as jest.Mock).mockRejectedValue(
       new Error('Payment failed. Please try again.'),

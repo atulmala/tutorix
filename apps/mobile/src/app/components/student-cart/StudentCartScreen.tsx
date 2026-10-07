@@ -14,6 +14,7 @@ type CartLine = {
   quantity: number;
   unitRateInr: number;
   lineTotalInr: number;
+  discountNudge?: string | null;
 };
 
 type StudentCartScreenProps = {
@@ -111,6 +112,7 @@ export const StudentCartScreen: React.FC<StudentCartScreenProps> = ({
                   <Text style={styles.remove}>Remove</Text>
                 </Pressable>
               </View>
+              {item.discountNudge ? <Text style={styles.nudge}>{item.discountNudge}</Text> : null}
             </View>
           ))}
         </View>
@@ -153,6 +155,7 @@ const styles = StyleSheet.create({
   stepText: { fontSize: 16, fontWeight: '700', color: '#143055' },
   qty: { minWidth: 20, textAlign: 'center', fontWeight: '800', color: '#143055' },
   remove: { color: '#dc2626', fontWeight: '700' },
+  nudge: { marginTop: 8, color: '#92400e', fontSize: 13, fontWeight: '600' },
   totalRow: {
     backgroundColor: '#fff',
     borderRadius: 20,

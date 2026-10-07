@@ -23,6 +23,8 @@ type CheckoutItem = {
   deliveryMode: 'online' | 'offline';
   quantity: number;
   lineTotalInr: number;
+  discountPct?: number;
+  savingsInr?: number;
 };
 
 type StudentCartCheckoutPageProps = {
@@ -50,6 +52,7 @@ export const StudentCartCheckoutPage: React.FC<StudentCartCheckoutPageProps> = (
   });
   const preview = data?.prepareCartCheckout;
   const items = (preview?.items ?? []) as CheckoutItem[];
+  const savingsInr = items.reduce((sum, item) => sum + (item.savingsInr ?? 0), 0);
 
   const pay = async () => {
     if (!preview || paying) {
@@ -122,6 +125,11 @@ export const StudentCartCheckoutPage: React.FC<StudentCartCheckoutPageProps> = (
                 {item.tutorName} · {item.deliveryMode === 'online' ? 'Online' : 'Offline'} ·{' '}
                 {item.quantity} {item.quantity === 1 ? 'class' : 'classes'}
               </p>
+              {(item.discountPct ?? 0) > 0 ? (
+                <p className="mt-0.5 text-sm font-semibold text-emerald-700">
+                  {item.discountPct}% discount
+                </p>
+              ) : null}
             </div>
             <span className="text-sm font-extrabold text-[#143055]">
               {formatInr(item.lineTotalInr)}
@@ -142,6 +150,11 @@ export const StudentCartCheckoutPage: React.FC<StudentCartCheckoutPageProps> = (
             {formatInr(preview.purchaseAmountInr)}
           </span>
         </div>
+        {savingsInr > 0 ? (
+          <p className="mt-2 text-sm font-semibold text-emerald-700">
+            Total savings on this booking {formatInr(savingsInr)}
+          </p>
+        ) : null}
         {!preview.canPayFromWallet ? (
           <p className="mt-2 text-slate-500">
             Razorpay will add {formatInr(preview.shortfallInr)} to your wallet, then the full

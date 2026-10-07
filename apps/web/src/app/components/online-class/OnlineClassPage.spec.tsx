@@ -62,7 +62,7 @@ describe('OnlineClassPage', () => {
     resetOnlineClassChatForTests();
     mockJoin.mockReset();
     mockEnd.mockReset();
-    (AgoraRTM.RTM as jest.Mock).mockClear();
+    (AgoraRTM.RTM as unknown as jest.Mock).mockClear();
     mockEnd.mockResolvedValue({ data: { endOnlineClass: true } });
     mockJoin.mockResolvedValue({
       data: {

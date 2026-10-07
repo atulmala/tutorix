@@ -112,6 +112,18 @@ export function paymentMethodLabel(method: OrderPaymentMethodEnum): string {
   }
 }
 
+export function bookingSavingsInr(
+  lines?: Array<{ waiverApplied?: boolean; discountInr: number }> | null,
+): number {
+  return (lines ?? [])
+    .filter((line) => !line.waiverApplied && line.discountInr > 0)
+    .reduce((sum, line) => sum + line.discountInr, 0);
+}
+
+export function totalBookingSavingsLabel(savingsInr: number): string {
+  return `Total savings on this booking Rs ${savingsInr.toLocaleString('en-IN')}`;
+}
+
 function drawTableHeader(doc: InstanceType<typeof PDFDocument>, y: number): number {
   const cols = tableColumns();
   doc.fontSize(8).fillColor('#333333');
@@ -291,4 +303,11 @@ export function renderInvoicePdfContent(
     undefined,
     { width: totalsW, align: 'right' },
   );
+  const savingsInr = bookingSavingsInr(invoice.lines);
+  if (savingsInr > 0) {
+    doc.moveDown();
+    doc.fontSize(11).fillColor('#166534').text(totalBookingSavingsLabel(savingsInr), PAGE_LEFT, undefined, {
+      width: TABLE_WIDTH,
+    });
+  }
 }

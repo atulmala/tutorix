@@ -27,6 +27,8 @@ type CheckoutItem = {
   deliveryMode: 'online' | 'offline';
   quantity: number;
   lineTotalInr: number;
+  discountPct?: number;
+  savingsInr?: number;
 };
 
 type StudentCartCheckoutScreenProps = {
@@ -54,6 +56,7 @@ export const StudentCartCheckoutScreen: React.FC<StudentCartCheckoutScreenProps>
   });
   const preview = data?.prepareCartCheckout;
   const items = (preview?.items ?? []) as CheckoutItem[];
+  const savingsInr = items.reduce((sum, item) => sum + (item.savingsInr ?? 0), 0);
 
   const pay = async () => {
     if (!preview || paying) {
@@ -126,6 +129,9 @@ export const StudentCartCheckoutScreen: React.FC<StudentCartCheckoutScreenProps>
               {item.tutorName} · {item.deliveryMode === 'online' ? 'Online' : 'Offline'} ·{' '}
               {item.quantity} {item.quantity === 1 ? 'class' : 'classes'}
             </Text>
+            {(item.discountPct ?? 0) > 0 ? (
+              <Text style={styles.savings}>{item.discountPct}% discount</Text>
+            ) : null}
             <Text style={styles.lineTitle}>{formatInr(item.lineTotalInr)}</Text>
           </View>
         ))}
@@ -133,6 +139,9 @@ export const StudentCartCheckoutScreen: React.FC<StudentCartCheckoutScreenProps>
       <View style={styles.card}>
         <Text style={styles.meta}>Wallet {formatInr(preview.walletBalanceInr)}</Text>
         <Text style={styles.lineTitle}>Total {formatInr(preview.purchaseAmountInr)}</Text>
+        {savingsInr > 0 ? (
+          <Text style={styles.savings}>Total savings on this booking {formatInr(savingsInr)}</Text>
+        ) : null}
         {!preview.canPayFromWallet ? (
           <Text style={styles.meta}>
             Razorpay will add {formatInr(preview.shortfallInr)} to your wallet, then the full
@@ -179,6 +188,7 @@ const styles = StyleSheet.create({
   line: { gap: 4 },
   lineTitle: { fontSize: 14, fontWeight: '800', color: '#143055' },
   meta: { color: '#64748b', fontSize: 13 },
+  savings: { color: '#15803d', fontSize: 13, fontWeight: '600' },
   error: { color: '#dc2626', fontSize: 13 },
   primary: {
     backgroundColor: '#2563eb',

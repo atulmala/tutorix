@@ -287,6 +287,80 @@ export function discountedPackSlabLines(
   return slabs.filter((row) => (row.discountPct ?? 0) > 0);
 }
 
+/** How many classes short of the next discount still earns a prompt, with no obligation to add them. */
+export const BULK_DISCOUNT_NUDGE_CLASSES = 2;
+
+export function packDiscountPctForQuantity(
+  slabs: ClassPackSlabLine[],
+  quantity: number,
+): number {
+  const qty = Math.floor(quantity);
+  if (!Number.isFinite(qty) || qty < 1 || slabs.length === 0) {
+    return 0;
+  }
+  const tier = qty >= 11 ? 2 : qty >= 5 ? 1 : 0;
+  return slabs[tier]?.discountPct ?? 0;
+}
+
+export type BulkDiscountNudge = {
+  classesShort: number;
+  discountPct: number;
+  message: string;
+};
+
+/** Prompt when the chosen pack is 1 or 2 classes under the next higher discount. */
+export function bulkDiscountNudge(
+  slabs: ClassPackSlabLine[],
+  quantity: number,
+): BulkDiscountNudge | null {
+  const qty = Math.floor(quantity);
+  if (!Number.isFinite(qty) || qty < 1) {
+    return null;
+  }
+  const currentPct = packDiscountPctForQuantity(slabs, qty);
+  const next = slabs
+    .filter((slab) => slab.minClasses > qty && (slab.discountPct ?? 0) > currentPct)
+    .sort((left, right) => left.minClasses - right.minClasses)[0];
+  if (!next?.discountPct) {
+    return null;
+  }
+  const classesShort = next.minClasses - qty;
+  if (classesShort < 1 || classesShort > BULK_DISCOUNT_NUDGE_CLASSES) {
+    return null;
+  }
+  const classWord = classesShort === 1 ? 'class' : 'classes';
+  return {
+    classesShort,
+    discountPct: next.discountPct,
+    message: `Book ${classesShort} more ${classWord} and avail ${next.discountPct}% discount on your booking`,
+  };
+}
+
+export function quoteClassPack(
+  rateCard: RateCardLike,
+  mode: 'online' | 'offline',
+  quantity: number,
+): {
+  unitRateInr: number;
+  listUnitRateInr: number;
+  discountPct: number;
+  savingsInr: number;
+} | null {
+  const unitRateInr = rateForModeAndQuantity(rateCard, mode, quantity);
+  const listUnitRateInr = catalogBaseRateInrForMode(rateCard, mode);
+  const qty = Math.floor(quantity);
+  if (unitRateInr == null || listUnitRateInr == null || !Number.isFinite(qty) || qty < 1) {
+    return null;
+  }
+  const slabs = classPackSlabLinesForMode(rateCard, mode);
+  return {
+    unitRateInr,
+    listUnitRateInr,
+    discountPct: packDiscountPctForQuantity(slabs, qty),
+    savingsInr: Math.max(0, (listUnitRateInr - unitRateInr) * qty),
+  };
+}
+
 function classFormatMatches(
   rateCard: RateCardLike,
   mode: 'online' | 'offline',

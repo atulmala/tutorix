@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatInr } from '@tutorix/shared-utils/rate-card';
 import { lockedDeliveryMode } from '@tutorix/shared-utils/student-booking';
 import {
+  bulkDiscountNudge,
   discountedPackSlabLines,
   effectiveOfflineEnabledForBooking,
   OFFLINE_BOOKING_MAX_DISTANCE_KM,
@@ -82,6 +83,7 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
     return unitRateFromPackSlabs(activeSlabs, quantity);
   }, [activeSlabs, mode, quantity]);
   const lineTotal = unitRate != null ? unitRate * quantity : null;
+  const discountNudge = mode ? bulkDiscountNudge(activeSlabs, quantity) : null;
   const offlineDiscountSlabs = discountedPackSlabLines(offlineSlabs);
   const onlineDiscountSlabs = discountedPackSlabLines(onlineSlabs);
   const hasPackSavings =
@@ -246,6 +248,7 @@ export const TutorSubjectPurchaseCard: React.FC<TutorSubjectPurchaseCardProps> =
                 {formatInr(unitRate ?? 0)} / class × {quantity} = {formatInr(lineTotal)}
               </Text>
             ) : null}
+            {discountNudge ? <Text style={styles.nudge}>{discountNudge.message}</Text> : null}
 
             {cartMessage ? <Text style={styles.success}>{cartMessage}</Text> : null}
             {demoError ? <Text style={styles.demoError}>{demoError}</Text> : null}
@@ -465,6 +468,7 @@ const styles = StyleSheet.create({
   modeTextOn: { color: '#fff' },
   modeLocked: { fontWeight: '700', color: '#143055' },
   lineTotal: { fontSize: 13, color: '#64748b' },
+  nudge: { fontSize: 13, fontWeight: '600', color: '#92400e' },
   success: { color: '#16a34a', fontWeight: '700' },
   demoError: { color: '#dc2626', fontWeight: '700' },
   demoBtn: {

@@ -6,6 +6,26 @@ export const END_ONLINE_CLASS = gql`
   }
 `;
 
+export const ONLINE_CLASS_USAGE = gql`
+  query OnlineClassUsage($sessionId: ID!) {
+    onlineClassUsage(sessionId: $sessionId) {
+      sessionId
+      closedSeconds
+      closedMinutes
+      participants {
+        userId
+        name
+        role
+        closedSeconds
+        provisionalSeconds
+        closedMinutes
+        provisionalMinutes
+        joinCount
+      }
+    }
+  }
+`;
+
 export const JOIN_ONLINE_CLASS = gql`
   mutation JoinOnlineClass($sessionId: ID!) {
     joinOnlineClass(sessionId: $sessionId) {
