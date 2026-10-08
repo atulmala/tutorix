@@ -44,7 +44,10 @@ function session(overrides: Partial<TutorClassSessionEntity> = {}): TutorClassSe
     deliveryMode: ClassSessionDeliveryModeEnum.online,
     whiteboardRoomUuid: 'room-1',
     tutorCalendar: { startsAt: START, durationMinutes: 60 },
-    tutorOffering: { tutor: { userId: 4 } },
+    tutorOffering: {
+      tutor: { userId: 4, user: { firstName: 'Ada', lastName: 'Lovelace' } },
+      offering: { displayName: 'Algebra', name: 'algebra' },
+    },
     enrollments: [
       {
         deleted: false,
@@ -96,7 +99,9 @@ describe('OnlineClassService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     sessionRepo.findOne.mockResolvedValue(session());
-    studentRepo.find.mockResolvedValue([{ id: 21, userId: 8 }]);
+    studentRepo.find.mockResolvedValue([
+      { id: 21, userId: 8, user: { firstName: 'Grace', lastName: 'Hopper' } },
+    ]);
     studentService.findByUserId.mockResolvedValue({ id: 21 });
     whiteboard.configured.mockReturnValue(true);
     rest.kickUnauthorized.mockResolvedValue(undefined);
@@ -112,6 +117,13 @@ describe('OnlineClassService', () => {
     expect(result.expiresAt.toISOString()).toBe(onlineClassWindow(START, 60).hardEnd.toISOString());
     expect(result.warnAt.toISOString()).toBe('2026-10-04T10:25:00.000Z');
     expect(result.whiteboardRoomToken).toBe('room-token');
+    expect(result.whiteboardWritable).toBe(false);
+    expect(result.tutorName).toBe('Ada Lovelace');
+    expect(result.subjectName).toBe('Algebra');
+    expect(result.participants).toEqual([
+      { userId: 4, name: 'Ada Lovelace' },
+      { userId: 8, name: 'Grace Hopper' },
+    ]);
     expect(whiteboard.buildRoomToken).toHaveBeenCalledWith('room-1', 'writer', result.expiresAt, AT_255);
     expect(RtcTokenBuilder.buildTokenWithUid).toHaveBeenCalledWith(
       'app-id',
@@ -154,6 +166,7 @@ describe('OnlineClassService', () => {
   it('lets the tutor of the session join as the whiteboard admin', async () => {
     const result = await service.join(tutor, 9, AT_255);
     expect(result.uid).toBe(4);
+    expect(result.whiteboardWritable).toBe(true);
     expect(whiteboard.buildRoomToken).toHaveBeenCalledWith('room-1', 'admin', result.expiresAt, AT_255);
   });
 

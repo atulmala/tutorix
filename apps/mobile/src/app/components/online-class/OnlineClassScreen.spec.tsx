@@ -17,11 +17,21 @@ jest.mock('@apollo/client', () => ({
 }));
 
 jest.mock('react-native-agora', () => ({
+  CameraCapturerConfiguration: class CameraCapturerConfiguration {},
+  CameraDirection: { CameraFront: 1 },
+  ChannelMediaOptions: class ChannelMediaOptions {},
   ChannelProfileType: { ChannelProfileCommunication: 0 },
   ClientRoleType: { ClientRoleBroadcaster: 1 },
   ConnectionChangedReasonType: { ConnectionChangedBannedByServer: 3 },
+  OrientationMode: { OrientationModeAdaptive: 0 },
+  RenderModeType: { RenderModeFit: 2 },
+  VideoDimensions: class VideoDimensions {},
+  VideoEncoderConfiguration: class VideoEncoderConfiguration {},
+  VideoSourceType: { VideoSourceScreen: 2 },
   createAgoraRtcEngine: () => ({
     initialize: jest.fn(),
+    setCameraCapturerConfiguration: jest.fn(() => 0),
+    setVideoEncoderConfiguration: jest.fn(() => 0),
     enableVideo: jest.fn(),
     enableAudio: jest.fn(),
     startPreview: jest.fn(),
@@ -29,10 +39,11 @@ jest.mock('react-native-agora', () => ({
     joinChannel: jest.fn(),
     leaveChannel: jest.fn(),
     release: jest.fn(),
-    muteLocalAudioStream: jest.fn(),
-    muteLocalVideoStream: jest.fn(),
-    startScreenCapture: jest.fn(),
-    stopScreenCapture: jest.fn(),
+    muteLocalAudioStream: jest.fn(() => 0),
+    muteLocalVideoStream: jest.fn(() => 0),
+    startScreenCapture: jest.fn(() => 0),
+    stopScreenCapture: jest.fn(() => 0),
+    updateChannelMediaOptions: jest.fn(() => 0),
   }),
   RtcSurfaceView: () => null,
 }));
@@ -75,6 +86,10 @@ describe('OnlineClassScreen', () => {
           whiteboardRoomUuid: null,
           whiteboardRoomToken: null,
           whiteboardError: null,
+          whiteboardWritable: false,
+          tutorName: 'Ada Lovelace',
+          subjectName: 'Algebra',
+          participants: [{ userId: 8, name: 'Grace Hopper' }],
         },
       },
     });
@@ -84,11 +99,23 @@ describe('OnlineClassScreen', () => {
     const onLeave = jest.fn();
     render(<OnlineClassScreen sessionId="9" displayName="Student" onLeave={onLeave} />);
     expect(await screen.findByLabelText('Wrap up')).toBeTruthy();
+    expect(screen.getByText('Ada Lovelace')).toBeTruthy();
+    expect(screen.getByText('Algebra')).toBeTruthy();
+    expect(screen.queryByText('GH')).toBeNull();
     expect(screen.queryByLabelText('End class')).toBeNull();
     fireEvent.press(screen.getByLabelText('Leave'));
     await waitFor(() => {
       expect(onLeave).toHaveBeenCalled();
     });
+  });
+
+  it('toggles the microphone and camera labels', async () => {
+    render(<OnlineClassScreen sessionId="9" displayName="Student" onLeave={jest.fn()} />);
+    await screen.findByLabelText('Wrap up');
+    fireEvent.press(screen.getByLabelText('Mute mic'));
+    expect(await screen.findByLabelText('Unmute mic')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Mute camera'));
+    expect(await screen.findByLabelText('Unmute camera')).toBeTruthy();
   });
 
   it('lets the tutor end the class', async () => {

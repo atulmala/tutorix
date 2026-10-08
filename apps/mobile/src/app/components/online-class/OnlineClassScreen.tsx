@@ -3,6 +3,7 @@ import {
   PermissionsAndroid,
   Platform,
   Pressable,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,19 +12,30 @@ import {
 } from 'react-native';
 import { useMutation } from '@apollo/client';
 import {
+  CameraCapturerConfiguration,
+  CameraDirection,
+  ChannelMediaOptions,
   ChannelProfileType,
   ClientRoleType,
   ConnectionChangedReasonType,
   createAgoraRtcEngine,
+  OrientationMode,
+  RenderModeType,
   RtcSurfaceView,
+  VideoDimensions,
+  VideoEncoderConfiguration,
+  VideoSourceType,
 } from 'react-native-agora';
 import { createAgoraRtmClient, RtmConfig } from 'agora-react-native-rtm';
 import { FastRoom } from '@netless/react-native-fastboard';
 import { END_ONLINE_CLASS, JOIN_ONLINE_CLASS } from '@tutorix/shared-graphql/queries';
 import {
   isOnlineClassEndedMessage,
+  nameInitials,
   ONLINE_CLASS_WRAP_UP_MESSAGE,
   onlineClassEndedPayload,
+  onlineClassScreenSharePayload,
+  onlineClassScreenShareState,
 } from '@tutorix/shared-utils/online-class-window';
 
 type JoinPayload = {
@@ -39,7 +51,19 @@ type JoinPayload = {
   whiteboardRoomUuid?: string | null;
   whiteboardRoomToken?: string | null;
   whiteboardError?: string | null;
+  whiteboardWritable?: boolean;
+  tutorName?: string | null;
+  subjectName?: string | null;
+  participants?: { userId: number; name: string }[];
 };
+
+function rosterName(
+  participants: { userId: number; name: string }[] | undefined,
+  uid: number,
+  fallback: string,
+): string {
+  return participants?.find((member) => member.userId === uid)?.name?.trim() || fallback;
+}
 
 type ChatLine = { id: string; from: string; text: string };
 
@@ -75,11 +99,16 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
   const [draft, setDraft] = useState('');
   const [lines, setLines] = useState<ChatLine[]>([]);
   const [sharing, setSharing] = useState(false);
+  const [remoteSharingUid, setRemoteSharingUid] = useState<number | null>(null);
+  const [micOn, setMicOn] = useState(true);
+  const [camOn, setCamOn] = useState(true);
   const [ending, setEnding] = useState(false);
   const [remoteUids, setRemoteUids] = useState<number[]>([]);
-  const [localUid, setLocalUid] = useState(0);
   const [board, setBoard] = useState<JoinPayload | null>(null);
   const [whiteboardNote, setWhiteboardNote] = useState<string | null>(null);
+  const [classTitle, setClassTitle] = useState<{ tutorName: string; subjectName: string } | null>(
+    null,
+  );
   const engineRef = useRef<ReturnType<typeof createAgoraRtcEngine> | null>(null);
   const rtmRef = useRef<ReturnType<typeof createAgoraRtmClient> | null>(null);
   const channelRef = useRef('');
@@ -116,7 +145,10 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
           setWhiteboardNote(creds.whiteboardError);
         }
         setBoard(creds);
-        setLocalUid(creds.uid);
+        setClassTitle({
+          tutorName: creds.tutorName?.trim() || 'Tutor',
+          subjectName: creds.subjectName?.trim() || 'Class',
+        });
         const warnIn = new Date(creds.warnAt).getTime() - Date.now();
         const endIn = new Date(creds.expiresAt).getTime() - Date.now();
         if (warnIn <= 0) {
@@ -134,6 +166,17 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
         const engine = createAgoraRtcEngine();
         engineRef.current = engine;
         engine.initialize({ appId: creds.appId });
+        const camera = new CameraCapturerConfiguration();
+        camera.cameraDirection = CameraDirection.CameraFront;
+        camera.followEncodeDimensionRatio = false;
+        engine.setCameraCapturerConfiguration(camera);
+        const dimensions = new VideoDimensions();
+        dimensions.width = 480;
+        dimensions.height = 640;
+        const encoder = new VideoEncoderConfiguration();
+        encoder.dimensions = dimensions;
+        encoder.orientationMode = OrientationMode.OrientationModeAdaptive;
+        engine.setVideoEncoderConfiguration(encoder);
         engine.enableVideo();
         engine.enableAudio();
         engine.startPreview();
@@ -164,6 +207,12 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
           const raw = typeof event.message === 'string' ? event.message : '';
           if (isOnlineClassEndedMessage(raw)) {
             finish();
+            return;
+          }
+          const sharingState = onlineClassScreenShareState(raw);
+          if (sharingState != null) {
+            const uid = Number(event.publisher);
+            setRemoteSharingUid(sharingState && Number.isInteger(uid) ? uid : null);
             return;
           }
           let text = raw;
@@ -236,6 +285,54 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
     }
   };
 
+  const publishMedia = (screen: boolean) => {
+    const options = new ChannelMediaOptions();
+    options.publishMicrophoneTrack = true;
+    options.publishCameraTrack = !screen;
+    options.publishScreenCaptureVideo = screen;
+    options.publishScreenCaptureAudio = false;
+    engineRef.current?.updateChannelMediaOptions(options);
+  };
+
+  const publishScreenState = async (active: boolean) => {
+    if (!rtmRef.current || !channelRef.current) {
+      return;
+    }
+    try {
+      await rtmRef.current.publish(channelRef.current, onlineClassScreenSharePayload(active));
+    } catch {
+      // The screen track still switches even if the stage signal is missed.
+    }
+  };
+
+  const toggleMic = () => {
+    const engine = engineRef.current;
+    if (!engine) {
+      return;
+    }
+    const next = !micOn;
+    const result = engine.muteLocalAudioStream(!next);
+    if (result < 0) {
+      setError('Unable to change the microphone');
+      return;
+    }
+    setMicOn(next);
+  };
+
+  const toggleCamera = () => {
+    const engine = engineRef.current;
+    if (!engine) {
+      return;
+    }
+    const next = !camOn;
+    const result = engine.muteLocalVideoStream(!next);
+    if (result < 0) {
+      setError('Unable to change the camera');
+      return;
+    }
+    setCamOn(next);
+  };
+
   const toggleScreen = () => {
     const engine = engineRef.current;
     if (!engine) {
@@ -243,26 +340,45 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
     }
     if (sharing) {
       engine.stopScreenCapture();
+      publishMedia(false);
       setSharing(false);
+      void publishScreenState(false);
       return;
     }
-    engine.startScreenCapture({ captureAudio: true, captureVideo: true });
+    const started = engine.startScreenCapture({ captureAudio: false, captureVideo: true });
+    if (started < 0) {
+      setError('Unable to share the screen');
+      return;
+    }
+    publishMedia(true);
     setSharing(true);
+    void publishScreenState(true);
   };
 
   if (ended) {
     return (
-      <View style={styles.ended}>
-        <Text style={styles.endedTitle}>This class has ended</Text>
-        <Pressable accessibilityRole="button" onPress={onLeave}>
-          <Text style={styles.leave}>Back</Text>
-        </Pressable>
-      </View>
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.ended}>
+          <Text style={styles.endedTitle}>This class has ended</Text>
+          <Pressable accessibilityRole="button" onPress={onLeave}>
+            <Text style={styles.leave}>Back</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
     );
   }
 
+  const canDraw = canEndClass || Boolean(board?.whiteboardWritable);
+
   return (
+    <SafeAreaView style={styles.safe}>
     <View style={styles.page}>
+      {classTitle ? (
+        <View style={styles.title}>
+          <Text style={styles.tutorName}>{classTitle.tutorName}</Text>
+          <Text style={styles.subjectName}>{classTitle.subjectName}</Text>
+        </View>
+      ) : null}
       {wrapUp ? (
         <View accessibilityRole="alert" accessibilityLabel="Wrap up" style={styles.wrapUp}>
           <Text style={styles.wrapUpText}>{ONLINE_CLASS_WRAP_UP_MESSAGE}</Text>
@@ -287,18 +403,54 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
               uuid: board.whiteboardRoomUuid,
               roomToken: board.whiteboardRoomToken,
             }}
+            displayConfig={{
+              showApplianceTools: canDraw,
+              showRedoUndo: canDraw,
+              showPageIndicator: canDraw,
+            }}
+            joinRoomSuccessCallback={(fastRoom) => {
+              const room = fastRoom?.room;
+              if (!room) {
+                return;
+              }
+              if (canDraw) {
+                void room.setWritable(true);
+                return;
+              }
+              void room.setWritable(false);
+              room.disableDeviceInputs(true);
+            }}
           />
         ) : (
           <Text style={styles.note}>Whiteboard will appear when the room is ready.</Text>
         )}
       </View>
+      {sharing ? (
+        <RtcSurfaceView
+          style={styles.screen}
+          canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceScreen }}
+        />
+      ) : null}
+      {remoteSharingUid != null ? (
+        <RtcSurfaceView style={styles.screen} canvas={{ uid: remoteSharingUid }} />
+      ) : null}
       <ScrollView horizontal style={styles.videos} contentContainerStyle={styles.videoRow}>
-        {localUid > 0 ? (
-          <RtcSurfaceView style={styles.tile} canvas={{ uid: 0 }} />
-        ) : null}
-        {remoteUids.map((uid) => (
-          <RtcSurfaceView key={uid} style={styles.tile} canvas={{ uid }} />
-        ))}
+        {remoteUids.map((uid) => {
+          const name = rosterName(board?.participants, uid, '');
+          return (
+            <View key={uid} style={styles.videoItem}>
+              <RtcSurfaceView
+                style={styles.tile}
+                canvas={{ uid, renderMode: RenderModeType.RenderModeFit }}
+              />
+              {nameInitials(name) ? (
+                <Text style={styles.initials} accessibilityLabel={name}>
+                  {nameInitials(name)}
+                </Text>
+              ) : null}
+            </View>
+          );
+        })}
       </ScrollView>
       {chatOpen ? (
         <View style={styles.chat}>
@@ -321,11 +473,11 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
         </View>
       ) : null}
       <View style={styles.actions}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Mute mic" onPress={() => engineRef.current?.muteLocalAudioStream(true)}>
-          <Text style={styles.action}>Mute mic</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={micOn ? 'Mute mic' : 'Unmute mic'} onPress={toggleMic}>
+          <Text style={styles.action}>{micOn ? 'Mute mic' : 'Unmute mic'}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Mute camera" onPress={() => engineRef.current?.muteLocalVideoStream(true)}>
-          <Text style={styles.action}>Mute camera</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={camOn ? 'Mute camera' : 'Unmute camera'} onPress={toggleCamera}>
+          <Text style={styles.action}>{camOn ? 'Mute camera' : 'Unmute camera'}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={sharing ? 'Stop sharing' : 'Share screen'} onPress={toggleScreen}>
           <Text style={styles.action}>{sharing ? 'Stop sharing' : 'Share screen'}</Text>
@@ -347,7 +499,6 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
           accessibilityRole="button"
           accessibilityLabel="Leave"
           onPress={() => {
-            setEnded(true);
             onLeave();
           }}
         >
@@ -355,11 +506,16 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
         </Pressable>
       </View>
     </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#e8f4ff' },
   page: { flex: 1, backgroundColor: '#e8f4ff', padding: 12, gap: 8 },
+  title: { alignSelf: 'stretch' },
+  tutorName: { color: '#143055', fontSize: 18, fontWeight: '800' },
+  subjectName: { color: '#475569', fontSize: 14, fontWeight: '600' },
   wrapUp: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -373,9 +529,12 @@ const styles = StyleSheet.create({
   error: { color: '#b91c1c', fontWeight: '700' },
   note: { color: '#92400e', fontWeight: '600' },
   board: { flex: 1, minHeight: 280, borderRadius: 16, overflow: 'visible', backgroundColor: '#fff' },
-  videos: { maxHeight: 96 },
+  videos: { maxHeight: 176 },
   videoRow: { gap: 8 },
-  tile: { width: 120, height: 88, borderRadius: 12, backgroundColor: '#0f172a' },
+  videoItem: { width: 104, alignItems: 'center' },
+  tile: { width: 104, height: 144, borderRadius: 12, backgroundColor: '#0f172a' },
+  screen: { height: 180, borderRadius: 12, backgroundColor: '#0f172a' },
+  initials: { marginTop: 4, color: '#143055', fontSize: 12, fontWeight: '700', letterSpacing: 0.4 },
   chat: { backgroundColor: '#fff', borderRadius: 16, padding: 12, maxHeight: 180 },
   chatLine: { color: '#143055', marginBottom: 4 },
   chatForm: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },

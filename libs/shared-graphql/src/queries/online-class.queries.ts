@@ -42,6 +42,13 @@ export const JOIN_ONLINE_CLASS = gql`
       whiteboardRoomUuid
       whiteboardRoomToken
       whiteboardError
+      whiteboardWritable
+      tutorName
+      subjectName
+      participants {
+        userId
+        name
+      }
     }
   }
 `;

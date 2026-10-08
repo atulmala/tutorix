@@ -5,6 +5,7 @@ import type {
   ICameraVideoTrack,
   ILocalVideoTrack,
   IMicrophoneAudioTrack,
+  IRemoteVideoTrack,
 } from 'agora-rtc-sdk-ng';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import AgoraRTM, { type RTMClient } from 'agora-rtm-sdk';
@@ -12,8 +13,11 @@ import { createFastboard, mount } from '@netless/fastboard';
 import { END_ONLINE_CLASS, JOIN_ONLINE_CLASS } from '@tutorix/shared-graphql';
 import {
   isOnlineClassEndedMessage,
+  nameInitials,
   ONLINE_CLASS_WRAP_UP_MESSAGE,
   onlineClassEndedPayload,
+  onlineClassScreenSharePayload,
+  onlineClassScreenShareState,
 } from '@tutorix/shared-utils';
 
 type JoinPayload = {
@@ -30,6 +34,10 @@ type JoinPayload = {
   whiteboardRoomUuid?: string | null;
   whiteboardRoomToken?: string | null;
   whiteboardError?: string | null;
+  whiteboardWritable?: boolean;
+  tutorName?: string | null;
+  subjectName?: string | null;
+  participants?: { userId: number; name: string }[];
 };
 
 type ChatLine = {
@@ -64,9 +72,43 @@ function enqueueClassChat(task: () => Promise<void>): Promise<void> {
   return run;
 }
 
+type MountedFastboard = {
+  ui: { destroy: () => void };
+  app: { destroy: () => Promise<unknown> };
+};
+
+/** WindowManager allows one live board. A rejoin must destroy the previous one first. */
+let mountedFastboard: MountedFastboard | null = null;
+let fastboardQueue: Promise<void> = Promise.resolve();
+
+function enqueueFastboard(task: () => Promise<void>): Promise<void> {
+  const run = fastboardQueue.then(task, task);
+  fastboardQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+async function destroyMountedFastboard(): Promise<void> {
+  const mounted = mountedFastboard;
+  mountedFastboard = null;
+  if (!mounted) {
+    return;
+  }
+  try {
+    mounted.ui.destroy();
+  } catch {
+    // The board node is already gone when the page unmounts.
+  }
+  await mounted.app.destroy().catch(() => undefined);
+}
+
 export function resetOnlineClassChatForTests(): void {
   classChat = null;
   classChatQueue = Promise.resolve();
+  mountedFastboard = null;
+  fastboardQueue = Promise.resolve();
 }
 
 async function connectClassChat(appId: string, userId: string, token: string): Promise<RTMClient> {
@@ -109,29 +151,40 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
   const [chatLines, setChatLines] = useState<ChatLine[]>([]);
   const [draft, setDraft] = useState('');
   const [sharing, setSharing] = useState(false);
+  const [remoteSharingUid, setRemoteSharingUid] = useState<string | null>(null);
+  const [micOn, setMicOn] = useState(true);
+  const [camOn, setCamOn] = useState(true);
   const [ending, setEnding] = useState(false);
   const [whiteboardNote, setWhiteboardNote] = useState<string | null>(null);
+  const [classTitle, setClassTitle] = useState<{ tutorName: string; subjectName: string } | null>(
+    null,
+  );
   const boardRef = useRef<HTMLDivElement>(null);
-  const localVideoRef = useRef<HTMLDivElement>(null);
   const screenRef = useRef<HTMLDivElement>(null);
   const remotesRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const micRef = useRef<IMicrophoneAudioTrack | null>(null);
   const camRef = useRef<ICameraVideoTrack | null>(null);
   const screenTrackRef = useRef<ILocalVideoTrack | null>(null);
+  const remoteVideosRef = useRef<Map<string, IRemoteVideoTrack>>(new Map());
+  const remoteSharingRef = useRef<string | null>(null);
+  const remoteScreenRef = useRef<HTMLDivElement>(null);
   const rtmRef = useRef<RTMClient | null>(null);
   const channelRef = useRef('');
   const uidRef = useRef('');
   const nameRef = useRef(displayName);
+  const namesRef = useRef<Map<number, string>>(new Map());
+  const canDrawRef = useRef(canEndClass);
   const finishRef = useRef<() => void>(() => undefined);
   nameRef.current = displayName;
+  canDrawRef.current = canEndClass;
 
   useEffect(() => {
     let cancelled = false;
     const timers: number[] = [];
-    let boardDestroy: (() => void) | null = null;
 
     const leaveMedia = async () => {
+      const releaseBoard = enqueueFastboard(() => destroyMountedFastboard());
       screenTrackRef.current?.close();
       camRef.current?.close();
       micRef.current?.close();
@@ -151,8 +204,7 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
           await rtm.logout().catch(() => undefined);
         });
       }
-      boardDestroy?.();
-      boardDestroy = null;
+      await releaseBoard;
     };
 
     const finish = () => {
@@ -174,6 +226,14 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
         if (creds.whiteboardError) {
           setWhiteboardNote(creds.whiteboardError);
         }
+        const roster = new Map(
+          (creds.participants ?? []).map((member) => [member.userId, member.name]),
+        );
+        namesRef.current = roster;
+        setClassTitle({
+          tutorName: creds.tutorName?.trim() || 'Tutor',
+          subjectName: creds.subjectName?.trim() || 'Class',
+        });
         const warnIn = new Date(creds.warnAt).getTime() - Date.now();
         const endIn = new Date(creds.expiresAt).getTime() - Date.now();
         if (warnIn <= 0) {
@@ -196,20 +256,65 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
             finish();
           }
         });
-        client.on('user-published', async (user, mediaType) => {
-          await client.subscribe(user, mediaType);
+        const placeRemoteVideo = (uid: string) => {
+          const track = remoteVideosRef.current.get(uid);
+          if (!track) {
+            return;
+          }
+          if (remoteSharingRef.current === uid && remoteScreenRef.current) {
+            track.play(remoteScreenRef.current);
+            return;
+          }
+          const tile = remotesRef.current?.querySelector(
+            `[data-uid="${uid}"] [data-video]`,
+          ) as HTMLElement | null;
+          if (tile) {
+            track.play(tile, { fit: 'contain' });
+          }
+        };
+        const onPublished = async (
+          user: { uid: number | string; videoTrack?: IRemoteVideoTrack; audioTrack?: { play: () => void }; hasVideo?: boolean; hasAudio?: boolean },
+          mediaType: 'audio' | 'video',
+        ) => {
+          await client.subscribe(user as never, mediaType);
           if (mediaType === 'video' && remotesRef.current && user.videoTrack) {
+            const uid = String(user.uid);
+            remoteVideosRef.current.set(uid, user.videoTrack);
+            remotesRef.current.querySelector(`[data-uid="${uid}"]`)?.remove();
+            const name = namesRef.current.get(Number(user.uid)) ?? '';
+            const wrap = document.createElement('div');
+            wrap.dataset.uid = uid;
+            wrap.className = 'flex flex-col';
             const tile = document.createElement('div');
-            tile.dataset.uid = String(user.uid);
-            tile.className = 'h-28 overflow-hidden rounded-xl bg-slate-900';
-            remotesRef.current.appendChild(tile);
-            user.videoTrack.play(tile);
+            tile.dataset.video = 'true';
+            tile.className = 'relative mx-auto h-44 w-32 overflow-hidden rounded-xl bg-slate-900';
+            wrap.append(tile);
+            const initials = nameInitials(name);
+            if (initials) {
+              const label = document.createElement('p');
+              label.className = 'mt-1 text-center text-xs font-bold tracking-wide text-[#143055]';
+              label.textContent = initials;
+              label.setAttribute('aria-label', name);
+              wrap.append(label);
+            }
+            remotesRef.current.appendChild(wrap);
+            placeRemoteVideo(uid);
           }
           if (mediaType === 'audio') {
             user.audioTrack?.play();
           }
+        };
+        client.on('user-published', (user, mediaType) => {
+          if (mediaType === 'datachannel') {
+            return;
+          }
+          void onPublished(user, mediaType);
         });
-        client.on('user-unpublished', (user) => {
+        client.on('user-unpublished', (user, mediaType) => {
+          if (mediaType !== 'video') {
+            return;
+          }
+          remoteVideosRef.current.delete(String(user.uid));
           remotesRef.current?.querySelector(`[data-uid="${user.uid}"]`)?.remove();
         });
         await client.join(creds.appId, creds.channelName, creds.token, creds.uid);
@@ -221,15 +326,35 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
         }
         micRef.current = mic;
         camRef.current = cam;
-        if (localVideoRef.current) {
-          cam.play(localVideoRef.current);
-        }
         await client.publish([mic, cam]);
+        for (const user of client.remoteUsers ?? []) {
+          if (cancelled) {
+            return;
+          }
+          if (user.hasVideo) {
+            await onPublished(user, 'video');
+          }
+          if (user.hasAudio) {
+            await onPublished(user, 'audio');
+          }
+        }
 
         const onMessage = (event: { message: string | Uint8Array; publisher: string }) => {
           const raw = typeof event.message === 'string' ? event.message : '';
           if (isOnlineClassEndedMessage(raw)) {
             finish();
+            return;
+          }
+          const sharingState = onlineClassScreenShareState(raw);
+          if (sharingState != null) {
+            const uid = sharingState ? event.publisher : null;
+            remoteSharingRef.current = uid;
+            setRemoteSharingUid(uid);
+            if (uid) {
+              window.requestAnimationFrame(() => placeRemoteVideo(uid));
+            } else if (event.publisher) {
+              placeRemoteVideo(event.publisher);
+            }
             return;
           }
           let text = raw;
@@ -280,22 +405,59 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
           creds.whiteboardRoomToken &&
           boardRef.current
         ) {
-          const app = await createFastboard({
-            sdkConfig: {
-              appIdentifier: creds.whiteboardAppIdentifier,
-              region: (creds.whiteboardRegion || 'us-sv') as 'us-sv',
-            },
-            joinRoom: {
-              uid: String(creds.uid),
-              uuid: creds.whiteboardRoomUuid,
-              roomToken: creds.whiteboardRoomToken,
-            },
+          await enqueueFastboard(async () => {
+            if (
+              cancelled ||
+              !boardRef.current ||
+              !creds.whiteboardAppIdentifier ||
+              !creds.whiteboardRoomUuid ||
+              !creds.whiteboardRoomToken
+            ) {
+              return;
+            }
+            await destroyMountedFastboard();
+            if (cancelled || !boardRef.current) {
+              return;
+            }
+            const app = await createFastboard({
+              sdkConfig: {
+                appIdentifier: creds.whiteboardAppIdentifier,
+                region: (creds.whiteboardRegion || 'us-sv') as 'us-sv',
+              },
+              joinRoom: {
+                uid: String(creds.uid),
+                uuid: creds.whiteboardRoomUuid,
+                roomToken: creds.whiteboardRoomToken,
+              },
+            });
+            if (cancelled || !boardRef.current) {
+              await app.destroy().catch(() => undefined);
+              return;
+            }
+            const tutorDraws = canDrawRef.current || creds.whiteboardWritable === true;
+            try {
+              if (tutorDraws) {
+                if (!app.room.isWritable) {
+                  await app.room.setWritable(true);
+                }
+              } else {
+                await app.room.setWritable(false);
+                app.room.disableDeviceInputs = true;
+              }
+            } catch (lockError) {
+              setWhiteboardNote(
+                lockError instanceof Error ? lockError.message : 'Whiteboard tools could not be updated',
+              );
+            }
+            if (cancelled || !boardRef.current) {
+              await app.destroy().catch(() => undefined);
+              return;
+            }
+            const ui = mount(app, boardRef.current, {
+              force_show_toolbar: tutorDraws,
+            });
+            mountedFastboard = { ui, app };
           });
-          const ui = mount(app, boardRef.current);
-          boardDestroy = () => {
-            ui.destroy();
-            void app.destroy();
-          };
         }
       } catch (caught) {
         if (!cancelled) {
@@ -310,6 +472,23 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
       void leaveMedia();
     };
   }, [joinOnlineClass, sessionId]);
+
+  useEffect(() => {
+    const track = screenTrackRef.current;
+    if (sharing && track && screenRef.current) {
+      track.play(screenRef.current);
+    }
+  }, [sharing]);
+
+  useEffect(() => {
+    if (!remoteSharingUid) {
+      return;
+    }
+    const track = remoteVideosRef.current.get(remoteSharingUid);
+    if (track && remoteScreenRef.current) {
+      track.play(remoteScreenRef.current);
+    }
+  }, [remoteSharingUid]);
 
   const sendChat = async () => {
     const text = draft.trim();
@@ -328,12 +507,30 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
     ]);
   };
 
+  const publishScreenState = async (active: boolean) => {
+    const rtm = rtmRef.current;
+    if (!rtm || !channelRef.current) {
+      return;
+    }
+    try {
+      await rtm.publish(channelRef.current, onlineClassScreenSharePayload(active));
+    } catch {
+      // The video track still switches even if the stage signal is missed.
+    }
+  };
+
   const toggleMic = async () => {
     const mic = micRef.current;
     if (!mic) {
       return;
     }
-    await mic.setEnabled(!mic.enabled);
+    const next = !micOn;
+    try {
+      await mic.setMuted(!next);
+      setMicOn(next);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to change the microphone');
+    }
   };
 
   const toggleCamera = async () => {
@@ -341,7 +538,13 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
     if (!cam) {
       return;
     }
-    await cam.setEnabled(!cam.enabled);
+    const next = !camOn;
+    try {
+      await cam.setMuted(!next);
+      setCamOn(next);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to change the camera');
+    }
   };
 
   const toggleScreen = async () => {
@@ -349,37 +552,44 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
     if (!client) {
       return;
     }
-    if (screenTrackRef.current) {
-      await client.unpublish(screenTrackRef.current);
-      screenTrackRef.current.close();
-      screenTrackRef.current = null;
-      setSharing(false);
-      if (camRef.current) {
-        await client.publish(camRef.current);
-        if (localVideoRef.current) {
-          camRef.current.play(localVideoRef.current);
+    try {
+      if (screenTrackRef.current) {
+        await client.unpublish(screenTrackRef.current);
+        screenTrackRef.current.close();
+        screenTrackRef.current = null;
+        setSharing(false);
+        await publishScreenState(false);
+        if (camRef.current) {
+          await client.publish(camRef.current);
         }
+        return;
       }
-      return;
+      const created = await AgoraRTC.createScreenVideoTrack({ optimizationMode: 'detail' }, 'disable');
+      const track = Array.isArray(created) ? created[0] : created;
+      if (camRef.current) {
+        await client.unpublish(camRef.current);
+      }
+      screenTrackRef.current = track;
+      await client.publish(track);
+      setSharing(true);
+      await new Promise((resolve) => window.requestAnimationFrame(() => resolve(undefined)));
+      if (screenRef.current) {
+        track.play(screenRef.current);
+      }
+      track.on('track-ended', () => {
+        void toggleScreen();
+      });
+      await publishScreenState(true);
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : '';
+      if (/cancel|notallowed|permission/i.test(message)) {
+        return;
+      }
+      setError(message || 'Unable to share the screen');
     }
-    const created = await AgoraRTC.createScreenVideoTrack({ optimizationMode: 'detail' });
-    const track = Array.isArray(created) ? created[0] : created;
-    if (camRef.current) {
-      await client.unpublish(camRef.current);
-    }
-    screenTrackRef.current = track;
-    await client.publish(track);
-    if (screenRef.current) {
-      track.play(screenRef.current);
-    }
-    track.on('track-ended', () => {
-      void toggleScreen();
-    });
-    setSharing(true);
   };
 
   const leave = () => {
-    setEnded(true);
     onLeave();
   };
 
@@ -423,6 +633,12 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-3">
+      {classTitle ? (
+        <header>
+          <h1 className="text-lg font-extrabold text-[#143055]">{classTitle.tutorName}</h1>
+          <p className="text-sm font-semibold text-slate-600">{classTitle.subjectName}</p>
+        </header>
+      ) : null}
       {wrapUp ? (
         <div
           role="dialog"
@@ -441,16 +657,15 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
       ) : null}
       <div className="flex min-h-[520px] gap-3">
         <div className="relative min-w-0 flex-1">
-          <div ref={boardRef} className="h-full min-h-[520px] rounded-[20px] bg-white" />
-          <div
-            ref={screenRef}
-            className={`absolute bottom-4 right-4 h-36 w-64 overflow-hidden rounded-xl bg-slate-900 ${
-              sharing ? '' : 'hidden'
-            }`}
-          />
+          <div ref={boardRef} className="h-full min-h-[520px] overflow-hidden rounded-[20px] bg-white" />
         </div>
         <aside className="flex w-72 shrink-0 flex-col gap-3">
-          <div ref={localVideoRef} className="h-28 overflow-hidden rounded-xl bg-slate-900" />
+          {sharing ? (
+            <div ref={screenRef} className="relative h-40 overflow-hidden rounded-xl bg-slate-900" />
+          ) : null}
+          {remoteSharingUid ? (
+            <div ref={remoteScreenRef} className="relative h-40 overflow-hidden rounded-xl bg-slate-900" />
+          ) : null}
           <div ref={remotesRef} className="flex flex-col gap-2" />
           {chatOpen ? (
             <div className="flex min-h-0 flex-1 flex-col rounded-[20px] bg-white p-3">
@@ -486,10 +701,10 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
       </div>
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => void toggleMic()} className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-[#143055]">
-          Mute mic
+          {micOn ? 'Mute mic' : 'Unmute mic'}
         </button>
         <button type="button" onClick={() => void toggleCamera()} className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-[#143055]">
-          Mute camera
+          {camOn ? 'Mute camera' : 'Unmute camera'}
         </button>
         <button type="button" onClick={() => void toggleScreen()} className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-[#143055]">
           {sharing ? 'Stop sharing' : 'Share screen'}

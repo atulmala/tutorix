@@ -1,6 +1,9 @@
 import {
   canJoinOnlineClass,
+  nameInitials,
   onlineClassChannelName,
+  onlineClassScreenSharePayload,
+  onlineClassScreenShareState,
   onlineClassWindow,
 } from './online-class-window';
 
@@ -26,5 +29,22 @@ describe('onlineClassWindow', () => {
 
   it('names the channel from the session id', () => {
     expect(onlineClassChannelName(42)).toBe('class-42');
+  });
+});
+
+describe('onlineClassScreenShareState', () => {
+  it('reads a screen-share signal and ignores chat', () => {
+    expect(onlineClassScreenShareState(onlineClassScreenSharePayload(true))).toBe(true);
+    expect(onlineClassScreenShareState(onlineClassScreenSharePayload(false))).toBe(false);
+    expect(onlineClassScreenShareState(JSON.stringify({ text: 'hello' }))).toBeNull();
+  });
+});
+
+describe('nameInitials', () => {
+  it('uses the first and last name initials', () => {
+    expect(nameInitials('Ada Lovelace')).toBe('AL');
+    expect(nameInitials('Mary Ann Smith')).toBe('MS');
+    expect(nameInitials('Priya')).toBe('P');
+    expect(nameInitials('  ')).toBe('');
   });
 });

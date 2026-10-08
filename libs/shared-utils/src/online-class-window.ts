@@ -25,6 +25,26 @@ export function isOnlineClassEndedMessage(raw: string): boolean {
   }
 }
 
+/** Signaling payload so others can show this user's screen share on the stage. */
+export const ONLINE_CLASS_SCREEN_SHARE_TYPE = 'screen-share';
+
+export function onlineClassScreenSharePayload(sharing: boolean): string {
+  return JSON.stringify({ type: ONLINE_CLASS_SCREEN_SHARE_TYPE, sharing });
+}
+
+/** Null when the message is not a screen-share signal. */
+export function onlineClassScreenShareState(raw: string): boolean | null {
+  try {
+    const parsed = JSON.parse(raw) as { type?: string; sharing?: boolean };
+    if (parsed?.type !== ONLINE_CLASS_SCREEN_SHARE_TYPE) {
+      return null;
+    }
+    return Boolean(parsed.sharing);
+  } catch {
+    return null;
+  }
+}
+
 export type OnlineClassWindow = {
   opensAt: Date;
   warnAt: Date;
@@ -76,4 +96,15 @@ export function canJoinOnlineClass(
 
 export function onlineClassChannelName(sessionId: number | string): string {
   return `class-${sessionId}`;
+}
+
+/** First and last initials, so "Ada Lovelace" is "AL" and "Priya" is "P". */
+export function nameInitials(name: string | null | undefined): string {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) {
+    return '';
+  }
+  const first = parts[0]?.[0] ?? '';
+  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '';
+  return `${first}${last}`.toUpperCase();
 }

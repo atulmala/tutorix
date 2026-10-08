@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import AgoraRTC from 'agora-rtc-sdk-ng';
 import AgoraRTM from 'agora-rtm-sdk';
 import { OnlineClassPage, resetOnlineClassChatForTests } from './OnlineClassPage';
 
@@ -28,8 +29,8 @@ jest.mock('agora-rtc-sdk-ng', () => ({
       on: jest.fn(),
     }),
     createMicrophoneAndCameraTracks: jest.fn(async () => [
-      { setEnabled: jest.fn(), close: jest.fn(), enabled: true },
-      { play: jest.fn(), setEnabled: jest.fn(), close: jest.fn(), enabled: true },
+      { setMuted: jest.fn().mockResolvedValue(undefined), close: jest.fn(), enabled: true },
+      { play: jest.fn(), setMuted: jest.fn().mockResolvedValue(undefined), close: jest.fn(), enabled: true },
     ]),
     createScreenVideoTrack: jest.fn(),
   },
@@ -53,7 +54,7 @@ jest.mock('agora-rtm-sdk', () => {
 });
 
 jest.mock('@netless/fastboard', () => ({
-  createFastboard: jest.fn().mockResolvedValue({ destroy: jest.fn() }),
+  createFastboard: jest.fn().mockResolvedValue({ destroy: jest.fn(), room: { setViewMode: jest.fn(), setWritable: jest.fn(), disableDeviceInputs: false } }),
   mount: jest.fn(() => ({ destroy: jest.fn() })),
 }));
 
@@ -80,6 +81,10 @@ describe('OnlineClassPage', () => {
           whiteboardRoomUuid: null,
           whiteboardRoomToken: null,
           whiteboardError: null,
+          whiteboardWritable: false,
+          tutorName: 'Ada Lovelace',
+          subjectName: 'Algebra',
+          participants: [{ userId: 8, name: 'Grace Hopper' }],
         },
       },
     });
@@ -90,6 +95,9 @@ describe('OnlineClassPage', () => {
     render(<OnlineClassPage sessionId="9" displayName="Tutor" onLeave={onLeave} />);
 
     expect(await screen.findByRole('dialog', { name: 'Wrap up' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Ada Lovelace' })).toBeTruthy();
+    expect(screen.getByText('Algebra')).toBeTruthy();
+    expect(screen.queryByText('GH')).toBeNull();
     expect(screen.getByText('Wrap up in the next 5 minutes.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
     expect(onLeave).toHaveBeenCalled();
@@ -115,6 +123,18 @@ describe('OnlineClassPage', () => {
     await screen.findByRole('dialog', { name: 'Wrap up' });
 
     expect(AgoraRTM.RTM).toHaveBeenCalledTimes(1);
+  });
+
+  it('toggles the microphone and camera labels', async () => {
+    render(<OnlineClassPage sessionId="9" displayName="Tutor" onLeave={jest.fn()} />);
+    await screen.findByRole('dialog', { name: 'Wrap up' });
+    await waitFor(() => {
+      expect(AgoraRTC.createMicrophoneAndCameraTracks).toHaveBeenCalled();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Mute mic' }));
+    expect(await screen.findByRole('button', { name: 'Unmute mic' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Mute camera' }));
+    expect(await screen.findByRole('button', { name: 'Unmute camera' })).toBeTruthy();
   });
 
   it('sends a chat message', async () => {

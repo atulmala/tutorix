@@ -19,7 +19,7 @@ import { readAgoraConfig } from './agora.config';
 import { AgoraRestClient } from './agora-rest.client';
 import { AgoraTokenService } from './agora-token.service';
 import { AgoraWhiteboardService, WhiteboardJoinRole } from './agora-whiteboard.service';
-import { JoinOnlineClassResult } from './dto/join-online-class.dto';
+import { JoinOnlineClassResult, OnlineClassRosterMember } from './dto/join-online-class.dto';
 
 @Injectable()
 export class OnlineClassService {
@@ -80,6 +80,10 @@ export class OnlineClassService {
       whiteboardRoomUuid: null,
       whiteboardRoomToken: null,
       whiteboardError: null,
+      whiteboardWritable: participant.whiteboardRole === 'admin',
+      tutorName: participant.tutorName,
+      subjectName: participant.subjectName,
+      participants: participant.participants,
     };
 
     if (!this.whiteboard.configured()) {
@@ -142,7 +146,7 @@ export class OnlineClassService {
       where: { id: sessionId, deleted: false },
       relations: {
         tutorCalendar: true,
-        tutorOffering: { tutor: true },
+        tutorOffering: { tutor: { user: true }, offering: true },
         enrollments: true,
       },
     });
@@ -155,7 +159,13 @@ export class OnlineClassService {
   private async resolveParticipant(
     user: User,
     session: TutorClassSessionEntity,
-  ): Promise<{ whiteboardRole: WhiteboardJoinRole; allowedUserIds: number[] }> {
+  ): Promise<{
+    whiteboardRole: WhiteboardJoinRole;
+    allowedUserIds: number[];
+    tutorName: string;
+    subjectName: string;
+    participants: OnlineClassRosterMember[];
+  }> {
     const tutorUserId = session.tutorOffering?.tutor?.userId;
     const enrolledStudentIds = (session.enrollments ?? [])
       .filter(
@@ -168,11 +178,19 @@ export class OnlineClassService {
         ? []
         : await this.studentRepo.find({
             where: { id: In(enrolledStudentIds), deleted: false },
+            relations: { user: true },
           });
-    const allowedUserIds = [
-      ...(tutorUserId != null ? [tutorUserId] : []),
-      ...students.map((student) => student.userId),
+    const tutorName = personName(session.tutorOffering?.tutor?.user, 'Tutor');
+    const offering = session.tutorOffering?.offering;
+    const subjectName = offering?.displayName?.trim() || offering?.name?.trim() || 'Class';
+    const participants: OnlineClassRosterMember[] = [
+      ...(tutorUserId != null ? [{ userId: tutorUserId, name: tutorName }] : []),
+      ...students.map((student) => ({
+        userId: student.userId,
+        name: personName(student.user, 'Student'),
+      })),
     ];
+    const allowedUserIds = participants.map((member) => member.userId);
 
     if (user.role === UserRole.TUTOR) {
       if (tutorUserId == null) {
@@ -181,7 +199,7 @@ export class OnlineClassService {
       if (Number(tutorUserId) !== Number(user.id)) {
         throw new ForbiddenException('Only the tutor or an enrolled student can join this class');
       }
-      return { whiteboardRole: 'admin', allowedUserIds };
+      return { whiteboardRole: 'admin', allowedUserIds, tutorName, subjectName, participants };
     }
 
     if (user.role === UserRole.STUDENT) {
@@ -193,9 +211,20 @@ export class OnlineClassService {
       if (!enrolled) {
         throw new ForbiddenException('Only the tutor or an enrolled student can join this class');
       }
-      return { whiteboardRole: 'writer', allowedUserIds };
+      return { whiteboardRole: 'writer', allowedUserIds, tutorName, subjectName, participants };
     }
 
     throw new ForbiddenException('Only the tutor or an enrolled student can join this class');
   }
+}
+
+function personName(
+  user: { firstName?: string | null; lastName?: string | null } | null | undefined,
+  fallback: string,
+): string {
+  const name = [user?.firstName, user?.lastName]
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part))
+    .join(' ');
+  return name || fallback;
 }
