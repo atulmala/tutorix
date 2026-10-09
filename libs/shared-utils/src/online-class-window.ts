@@ -9,6 +9,28 @@ export const ONLINE_CLASS_EXTENSION_MINUTES = 5;
 
 export const ONLINE_CLASS_WRAP_UP_MESSAGE = 'Wrap up in the next 5 minutes.';
 
+/**
+ * Shared whiteboard stage, height divided by width.
+ * The class screen is portrait, so a landscape 16:9 stage leaves checkerboard
+ * bands above and below the page. Every device must use this same ratio.
+ */
+export const ONLINE_CLASS_WHITEBOARD_HEIGHT_RATIO = 3 / 2;
+
+/** Largest stage of the shared ratio that fits in a board slot. */
+export function fitWhiteboardStage(
+  width: number,
+  height: number,
+): { width: number; height: number } {
+  if (!(width > 0) || !(height > 0)) {
+    return { width: 0, height: 0 };
+  }
+  const fittedWidth = height / ONLINE_CLASS_WHITEBOARD_HEIGHT_RATIO;
+  if (fittedWidth <= width) {
+    return { width: fittedWidth, height };
+  }
+  return { width, height: width * ONLINE_CLASS_WHITEBOARD_HEIGHT_RATIO };
+}
+
 /** Signaling payload the tutor sends when ending the class for everyone. */
 export const ONLINE_CLASS_ENDED_TYPE = 'class-ended';
 

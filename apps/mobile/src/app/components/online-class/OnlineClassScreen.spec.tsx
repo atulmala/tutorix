@@ -62,12 +62,30 @@ jest.mock('agora-react-native-rtm', () => ({
   }),
 }));
 
+const fastRoomProps: {
+  current: {
+    sdkParams?: { useMultiViews?: boolean };
+    roomParams?: { windowParams?: { containerSizeRatio?: number; chessboard?: boolean } };
+  } | null;
+} = {
+  current: null,
+};
+
 jest.mock('@netless/react-native-fastboard', () => ({
-  FastRoom: () => null,
+  FastRoom: (props: {
+    sdkParams?: { useMultiViews?: boolean };
+    roomParams?: { windowParams?: { containerSizeRatio?: number; chessboard?: boolean } };
+  }) => {
+    const React = require('react');
+    const { View } = require('react-native');
+    fastRoomProps.current = props;
+    return React.createElement(View, { testID: 'fast-room' });
+  },
 }));
 
 describe('OnlineClassScreen', () => {
   beforeEach(() => {
+    fastRoomProps.current = null;
     mockJoin.mockReset();
     mockEnd.mockReset();
     mockEnd.mockResolvedValue({ data: { endOnlineClass: true } });
@@ -116,6 +134,41 @@ describe('OnlineClassScreen', () => {
     expect(await screen.findByLabelText('Unmute mic')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('Mute camera'));
     expect(await screen.findByLabelText('Unmute camera')).toBeTruthy();
+  });
+
+  it('shares one whiteboard stage across screen sizes', async () => {
+    mockJoin.mockResolvedValue({
+      data: {
+        joinOnlineClass: {
+          appId: 'app',
+          channelName: 'class-9',
+          token: 'rtc',
+          rtmToken: 'rtm',
+          uid: 8,
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          warnAt: new Date(Date.now() + 60_000).toISOString(),
+          whiteboardAppIdentifier: 'board-app',
+          whiteboardRegion: 'us-sv',
+          whiteboardRoomUuid: 'room-1',
+          whiteboardRoomToken: 'room-token',
+          whiteboardError: null,
+          whiteboardWritable: true,
+          tutorName: 'Ada Lovelace',
+          subjectName: 'Algebra',
+          participants: [{ userId: 8, name: 'Ada Lovelace' }],
+        },
+      },
+    });
+    render(<OnlineClassScreen sessionId="9" displayName="Tutor" canEndClass onLeave={jest.fn()} />);
+    fireEvent(await screen.findByTestId('whiteboard-board'), 'layout', {
+      nativeEvent: { layout: { width: 300, height: 600 } },
+    });
+    expect(await screen.findByTestId('fast-room')).toBeTruthy();
+    expect(fastRoomProps.current?.sdkParams?.useMultiViews).toBe(true);
+    expect(fastRoomProps.current?.roomParams?.windowParams).toEqual({
+      containerSizeRatio: 1.5,
+      chessboard: false,
+    });
   });
 
   it('lets the tutor end the class', async () => {

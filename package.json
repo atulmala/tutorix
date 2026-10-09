@@ -8,6 +8,8 @@
     "serve:web": "nx serve web",
     "serve:admin": "nx serve web-admin",
     "mobile:ios": "nx run-ios mobile",
+    "mobile:iphone": "bash scripts/mobile-ios-device.sh iphone",
+    "mobile:ipad": "bash scripts/mobile-ios-device.sh ipad",
     "mobile:android": "bash scripts/start-android.sh",
     "mobile:start": "nx start mobile",
     "mobile:android:run": "nx run-android mobile",
