@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   PermissionsAndroid,
   Platform,
+  LayoutChangeEvent,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -30,8 +31,10 @@ import { createAgoraRtmClient, RtmConfig } from 'agora-react-native-rtm';
 import { FastRoom } from '@netless/react-native-fastboard';
 import { END_ONLINE_CLASS, JOIN_ONLINE_CLASS } from '@tutorix/shared-graphql/queries';
 import {
+  fitWhiteboardStage,
   isOnlineClassEndedMessage,
   nameInitials,
+  ONLINE_CLASS_WHITEBOARD_HEIGHT_RATIO,
   ONLINE_CLASS_WRAP_UP_MESSAGE,
   onlineClassEndedPayload,
   onlineClassScreenSharePayload,
@@ -109,6 +112,7 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
   const [classTitle, setClassTitle] = useState<{ tutorName: string; subjectName: string } | null>(
     null,
   );
+  const [stage, setStage] = useState<{ width: number; height: number } | null>(null);
   const engineRef = useRef<ReturnType<typeof createAgoraRtcEngine> | null>(null);
   const rtmRef = useRef<ReturnType<typeof createAgoraRtmClient> | null>(null);
   const channelRef = useRef('');
@@ -370,6 +374,21 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
 
   const canDraw = canEndClass || Boolean(board?.whiteboardWritable);
 
+  const onBoardLayout = (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    const next = fitWhiteboardStage(width, height);
+    setStage((current) => {
+      if (
+        current &&
+        Math.abs(current.width - next.width) < 1 &&
+        Math.abs(current.height - next.height) < 1
+      ) {
+        return current;
+      }
+      return next;
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
     <View style={styles.page}>
@@ -389,19 +408,30 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
       ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {whiteboardNote ? <Text style={styles.note}>{whiteboardNote}</Text> : null}
-      <View style={styles.board}>
-        {board?.whiteboardAppIdentifier && board.whiteboardRoomUuid && board.whiteboardRoomToken ? (
+      <View testID="whiteboard-board" style={styles.board} onLayout={onBoardLayout}>
+        {stage &&
+        stage.width > 0 &&
+        board?.whiteboardAppIdentifier &&
+        board.whiteboardRoomUuid &&
+        board.whiteboardRoomToken ? (
           <FastRoom
-            style={{ container: { flex: 1 }, fastRoom: { flex: 1 } }}
+            style={{
+              container: { width: stage.width, height: stage.height },
+              fastRoom: { width: stage.width, height: stage.height },
+            }}
             sdkParams={{
               appIdentifier: board.whiteboardAppIdentifier,
               region: (board.whiteboardRegion || 'us-sv') as 'us-sv',
-              useMultiViews: false,
+              useMultiViews: true,
             }}
             roomParams={{
               uid: String(board.uid),
               uuid: board.whiteboardRoomUuid,
               roomToken: board.whiteboardRoomToken,
+              windowParams: {
+                containerSizeRatio: ONLINE_CLASS_WHITEBOARD_HEIGHT_RATIO,
+                chessboard: false,
+              },
             }}
             displayConfig={{
               showApplianceTools: canDraw,
@@ -528,7 +558,15 @@ const styles = StyleSheet.create({
   wrapUpOk: { color: '#2563eb', fontWeight: '700', marginLeft: 8 },
   error: { color: '#b91c1c', fontWeight: '700' },
   note: { color: '#92400e', fontWeight: '600' },
-  board: { flex: 1, minHeight: 280, borderRadius: 16, overflow: 'visible', backgroundColor: '#fff' },
+  board: {
+    flex: 1,
+    minHeight: 280,
+    borderRadius: 16,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
   videos: { maxHeight: 176 },
   videoRow: { gap: 8 },
   videoItem: { width: 104, alignItems: 'center' },

@@ -1,5 +1,6 @@
 import {
   canJoinOnlineClass,
+  fitWhiteboardStage,
   nameInitials,
   onlineClassChannelName,
   onlineClassScreenSharePayload,
@@ -29,6 +30,14 @@ describe('onlineClassWindow', () => {
 
   it('names the channel from the session id', () => {
     expect(onlineClassChannelName(42)).toBe('class-42');
+  });
+});
+
+describe('fitWhiteboardStage', () => {
+  it('fills a tall board by width and a wide board by height', () => {
+    expect(fitWhiteboardStage(300, 600)).toEqual({ width: 300, height: 450 });
+    expect(fitWhiteboardStage(600, 300)).toEqual({ width: 200, height: 300 });
+    expect(fitWhiteboardStage(0, 300)).toEqual({ width: 0, height: 0 });
   });
 });
 

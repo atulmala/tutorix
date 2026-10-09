@@ -14,6 +14,7 @@ import { END_ONLINE_CLASS, JOIN_ONLINE_CLASS } from '@tutorix/shared-graphql';
 import {
   isOnlineClassEndedMessage,
   nameInitials,
+  ONLINE_CLASS_WHITEBOARD_HEIGHT_RATIO,
   ONLINE_CLASS_WRAP_UP_MESSAGE,
   onlineClassEndedPayload,
   onlineClassScreenSharePayload,
@@ -428,6 +429,10 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
                 uid: String(creds.uid),
                 uuid: creds.whiteboardRoomUuid,
                 roomToken: creds.whiteboardRoomToken,
+              },
+              managerConfig: {
+                containerSizeRatio: ONLINE_CLASS_WHITEBOARD_HEIGHT_RATIO,
+                chessboard: false,
               },
             });
             if (cancelled || !boardRef.current) {
