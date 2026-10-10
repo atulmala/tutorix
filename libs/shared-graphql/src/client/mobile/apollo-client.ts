@@ -28,7 +28,9 @@ function getMetroPackagerHost(): string | null {
 
 /** USB Metro tunnels as localhost; babel inlines DEV_LAN_HOST at bundle time. */
 function getDevLanHost(): string | null {
-  const fromEnv = process.env['DEV_LAN_HOST'];
+  const fromEnv = (
+    globalThis as { process?: { env?: Record<string, string | undefined> } }
+  ).process?.env?.DEV_LAN_HOST;
   if (fromEnv && fromEnv !== 'localhost' && fromEnv !== '127.0.0.1') {
     return fromEnv;
   }
@@ -43,19 +45,21 @@ function replaceLoopbackHost(endpoint: string, host: string): string {
 
 /**
  * Get GraphQL endpoint for mobile.
- * Loopback URLs cannot be used on a physical device. Prefer Metro's host,
- * then DEV_LAN_HOST. Android emulator scriptURL is 10.0.2.2.
+ * A real Metro host (Wi-Fi) is used as-is. Android over USB keeps loopback:
+ * `adb reverse tcp:3000` forwards it to the Mac. Rewriting that to the Mac's
+ * LAN address fails when the phone is not on that Wi-Fi. iOS with no Metro
+ * host still uses DEV_LAN_HOST.
  */
 function getMobileGraphQLEndpoint(): string {
   let endpoint = getGraphQLEndpoint();
+  const metroHost = getMetroPackagerHost();
+  const devLanHost = getDevLanHost();
 
   if (endpoint.includes('localhost') || endpoint.includes('127.0.0.1')) {
-    const host =
-      getMetroPackagerHost() ??
-      getDevLanHost() ??
-      (Platform.OS === 'android' ? '10.0.2.2' : null);
-    if (host) {
-      endpoint = replaceLoopbackHost(endpoint, host);
+    if (metroHost) {
+      endpoint = replaceLoopbackHost(endpoint, metroHost);
+    } else if (Platform.OS !== 'android' && devLanHost) {
+      endpoint = replaceLoopbackHost(endpoint, devLanHost);
     }
   }
 

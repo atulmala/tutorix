@@ -47,6 +47,9 @@ echo ""
 echo "📱 Starting Android app..."
 echo ""
 
+# USB phones cannot reach the Mac's LAN address. Forward the API the same way Metro is forwarded.
+adb reverse tcp:3000 tcp:3000 || true
+
 # Run Android app (this will connect to the running Metro bundler)
 npx nx run-android mobile
 
