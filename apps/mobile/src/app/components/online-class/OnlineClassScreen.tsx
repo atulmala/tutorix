@@ -4,13 +4,13 @@ import {
   Platform,
   LayoutChangeEvent,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from '../SafeAreaView';
 import { useMutation } from '@apollo/client';
 import {
   CameraCapturerConfiguration,
@@ -361,7 +361,7 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
 
   if (ended) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.ended}>
           <Text style={styles.endedTitle}>This class has ended</Text>
           <Pressable accessibilityRole="button" onPress={onLeave}>
@@ -390,7 +390,7 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
     <View style={styles.page}>
       {classTitle ? (
         <View style={styles.title}>

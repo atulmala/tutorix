@@ -46,5 +46,19 @@ if [[ -z "$udid" ]]; then
 fi
 
 echo "Installing on ${label}"
+
+lan_host="$(node -e "const {detectLanHost}=require('${repo_root}/apps/mobile/detect-lan-host.cjs'); process.stdout.write(detectLanHost()||'');")"
+if [[ -n "$lan_host" ]]; then
+  echo ""
+  echo "Physical device dev checklist:"
+  echo "  • Mac API: npm run serve:api  (GraphQL http://${lan_host}:3000/api/graphql)"
+  echo "  • iPhone and Mac on the same Wi‑Fi"
+  echo "  • Settings → Tutorix → Local Network: ON"
+  echo "  • Metro must be running (port 8081); reload app after changing .env"
+  echo ""
+else
+  echo "Warning: could not detect a LAN IPv4. Set DEV_LAN_HOST in .env and restart Metro." >&2
+fi
+
 cd "${repo_root}/apps/mobile"
 exec npx react-native run-ios --udid "$udid" --extra-params "-allowProvisioningUpdates"

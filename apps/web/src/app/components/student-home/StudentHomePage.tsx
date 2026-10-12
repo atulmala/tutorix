@@ -11,9 +11,11 @@ import {
   istHomeScheduleDays,
   scheduledClassHasEnded,
 } from '@tutorix/shared-utils';
+import { useStudentHasRebookTutors } from '../student-rebook/useStudentHasRebookTutors';
 
 type StudentHomePageProps = {
   onOpenTutorSearch: () => void;
+  onOpenRebook?: () => void;
   onScheduleCredits?: () => void;
   onRescheduleCredit?: (credit: StudentClassCredit) => void;
   onOpenConcludedClasses?: () => void;
@@ -62,8 +64,40 @@ type BookedClass = {
   tutorName: string;
 };
 
+function TutorActionButtons({
+  onOpenTutorSearch,
+  onOpenRebook,
+  showRebook,
+}: {
+  onOpenTutorSearch: () => void;
+  onOpenRebook?: () => void;
+  showRebook: boolean;
+}) {
+  return (
+    <div className="mt-4 flex flex-wrap gap-2.5">
+      <button
+        type="button"
+        onClick={onOpenTutorSearch}
+        className="rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+      >
+        Find a tutor
+      </button>
+      {showRebook && onOpenRebook ? (
+        <button
+          type="button"
+          onClick={onOpenRebook}
+          className="rounded-xl border border-[#2563eb] bg-white px-4 py-2.5 text-sm font-semibold text-[#2563eb] hover:bg-sky-50"
+        >
+          Re-book
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 export const StudentHomePage: React.FC<StudentHomePageProps> = ({
   onOpenTutorSearch,
+  onOpenRebook,
   onScheduleCredits,
   onRescheduleCredit,
   onOpenConcludedClasses,
@@ -86,6 +120,7 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
     },
     fetchPolicy: 'network-only',
   });
+  const showRebook = useStudentHasRebookTutors();
   const { data: creditData } = useQuery(MY_CLASS_CREDITS, {
     fetchPolicy: 'cache-and-network',
   });
@@ -233,13 +268,11 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
               Book a certified tutor and your upcoming sessions will appear here, with time,
               subject, and a join action when it is time to start.
             </p>
-            <button
-              type="button"
-              onClick={onOpenTutorSearch}
-              className="mt-4 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
-            >
-              Find a tutor
-            </button>
+            <TutorActionButtons
+              onOpenTutorSearch={onOpenTutorSearch}
+              onOpenRebook={onOpenRebook}
+              showRebook={showRebook}
+            />
           </div>
         ) : (
           <>
@@ -335,13 +368,11 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
                 ))}
               </div>
             ) : null}
-            <button
-              type="button"
-              onClick={onOpenTutorSearch}
-              className="mt-4 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
-            >
-              Find a tutor
-            </button>
+            <TutorActionButtons
+              onOpenTutorSearch={onOpenTutorSearch}
+              onOpenRebook={onOpenRebook}
+              showRebook={showRebook}
+            />
           </>
         )}
       </section>

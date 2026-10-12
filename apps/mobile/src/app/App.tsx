@@ -1,5 +1,15 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet, Image, BackHandler } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Image,
+  BackHandler,
+  Platform,
+  StatusBar,
+} from 'react-native';
+import { androidBottomInset, androidTopInset } from './components/SafeAreaView';
 import {
   ApolloProvider,
   useLazyQuery,
@@ -22,6 +32,7 @@ import { StudentTutorSearchScreen } from './components/student-tutor-search/Stud
 import { StudentTutorSearchResultsScreen } from './components/student-tutor-search/StudentTutorSearchResultsScreen';
 import type { StudentTutorSearchParams } from './components/student-tutor-search/student-tutor-search-params';
 import { StudentTutorPreviewScreen } from './components/student-tutor-preview/StudentTutorPreviewScreen';
+import { StudentRebookTutorsScreen } from './components/student-rebook/StudentRebookTutorsScreen';
 import { StudentCartScreen } from './components/student-cart/StudentCartScreen';
 import { StudentCartCheckoutScreen } from './components/student-cart/StudentCartCheckoutScreen';
 import {
@@ -112,6 +123,24 @@ const UNAUTHED_VIEWS: AppView[] = [
   'signup',
 ];
 
+/** Tab bar already pads the system navigation bar on these screens. */
+const VIEWS_WITH_STUDENT_TAB_BAR: AppView[] = [
+  'studentHome',
+  'studentTutorSearch',
+  'studentTutorSearchResults',
+  'studentProfile',
+];
+
+function screenHostBottomInset(view: AppView): number {
+  if (VIEWS_WITH_STUDENT_TAB_BAR.includes(view)) {
+    return 0;
+  }
+  if (view === 'splash' || view === 'onlineClass') {
+    return 0;
+  }
+  return androidBottomInset();
+}
+
 function isAuthedView(view: AppView): boolean {
   return !UNAUTHED_VIEWS.includes(view);
 }
@@ -142,7 +171,9 @@ function AppContent() {
   const [tutorPreview, setTutorPreview] = useState<{
     tutorId: string;
     offeringId: string;
+    returnView: AppView;
   } | null>(null);
+  const [rebookReturnView, setRebookReturnView] = useState<AppView>('studentHome');
   const [scheduleCredits, setScheduleCredits] = useState<StudentClassCredit[] | null>(null);
   const [tutorSearchParams, setTutorSearchParams] =
     useState<StudentTutorSearchParams | null>(null);
@@ -544,6 +575,10 @@ function AppContent() {
         />
         <StudentHomeScreen
           onOpenTutorSearch={() => setCurrentView('studentTutorSearch')}
+          onOpenRebook={() => {
+            setRebookReturnView('studentHome');
+            setCurrentView('studentRebookTutors');
+          }}
           onScheduleCredits={() => setCurrentView('studentClassCredits')}
           onRescheduleCredit={(credit) => {
             setScheduleCredits([credit]);
@@ -590,7 +625,11 @@ function AppContent() {
             searchParams={tutorSearchParams}
             onRefineSearch={setTutorSearchParams}
             onOpenTutorPreview={(tutorId, offeringId) => {
-              setTutorPreview({ tutorId, offeringId });
+              setTutorPreview({
+                tutorId,
+                offeringId,
+                returnView: 'studentTutorSearchResults',
+              });
               setCurrentView('studentTutorPreview');
             }}
           />
@@ -599,6 +638,10 @@ function AppContent() {
             onSearch={(params) => {
               setTutorSearchParams(params);
               setCurrentView('studentTutorSearchResults');
+            }}
+            onRebook={() => {
+              setRebookReturnView('studentTutorSearch');
+              setCurrentView('studentRebookTutors');
             }}
           />
         )}
@@ -612,16 +655,36 @@ function AppContent() {
         />
       </View>
     );
+  } else if (currentView === 'studentRebookTutors') {
+    screen = (
+      <View style={{ flex: 1, backgroundColor: '#e8f4ff' }}>
+        <StudentNavHeader
+          title="Re-book"
+          onBack={() => setCurrentView(rebookReturnView)}
+          onLogout={handleLogout}
+          onProfilePress={() => setCurrentView('studentProfile')}
+          onOpenWallet={() => handleOpenWallet('studentRebookTutors')}
+          onOpenCart={openStudentCart}
+        />
+        <StudentRebookTutorsScreen
+          onFindTutor={() => setCurrentView('studentTutorSearch')}
+          onOpenTutorPreview={(tutorId, offeringId) => {
+            setTutorPreview({
+              tutorId,
+              offeringId,
+              returnView: 'studentRebookTutors',
+            });
+            setCurrentView('studentTutorPreview');
+          }}
+        />
+      </View>
+    );
   } else if (currentView === 'studentTutorPreview' && tutorPreview) {
     screen = (
       <View style={{ flex: 1 }}>
         <StudentNavHeader
           title="Tutor"
-          onBack={() =>
-            setCurrentView(
-              tutorSearchParams ? 'studentTutorSearchResults' : 'studentTutorSearch',
-            )
-          }
+          onBack={() => setCurrentView(tutorPreview.returnView)}
           onLogout={handleLogout}
           onProfilePress={() => setCurrentView('studentProfile')}
           onOpenWallet={() => handleOpenWallet('studentHome')}
@@ -901,8 +964,15 @@ function AppContent() {
         ? 'studentCart'
         : currentView;
 
+  const hostBottomInset = screenHostBottomInset(currentView);
+
   const studentCartOverlayNode = studentCartOverlay ? (
-    <View style={studentCartOverlayStyles.root}>
+    <View
+      style={[
+        studentCartOverlayStyles.root,
+        androidBottomInset() > 0 ? { paddingBottom: androidBottomInset() } : null,
+      ]}
+    >
       {studentCartOverlay === 'cart' ? (
         <>
           <StudentNavHeader
@@ -948,9 +1018,25 @@ function AppContent() {
   ) : null;
 
   return (
-    <>
+    <View style={appStyles.root}>
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor={
+          Platform.OS === 'android' && Number(Platform.Version) >= 35
+            ? 'transparent'
+            : '#f8fafc'
+        }
+        translucent={Platform.OS === 'android' && Number(Platform.Version) >= 35}
+      />
       <AnalyticsViewTracker screenName={analyticsScreen} />
-      {screen}
+      <View
+        style={[
+          appStyles.screenHost,
+          hostBottomInset > 0 ? { paddingBottom: hostBottomInset } : null,
+        ]}
+      >
+        {screen}
+      </View>
       {studentCartOverlayNode}
       {pushBanner ? (
         <Pressable
@@ -972,7 +1058,7 @@ function AppContent() {
           </View>
         </Pressable>
       ) : null}
-    </>
+    </View>
   );
 }
 
@@ -1007,6 +1093,16 @@ export const App = () => {
 
 export default App;
 
+const appStyles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  screenHost: {
+    flex: 1,
+  },
+});
+
 const studentCartOverlayStyles = StyleSheet.create({
   root: {
     ...StyleSheet.absoluteFillObject,
@@ -1018,7 +1114,7 @@ const studentCartOverlayStyles = StyleSheet.create({
 const pushBannerStyles = StyleSheet.create({
   banner: {
     position: 'absolute',
-    top: 52,
+    top: 52 + androidTopInset(),
     left: 16,
     right: 16,
     borderRadius: 12,

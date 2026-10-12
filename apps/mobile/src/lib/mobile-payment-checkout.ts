@@ -5,7 +5,7 @@ import {
   Platform,
   type AppStateStatus,
 } from 'react-native';
-import { getGraphQLEndpoint } from '@tutorix/shared-graphql/client/mobile/endpoint';
+import { getMobileGraphQLEndpoint } from '@tutorix/shared-graphql/client/mobile/apollo-client';
 import { getAuthToken } from '@tutorix/shared-graphql/client/mobile/token-storage';
 import {
   openPaymentCheckout,
@@ -115,7 +115,7 @@ function waitForOrderCapturePoll(
 
       try {
         const token = await getAuthToken();
-        const response = await fetch(getGraphQLEndpoint(), {
+        const response = await fetch(getMobileGraphQLEndpoint(), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

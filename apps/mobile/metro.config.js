@@ -40,7 +40,7 @@ const customConfig = {
   resolver: {
     assetExts: assetExts.filter((ext) => ext !== 'svg'),
     sourceExts: [...sourceExts, 'cjs', 'mjs', 'svg'],
-    // CRITICAL: react-native@0.79 requires react@^19 (see its peerDependencies),
+    // CRITICAL: react-native@0.79 requires react@^19 (                                        see its peerDependencies),
     // which is incompatible with the root workspace's react@18.2.0 (used by the
     // web app). apps/mobile therefore keeps its OWN copies of react/react-native
     // (and packages that must share their singletons, like @apollo/client and

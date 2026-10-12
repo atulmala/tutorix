@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from '../SafeAreaView';
 import Svg, { Path } from 'react-native-svg';
 
 export type StudentTab = 'home' | 'search' | 'profile';
@@ -62,7 +63,7 @@ export const StudentTabBar: React.FC<StudentTabBarProps> = ({
   onProfile,
 }) => {
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
       <View style={styles.wrap}>
         <TabItem
           label="Home"

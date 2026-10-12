@@ -17,6 +17,7 @@ export type WebView =
   | 'student-home'
   | 'student-profile'
   | 'student-tutor-search'
+  | 'student-rebook-tutors'
   | 'student-tutor-preview'
   | 'student-cart'
   | 'student-cart-checkout'
@@ -37,6 +38,7 @@ export type WalletReturnView =
   | 'student-home'
   | 'student-profile'
   | 'student-tutor-search'
+  | 'student-rebook-tutors'
   | 'student-tutor-preview'
   | 'student-class-credits'
   | 'student-class-schedule'
@@ -53,6 +55,7 @@ const STUDENT_CART_RETURN_VIEWS = [
   'student-home',
   'student-profile',
   'student-tutor-search',
+  'student-rebook-tutors',
   'student-tutor-preview',
   'student-class-credits',
   'student-class-schedule',

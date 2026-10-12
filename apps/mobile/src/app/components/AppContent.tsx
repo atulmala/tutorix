@@ -1,10 +1,10 @@
 import React, { useRef, useState } from 'react';
 import {
-  SafeAreaView,
   ScrollView,
   View,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from './SafeAreaView';
 import { WelcomeScreen } from './WelcomeScreen';
 import { HeroSection } from './HeroSection';
 import { LearningMaterials } from './LearningMaterials';

@@ -9,6 +9,7 @@ const mockUseQuery = jest.fn();
 jest.mock('@tutorix/shared-graphql/queries', () => ({
   STUDENT_BOOKED_CLASS_SESSIONS: { kind: 'booked' },
   MY_CLASS_CREDITS: { kind: 'credits' },
+  STUDENT_REBOOK_TUTORS: { kind: 'rebook' },
 }));
 
 jest.mock('@apollo/client', () => ({
@@ -18,7 +19,15 @@ jest.mock('@apollo/client', () => ({
 describe('StudentHomeScreen', () => {
   beforeEach(() => {
     mockUseQuery.mockReset();
-    mockUseQuery.mockReturnValue({ loading: false, data: { studentBookedClassSessions: [] } });
+    mockUseQuery.mockImplementation((query: { kind?: string }) => {
+      if (query.kind === 'rebook') {
+        return { loading: false, data: { studentRebookTutors: [] } };
+      }
+      if (query.kind === 'credits') {
+        return { loading: false, data: { myClassCredits: [] } };
+      }
+      return { loading: false, data: { studentBookedClassSessions: [] } };
+    });
   });
 
   it('shows the schedule hub without opening the subject picker', () => {
@@ -40,6 +49,27 @@ describe('StudentHomeScreen', () => {
 
     fireEvent.press(getByText('Find a tutor'));
     expect(onOpenTutorSearch).toHaveBeenCalled();
+  });
+
+  it('opens re-book when the student has past tutors', () => {
+    mockUseQuery.mockImplementation((query: { kind?: string }) => {
+      if (query.kind === 'rebook') {
+        return {
+          loading: false,
+          data: { studentRebookTutors: [{ tutorId: 4, catalogOfferingId: 10 }] },
+        };
+      }
+      if (query.kind === 'credits') {
+        return { loading: false, data: { myClassCredits: [] } };
+      }
+      return { loading: false, data: { studentBookedClassSessions: [] } };
+    });
+    const onOpenRebook = jest.fn();
+    const { getByText } = render(
+      <StudentHomeScreen onOpenTutorSearch={jest.fn()} onOpenRebook={onOpenRebook} />,
+    );
+    fireEvent.press(getByText('Re-book'));
+    expect(onOpenRebook).toHaveBeenCalled();
   });
 
   it('lists booked 1-hour classes for the selected day', () => {

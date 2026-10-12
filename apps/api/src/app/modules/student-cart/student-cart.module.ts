@@ -1,5 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from '../auth/auth.module';
 import { CommerceModule } from '../commerce/commerce.module';
 import { CommunicationModule } from '../communication/communication.module';
 import { OrderItemEntity } from '../commerce/entities/order-item.entity';
@@ -49,6 +50,7 @@ import { TutorClassBookingService } from './services/tutor-class-booking.service
       OrderItemEntity,
       TutorClassEmailQueueEntity,
     ]),
+    forwardRef(() => AuthModule),
     StudentModule,
     OfferingsModule,
     TutorRateCardModule,

@@ -7,6 +7,7 @@ import { PhoneVerification } from './PhoneVerification';
 import { EmailVerification } from './EmailVerification';
 import { GET_SIGNUP_VERIFICATION_POLICY, GET_USER_BY_ID } from '@tutorix/shared-graphql/queries';
 import { getIsoCountryCode } from '@tutorix/shared-utils';
+import { androidTopInset } from '../SafeAreaView';
 
 export type SignupVerificationStatus = {
   isMobileVerified: boolean;
@@ -172,7 +173,10 @@ export const SignUpScreen: React.FC<SignUpProps> = ({
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView
+      style={[styles.container, { paddingTop: androidTopInset() }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.content}>
           <View style={styles.headerRow}>

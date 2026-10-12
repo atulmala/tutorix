@@ -21,12 +21,25 @@ export type TutorSearchResultCardHit = {
 type TutorSearchResultCardProps = {
   hit: TutorSearchResultCardHit;
   onView: () => void;
+  bookedClassCount?: number;
+  deliveryModeLabel?: string;
 };
 
 export const TutorSearchResultCard: React.FC<TutorSearchResultCardProps> = ({
   hit,
   onView,
+  bookedClassCount,
+  deliveryModeLabel,
 }) => {
+  const isRebook = bookedClassCount != null;
+  const modeLabel =
+    deliveryModeLabel ??
+    (hit.deliveryModeShown === 'OFFLINE'
+      ? hit.distanceKm != null
+        ? `${hit.distanceKm.toFixed(1)} km`
+        : 'Offline'
+      : 'Online');
+
   return (
     <Pressable
       style={styles.card}
@@ -51,18 +64,20 @@ export const TutorSearchResultCard: React.FC<TutorSearchResultCardProps> = ({
         </View>
       </View>
       <Text style={styles.cardMeta}>{hit.offeringLabel}</Text>
-      <Text style={styles.cardMeta}>
-        {hit.deliveryModeShown === 'OFFLINE'
-          ? hit.distanceKm != null
-            ? `${hit.distanceKm.toFixed(1)} km`
-            : 'Offline'
-          : 'Online'}
-        {' · '}
-        {hit.groupSize > 1 ? `Group of ${hit.groupSize}` : '1:1'}
-        {hit.freeDemoOffered ? ' · Free demo' : ''}
-      </Text>
-      <Text style={styles.rate}>{formatInr(hit.rateInr)} / class</Text>
-      <Text style={styles.link}>View profile</Text>
+      {isRebook ? (
+        <Text style={styles.cardMeta}>
+          {bookedClassCount} class{bookedClassCount === 1 ? '' : 'es'} booked · {modeLabel}
+        </Text>
+      ) : (
+        <Text style={styles.cardMeta}>
+          {modeLabel}
+          {' · '}
+          {hit.groupSize > 1 ? `Group of ${hit.groupSize}` : '1:1'}
+          {hit.freeDemoOffered ? ' · Free demo' : ''}
+        </Text>
+      )}
+      {isRebook ? null : <Text style={styles.rate}>{formatInr(hit.rateInr)} / class</Text>}
+      <Text style={styles.link}>{isRebook ? 'Book again' : 'View profile'}</Text>
     </Pressable>
   );
 };

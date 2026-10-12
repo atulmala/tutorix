@@ -9,6 +9,7 @@ jest.mock('@tutorix/shared-graphql', () => ({
   GET_MY_STUDENT_PROFILE: { kind: 'profile' },
   GET_OFFERINGS: { kind: 'offerings' },
   SEARCH_TUTORS: { kind: 'search' },
+  STUDENT_REBOOK_TUTORS: { kind: 'rebook' },
 }));
 
 jest.mock('@apollo/client', () => ({
@@ -49,6 +50,9 @@ function mockQueries() {
     if (query === SEARCH_TUTORS) {
       return { loading: false, data: { searchTutors: { items: [], forcedOnlineOnly: false } } };
     }
+    if (query.kind === 'rebook') {
+      return { loading: false, data: { studentRebookTutors: [] } };
+    }
     return { loading: false, data: null };
   });
 }
@@ -61,7 +65,7 @@ describe('StudentTutorSearchPage', () => {
   });
 
   it('shows labeled dropdowns instead of unlabeled filter chips', () => {
-    render(<StudentTutorSearchPage onOpenTutorPreview={jest.fn()} />);
+    render(<StudentTutorSearchPage onOpenTutorPreview={jest.fn()} onRebook={jest.fn()} />);
 
     expect(screen.getByLabelText('Study area')).toBeTruthy();
     expect(screen.getByLabelText('Board')).toBeTruthy();
@@ -77,7 +81,7 @@ describe('StudentTutorSearchPage', () => {
   });
 
   it('defaults board and class from the student profile and waits for a subject', () => {
-    render(<StudentTutorSearchPage onOpenTutorPreview={jest.fn()} />);
+    render(<StudentTutorSearchPage onOpenTutorPreview={jest.fn()} onRebook={jest.fn()} />);
 
     expect((screen.getByLabelText('Board') as HTMLSelectElement).value).toBe('10');
     expect((screen.getByLabelText('Class') as HTMLSelectElement).value).toBe('20');
@@ -86,7 +90,7 @@ describe('StudentTutorSearchPage', () => {
   });
 
   it('searches after a subject is chosen and keeps filters labeled', () => {
-    render(<StudentTutorSearchPage onOpenTutorPreview={jest.fn()} />);
+    render(<StudentTutorSearchPage onOpenTutorPreview={jest.fn()} onRebook={jest.fn()} />);
 
     fireEvent.change(screen.getByLabelText('Subject'), { target: { value: '30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Offline' }));
@@ -109,13 +113,13 @@ describe('StudentTutorSearchPage', () => {
   });
 
   it('keeps filters and continues the search after remounting', () => {
-    const { unmount } = render(<StudentTutorSearchPage onOpenTutorPreview={jest.fn()} />);
+    const { unmount } = render(<StudentTutorSearchPage onOpenTutorPreview={jest.fn()} onRebook={jest.fn()} />);
     fireEvent.change(screen.getByLabelText('Subject'), { target: { value: '31' } });
     fireEvent.click(screen.getByRole('button', { name: 'Online' }));
     fireEvent.click(screen.getByRole('button', { name: 'Group' }));
     unmount();
 
-    render(<StudentTutorSearchPage onOpenTutorPreview={jest.fn()} />);
+    render(<StudentTutorSearchPage onOpenTutorPreview={jest.fn()} onRebook={jest.fn()} />);
 
     expect((screen.getByLabelText('Subject') as HTMLSelectElement).value).toBe('31');
     expect(screen.getByRole('button', { name: 'Online' }).getAttribute('aria-pressed')).toBe(

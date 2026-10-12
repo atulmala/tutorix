@@ -14,6 +14,7 @@ export type AppView =
   | 'studentProfile'
   | 'studentTutorSearch'
   | 'studentTutorSearchResults'
+  | 'studentRebookTutors'
   | 'studentTutorPreview'
   | 'studentCart'
   | 'studentCartCheckout'
@@ -34,6 +35,7 @@ export type WalletReturnView =
   | 'studentHome'
   | 'studentTutorSearch'
   | 'studentTutorSearchResults'
+  | 'studentRebookTutors'
   | 'studentTutorPreview'
   | 'studentClassCredits'
   | 'studentClassSchedule'
@@ -51,6 +53,7 @@ const STUDENT_CART_RETURN_VIEWS = [
   'studentProfile',
   'studentTutorSearch',
   'studentTutorSearchResults',
+  'studentRebookTutors',
   'studentTutorPreview',
   'studentClassCredits',
   'studentClassSchedule',

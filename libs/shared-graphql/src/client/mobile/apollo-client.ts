@@ -8,6 +8,7 @@ import {
   createRetryLink,
 } from './links';
 import { createCache } from './cache-config';
+import { resolveMobileDevEndpoint } from './dev-endpoint';
 import { getGraphQLEndpoint } from './endpoint';
 
 function getMetroPackagerHost(): string | null {
@@ -26,43 +27,28 @@ function getMetroPackagerHost(): string | null {
   }
 }
 
-/** USB Metro tunnels as localhost; babel inlines DEV_LAN_HOST at bundle time. */
 function getDevLanHost(): string | null {
-  const fromEnv = (
-    globalThis as { process?: { env?: Record<string, string | undefined> } }
-  ).process?.env?.DEV_LAN_HOST;
+  // Must use `process.env` (not globalThis) so Metro/Babel inline DEV_LAN_HOST on device builds.
+  const fromEnv = process.env.DEV_LAN_HOST;
   if (fromEnv && fromEnv !== 'localhost' && fromEnv !== '127.0.0.1') {
     return fromEnv;
   }
   return null;
 }
 
-function replaceLoopbackHost(endpoint: string, host: string): string {
-  return endpoint
-    .replace('://localhost', `://${host}`)
-    .replace('://127.0.0.1', `://${host}`);
-}
-
 /**
- * Get GraphQL endpoint for mobile.
- * A real Metro host (Wi-Fi) is used as-is. Android over USB keeps loopback:
- * `adb reverse tcp:3000` forwards it to the Mac. Rewriting that to the Mac's
- * LAN address fails when the phone is not on that Wi-Fi. iOS with no Metro
- * host still uses DEV_LAN_HOST.
+ * GraphQL URL for this device.
+ * Android stays on 127.0.0.1 so `adb reverse tcp:3000` carries API traffic
+ * over USB. iOS uses the Metro host, then DEV_LAN_HOST.
  */
-function getMobileGraphQLEndpoint(): string {
-  let endpoint = getGraphQLEndpoint();
-  const metroHost = getMetroPackagerHost();
-  const devLanHost = getDevLanHost();
-
-  if (endpoint.includes('localhost') || endpoint.includes('127.0.0.1')) {
-    if (metroHost) {
-      endpoint = replaceLoopbackHost(endpoint, metroHost);
-    } else if (Platform.OS !== 'android' && devLanHost) {
-      endpoint = replaceLoopbackHost(endpoint, devLanHost);
-    }
-  }
-
+export function getMobileGraphQLEndpoint(): string {
+  const endpoint = resolveMobileDevEndpoint({
+    endpoint: getGraphQLEndpoint(),
+    platform: Platform.OS,
+    metroHost: getMetroPackagerHost(),
+    devLanHost: getDevLanHost(),
+  });
+  console.log('[GraphQL Endpoint - Mobile] Device endpoint:', endpoint);
   return endpoint;
 }
 

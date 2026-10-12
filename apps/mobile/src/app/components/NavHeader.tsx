@@ -4,9 +4,9 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Image,
 } from 'react-native';
+import { SafeAreaView } from './SafeAreaView';
 import { BackArrowIcon } from './BackArrowIcon';
 import { LogoutIcon } from './LogoutIcon';
 

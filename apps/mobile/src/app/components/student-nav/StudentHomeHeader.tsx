@@ -1,5 +1,6 @@
 import React from 'react';
-import { Image, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from '../SafeAreaView';
 import { useQuery } from '@apollo/client';
 import { GET_MY_STUDENT_PROFILE } from '@tutorix/shared-graphql/queries';
 import {

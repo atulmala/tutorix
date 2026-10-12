@@ -1,14 +1,16 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { User } from '../../auth/entities/user.entity';
 import { UserRole } from '../../auth/enums/user-role.enum';
+import { ProfilePictureService } from '../../auth/services/profile-picture.service';
 import { OfferingService } from '../../offerings/services/offering.service';
 import { StudentService } from '../../student/services/student.service';
 import { Tutor } from '../../tutor/entities/tutor.entity';
 import { ClassSessionDeliveryModeEnum } from '../../tutor-class-session/enums/class-session-delivery-mode.enum';
 import { StudentClassBookingListResult } from '../dto/student-class-booking.dto';
 import { StudentClassBookingListInput } from '../dto/student-class-booking.dto';
+import { StudentRebookTutor } from '../dto/student-rebook-tutor.dto';
 import { TutorClassBookingListResult } from '../dto/tutor-class-booking.dto';
 import { TutorClassBookingListInput } from '../dto/tutor-class-booking-list.input';
 import { StudentClassCreditEntity } from '../entities/student-class-credit.entity';
@@ -19,10 +21,12 @@ import {
 } from '../student-cart-offering-display.util';
 import {
   applyTutorClassBookingStudentSearch,
+  groupStudentRebookTutors,
   groupTutorClassBookings,
   offeringLabelMatchesSearch,
   pageStudentClassBookings,
   pageTutorClassBookings,
+  StudentRebookCreditSource,
   TutorClassBookingCreditSource,
 } from '../tutor-class-booking.util';
 
@@ -97,6 +101,7 @@ export class TutorClassBookingService {
     private readonly tutorRepo: Repository<Tutor>,
     private readonly offeringService: OfferingService,
     private readonly studentService: StudentService,
+    private readonly profilePictureService: ProfilePictureService,
   ) {}
 
   async list(
@@ -196,6 +201,61 @@ export class TutorClassBookingService {
     return pageStudentClassBookings(groupTutorClassBookings(sources, now), input);
   }
 
+  async listRebookTutorsForStudent(user: User): Promise<StudentRebookTutor[]> {
+    if (String(user.role).toUpperCase() !== UserRole.STUDENT) {
+      throw new ForbiddenException('Only students can view re-book tutors');
+    }
+    const student = await this.studentService.findByUserId(user.id);
+    if (!student) {
+      throw new ForbiddenException('Student profile not found');
+    }
+
+    const rows = await this.bookingQuery()
+      .andWhere('credit.student_id = :studentId', { studentId: student.id })
+      .select([...CREDIT_SELECT])
+      .getRawMany<RawTutorClassBookingRow>();
+    const offeringsById = offeringsByIdFromCatalog(await this.offeringService.findAll());
+    const rebookSources = rows.map((row) => this.toRebookSource(row, offeringsById));
+    const grouped = groupStudentRebookTutors(rebookSources);
+    if (grouped.length === 0) {
+      return [];
+    }
+
+    const tutorIds = [...new Set(grouped.map((row) => row.tutorId))];
+    const tutors = await this.tutorRepo.find({
+      where: { id: In(tutorIds), deleted: false },
+      relations: ['user'],
+    });
+    const tutorsById = new Map(tutors.map((tutor) => [tutor.id, tutor]));
+
+    const results: StudentRebookTutor[] = [];
+    for (const row of grouped) {
+      const tutor = tutorsById.get(row.tutorId);
+      const photoUrl = tutor
+        ? await this.profilePictureService.resolveDisplayUrl(
+            tutor.user?.profilePicture ?? tutor.user?.profilePictureThumbnailMedium,
+          )
+        : null;
+      const displayName =
+        tutor
+          ? [tutor.user?.firstName, tutor.user?.lastName].filter(Boolean).join(' ').trim() ||
+            row.displayName
+          : row.displayName;
+      results.push({
+        tutorId: row.tutorId,
+        catalogOfferingId: row.catalogOfferingId,
+        displayName,
+        photoUrl,
+        offeringLabel: row.offeringLabel,
+        totalClassCount: row.totalClassCount,
+        lastBookedAt: row.lastBookedAt,
+        lastDeliveryMode: row.lastDeliveryMode,
+        totalExperienceMonths: null,
+      });
+    }
+    return results;
+  }
+
   private bookingQuery() {
     return this.creditRepo
       .createQueryBuilder('credit')
@@ -242,6 +302,32 @@ export class TutorClassBookingService {
         igstInr: asNumber(row.orderItemIgstInr),
         quantity: asNumber(row.orderItemQuantity, 1),
       },
+      createdDate: new Date(row.createdDate),
+      isDemo: asBool(row.isDemo),
+    };
+  }
+
+  private toRebookSource(
+    row: RawTutorClassBookingRow,
+    offeringsById: ReturnType<typeof offeringsByIdFromCatalog>,
+  ): StudentRebookCreditSource {
+    const offeringLabel = resolveStudentCartOfferingDisplay(
+      row.catalogOfferingId == null ? null : asNumber(row.catalogOfferingId),
+      row.tutorCatalogOfferingId == null ? null : asNumber(row.tutorCatalogOfferingId),
+      row.tutorLeafDisplayName,
+      offeringsById,
+    ).offeringLabel;
+    return {
+      tutorId: asNumber(row.tutorId),
+      tutorFirstName: row.tutorFirstName,
+      tutorLastName: row.tutorLastName,
+      catalogOfferingId:
+        row.catalogOfferingId == null ? null : asNumber(row.catalogOfferingId),
+      tutorCatalogOfferingId:
+        row.tutorCatalogOfferingId == null ? null : asNumber(row.tutorCatalogOfferingId),
+      offeringLabel,
+      deliveryMode: row.deliveryMode,
+      status: row.status,
       createdDate: new Date(row.createdDate),
       isDemo: asBool(row.isDemo),
     };

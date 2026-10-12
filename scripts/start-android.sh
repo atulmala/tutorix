@@ -47,8 +47,14 @@ echo ""
 echo "📱 Starting Android app..."
 echo ""
 
-# USB phones cannot reach the Mac's LAN address. Forward the API the same way Metro is forwarded.
-adb reverse tcp:3000 tcp:3000 || true
+# USB phones cannot reach the Mac's LAN address. Forward Metro and the API
+# over the cable. The app calls 127.0.0.1, which only works while these
+# tunnels are up. `localhost` is not used: Android tries IPv6 first and stalls.
+if adb reverse tcp:8081 tcp:8081 && adb reverse tcp:3000 tcp:3000; then
+    echo "USB tunnels ready (Metro :8081, API :3000)"
+else
+    echo "Warning: adb reverse failed. Plug in the phone and accept USB debugging, or screen data will load slowly."
+fi
 
 # Run Android app (this will connect to the running Metro bundler)
 npx nx run-android mobile
