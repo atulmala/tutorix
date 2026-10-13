@@ -13,9 +13,16 @@
         "cwd": "apps/mobile"
       }
     },
+    "link-native-deps": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash scripts/mobile-link-hoisted-native-deps.sh",
+        "cwd": "{workspaceRoot}"
+      }
+    },
     "pod-install": {
       "executor": "nx:run-commands",
-      "dependsOn": ["sync-deps"],
+      "dependsOn": ["sync-deps", "link-native-deps"],
       "options": {
         "command": "pod install",
         "cwd": "apps/mobile/ios"
@@ -24,6 +31,7 @@
     "run-ios": {
       "continuous": true,
       "executor": "nx:run-commands",
+      "dependsOn": ["link-native-deps"],
       "options": {
         "command": "react-native run-ios --extra-params \"-allowProvisioningUpdates\"",
         "cwd": "apps/mobile"
@@ -32,8 +40,9 @@
     "run-android": {
       "continuous": true,
       "executor": "nx:run-commands",
+      "dependsOn": ["link-native-deps"],
       "options": {
-        "command": "react-native run-android",
+        "command": "react-native run-android --active-arch-only",
         "cwd": "apps/mobile"
       }
     },

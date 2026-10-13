@@ -6,6 +6,10 @@ buildscript {
         targetSdkVersion = 35
         ndkVersion = "27.1.12297006"
         kotlinVersion = "2.0.21"
+        // @netless/react-native-whiteboard uses these names in safeExtGet (defaults to SDK 29).
+        Whiteboard_compileSdkVersion = compileSdkVersion
+        Whiteboard_targetSdkVersion = targetSdkVersion
+        Whiteboard_minSdkVersion = minSdkVersion
     }
     repositories {
         google()

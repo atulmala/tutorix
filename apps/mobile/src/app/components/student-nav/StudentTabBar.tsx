@@ -3,14 +3,18 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from '../SafeAreaView';
 import Svg, { Path } from 'react-native-svg';
 
-export type StudentTab = 'home' | 'search' | 'profile';
+export type StudentTab = 'home' | 'search' | 'wallet' | 'profile';
 
 type StudentTabBarProps = {
-  active: StudentTab;
+  active: StudentTab | null;
   onHome: () => void;
   onSearch: () => void;
+  onWallet: () => void;
   onProfile: () => void;
 };
+
+const ACTIVE = '#2563eb';
+const INACTIVE = '#94a3b8';
 
 function HomeIcon({ color }: { color: string }) {
   return (
@@ -38,6 +42,19 @@ function SearchIcon({ color }: { color: string }) {
   );
 }
 
+function WalletIcon({ color }: { color: string }) {
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M3 7h15a3 3 0 0 1 3 3v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"
+        stroke={color}
+        strokeWidth={1.8}
+      />
+      <Path d="M18 12h2a2 2 0 0 1 0 4h-2" stroke={color} strokeWidth={1.8} />
+    </Svg>
+  );
+}
+
 function ProfileIcon({ color }: { color: string }) {
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
@@ -60,6 +77,7 @@ export const StudentTabBar: React.FC<StudentTabBarProps> = ({
   active,
   onHome,
   onSearch,
+  onWallet,
   onProfile,
 }) => {
   return (
@@ -69,19 +87,25 @@ export const StudentTabBar: React.FC<StudentTabBarProps> = ({
           label="Home"
           active={active === 'home'}
           onPress={onHome}
-          icon={<HomeIcon color={active === 'home' ? '#2563eb' : '#94a3b8'} />}
+          icon={<HomeIcon color={active === 'home' ? ACTIVE : INACTIVE} />}
         />
         <TabItem
           label="Search"
           active={active === 'search'}
           onPress={onSearch}
-          icon={<SearchIcon color={active === 'search' ? '#2563eb' : '#94a3b8'} />}
+          icon={<SearchIcon color={active === 'search' ? ACTIVE : INACTIVE} />}
+        />
+        <TabItem
+          label="Wallet"
+          active={active === 'wallet'}
+          onPress={onWallet}
+          icon={<WalletIcon color={active === 'wallet' ? ACTIVE : INACTIVE} />}
         />
         <TabItem
           label="Profile"
           active={active === 'profile'}
           onPress={onProfile}
-          icon={<ProfileIcon color={active === 'profile' ? '#2563eb' : '#94a3b8'} />}
+          icon={<ProfileIcon color={active === 'profile' ? ACTIVE : INACTIVE} />}
         />
       </View>
     </SafeAreaView>
@@ -132,18 +156,18 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   label: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
-    color: '#94a3b8',
+    color: INACTIVE,
   },
   labelOn: {
-    color: '#2563eb',
+    color: ACTIVE,
   },
   dot: {
     width: 12,
     height: 2,
     borderRadius: 1,
-    backgroundColor: '#2563eb',
+    backgroundColor: ACTIVE,
     marginTop: 2,
   },
   dotSpacer: {

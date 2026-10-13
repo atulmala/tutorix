@@ -11,6 +11,7 @@
     "mobile:iphone": "bash scripts/mobile-ios-device.sh iphone",
     "mobile:ipad": "bash scripts/mobile-ios-device.sh ipad",
     "mobile:android": "bash scripts/start-android.sh",
+    "mobile:android:tunnel": "bash scripts/mobile-android-usb-tunnel.sh",
     "mobile:start": "nx start mobile",
     "mobile:android:run": "nx run-android mobile",
     "mobile:store:android": "bash scripts/mobile-store-build.sh android",

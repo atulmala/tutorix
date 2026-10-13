@@ -8,8 +8,25 @@ import {
   createRetryLink,
 } from './links';
 import { createCache } from './cache-config';
-import { resolveMobileDevEndpoint } from './dev-endpoint';
+import {
+  looksLikeAndroidEmulator,
+  resolveMobileDevEndpoint,
+} from './dev-endpoint';
 import { getGraphQLEndpoint } from './endpoint';
+
+function isAndroidEmulator(): boolean {
+  if (Platform.OS !== 'android') {
+    return false;
+  }
+  const constants = Platform.constants as {
+    Model?: string;
+    Fingerprint?: string;
+  };
+  return looksLikeAndroidEmulator({
+    model: constants.Model,
+    fingerprint: constants.Fingerprint,
+  });
+}
 
 function getMetroPackagerHost(): string | null {
   try {
@@ -38,8 +55,8 @@ function getDevLanHost(): string | null {
 
 /**
  * GraphQL URL for this device.
- * Android stays on 127.0.0.1 so `adb reverse tcp:3000` carries API traffic
- * over USB. iOS uses the Metro host, then DEV_LAN_HOST.
+ * Android phone: 127.0.0.1 + `adb reverse tcp:3000`. Emulator: 10.0.2.2.
+ * iOS uses the Metro host, then DEV_LAN_HOST.
  */
 export function getMobileGraphQLEndpoint(): string {
   const endpoint = resolveMobileDevEndpoint({
@@ -47,6 +64,7 @@ export function getMobileGraphQLEndpoint(): string {
     platform: Platform.OS,
     metroHost: getMetroPackagerHost(),
     devLanHost: getDevLanHost(),
+    isAndroidEmulator: isAndroidEmulator(),
   });
   console.log('[GraphQL Endpoint - Mobile] Device endpoint:', endpoint);
   return endpoint;

@@ -27,16 +27,21 @@ jest.mock('react-native-agora', () => ({
   RenderModeType: { RenderModeFit: 2 },
   VideoDimensions: class VideoDimensions {},
   VideoEncoderConfiguration: class VideoEncoderConfiguration {},
-  VideoSourceType: { VideoSourceScreen: 2 },
+  VideoSourceType: { VideoSourceCamera: 0, VideoSourceScreen: 2 },
   createAgoraRtcEngine: () => ({
     initialize: jest.fn(),
     setCameraCapturerConfiguration: jest.fn(() => 0),
     setVideoEncoderConfiguration: jest.fn(() => 0),
     enableVideo: jest.fn(),
     enableAudio: jest.fn(),
+    setDefaultAudioRouteToSpeakerphone: jest.fn(() => 0),
+    enableLocalVideo: jest.fn(),
     startPreview: jest.fn(),
+    updateChannelMediaOptions: jest.fn(() => 0),
     addListener: jest.fn(),
-    joinChannel: jest.fn(),
+    registerEventHandler: jest.fn(),
+    unregisterEventHandler: jest.fn(),
+    joinChannel: jest.fn(() => 0),
     leaveChannel: jest.fn(),
     release: jest.fn(),
     muteLocalAudioStream: jest.fn(() => 0),
@@ -46,6 +51,11 @@ jest.mock('react-native-agora', () => ({
     updateChannelMediaOptions: jest.fn(() => 0),
   }),
   RtcSurfaceView: () => null,
+  RtcTextureView: () => null,
+  RemoteVideoState: {
+    RemoteVideoStateStarting: 1,
+    RemoteVideoStateDecoding: 2,
+  },
 }));
 
 jest.mock('agora-react-native-rtm', () => ({
@@ -70,6 +80,28 @@ const fastRoomProps: {
 } = {
   current: null,
 };
+
+jest.mock('../../lib/is-webview-native-available', () => ({
+  isWebViewNativeAvailable: () => true,
+}));
+
+jest.mock('../../lib/agora-native', () => ({
+  loadAgoraRtcModule: () => require('react-native-agora'),
+  loadAgoraRtmModule: () => require('agora-react-native-rtm'),
+  normalizeAgoraUid: (value: unknown) =>
+    typeof value === 'number' && Number.isFinite(value) ? value : null,
+  isAgoraRtcNativeAvailable: () => true,
+}));
+
+jest.mock('../../lib/agora-rtc-session', () => ({
+  ensureAgoraRtcEngine: (rtc: { createAgoraRtcEngine: () => unknown }) => ({
+    engine: rtc.createAgoraRtcEngine(),
+    initCode: 0,
+  }),
+  bindRtcEventDelegate: jest.fn(),
+  leaveAgoraRtcChannel: jest.fn(),
+  releaseAgoraRtcEngine: jest.fn(),
+}));
 
 jest.mock('@netless/react-native-fastboard', () => ({
   FastRoom: (props: {

@@ -26,6 +26,8 @@ type StudentTutorBookingScreenProps = {
   title?: string;
   submitLabel?: string;
   onContinue: (draft: Required<StudentBookingDraft>) => void;
+  /** Rendered below the primary submit button inside the scroll area. */
+  footer?: React.ReactNode;
 };
 
 type BookableSlot = {
@@ -41,6 +43,7 @@ export const StudentTutorBookingScreen: React.FC<StudentTutorBookingScreenProps>
   title = 'Book a class',
   submitLabel = 'Continue',
   onContinue,
+  footer,
 }) => {
   const restored = useMemo(() => bookingCalendarFromDraft(draft), [draft]);
   const [weekOffset, setWeekOffset] = useState(restored.weekOffset);
@@ -301,6 +304,7 @@ export const StudentTutorBookingScreen: React.FC<StudentTutorBookingScreenProps>
       >
         <Text style={styles.continueText}>{submitLabel}</Text>
       </Pressable>
+      {footer}
     </ScrollView>
   );
 };
