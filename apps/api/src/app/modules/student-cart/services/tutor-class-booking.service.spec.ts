@@ -31,12 +31,16 @@ describe('TutorClassBookingService', () => {
     const studentService = {
       findByUserId: jest.fn().mockResolvedValue({ id: 21 }),
     };
+    const profilePictureService = {
+      resolveDisplayUrl: jest.fn().mockResolvedValue(null),
+    };
     return {
       service: new TutorClassBookingService(
         creditRepo as never,
         tutorRepo as never,
         offeringService as never,
         studentService as never,
+        profilePictureService as never,
       ),
       andWhere,
       tutorRepo,

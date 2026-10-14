@@ -1,45 +1,53 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  PermissionsAndroid,
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
   Platform,
   LayoutChangeEvent,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { androidEdgeToEdgeEnabled, SafeAreaView } from '../SafeAreaView';
 import { useMutation } from '@apollo/client';
-import {
-  CameraCapturerConfiguration,
-  CameraDirection,
-  ChannelMediaOptions,
-  ChannelProfileType,
-  ClientRoleType,
-  ConnectionChangedReasonType,
-  createAgoraRtcEngine,
-  OrientationMode,
-  RenderModeType,
-  RtcSurfaceView,
-  VideoDimensions,
-  VideoEncoderConfiguration,
-  VideoSourceType,
-} from 'react-native-agora';
-import { createAgoraRtmClient, RtmConfig } from 'agora-react-native-rtm';
+import type { IRtcEngine, IRtcEngineEventHandler } from 'react-native-agora';
+import type { RTMClient } from 'agora-react-native-rtm';
 import { FastRoom } from '@netless/react-native-fastboard';
 import { END_ONLINE_CLASS, JOIN_ONLINE_CLASS } from '@tutorix/shared-graphql/queries';
 import {
   fitWhiteboardStage,
+  isOnlineClassEndedError,
   isOnlineClassEndedMessage,
   nameInitials,
+  ONLINE_CLASS_END_CONFIRM_MESSAGE,
+  ONLINE_CLASS_ENDED_MESSAGE,
   ONLINE_CLASS_WHITEBOARD_HEIGHT_RATIO,
   ONLINE_CLASS_WRAP_UP_MESSAGE,
   onlineClassEndedPayload,
-  onlineClassScreenSharePayload,
+  onlineClassHasTimeLeft,
   onlineClassScreenShareState,
 } from '@tutorix/shared-utils/online-class-window';
+import {
+  isAgoraRtcNativeAvailable,
+  loadAgoraRtcModule,
+  loadAgoraRtmModule,
+  normalizeAgoraUid,
+} from '../../lib/agora-native';
+import {
+  bindRtcEventDelegate,
+  ensureAgoraRtcEngine,
+  leaveAgoraRtcChannel,
+  releaseAgoraRtcEngine,
+} from '../../lib/agora-rtc-session';
+import { ensureOnlineClassCallPermissions } from '../../lib/online-class-call-permissions';
+import { isWebViewNativeAvailable } from '../../lib/is-webview-native-available';
+
+type AgoraRtcRuntime = ReturnType<typeof loadAgoraRtcModule>;
 
 type JoinPayload = {
   appId: string;
@@ -49,6 +57,7 @@ type JoinPayload = {
   uid: number;
   expiresAt: string;
   warnAt: string;
+  scheduledEnd?: string | null;
   whiteboardAppIdentifier?: string | null;
   whiteboardRegion?: string | null;
   whiteboardRoomUuid?: string | null;
@@ -68,7 +77,50 @@ function rosterName(
   return participants?.find((member) => member.userId === uid)?.name?.trim() || fallback;
 }
 
+function pickRtcVideoView(rtc: AgoraRtcRuntime | null) {
+  if (!rtc) {
+    return null;
+  }
+  return rtc.RtcSurfaceView;
+}
+
+function seedRemoteUidsFromRoster(
+  participants: { userId: number; name: string }[] | undefined,
+  localUid: number,
+): number[] {
+  return (participants ?? [])
+    .map((member) => member.userId)
+    .filter((userId) => userId !== localUid);
+}
+
+// #region agent log
+function debugOnlineClassLog(
+  hypothesisId: string,
+  location: string,
+  message: string,
+  data: Record<string, unknown>,
+) {
+  const payload = {
+    sessionId: 'ec2e4a',
+    hypothesisId,
+    location,
+    message,
+    data,
+    timestamp: Date.now(),
+    runId: 'post-fix',
+  };
+  console.log('[debug-ec2e4a]', message, data);
+  fetch('http://127.0.0.1:7676/ingest/864fd570-d922-464e-bce0-8023d73126b8', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'ec2e4a' },
+    body: JSON.stringify(payload),
+  }).catch(() => undefined);
+}
+// #endregion
+
 type ChatLine = { id: string; from: string; text: string };
+
+type RemoteVideoStatus = 'loading' | 'live' | 'off';
 
 type OnlineClassScreenProps = {
   sessionId: string;
@@ -76,16 +128,6 @@ type OnlineClassScreenProps = {
   canEndClass?: boolean;
   onLeave: () => void;
 };
-
-async function requestCallPermissions(): Promise<void> {
-  if (Platform.OS !== 'android') {
-    return;
-  }
-  await PermissionsAndroid.requestMultiple([
-    PermissionsAndroid.PERMISSIONS.CAMERA,
-    PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-  ]);
-}
 
 export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
   sessionId,
@@ -101,24 +143,99 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
   const [chatOpen, setChatOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [lines, setLines] = useState<ChatLine[]>([]);
-  const [sharing, setSharing] = useState(false);
   const [remoteSharingUid, setRemoteSharingUid] = useState<number | null>(null);
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [ending, setEnding] = useState(false);
   const [remoteUids, setRemoteUids] = useState<number[]>([]);
+  const [remoteVideoGeneration, setRemoteVideoGeneration] = useState<Record<number, number>>({});
+  const [remoteVideoStatus, setRemoteVideoStatus] = useState<Record<number, RemoteVideoStatus>>({});
   const [board, setBoard] = useState<JoinPayload | null>(null);
   const [whiteboardNote, setWhiteboardNote] = useState<string | null>(null);
   const [classTitle, setClassTitle] = useState<{ tutorName: string; subjectName: string } | null>(
     null,
   );
   const [stage, setStage] = useState<{ width: number; height: number } | null>(null);
-  const engineRef = useRef<ReturnType<typeof createAgoraRtcEngine> | null>(null);
-  const rtmRef = useRef<ReturnType<typeof createAgoraRtmClient> | null>(null);
+  const [agoraRtc, setAgoraRtc] = useState<AgoraRtcRuntime | null>(null);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const engineRef = useRef<IRtcEngine | null>(null);
+  const rtmRef = useRef<RTMClient | null>(null);
+  const agoraRtcRef = useRef<AgoraRtcRuntime | null>(null);
   const channelRef = useRef('');
+  const localUidRef = useRef(0);
   const nameRef = useRef(displayName);
   const finishRef = useRef<() => void>(() => undefined);
+  const joinedChannelRef = useRef(false);
+  const rtcPublishStartedRef = useRef(false);
+  const rtmStartedRef = useRef(false);
   nameRef.current = displayName;
+
+  const refreshLocalPreview = () => {
+    const engine = engineRef.current;
+    const rtc = agoraRtcRef.current;
+    if (!engine || !rtc) {
+      return;
+    }
+    engine.enableLocalVideo(true);
+    engine.muteLocalVideoStream(false);
+    engine.muteLocalAudioStream(false);
+    if (joinedChannelRef.current) {
+      // In-channel: local video is published + bound via RtcSurfaceView. startPreview(sourceType)
+      // throws on Android (Iris RtcEngine_startPreview_*).
+      // #region agent log
+      debugOnlineClassLog('H5', 'OnlineClassScreen:refreshLocalPreview', 'skipped startPreview (in channel)', {
+        platform: Platform.OS,
+      });
+      // #endregion
+      return;
+    }
+    let previewResult: number | undefined;
+    let previewPath = 'startPreview';
+    try {
+      const legacy = engine as IRtcEngine & { startPreviewWithoutSourceType?: () => number };
+      if (
+        Platform.OS === 'android' &&
+        typeof legacy.startPreviewWithoutSourceType === 'function'
+      ) {
+        previewPath = 'startPreviewWithoutSourceType';
+        previewResult = legacy.startPreviewWithoutSourceType();
+      } else {
+        previewResult = engine.startPreview();
+      }
+    } catch (caught) {
+      // #region agent log
+      debugOnlineClassLog('H5', 'OnlineClassScreen:refreshLocalPreview', 'startPreview threw', {
+        platform: Platform.OS,
+        message: caught instanceof Error ? caught.message : String(caught),
+      });
+      // #endregion
+      return;
+    }
+    // #region agent log
+    debugOnlineClassLog('H5', 'OnlineClassScreen:refreshLocalPreview', 'startPreview result', {
+      platform: Platform.OS,
+      previewPath,
+      previewResult,
+      joinedChannel: joinedChannelRef.current,
+    });
+    // #endregion
+  };
+
+  const publishCameraToChannel = () => {
+    const engine = engineRef.current;
+    const rtc = agoraRtcRef.current;
+    if (!engine || !rtc || !joinedChannelRef.current) {
+      return;
+    }
+    const options = new rtc.ChannelMediaOptions();
+    options.channelProfile = rtc.ChannelProfileType.ChannelProfileCommunication;
+    options.clientRoleType = rtc.ClientRoleType.ClientRoleBroadcaster;
+    options.publishCameraTrack = true;
+    options.publishMicrophoneTrack = true;
+    options.autoSubscribeAudio = true;
+    options.autoSubscribeVideo = true;
+    engine.updateChannelMediaOptions(options);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -129,8 +246,8 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
         return;
       }
       setEnded(true);
-      engineRef.current?.leaveChannel();
-      engineRef.current?.release();
+      bindRtcEventDelegate(engineRef.current, null);
+      releaseAgoraRtcEngine(engineRef.current);
       engineRef.current = null;
       void rtmRef.current?.logout();
       rtmRef.current = null;
@@ -139,10 +256,24 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
 
     void (async () => {
       try {
-        await requestCallPermissions();
         const { data } = await joinOnlineClass({ variables: { sessionId } });
         const creds = data?.joinOnlineClass as JoinPayload | undefined;
+        // #region agent log
+        debugOnlineClassLog('H1', 'OnlineClassScreen:join', 'joinOnlineClass response', {
+          hasCreds: Boolean(creds),
+          sessionId,
+          participantCount: creds?.participants?.length ?? 0,
+          participantUserIds: (creds?.participants ?? []).map((p) => p.userId),
+          localUid: creds?.uid ?? null,
+          channelName: creds?.channelName ?? null,
+          hasAppId: Boolean(creds?.appId),
+        });
+        // #endregion
         if (cancelled || !creds) {
+          return;
+        }
+        await ensureOnlineClassCallPermissions();
+        if (cancelled) {
           return;
         }
         if (creds.whiteboardError) {
@@ -166,92 +297,310 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
           return;
         }
 
+        setError(null);
+        rtcPublishStartedRef.current = false;
+        rtmStartedRef.current = false;
         channelRef.current = creds.channelName;
-        const engine = createAgoraRtcEngine();
+        localUidRef.current = normalizeAgoraUid(creds.uid) ?? creds.uid;
+        const rosterRemoteUids = seedRemoteUidsFromRoster(
+          creds.participants,
+          localUidRef.current,
+        );
+        if (rosterRemoteUids.length > 0) {
+          setRemoteUids(rosterRemoteUids);
+        }
+        // #region agent log
+        debugOnlineClassLog('H4', 'OnlineClassScreen:join', 'roster seeded from join payload', {
+          rosterRemoteUids,
+        });
+        // #endregion
+        // #region agent log
+        debugOnlineClassLog('H3', 'OnlineClassScreen:agora', 'native module before load', {
+          rtcNativeAvailable: isAgoraRtcNativeAvailable(),
+          platform: Platform.OS,
+        });
+        // #endregion
+        const rtc = loadAgoraRtcModule();
+        agoraRtcRef.current = rtc;
+        if (!cancelled) {
+          setAgoraRtc(rtc);
+        }
+        // #region agent log
+        debugOnlineClassLog('H3', 'OnlineClassScreen:agora', 'rtc module loaded', {
+          hasTextureView: Boolean(rtc.RtcTextureView),
+          hasSurfaceView: Boolean(rtc.RtcSurfaceView),
+          hasVideoSourceType: Boolean(rtc.VideoSourceType),
+          hasRenderModeType: Boolean(rtc.RenderModeType),
+        });
+        // #endregion
+        const { engine, initCode } = ensureAgoraRtcEngine(rtc, creds.appId);
         engineRef.current = engine;
-        engine.initialize({ appId: creds.appId });
-        const camera = new CameraCapturerConfiguration();
-        camera.cameraDirection = CameraDirection.CameraFront;
+        if (typeof initCode === 'number' && initCode !== 0) {
+          setError(`Video engine failed to start (code ${initCode}). Leave and rejoin.`);
+          return;
+        }
+        const rememberRemote = (rawUid: unknown) => {
+          const uid = normalizeAgoraUid(rawUid);
+          if (uid == null || uid === localUidRef.current) {
+            return;
+          }
+          setRemoteUids((current) => (current.includes(uid) ? current : [...current, uid]));
+        };
+        const bumpRemoteVideo = (rawUid: unknown) => {
+          const uid = normalizeAgoraUid(rawUid);
+          if (uid == null) {
+            return;
+          }
+          setRemoteVideoGeneration((current) => ({
+            ...current,
+            [uid]: (current[uid] ?? 0) + 1,
+          }));
+        };
+        const markRemoteVideo = (rawUid: unknown, status: RemoteVideoStatus) => {
+          const uid = normalizeAgoraUid(rawUid);
+          if (uid == null) {
+            return;
+          }
+          setRemoteVideoStatus((current) =>
+            current[uid] === status ? current : { ...current, [uid]: status },
+          );
+        };
+        const connectClassChat = async () => {
+          if (cancelled) {
+            return;
+          }
+          const rtmSdk = loadAgoraRtmModule();
+          const rtmConfig = new rtmSdk.RtmConfig();
+          rtmConfig.appId = creds.appId;
+          rtmConfig.userId = String(creds.uid);
+          const rtm = rtmSdk.createAgoraRtmClient(rtmConfig);
+          rtmRef.current = rtm;
+          rtm.addEventListener('message', (event: { message?: string; publisher?: string }) => {
+            const raw = typeof event.message === 'string' ? event.message : '';
+            if (isOnlineClassEndedMessage(raw)) {
+              finish();
+              return;
+            }
+            const sharingState = onlineClassScreenShareState(raw);
+            if (sharingState != null) {
+              const uid = Number(event.publisher);
+              setRemoteSharingUid(sharingState && Number.isInteger(uid) ? uid : null);
+              return;
+            }
+            let text = raw;
+            let from = event.publisher ?? 'Classmate';
+            try {
+              const parsed = JSON.parse(raw) as { text?: string; name?: string };
+              text = parsed.text ?? raw;
+              from = parsed.name || from;
+            } catch {
+              text = raw;
+            }
+            if (!text) {
+              return;
+            }
+            setLines((current) => [...current, { id: `${from}-${current.length}`, from, text }]);
+          });
+          await rtm.login({ token: creds.rtmToken });
+          await rtm.subscribe(creds.channelName);
+          // #region agent log
+          debugOnlineClassLog('H2', 'OnlineClassScreen:rtm', 'rtm connected after rtc join', {
+            channelName: creds.channelName,
+          });
+          // #endregion
+        };
+        const completeRtcJoin = (source: string, elapsed?: number) => {
+          if (rtcPublishStartedRef.current) {
+            return;
+          }
+          rtcPublishStartedRef.current = true;
+          joinedChannelRef.current = true;
+          // #region agent log
+          debugOnlineClassLog('H2', 'OnlineClassScreen:agora', 'rtc join complete', {
+            source,
+            elapsed,
+            localUid: localUidRef.current,
+            rosterRemoteUids,
+          });
+          // #endregion
+          publishCameraToChannel();
+          if (!rtmStartedRef.current) {
+            rtmStartedRef.current = true;
+            void connectClassChat().catch((rtmError: unknown) => {
+              // #region agent log
+              debugOnlineClassLog('H2', 'OnlineClassScreen:rtm', 'rtm connect failed', {
+                message: rtmError instanceof Error ? rtmError.message : String(rtmError),
+              });
+              // #endregion
+            });
+          }
+        };
+        const agoraHandler: IRtcEngineEventHandler = {
+          onError(err, msg) {
+            // #region agent log
+            debugOnlineClassLog('H2', 'OnlineClassScreen:agora', 'onError', { err, msg });
+            // #endregion
+          },
+          onUserJoined(_connection, uid) {
+            // #region agent log
+            debugOnlineClassLog('H4', 'OnlineClassScreen:agora', 'onUserJoined', {
+              rawUid: uid,
+              normalized: normalizeAgoraUid(uid),
+              localUid: localUidRef.current,
+            });
+            // #endregion
+            rememberRemote(uid);
+          },
+          onUserOffline(_connection, uid) {
+            const normalized = normalizeAgoraUid(uid);
+            if (normalized == null) {
+              return;
+            }
+            setRemoteUids((current) => current.filter((item) => item !== normalized));
+            markRemoteVideo(normalized, 'loading');
+          },
+          onRemoteVideoStateChanged(_connection, uid, state, reason) {
+            if (state === rtc.RemoteVideoState.RemoteVideoStateStarting) {
+              rememberRemote(uid);
+              markRemoteVideo(uid, 'loading');
+              return;
+            }
+            if (state === rtc.RemoteVideoState.RemoteVideoStateDecoding) {
+              rememberRemote(uid);
+              markRemoteVideo(uid, 'live');
+              bumpRemoteVideo(uid);
+              return;
+            }
+            if (state === rtc.RemoteVideoState.RemoteVideoStateStopped) {
+              const cameraOff =
+                reason === rtc.RemoteVideoStateReason.RemoteVideoStateReasonRemoteMuted ||
+                reason === rtc.RemoteVideoStateReason.RemoteVideoStateReasonRemoteOffline;
+              markRemoteVideo(uid, cameraOff ? 'off' : 'loading');
+            }
+          },
+          onFirstRemoteVideoFrame(_connection, uid) {
+            rememberRemote(uid);
+            markRemoteVideo(uid, 'live');
+          },
+          onConnectionStateChanged(_connection, state, reason) {
+            // #region agent log
+            debugOnlineClassLog('H2', 'OnlineClassScreen:agora', 'onConnectionStateChanged', {
+              state,
+              reason,
+            });
+            // #endregion
+            if (state === rtc.ConnectionStateType.ConnectionStateConnected) {
+              completeRtcJoin('onConnectionStateChanged');
+            }
+            if (reason === rtc.ConnectionChangedReasonType.ConnectionChangedBannedByServer) {
+              finish();
+            }
+          },
+          onJoinChannelSuccess(_connection, elapsed) {
+            completeRtcJoin('onJoinChannelSuccess', elapsed);
+          },
+        };
+        bindRtcEventDelegate(engine, agoraHandler);
+        const camera = new rtc.CameraCapturerConfiguration();
+        camera.cameraDirection = rtc.CameraDirection.CameraFront;
         camera.followEncodeDimensionRatio = false;
         engine.setCameraCapturerConfiguration(camera);
-        const dimensions = new VideoDimensions();
+        const dimensions = new rtc.VideoDimensions();
         dimensions.width = 480;
         dimensions.height = 640;
-        const encoder = new VideoEncoderConfiguration();
+        const encoder = new rtc.VideoEncoderConfiguration();
         encoder.dimensions = dimensions;
-        encoder.orientationMode = OrientationMode.OrientationModeAdaptive;
+        encoder.orientationMode = rtc.OrientationMode.OrientationModeAdaptive;
         engine.setVideoEncoderConfiguration(encoder);
         engine.enableVideo();
         engine.enableAudio();
-        engine.startPreview();
-        engine.addListener('onUserJoined', (_connection, uid) => {
-          setRemoteUids((current) => (current.includes(uid) ? current : [...current, uid]));
+        engine.setDefaultAudioRouteToSpeakerphone(true);
+        refreshLocalPreview();
+        const joinOptions = new rtc.ChannelMediaOptions();
+        joinOptions.channelProfile = rtc.ChannelProfileType.ChannelProfileCommunication;
+        joinOptions.clientRoleType = rtc.ClientRoleType.ClientRoleBroadcaster;
+        joinOptions.publishCameraTrack = true;
+        joinOptions.publishMicrophoneTrack = true;
+        joinOptions.autoSubscribeAudio = true;
+        joinOptions.autoSubscribeVideo = true;
+        const joinResult = engine.joinChannel(
+          creds.token,
+          creds.channelName,
+          localUidRef.current,
+          joinOptions,
+        );
+        // #region agent log
+        debugOnlineClassLog('H2', 'OnlineClassScreen:agora', 'joinChannel called', {
+          joinResultCode: joinResult ?? null,
+          joinResultType: typeof joinResult,
+          joinOk: joinResult === 0,
+          localUid: localUidRef.current,
         });
-        engine.addListener('onUserOffline', (_connection, uid) => {
-          setRemoteUids((current) => current.filter((item) => item !== uid));
-        });
-        engine.addListener('onConnectionStateChanged', (_connection, _state, reason) => {
-          if (reason === ConnectionChangedReasonType.ConnectionChangedBannedByServer) {
-            finish();
-          }
-        });
-        engine.joinChannel(creds.token, creds.channelName, creds.uid, {
-          channelProfile: ChannelProfileType.ChannelProfileCommunication,
-          clientRoleType: ClientRoleType.ClientRoleBroadcaster,
-          publishCameraTrack: true,
-          publishMicrophoneTrack: true,
-        });
-
-        const rtmConfig = new RtmConfig();
-        rtmConfig.appId = creds.appId;
-        rtmConfig.userId = String(creds.uid);
-        const rtm = createAgoraRtmClient(rtmConfig);
-        rtmRef.current = rtm;
-        rtm.addEventListener('message', (event: { message?: string; publisher?: string }) => {
-          const raw = typeof event.message === 'string' ? event.message : '';
-          if (isOnlineClassEndedMessage(raw)) {
-            finish();
-            return;
-          }
-          const sharingState = onlineClassScreenShareState(raw);
-          if (sharingState != null) {
-            const uid = Number(event.publisher);
-            setRemoteSharingUid(sharingState && Number.isInteger(uid) ? uid : null);
-            return;
-          }
-          let text = raw;
-          let from = event.publisher ?? 'Classmate';
-          try {
-            const parsed = JSON.parse(raw) as { text?: string; name?: string };
-            text = parsed.text ?? raw;
-            from = parsed.name || from;
-          } catch {
-            text = raw;
-          }
-          if (!text) {
-            return;
-          }
-          setLines((current) => [...current, { id: `${from}-${current.length}`, from, text }]);
-        });
-        await rtm.login({ token: creds.rtmToken });
-        await rtm.subscribe(creds.channelName);
-      } catch (caught) {
-        if (!cancelled) {
-          setError(caught instanceof Error ? caught.message : 'Unable to join this class');
+        // #endregion
+        if (typeof joinResult === 'number' && joinResult !== 0) {
+          setError(`Could not join video (code ${joinResult}). Leave and try again.`);
+        } else if (joinResult === 0 || joinResult === undefined) {
+          completeRtcJoin(
+            joinResult === 0 ? 'sync-join-return-0' : 'sync-join-return-undefined',
+          );
         }
+      } catch (caught) {
+        // #region agent log
+        debugOnlineClassLog('H1', 'OnlineClassScreen:join', 'join flow threw', {
+          message: caught instanceof Error ? caught.message : String(caught),
+        });
+        // #endregion
+        if (cancelled) {
+          return;
+        }
+        if (isOnlineClassEndedError(caught)) {
+          setEnded(true);
+          return;
+        }
+        setError(caught instanceof Error ? caught.message : 'Unable to join this class');
       }
     })();
 
     return () => {
       cancelled = true;
+      joinedChannelRef.current = false;
+      rtcPublishStartedRef.current = false;
+      rtmStartedRef.current = false;
       timers.forEach(clearTimeout);
-      engineRef.current?.leaveChannel();
-      engineRef.current?.release();
+      bindRtcEventDelegate(engineRef.current, null);
+      leaveAgoraRtcChannel(engineRef.current);
       engineRef.current = null;
       void rtmRef.current?.logout();
       rtmRef.current = null;
     };
   }, [joinOnlineClass, sessionId]);
+
+  useEffect(() => {
+    const RtcVideoView = pickRtcVideoView(agoraRtc);
+    // #region agent log
+    debugOnlineClassLog('H3', 'OnlineClassScreen:render', 'video strip state', {
+      hasAgoraRtc: Boolean(agoraRtc),
+      hasRtcVideoView: Boolean(RtcVideoView),
+      hasRenderModeType: Boolean(agoraRtc?.RenderModeType),
+      hasVideoSourceType: Boolean(agoraRtc?.VideoSourceType),
+      remoteUidCount: remoteUids.length,
+      remoteUids,
+      joinedChannel: joinedChannelRef.current,
+      error,
+      platform: Platform.OS,
+      videoViewKind: 'RtcSurfaceView',
+    });
+    // #endregion
+  }, [agoraRtc, remoteUids, error]);
+
+  useEffect(() => {
+    const shown = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));
+    const hidden = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false));
+    return () => {
+      shown.remove();
+      hidden.remove();
+    };
+  }, []);
 
   const sendChat = async () => {
     const text = draft.trim();
@@ -266,10 +615,21 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
     setLines((current) => [...current, { id: `me-${current.length}`, from: nameRef.current, text }]);
   };
 
-  const endClass = async () => {
+  const endClass = () => {
     if (!canEndClass || ending) {
       return;
     }
+    if (!onlineClassHasTimeLeft(board?.scheduledEnd)) {
+      void endClassNow();
+      return;
+    }
+    Alert.alert('End class', ONLINE_CLASS_END_CONFIRM_MESSAGE, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'End class', style: 'destructive', onPress: () => void endClassNow() },
+    ]);
+  };
+
+  const endClassNow = async () => {
     setEnding(true);
     setError(null);
     try {
@@ -286,26 +646,6 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
       setError(caught instanceof Error ? caught.message : 'Unable to end this class');
     } finally {
       setEnding(false);
-    }
-  };
-
-  const publishMedia = (screen: boolean) => {
-    const options = new ChannelMediaOptions();
-    options.publishMicrophoneTrack = true;
-    options.publishCameraTrack = !screen;
-    options.publishScreenCaptureVideo = screen;
-    options.publishScreenCaptureAudio = false;
-    engineRef.current?.updateChannelMediaOptions(options);
-  };
-
-  const publishScreenState = async (active: boolean) => {
-    if (!rtmRef.current || !channelRef.current) {
-      return;
-    }
-    try {
-      await rtmRef.current.publish(channelRef.current, onlineClassScreenSharePayload(active));
-    } catch {
-      // The screen track still switches even if the stage signal is missed.
     }
   };
 
@@ -337,33 +677,11 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
     setCamOn(next);
   };
 
-  const toggleScreen = () => {
-    const engine = engineRef.current;
-    if (!engine) {
-      return;
-    }
-    if (sharing) {
-      engine.stopScreenCapture();
-      publishMedia(false);
-      setSharing(false);
-      void publishScreenState(false);
-      return;
-    }
-    const started = engine.startScreenCapture({ captureAudio: false, captureVideo: true });
-    if (started < 0) {
-      setError('Unable to share the screen');
-      return;
-    }
-    publishMedia(true);
-    setSharing(true);
-    void publishScreenState(true);
-  };
-
   if (ended) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.ended}>
-          <Text style={styles.endedTitle}>This class has ended</Text>
+          <Text style={styles.endedTitle}>{ONLINE_CLASS_ENDED_MESSAGE}</Text>
           <Pressable accessibilityRole="button" onPress={onLeave}>
             <Text style={styles.leave}>Back</Text>
           </Pressable>
@@ -373,6 +691,9 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
   }
 
   const canDraw = canEndClass || Boolean(board?.whiteboardWritable);
+  const webViewReady = isWebViewNativeAvailable();
+  const RenderModeType = agoraRtc?.RenderModeType;
+  const RtcVideoView = pickRtcVideoView(agoraRtc);
 
   const onBoardLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
@@ -390,8 +711,11 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-    <View style={styles.page}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <KeyboardAvoidingView
+      style={styles.page}
+      behavior={Platform.OS === 'ios' || androidEdgeToEdgeEnabled() ? 'padding' : undefined}
+    >
       {classTitle ? (
         <View style={styles.title}>
           <Text style={styles.tutorName}>{classTitle.tutorName}</Text>
@@ -408,8 +732,18 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
       ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {whiteboardNote ? <Text style={styles.note}>{whiteboardNote}</Text> : null}
-      <View testID="whiteboard-board" style={styles.board} onLayout={onBoardLayout}>
-        {stage &&
+      <View
+        testID="whiteboard-board"
+        style={[styles.board, keyboardOpen && styles.boardWhileTyping]}
+        onLayout={onBoardLayout}
+      >
+        {!webViewReady ? (
+          <Text style={styles.note}>
+            Whiteboard is unavailable on this build. Reinstall the app after a full native rebuild.
+          </Text>
+        ) : null}
+        {webViewReady &&
+        stage &&
         stage.width > 0 &&
         board?.whiteboardAppIdentifier &&
         board.whiteboardRoomUuid &&
@@ -455,24 +789,40 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
           <Text style={styles.note}>Whiteboard will appear when the room is ready.</Text>
         )}
       </View>
-      {sharing ? (
-        <RtcSurfaceView
-          style={styles.screen}
-          canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceScreen }}
-        />
-      ) : null}
-      {remoteSharingUid != null ? (
-        <RtcSurfaceView style={styles.screen} canvas={{ uid: remoteSharingUid }} />
+      {remoteSharingUid != null && RtcVideoView ? (
+        <View collapsable={false} style={styles.screenFrame}>
+          <RtcVideoView style={styles.rtcSurface} canvas={{ uid: remoteSharingUid }} />
+        </View>
       ) : null}
       <ScrollView horizontal style={styles.videos} contentContainerStyle={styles.videoRow}>
         {remoteUids.map((uid) => {
           const name = rosterName(board?.participants, uid, '');
+          const videoKey = remoteVideoGeneration[uid] ?? 0;
+          const status = remoteVideoStatus[uid] ?? 'loading';
           return (
-            <View key={uid} style={styles.videoItem}>
-              <RtcSurfaceView
-                style={styles.tile}
-                canvas={{ uid, renderMode: RenderModeType.RenderModeFit }}
-              />
+            <View key={`${uid}-${videoKey}`} collapsable={false} style={styles.videoItem}>
+              <View collapsable={false} style={styles.tileFrame}>
+                {RtcVideoView && RenderModeType && status !== 'off' ? (
+                  <RtcVideoView
+                    zOrderMediaOverlay={Platform.OS === 'android'}
+                    style={status === 'live' ? styles.rtcSurface : styles.rtcSurfacePending}
+                    canvas={{ uid, renderMode: RenderModeType.RenderModeFit }}
+                  />
+                ) : null}
+                {status === 'loading' ? (
+                  <View style={styles.tileOverlay}>
+                    <ActivityIndicator
+                      color="#ffffff"
+                      accessibilityLabel={name ? `Loading ${name}'s video` : 'Loading video'}
+                    />
+                  </View>
+                ) : null}
+                {status === 'off' ? (
+                  <View style={styles.tileOverlay}>
+                    <Text style={styles.cameraOff}>Camera off</Text>
+                  </View>
+                ) : null}
+              </View>
               {nameInitials(name) ? (
                 <Text style={styles.initials} accessibilityLabel={name}>
                   {nameInitials(name)}
@@ -509,9 +859,6 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
         <Pressable accessibilityRole="button" accessibilityLabel={camOn ? 'Mute camera' : 'Unmute camera'} onPress={toggleCamera}>
           <Text style={styles.action}>{camOn ? 'Mute camera' : 'Unmute camera'}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={sharing ? 'Stop sharing' : 'Share screen'} onPress={toggleScreen}>
-          <Text style={styles.action}>{sharing ? 'Stop sharing' : 'Share screen'}</Text>
-        </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={chatOpen ? 'Hide chat' : 'Open chat'} onPress={() => setChatOpen((open) => !open)}>
           <Text style={styles.action}>{chatOpen ? 'Hide chat' : 'Open chat'}</Text>
         </Pressable>
@@ -520,7 +867,7 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
             accessibilityRole="button"
             accessibilityLabel="End class"
             disabled={ending}
-            onPress={() => void endClass()}
+            onPress={endClass}
           >
             <Text style={styles.end}>End class</Text>
           </Pressable>
@@ -535,7 +882,7 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
           <Text style={styles.leave}>Leave</Text>
         </Pressable>
       </View>
-    </View>
+    </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -567,11 +914,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#fff',
   },
+  boardWhileTyping: { minHeight: 0 },
   videos: { maxHeight: 176 },
   videoRow: { gap: 8 },
   videoItem: { width: 104, alignItems: 'center' },
-  tile: { width: 104, height: 144, borderRadius: 12, backgroundColor: '#0f172a' },
-  screen: { height: 180, borderRadius: 12, backgroundColor: '#0f172a' },
+  tileFrame: {
+    width: 104,
+    height: 144,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#0f172a',
+  },
+  screenFrame: {
+    height: 180,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#0f172a',
+  },
+  /** No background on TextureView / SurfaceView (Android throws otherwise). */
+  rtcSurface: { width: '100%', height: '100%' },
+  /**
+   * Keeps the remote renderer attached while loading. Android draws the video
+   * surface above React views, so it must stay tiny for the spinner to show.
+   */
+  rtcSurfacePending: { width: 1, height: 1 },
+  tileOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  cameraOff: { color: '#cbd5e1', fontSize: 12, fontWeight: '700' },
   initials: { marginTop: 4, color: '#143055', fontSize: 12, fontWeight: '700', letterSpacing: 0.4 },
   chat: { backgroundColor: '#fff', borderRadius: 16, padding: 12, maxHeight: 180 },
   chatLine: { color: '#143055', marginBottom: 4 },

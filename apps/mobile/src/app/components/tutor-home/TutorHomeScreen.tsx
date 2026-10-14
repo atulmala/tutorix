@@ -16,7 +16,12 @@ import {
   formatIstBookingTimeRange,
   scheduledClassHasEnded,
 } from '@tutorix/shared-utils/student-booking';
-import { canJoinOnlineClass } from '@tutorix/shared-utils/online-class-window';
+import {
+  ONLINE_CLASS_ENDED_MESSAGE,
+  TUTOR_ONLINE_CLASS_RESTART_LABEL,
+  TUTOR_ONLINE_CLASS_START_LABEL,
+  tutorOnlineClassAction,
+} from '@tutorix/shared-utils/online-class-window';
 import {
   istBookedClassQueryRange,
   istDayKey,
@@ -61,6 +66,7 @@ type TutorBookedClass = {
   offeringLabel: string;
   studentName: string;
   isDemo: boolean;
+  endedAt?: string | null;
 };
 
 type DaySession = {
@@ -70,6 +76,7 @@ type DaySession = {
   deliveryMode: 'online' | 'offline';
   offeringLabel: string;
   isDemo: boolean;
+  endedAt: string | null;
   students: { enrollmentId: string; name: string }[];
 };
 
@@ -87,6 +94,7 @@ function groupDaySessions(rows: TutorBookedClass[]): DaySession[] {
         deliveryMode: row.deliveryMode,
         offeringLabel: row.offeringLabel,
         isDemo: row.isDemo,
+        endedAt: row.endedAt ?? null,
         students: [student],
       });
       continue;
@@ -428,10 +436,19 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
                 session.startsAt,
                 session.deliveryMode,
               );
-              const canJoin =
-                Boolean(onJoinOnlineClass) &&
-                session.deliveryMode === 'online' &&
-                canJoinOnlineClass(session.startsAt, session.durationMinutes, now);
+              const classAction =
+                onJoinOnlineClass && session.deliveryMode === 'online'
+                  ? tutorOnlineClassAction(
+                      session.startsAt,
+                      session.durationMinutes,
+                      session.endedAt,
+                      now,
+                    )
+                  : null;
+              const classActionLabel =
+                classAction === 'restart'
+                  ? TUTOR_ONLINE_CLASS_RESTART_LABEL
+                  : TUTOR_ONLINE_CLASS_START_LABEL;
               const actionEnrollmentId = session.students[0]?.enrollmentId;
               const rescheduleConfirm =
                 session.students.length > 1
@@ -455,14 +472,17 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
                   <Text style={styles.listEmptyCopy}>
                     {session.deliveryMode === 'online' ? 'Online' : 'Offline'}
                   </Text>
-                  {canJoin && onJoinOnlineClass ? (
+                  {(classAction === 'start' || classAction === 'restart') && onJoinOnlineClass ? (
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Join class"
+                      accessibilityLabel={classActionLabel}
                       onPress={() => onJoinOnlineClass(session.sessionId)}
                     >
-                      <Text style={styles.rescheduleAction}>Join class</Text>
+                      <Text style={styles.rescheduleAction}>{classActionLabel}</Text>
                     </Pressable>
+                  ) : null}
+                  {classAction === 'ended' ? (
+                    <Text style={styles.listEmptyCopy}>{ONLINE_CLASS_ENDED_MESSAGE}</Text>
                   ) : null}
                   <Text style={styles.classSubject}>
                     {session.offeringLabel}

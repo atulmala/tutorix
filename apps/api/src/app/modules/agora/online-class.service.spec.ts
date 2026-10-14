@@ -21,6 +21,8 @@ jest.mock('agora-token', () => ({
 const START = new Date('2026-10-04T09:30:00.000Z');
 const AT_255 = new Date('2026-10-04T09:25:00.000Z');
 const AT_254 = new Date('2026-10-04T09:24:00.000Z');
+const AT_324 = new Date('2026-10-04T10:24:00.000Z');
+const AT_325 = new Date('2026-10-04T10:25:00.000Z');
 const AT_404 = new Date('2026-10-04T10:34:00.000Z');
 const AT_405 = new Date('2026-10-04T10:35:00.000Z');
 
@@ -77,6 +79,7 @@ describe('OnlineClassService', () => {
   const rest = {
     kickUnauthorized: jest.fn().mockResolvedValue(undefined),
     kickChannel: jest.fn().mockResolvedValue(undefined),
+    liftChannelKick: jest.fn().mockResolvedValue(undefined),
   };
   const whiteboard = {
     configured: jest.fn().mockReturnValue(true),
@@ -199,6 +202,42 @@ describe('OnlineClassService', () => {
     await expect(service.join(student, 9, AT_404)).rejects.toThrow('This class has ended');
   });
 
+  it('lets the tutor restart an ended class while more than 5 minutes remain', async () => {
+    const row = session({ endedAt: AT_255 });
+    sessionRepo.findOne.mockResolvedValue(row);
+
+    const result = await service.join(tutor, 9, AT_324);
+
+    expect(result.token).toBe('rtc-token');
+    expect(row.endedAt).toBeNull();
+    expect(sessionRepo.save).toHaveBeenCalledWith(row);
+    expect(rest.liftChannelKick).toHaveBeenCalledWith('class-9');
+  });
+
+  it('keeps an ended class closed for the tutor within 5 minutes of the end', async () => {
+    const row = session({ endedAt: AT_255 });
+    sessionRepo.findOne.mockResolvedValue(row);
+
+    await expect(service.join(tutor, 9, AT_325)).rejects.toThrow('This class has ended');
+    expect(row.endedAt).toEqual(AT_255);
+    expect(rest.liftChannelKick).not.toHaveBeenCalled();
+  });
+
+  it('does not let a student restart an ended class', async () => {
+    sessionRepo.findOne.mockResolvedValue(session({ endedAt: AT_255 }));
+    await expect(service.join(student, 9, AT_324)).rejects.toThrow('This class has ended');
+    expect(rest.liftChannelKick).not.toHaveBeenCalled();
+  });
+
+  it('still restarts the class when lifting the Agora ban fails', async () => {
+    const row = session({ endedAt: AT_255 });
+    sessionRepo.findOne.mockResolvedValue(row);
+    rest.liftChannelKick.mockRejectedValueOnce(new Error('agora down'));
+
+    await expect(service.join(tutor, 9, AT_324)).resolves.toMatchObject({ token: 'rtc-token' });
+    expect(row.endedAt).toBeNull();
+  });
+
   it('returns video credentials when the whiteboard cannot be created', async () => {
     whiteboard.ensureRoom.mockRejectedValue(new Error('Whiteboard room creation failed (500)'));
     const result = await service.join(student, 9, AT_255);
@@ -210,7 +249,7 @@ describe('OnlineClassService', () => {
 
 describe('AgoraRestClient', () => {
   it('kicks users who are not allowed and ignores a failed kick', async () => {
-    const fetchMock = jest.fn(async (url: string, _init?: RequestInit) => {
+    const fetchMock = jest.fn<Promise<unknown>, [string, RequestInit?]>(async (url) => {
       if (String(url).includes('/channel/user/')) {
         return {
           ok: true,
@@ -265,5 +304,33 @@ describe('AgoraRestClient', () => {
       time: 70,
       privileges: ['join_channel'],
     });
+  });
+
+  it('lifts only the channel-wide ban for that class', async () => {
+    const fetchMock = jest.fn(async (url: string, init?: RequestInit) => {
+      if (!init?.method) {
+        expect(url).toBe('https://api.agora.io/dev/v1/kicking-rule?appid=app-id');
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            rules: [
+              { id: 1, cname: 'class-9' },
+              { id: 2, cname: 'class-9', uid: 99 },
+              { id: 3, cname: 'class-10' },
+            ],
+          }),
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    setAgoraFetchForTests(fetchMock as never);
+    const client = new AgoraRestClient(rtcConfig);
+
+    await client.liftChannelKick('class-9');
+
+    const deletes = fetchMock.mock.calls.filter((call) => call[1]?.method === 'DELETE');
+    expect(deletes).toHaveLength(1);
+    expect(JSON.parse(String(deletes[0][1]?.body))).toEqual({ appid: 'app-id', id: 1 });
   });
 });

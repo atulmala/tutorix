@@ -18,6 +18,7 @@ import {
 } from '../dto/student-cart.dto';
 import { StudentClassBookingListResult } from '../dto/student-class-booking.dto';
 import { StudentClassBookingListInput } from '../dto/student-class-booking.dto';
+import { StudentRebookTutor } from '../dto/student-rebook-tutor.dto';
 import { TutorClassBookingListResult } from '../dto/tutor-class-booking.dto';
 import { TutorClassBookingListInput } from '../dto/tutor-class-booking-list.input';
 import { ClassCreditRefundMethodEnum } from '../enums/class-credit-refund-method.enum';
@@ -90,6 +91,16 @@ export class StudentCartResolver {
     @Args('input') input: StudentClassBookingListInput,
   ): Promise<StudentClassBookingListResult> {
     return this.tutorClassBookingService.listForStudent(user, input);
+  }
+
+  @Query(() => [StudentRebookTutor], {
+    name: 'studentRebookTutors',
+    description: 'Tutors and subjects the student has previously booked (paid), for re-booking',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  studentRebookTutors(@CurrentUser() user: User): Promise<StudentRebookTutor[]> {
+    return this.tutorClassBookingService.listRebookTutorsForStudent(user);
   }
 
   @Mutation(() => StudentCartDto, { name: 'addToCart' })

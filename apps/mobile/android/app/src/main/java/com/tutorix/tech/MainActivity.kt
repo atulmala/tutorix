@@ -1,5 +1,6 @@
 package com.tutorix.tech
 
+import android.os.Bundle
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
@@ -19,4 +20,12 @@ class MainActivity : ReactActivity() {
    */
   override fun createReactActivityDelegate(): ReactActivityDelegate =
       DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    // The theme window background is the splash bitmap so cold start looks
+    // branded. Leaving it there shows that bitmap whenever a screen does not
+    // cover the window during navigation.
+    window.setBackgroundDrawableResource(R.color.app_background)
+  }
 }

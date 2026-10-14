@@ -7,7 +7,38 @@ export const ONLINE_CLASS_WRAP_UP_MINUTES = 5;
 /** Minutes after the scheduled end that the call may continue. */
 export const ONLINE_CLASS_EXTENSION_MINUTES = 5;
 
+/**
+ * Minutes before the scheduled end inside which the tutor may end the class
+ * without confirming, and after which an ended class cannot be restarted.
+ */
+export const ONLINE_CLASS_RESTART_CUTOFF_MINUTES = 5;
+
 export const ONLINE_CLASS_WRAP_UP_MESSAGE = 'Wrap up in the next 5 minutes.';
+
+export const ONLINE_CLASS_ENDED_MESSAGE = 'This class has ended';
+
+export const ONLINE_CLASS_END_CONFIRM_MESSAGE = 'Are you sure to end this class?';
+
+/** True while more than the restart cutoff remains before the scheduled end. */
+export function onlineClassHasTimeLeft(
+  scheduledEnd: Date | string | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  if (scheduledEnd == null || scheduledEnd === '') {
+    return false;
+  }
+  const endMs = new Date(scheduledEnd).getTime();
+  if (Number.isNaN(endMs)) {
+    return false;
+  }
+  return endMs - now.getTime() > ONLINE_CLASS_RESTART_CUTOFF_MINUTES * 60 * 1000;
+}
+
+/** True when a join failed because the class is over (GraphQL error text). */
+export function isOnlineClassEndedError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return message.includes(ONLINE_CLASS_ENDED_MESSAGE);
+}
 
 /**
  * Shared whiteboard stage, height divided by width.
@@ -114,6 +145,33 @@ export function canJoinOnlineClass(
   }
   const time = now.getTime();
   return time >= window.opensAt.getTime() && time < window.hardEnd.getTime();
+}
+
+export type TutorOnlineClassAction = 'start' | 'restart' | 'ended';
+
+export const TUTOR_ONLINE_CLASS_START_LABEL = 'Start Class';
+
+export const TUTOR_ONLINE_CLASS_RESTART_LABEL = 'Restart Class';
+
+/**
+ * What the tutor's schedule card offers for an online class, or null outside
+ * the join window. An ended class can be restarted only while more than the
+ * restart cutoff remains before the scheduled end.
+ */
+export function tutorOnlineClassAction(
+  startsAt: Date | string | null | undefined,
+  durationMinutes: number | null | undefined,
+  endedAt: Date | string | null | undefined,
+  now: Date = new Date(),
+): TutorOnlineClassAction | null {
+  if (startsAt == null || startsAt === '' || !canJoinOnlineClass(startsAt, durationMinutes, now)) {
+    return null;
+  }
+  if (endedAt == null || endedAt === '') {
+    return 'start';
+  }
+  const { scheduledEnd } = onlineClassWindow(startsAt, durationMinutes ?? 60);
+  return onlineClassHasTimeLeft(scheduledEnd, now) ? 'restart' : 'ended';
 }
 
 export function onlineClassChannelName(sessionId: number | string): string {

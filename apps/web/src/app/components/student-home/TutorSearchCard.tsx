@@ -21,15 +21,24 @@ export type TutorSearchCardHit = {
 type TutorSearchCardProps = {
   hit: TutorSearchCardHit;
   onView: () => void;
+  bookedClassCount?: number;
+  deliveryModeLabel?: string;
 };
 
-export const TutorSearchCard: React.FC<TutorSearchCardProps> = ({ hit, onView }) => {
+export const TutorSearchCard: React.FC<TutorSearchCardProps> = ({
+  hit,
+  onView,
+  bookedClassCount,
+  deliveryModeLabel,
+}) => {
+  const isRebook = bookedClassCount != null;
   const mode =
-    hit.deliveryModeShown === 'OFFLINE'
+    deliveryModeLabel ??
+    (hit.deliveryModeShown === 'OFFLINE'
       ? hit.distanceKm != null
         ? `${hit.distanceKm.toFixed(1)} km`
         : hit.city || 'Offline'
-      : 'Online';
+      : 'Online');
   const formatChip = hit.groupSize > 1 ? `Group of ${hit.groupSize}` : '1:1';
 
   return (
@@ -59,24 +68,34 @@ export const TutorSearchCard: React.FC<TutorSearchCardProps> = ({ hit, onView })
           <p className="mt-1 text-sm text-primary/80">{hit.offeringLabel}</p>
         </div>
       </div>
-      <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
-        <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-800">{mode}</span>
-        <span className="rounded-full bg-gray-50 px-2.5 py-1 text-primary">{formatChip}</span>
-        {hit.freeDemoOffered ? (
-          <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-800">Free demo</span>
-        ) : null}
-      </div>
-      <div className="mt-4 flex items-center justify-between">
-        <p className="text-base font-bold text-primary">
-          {formatInr(hit.rateInr)}
-          <span className="text-sm font-medium text-muted"> / class</span>
+      {isRebook ? (
+        <p className="mt-4 text-sm text-primary/80">
+          {bookedClassCount} class{bookedClassCount === 1 ? '' : 'es'} booked · {mode}
         </p>
+      ) : (
+        <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
+          <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-800">{mode}</span>
+          <span className="rounded-full bg-gray-50 px-2.5 py-1 text-primary">{formatChip}</span>
+          {hit.freeDemoOffered ? (
+            <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-800">Free demo</span>
+          ) : null}
+        </div>
+      )}
+      <div className="mt-4 flex items-center justify-between">
+        {isRebook ? (
+          <span />
+        ) : (
+          <p className="text-base font-bold text-primary">
+            {formatInr(hit.rateInr)}
+            <span className="text-sm font-medium text-muted"> / class</span>
+          </p>
+        )}
         <button
           type="button"
           onClick={onView}
           className="rounded-lg bg-[#5fa8ff] px-4 py-2 text-sm font-semibold text-white hover:bg-[#4a97f5]"
         >
-          View profile
+          {isRebook ? 'Book again' : 'View profile'}
         </button>
       </div>
     </article>

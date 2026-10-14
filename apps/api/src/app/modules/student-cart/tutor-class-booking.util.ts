@@ -9,6 +9,99 @@ import {
   TutorBookingSchedulingStatus,
 } from './enums/tutor-booking-status.enum';
 
+export type StudentRebookCreditSource = {
+  tutorId: number;
+  tutorFirstName: string | null;
+  tutorLastName: string | null;
+  catalogOfferingId: number | null;
+  tutorCatalogOfferingId: number | null;
+  offeringLabel: string;
+  deliveryMode: ClassSessionDeliveryModeEnum;
+  status: ClassCreditStatusEnum;
+  createdDate: Date;
+  isDemo: boolean;
+};
+
+export type StudentRebookTutorRow = {
+  tutorId: number;
+  displayName: string;
+  catalogOfferingId: number;
+  offeringLabel: string;
+  totalClassCount: number;
+  lastBookedAt: Date;
+  lastDeliveryMode: ClassSessionDeliveryModeEnum;
+};
+
+function rebookCatalogOfferingId(row: StudentRebookCreditSource): number | null {
+  if (row.catalogOfferingId != null && row.catalogOfferingId > 0) {
+    return row.catalogOfferingId;
+  }
+  if (row.tutorCatalogOfferingId != null && row.tutorCatalogOfferingId > 0) {
+    return row.tutorCatalogOfferingId;
+  }
+  return null;
+}
+
+export function groupStudentRebookTutors(
+  sources: StudentRebookCreditSource[],
+): StudentRebookTutorRow[] {
+  const buckets = new Map<
+    string,
+    {
+      tutorId: number;
+      displayName: string;
+      catalogOfferingId: number;
+      offeringLabel: string;
+      totalClassCount: number;
+      lastBookedAt: Date;
+      lastDeliveryMode: ClassSessionDeliveryModeEnum;
+    }
+  >();
+
+  for (const row of sources) {
+    if (row.isDemo) {
+      continue;
+    }
+    if (row.status === ClassCreditStatusEnum.cancelled) {
+      continue;
+    }
+    const tutorId = row.tutorId;
+    if (!tutorId || tutorId <= 0) {
+      continue;
+    }
+    const catalogOfferingId = rebookCatalogOfferingId(row);
+    if (catalogOfferingId == null) {
+      continue;
+    }
+    const key = `${tutorId}:${catalogOfferingId}`;
+    const displayName =
+      personDisplayName(row.tutorFirstName, row.tutorLastName) || 'Tutor';
+    const existing = buckets.get(key);
+    if (!existing) {
+      buckets.set(key, {
+        tutorId,
+        displayName,
+        catalogOfferingId,
+        offeringLabel: row.offeringLabel,
+        totalClassCount: 1,
+        lastBookedAt: row.createdDate,
+        lastDeliveryMode: row.deliveryMode,
+      });
+      continue;
+    }
+    existing.totalClassCount += 1;
+    if (row.createdDate > existing.lastBookedAt) {
+      existing.lastBookedAt = row.createdDate;
+      existing.lastDeliveryMode = row.deliveryMode;
+      existing.offeringLabel = row.offeringLabel;
+    }
+  }
+
+  return [...buckets.values()].sort(
+    (a, b) => b.lastBookedAt.getTime() - a.lastBookedAt.getTime(),
+  );
+}
+
 type SearchQb = {
   andWhere: (clause: string, params: Record<string, string>) => void;
 };

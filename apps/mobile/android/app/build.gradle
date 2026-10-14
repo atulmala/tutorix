@@ -142,6 +142,48 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
+    // Agora RTC and RTM both ship libaosl.so; keep one copy per ABI.
+    packaging {
+        jniLibs {
+            pickFirsts += ['**/libaosl.so']
+        }
+    }
+}
+
+// pickFirsts can keep RTM's bundled libaosl.so, which is older than the
+// io.agora.infra:aosl that RTC depends on. RTC then never connects (no audio
+// or video), so overwrite the merged copy with RTC's version.
+android.applicationVariants.all { variant ->
+    def mergeTaskName = "merge${variant.name.capitalize()}NativeLibs"
+    tasks.matching { it.name == mergeTaskName }.configureEach { task ->
+        task.doLast {
+            def aosl = configurations.getByName("${variant.name}RuntimeClasspath")
+                .incoming.resolutionResult.allComponents
+                .collect { it.moduleVersion }
+                .find { it != null && it.group == 'io.agora.infra' && it.name == 'aosl' }
+            if (aosl == null) {
+                return
+            }
+            def aar = configurations
+                .detachedConfiguration(dependencies.create("io.agora.infra:aosl:${aosl.version}@aar"))
+                .singleFile
+            def libDir = task.outputDir.get().dir('lib').asFile
+            copy {
+                from(zipTree(aar)) {
+                    include 'jni/*/libaosl.so'
+                    eachFile { details ->
+                        details.path = details.path.replaceFirst('^jni/', '')
+                        if (!new File(libDir, details.path).exists()) {
+                            details.exclude()
+                        }
+                    }
+                }
+                includeEmptyDirs = false
+                into libDir
+            }
+            logger.lifecycle("Packaged libaosl.so from io.agora.infra:aosl:${aosl.version} for ${variant.name}")
+        }
+    }
 }
 
 dependencies {

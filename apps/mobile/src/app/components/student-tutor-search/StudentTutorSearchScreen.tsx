@@ -21,9 +21,11 @@ import {
   writeStudentTutorSearchDraft,
 } from './student-tutor-search-draft';
 import type { StudentTutorSearchParams } from './student-tutor-search-params';
+import { useStudentHasRebookTutors } from '../student-rebook/useStudentHasRebookTutors';
 
 type StudentTutorSearchScreenProps = {
   onSearch: (params: StudentTutorSearchParams) => void;
+  onRebook: () => void;
 };
 
 type OfferingNode = {
@@ -102,7 +104,9 @@ function pairFields<T>(items: T[]): T[][] {
 
 export const StudentTutorSearchScreen: React.FC<StudentTutorSearchScreenProps> = ({
   onSearch,
+  onRebook,
 }) => {
+  const showRebook = useStudentHasRebookTutors();
   const { data: profileData } = useQuery(GET_MY_STUDENT_PROFILE, {
     fetchPolicy: 'cache-and-network',
   });
@@ -365,16 +369,32 @@ export const StudentTutorSearchScreen: React.FC<StudentTutorSearchScreenProps> =
         <Text style={styles.hint}>Choose a subject to search for certified tutors.</Text>
       ) : null}
 
-      <Pressable
-        style={[styles.searchButton, !offeringId && styles.searchButtonDisabled]}
-        onPress={handleSearch}
-        disabled={!offeringId}
-        accessibilityRole="button"
-        accessibilityLabel="Search"
-        accessibilityState={{ disabled: !offeringId }}
-      >
-        <Text style={styles.searchButtonText}>Search</Text>
-      </Pressable>
+      <View style={styles.searchActions}>
+        <Pressable
+          style={[
+            styles.searchButton,
+            styles.searchButtonInRow,
+            !offeringId && styles.searchButtonDisabled,
+          ]}
+          onPress={handleSearch}
+          disabled={!offeringId}
+          accessibilityRole="button"
+          accessibilityLabel="Search"
+          accessibilityState={{ disabled: !offeringId }}
+        >
+          <Text style={styles.searchButtonText}>Search</Text>
+        </Pressable>
+        {showRebook ? (
+          <Pressable
+            style={styles.rebookButton}
+            onPress={onRebook}
+            accessibilityRole="button"
+            accessibilityLabel="Re-book"
+          >
+            <Text style={styles.rebookButtonText}>Re-book</Text>
+          </Pressable>
+        ) : null}
+      </View>
 
       <Modal visible={picker !== null} animationType="slide" transparent>
         <View style={styles.sheetWrap}>
@@ -462,15 +482,26 @@ const styles = StyleSheet.create({
     color: '#143055',
   },
   hint: { color: '#6b7280', fontSize: 14, textAlign: 'center', marginTop: 8 },
+  searchActions: { flexDirection: 'row', gap: 10, marginTop: 16 },
   searchButton: {
-    marginTop: 16,
     backgroundColor: '#2563eb',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
   },
+  searchButtonInRow: { flex: 1 },
   searchButtonDisabled: { opacity: 0.5 },
   searchButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  rebookButton: {
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#2563eb',
+    backgroundColor: '#fff',
+  },
+  rebookButtonText: { color: '#2563eb', fontWeight: '700', fontSize: 16 },
   sheetWrap: { flex: 1, justifyContent: 'flex-end' },
   sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
   sheet: {

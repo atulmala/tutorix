@@ -2,10 +2,16 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { onlineClassChannelName, onlineClassWindow } from '@tutorix/shared-utils';
+import {
+  ONLINE_CLASS_ENDED_MESSAGE,
+  onlineClassChannelName,
+  onlineClassHasTimeLeft,
+  onlineClassWindow,
+} from '@tutorix/shared-utils';
 import { In, Repository } from 'typeorm';
 import { User } from '../auth/entities/user.entity';
 import { UserRole } from '../auth/enums/user-role.enum';
@@ -23,6 +29,8 @@ import { JoinOnlineClassResult, OnlineClassRosterMember } from './dto/join-onlin
 
 @Injectable()
 export class OnlineClassService {
+  private readonly logger = new Logger(OnlineClassService.name);
+
   constructor(
     @InjectRepository(TutorClassSessionEntity)
     private readonly sessionRepo: Repository<TutorClassSessionEntity>,
@@ -53,12 +61,18 @@ export class OnlineClassService {
     if (now.getTime() < window.opensAt.getTime()) {
       throw new BadRequestException('This class is not open yet');
     }
-    if (now.getTime() >= window.hardEnd.getTime() || session.endedAt) {
-      throw new BadRequestException('This class has ended');
+    if (now.getTime() >= window.hardEnd.getTime()) {
+      throw new BadRequestException(ONLINE_CLASS_ENDED_MESSAGE);
     }
 
     const participant = await this.resolveParticipant(user, session);
     const channelName = onlineClassChannelName(session.id);
+    if (session.endedAt) {
+      if (user.role !== UserRole.TUTOR || !onlineClassHasTimeLeft(window.scheduledEnd, now)) {
+        throw new BadRequestException(ONLINE_CLASS_ENDED_MESSAGE);
+      }
+      await this.restart(session, channelName);
+    }
     const uid = Number(user.id);
     try {
       await this.rest.kickUnauthorized(channelName, participant.allowedUserIds);
@@ -136,6 +150,19 @@ export class OnlineClassService {
       // The session is already closed. A kick failure must not undo that.
     }
     return true;
+  }
+
+  /** Reopen a class the tutor ended early, and lift the channel ban from `end`. */
+  private async restart(session: TutorClassSessionEntity, channelName: string): Promise<void> {
+    session.endedAt = null;
+    await this.sessionRepo.save(session);
+    try {
+      await this.rest.liftChannelKick(channelName);
+    } catch (error) {
+      this.logger.warn(
+        `Could not lift the Agora ban for ${channelName}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   private async loadSession(sessionId: number): Promise<TutorClassSessionEntity> {

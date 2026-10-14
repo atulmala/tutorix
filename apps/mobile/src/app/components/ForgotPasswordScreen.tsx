@@ -13,6 +13,7 @@ import {
 import { useMutation } from '@apollo/client';
 import { BRAND_NAME } from '../config';
 import { FORGOT_PASSWORD } from '@tutorix/shared-graphql/mutations';
+import { androidTopInset } from './SafeAreaView';
 
 type ForgotPasswordScreenProps = {
   onBackToLogin: () => void;
@@ -69,7 +70,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ onBa
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { paddingTop: androidTopInset() }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">

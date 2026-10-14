@@ -10,6 +10,12 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 echo "🚀 Starting Android development environment..."
 echo ""
 
+bash "$REPO_ROOT/scripts/mobile-link-hoisted-native-deps.sh"
+
+# Use a normal Gradle home (not a stale sandbox cache) for native prefab paths.
+export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$HOME/.gradle}"
+echo ""
+
 # Check if Metro is already running
 if lsof -Pi :8081 -sTCP:LISTEN -t >/dev/null ; then
     echo "✅ Metro bundler is already running on port 8081"
@@ -47,8 +53,15 @@ echo ""
 echo "📱 Starting Android app..."
 echo ""
 
-# USB phones cannot reach the Mac's LAN address. Forward the API the same way Metro is forwarded.
-adb reverse tcp:3000 tcp:3000 || true
+# USB phones cannot reach the Mac's LAN address. Forward Metro and the API
+# over the cable. The app calls 127.0.0.1, which only works while these
+# tunnels are up. `localhost` is not used: Android tries IPv6 first and stalls.
+if ! bash "$REPO_ROOT/scripts/mobile-android-usb-tunnel.sh"; then
+    echo ""
+    echo "⚠️  Continuing without USB tunnels — GraphQL login will show \"Network request failed\"."
+    echo "    After reboot: unlock phone, accept USB debugging, then run: npm run mobile:android:tunnel"
+    echo ""
+fi
 
 # Run Android app (this will connect to the running Metro bundler)
 npx nx run-android mobile
@@ -60,3 +73,7 @@ echo "💡 Tips:"
 echo "   - Metro bundler is running in its own Terminal window (or backgrounded if one couldn't be opened)"
 echo "   - To stop Metro, run: lsof -ti:8081 | xargs kill"
 echo "   - To restart Metro, run: npm run mobile:start"
+echo "   - JS-only changes: shake device → Reload (no need to re-run this script)"
+if adb devices 2>/dev/null | grep -q '_adb-tls-connect._tcp'; then
+    echo "   - Wireless ADB is slow for large debug APKs; use a USB cable for faster :app:installDebug"
+fi

@@ -19,6 +19,7 @@ import { getPhoneCountryCode } from '@tutorix/shared-utils';
 import { setAuthToken } from '@tutorix/shared-graphql/client/mobile/token-storage';
 import { BRAND_NAME } from '../config';
 import { LegalLinks } from './LegalLinks';
+import { androidTopInset } from './SafeAreaView';
 import { AnalyticsEvent } from '@tutorix/analytics';
 import { trackEvent } from '../../lib/analytics';
 import { setUserId as setCrashlyticsUserId } from '../../lib/crashlytics';
@@ -379,7 +380,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { paddingTop: androidTopInset() }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView

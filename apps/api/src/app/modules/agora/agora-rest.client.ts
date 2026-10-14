@@ -79,6 +79,37 @@ export class AgoraRestClient {
     }
   }
 
+  /** Remove the channel-wide ban from `kickChannel` so a restarted class can be joined. */
+  async liftChannelKick(channelName: string): Promise<void> {
+    if (!this.config.appId || !this.config.customerKey || !this.config.customerSecret) {
+      return;
+    }
+    const url = `https://api.agora.io/dev/v1/kicking-rule?appid=${encodeURIComponent(this.config.appId)}`;
+    const response = await fetchImpl(url, { headers: { Authorization: this.basicAuth() } });
+    if (!response.ok) {
+      throw new Error(`Agora kicking-rule query failed (${response.status})`);
+    }
+    const body = (await response.json()) as {
+      rules?: { id?: number; cname?: string; uid?: number | null }[];
+    };
+    const channelRules = (body.rules ?? []).filter(
+      (rule) => rule.cname === channelName && !rule.uid && rule.id != null,
+    );
+    for (const rule of channelRules) {
+      const removed = await fetchImpl('https://api.agora.io/dev/v1/kicking-rule', {
+        method: 'DELETE',
+        headers: {
+          Authorization: this.basicAuth(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ appid: this.config.appId, id: rule.id }),
+      });
+      if (!removed.ok) {
+        throw new Error(`Agora kicking-rule delete failed (${removed.status})`);
+      }
+    }
+  }
+
   private async kickUser(channelName: string, uid: number): Promise<void> {
     const response = await fetchImpl('https://api.agora.io/dev/v1/kicking-rule', {
       method: 'POST',

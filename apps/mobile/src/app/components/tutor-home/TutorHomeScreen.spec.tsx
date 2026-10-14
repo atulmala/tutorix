@@ -161,6 +161,53 @@ describe('TutorHomeScreen', () => {
     expect(getByText('Request reschedule')).toBeTruthy();
   });
 
+  it('offers Start Class, Restart Class, or an ended note for an online class', () => {
+    const startsAt = new Date(Date.now() - 60 * 1000);
+    const renderClass = (durationMinutes: number, endedAt: string | null) => {
+      mockUseQuery.mockImplementation((query: { kind?: string }) => {
+        if (query === TUTOR_BOOKED_CLASS_SESSIONS) {
+          return {
+            loading: false,
+            data: {
+              tutorBookedClassSessions: [
+                {
+                  enrollmentId: '5',
+                  sessionId: '5',
+                  startsAt: startsAt.toISOString(),
+                  durationMinutes,
+                  deliveryMode: 'online',
+                  offeringLabel: 'Economics',
+                  studentName: 'Ruchi Sharma',
+                  isDemo: false,
+                  endedAt,
+                },
+              ],
+            },
+          };
+        }
+        if (query === GET_MY_TUTOR_DETAIL) {
+          return { loading: false, data: { myTutorDetail: { offerings: [completeOffering] } } };
+        }
+        return { loading: false, data: { myTutorCalendarUpdatedTill: '2099-12-31T00:00:00.000Z' } };
+      });
+      return render(<TutorHomeScreen onJoinOnlineClass={jest.fn()} />);
+    };
+    const endedAt = new Date().toISOString();
+
+    const fresh = renderClass(60, null);
+    expect(fresh.getByLabelText('Start Class')).toBeTruthy();
+    fresh.unmount();
+
+    const restartable = renderClass(60, endedAt);
+    expect(restartable.getByLabelText('Restart Class')).toBeTruthy();
+    restartable.unmount();
+
+    const closed = renderClass(5, endedAt);
+    expect(closed.getByText('This class has ended')).toBeTruthy();
+    expect(closed.queryByLabelText('Restart Class')).toBeNull();
+    expect(closed.queryByLabelText('Start Class')).toBeNull();
+  });
+
   it('says there are no upcoming classes when today’s sessions have ended', () => {
     const startsAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
     const todayKey = istHomeScheduleDays().find((day) => day.isToday)?.key;

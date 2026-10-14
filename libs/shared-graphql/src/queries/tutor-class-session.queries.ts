@@ -50,6 +50,7 @@ export const TUTOR_BOOKED_CLASS_SESSIONS = gql`
       offeringLabel
       studentName
       isDemo
+      endedAt
     }
   }
 `;

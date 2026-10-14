@@ -15,9 +15,11 @@ import {
   istDayKey,
   istHomeScheduleDays,
 } from '@tutorix/shared-utils/student-schedule';
+import { useStudentHasRebookTutors } from '../student-rebook/useStudentHasRebookTutors';
 
 type StudentHomeScreenProps = {
   onOpenTutorSearch: () => void;
+  onOpenRebook?: () => void;
   onScheduleCredits?: () => void;
   onRescheduleCredit?: (credit: StudentClassCredit) => void;
   onOpenConcludedClasses?: () => void;
@@ -92,8 +94,42 @@ function ClockIcon() {
   );
 }
 
+function TutorActionButtons({
+  onOpenTutorSearch,
+  onOpenRebook,
+  showRebook,
+}: {
+  onOpenTutorSearch: () => void;
+  onOpenRebook?: () => void;
+  showRebook: boolean;
+}) {
+  return (
+    <View style={styles.tutorActions}>
+      <Pressable
+        style={[styles.findButton, showRebook && styles.findButtonInRow]}
+        onPress={onOpenTutorSearch}
+        accessibilityRole="button"
+        accessibilityLabel="Find a tutor"
+      >
+        <Text style={styles.findButtonText}>Find a tutor</Text>
+      </Pressable>
+      {showRebook && onOpenRebook ? (
+        <Pressable
+          style={styles.rebookButton}
+          onPress={onOpenRebook}
+          accessibilityRole="button"
+          accessibilityLabel="Re-book"
+        >
+          <Text style={styles.rebookButtonText}>Re-book</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
   onOpenTutorSearch,
+  onOpenRebook,
   onScheduleCredits,
   onRescheduleCredit,
   onOpenConcludedClasses,
@@ -116,6 +152,7 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
     },
     fetchPolicy: 'network-only',
   });
+  const showRebook = useStudentHasRebookTutors();
   const { data: creditData } = useQuery(MY_CLASS_CREDITS, {
     fetchPolicy: 'cache-and-network',
   });
@@ -242,14 +279,11 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
               Book a certified tutor and your upcoming sessions will appear here, with time,
               subject, and a join action when it is time to start.
             </Text>
-            <Pressable
-              style={styles.findButton}
-              onPress={onOpenTutorSearch}
-              accessibilityRole="button"
-              accessibilityLabel="Find a tutor"
-            >
-              <Text style={styles.findButtonText}>Find a tutor</Text>
-            </Pressable>
+            <TutorActionButtons
+              onOpenTutorSearch={onOpenTutorSearch}
+              onOpenRebook={onOpenRebook}
+              showRebook={showRebook}
+            />
           </View>
         ) : (
           <>
@@ -334,14 +368,11 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
                 ))}
               </View>
             ) : null}
-            <Pressable
-              style={styles.findButton}
-              onPress={onOpenTutorSearch}
-              accessibilityRole="button"
-              accessibilityLabel="Find a tutor"
-            >
-              <Text style={styles.findButtonText}>Find a tutor</Text>
-            </Pressable>
+            <TutorActionButtons
+              onOpenTutorSearch={onOpenTutorSearch}
+              onOpenRebook={onOpenRebook}
+              showRebook={showRebook}
+            />
           </>
         )}
       </View>
@@ -447,15 +478,31 @@ const styles = StyleSheet.create({
   },
   listEmptyTitle: { fontSize: 16, fontWeight: '800', color: '#143055' },
   listEmptyCopy: { marginTop: 6, fontSize: 13, lineHeight: 19, color: '#64748b' },
+  tutorActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 16,
+    alignItems: 'center',
+  },
   findButton: {
     alignSelf: 'flex-start',
-    marginTop: 16,
     backgroundColor: '#2563eb',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
+  findButtonInRow: { flexGrow: 1, flexShrink: 0 },
   findButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  rebookButton: {
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#2563eb',
+    backgroundColor: '#fff',
+  },
+  rebookButtonText: { color: '#2563eb', fontWeight: '700', fontSize: 14 },
   classRow: {
     backgroundColor: '#fff',
     borderRadius: 20,

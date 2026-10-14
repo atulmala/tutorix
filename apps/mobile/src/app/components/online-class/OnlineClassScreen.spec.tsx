@@ -1,4 +1,5 @@
 import React from 'react';
+import { Alert } from 'react-native';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { OnlineClassScreen } from './OnlineClassScreen';
 
@@ -27,16 +28,21 @@ jest.mock('react-native-agora', () => ({
   RenderModeType: { RenderModeFit: 2 },
   VideoDimensions: class VideoDimensions {},
   VideoEncoderConfiguration: class VideoEncoderConfiguration {},
-  VideoSourceType: { VideoSourceScreen: 2 },
+  VideoSourceType: { VideoSourceCamera: 0, VideoSourceScreen: 2 },
   createAgoraRtcEngine: () => ({
     initialize: jest.fn(),
     setCameraCapturerConfiguration: jest.fn(() => 0),
     setVideoEncoderConfiguration: jest.fn(() => 0),
     enableVideo: jest.fn(),
     enableAudio: jest.fn(),
+    setDefaultAudioRouteToSpeakerphone: jest.fn(() => 0),
+    enableLocalVideo: jest.fn(),
     startPreview: jest.fn(),
+    updateChannelMediaOptions: jest.fn(() => 0),
     addListener: jest.fn(),
-    joinChannel: jest.fn(),
+    registerEventHandler: jest.fn(),
+    unregisterEventHandler: jest.fn(),
+    joinChannel: jest.fn(() => 0),
     leaveChannel: jest.fn(),
     release: jest.fn(),
     muteLocalAudioStream: jest.fn(() => 0),
@@ -46,6 +52,16 @@ jest.mock('react-native-agora', () => ({
     updateChannelMediaOptions: jest.fn(() => 0),
   }),
   RtcSurfaceView: () => null,
+  RtcTextureView: () => null,
+  RemoteVideoState: {
+    RemoteVideoStateStopped: 0,
+    RemoteVideoStateStarting: 1,
+    RemoteVideoStateDecoding: 2,
+  },
+  RemoteVideoStateReason: {
+    RemoteVideoStateReasonRemoteMuted: 5,
+    RemoteVideoStateReasonRemoteOffline: 7,
+  },
 }));
 
 jest.mock('agora-react-native-rtm', () => ({
@@ -70,6 +86,28 @@ const fastRoomProps: {
 } = {
   current: null,
 };
+
+jest.mock('../../lib/is-webview-native-available', () => ({
+  isWebViewNativeAvailable: () => true,
+}));
+
+jest.mock('../../lib/agora-native', () => ({
+  loadAgoraRtcModule: () => require('react-native-agora'),
+  loadAgoraRtmModule: () => require('agora-react-native-rtm'),
+  normalizeAgoraUid: (value: unknown) =>
+    typeof value === 'number' && Number.isFinite(value) ? value : null,
+  isAgoraRtcNativeAvailable: () => true,
+}));
+
+jest.mock('../../lib/agora-rtc-session', () => ({
+  ensureAgoraRtcEngine: (rtc: { createAgoraRtcEngine: () => unknown }) => ({
+    engine: rtc.createAgoraRtcEngine(),
+    initCode: 0,
+  }),
+  bindRtcEventDelegate: jest.fn(),
+  leaveAgoraRtcChannel: jest.fn(),
+  releaseAgoraRtcEngine: jest.fn(),
+}));
 
 jest.mock('@netless/react-native-fastboard', () => ({
   FastRoom: (props: {
@@ -136,6 +174,25 @@ describe('OnlineClassScreen', () => {
     expect(await screen.findByLabelText('Unmute camera')).toBeTruthy();
   });
 
+  it('shows only participant tiles with a loading spinner and no screen share', async () => {
+    const joined = await mockJoin();
+    mockJoin.mockResolvedValue({
+      data: {
+        joinOnlineClass: {
+          ...joined.data.joinOnlineClass,
+          participants: [
+            { userId: 8, name: 'Grace Hopper' },
+            { userId: 12, name: 'Ada Lovelace' },
+          ],
+        },
+      },
+    });
+    render(<OnlineClassScreen sessionId="9" displayName="Student" onLeave={jest.fn()} />);
+    expect(await screen.findByLabelText("Loading Ada Lovelace's video")).toBeTruthy();
+    expect(screen.queryByLabelText('You')).toBeNull();
+    expect(screen.queryByLabelText('Share screen')).toBeNull();
+  });
+
   it('shares one whiteboard stage across screen sizes', async () => {
     mockJoin.mockResolvedValue({
       data: {
@@ -178,5 +235,39 @@ describe('OnlineClassScreen', () => {
     fireEvent.press(await screen.findByLabelText('End class'));
     expect(await screen.findByText('This class has ended')).toBeTruthy();
     expect(mockEnd).toHaveBeenCalledWith({ variables: { sessionId: '9' } });
+  });
+
+  it('asks the tutor to confirm when more than 5 minutes remain', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    const joined = await mockJoin();
+    mockJoin.mockResolvedValue({
+      data: {
+        joinOnlineClass: {
+          ...joined.data.joinOnlineClass,
+          scheduledEnd: new Date(Date.now() + 30 * 60_000).toISOString(),
+        },
+      },
+    });
+    render(
+      <OnlineClassScreen sessionId="9" displayName="Tutor" canEndClass onLeave={jest.fn()} />,
+    );
+    await screen.findByText('Ada Lovelace');
+    fireEvent.press(screen.getByLabelText('End class'));
+
+    expect(alert).toHaveBeenCalledWith('End class', 'Are you sure to end this class?', expect.any(Array));
+    expect(mockEnd).not.toHaveBeenCalled();
+
+    const buttons = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+    buttons.find((button) => button.text === 'End class')?.onPress?.();
+    expect(await screen.findByText('This class has ended')).toBeTruthy();
+    expect(mockEnd).toHaveBeenCalledWith({ variables: { sessionId: '9' } });
+    alert.mockRestore();
+  });
+
+  it('shows the ended screen instead of the class when the join is refused', async () => {
+    mockJoin.mockRejectedValue(new Error('This class has ended'));
+    render(<OnlineClassScreen sessionId="9" displayName="Tutor" canEndClass onLeave={jest.fn()} />);
+    expect(await screen.findByText('This class has ended')).toBeTruthy();
+    expect(screen.queryByLabelText('End class')).toBeNull();
   });
 });

@@ -7,10 +7,12 @@ import {
 } from './enums/tutor-booking-status.enum';
 import {
   applyTutorClassBookingStudentSearch,
+  groupStudentRebookTutors,
   groupTutorClassBookings,
   offeringLabelMatchesSearch,
   pageStudentClassBookings,
   pageTutorClassBookings,
+  StudentRebookCreditSource,
   TutorClassBookingCreditSource,
 } from './tutor-class-booking.util';
 
@@ -315,5 +317,92 @@ describe('pageStudentClassBookings', () => {
     expect(page.totalCount).toBe(2);
     expect(page.totalPages).toBe(2);
     expect(page.items.map((item) => item.orderItemId)).toEqual([1]);
+  });
+});
+
+function rebookCredit(
+  overrides: Partial<StudentRebookCreditSource> &
+    Pick<StudentRebookCreditSource, 'tutorId' | 'catalogOfferingId'>,
+): StudentRebookCreditSource {
+  return {
+    tutorFirstName: 'Grace',
+    tutorLastName: 'Hopper',
+    tutorCatalogOfferingId: overrides.catalogOfferingId,
+    offeringLabel: 'Mathematics',
+    deliveryMode: ClassSessionDeliveryModeEnum.online,
+    status: ClassCreditStatusEnum.unscheduled,
+    createdDate: new Date('2026-09-01T00:00:00Z'),
+    isDemo: false,
+    ...overrides,
+  };
+}
+
+describe('groupStudentRebookTutors', () => {
+  it('groups by tutor and catalog offering, excludes demos and cancelled credits', () => {
+    const rows = groupStudentRebookTutors([
+      rebookCredit({
+        tutorId: 4,
+        catalogOfferingId: 100,
+        createdDate: new Date('2026-09-01T00:00:00Z'),
+      }),
+      rebookCredit({
+        tutorId: 4,
+        catalogOfferingId: 100,
+        createdDate: new Date('2026-09-10T00:00:00Z'),
+        deliveryMode: ClassSessionDeliveryModeEnum.offline,
+      }),
+      rebookCredit({
+        tutorId: 4,
+        catalogOfferingId: 200,
+        offeringLabel: 'Physics',
+        createdDate: new Date('2026-09-05T00:00:00Z'),
+      }),
+      rebookCredit({
+        tutorId: 4,
+        catalogOfferingId: 100,
+        isDemo: true,
+      }),
+      rebookCredit({
+        tutorId: 4,
+        catalogOfferingId: 100,
+        status: ClassCreditStatusEnum.cancelled,
+      }),
+      rebookCredit({
+        tutorId: 8,
+        catalogOfferingId: 100,
+        tutorFirstName: 'Alan',
+        tutorLastName: 'Turing',
+      }),
+    ]);
+
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toMatchObject({
+      tutorId: 4,
+      catalogOfferingId: 100,
+      totalClassCount: 2,
+      lastDeliveryMode: ClassSessionDeliveryModeEnum.offline,
+    });
+    expect(rows[1]).toMatchObject({
+      tutorId: 4,
+      catalogOfferingId: 200,
+      offeringLabel: 'Physics',
+    });
+    expect(rows[2]).toMatchObject({
+      tutorId: 8,
+      catalogOfferingId: 100,
+      totalClassCount: 1,
+    });
+  });
+
+  it('falls back to tutor catalog offering id when credit catalog id is missing', () => {
+    const rows = groupStudentRebookTutors([
+      rebookCredit({
+        tutorId: 4,
+        catalogOfferingId: null,
+        tutorCatalogOfferingId: 11011,
+      }),
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].catalogOfferingId).toBe(11011);
   });
 });

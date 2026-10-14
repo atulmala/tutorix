@@ -10,8 +10,11 @@ import {
 } from '@tutorix/shared-graphql';
 import {
   canChangeScheduledClass,
-  canJoinOnlineClass,
   formatIstBookingTimeRange,
+  ONLINE_CLASS_ENDED_MESSAGE,
+  TUTOR_ONLINE_CLASS_RESTART_LABEL,
+  TUTOR_ONLINE_CLASS_START_LABEL,
+  tutorOnlineClassAction,
   hasIncompleteRateCardOfferings,
   istBookedClassQueryRange,
   istDayKey,
@@ -52,6 +55,7 @@ type TutorBookedClass = {
   offeringLabel: string;
   studentName: string;
   isDemo: boolean;
+  endedAt?: string | null;
 };
 
 type DaySession = {
@@ -61,6 +65,7 @@ type DaySession = {
   deliveryMode: 'online' | 'offline';
   offeringLabel: string;
   isDemo: boolean;
+  endedAt: string | null;
   students: { enrollmentId: string; name: string }[];
 };
 
@@ -78,6 +83,7 @@ function groupDaySessions(rows: TutorBookedClass[]): DaySession[] {
         deliveryMode: row.deliveryMode,
         offeringLabel: row.offeringLabel,
         isDemo: row.isDemo,
+        endedAt: row.endedAt ?? null,
         students: [student],
       });
       continue;
@@ -465,10 +471,15 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
                   session.startsAt,
                   session.deliveryMode,
                 );
-                const canJoin =
-                  Boolean(onJoinOnlineClass) &&
-                  session.deliveryMode === 'online' &&
-                  canJoinOnlineClass(session.startsAt, session.durationMinutes, now);
+                const classAction =
+                  onJoinOnlineClass && session.deliveryMode === 'online'
+                    ? tutorOnlineClassAction(
+                        session.startsAt,
+                        session.durationMinutes,
+                        session.endedAt,
+                        now,
+                      )
+                    : null;
                 const actionEnrollmentId = session.students[0]?.enrollmentId;
                 const rescheduleConfirm =
                   session.students.length > 1
@@ -523,14 +534,21 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
                         {studentCountLabel(session.students.length)}
                       </button>
                     </div>
-                    {canJoin && onJoinOnlineClass ? (
+                    {(classAction === 'start' || classAction === 'restart') && onJoinOnlineClass ? (
                       <button
                         type="button"
                         onClick={() => onJoinOnlineClass(session.sessionId)}
                         className="mt-3 rounded-xl bg-[#2563eb] px-3 py-2 text-sm font-semibold text-white"
                       >
-                        Join class
+                        {classAction === 'restart'
+                          ? TUTOR_ONLINE_CLASS_RESTART_LABEL
+                          : TUTOR_ONLINE_CLASS_START_LABEL}
                       </button>
+                    ) : null}
+                    {classAction === 'ended' ? (
+                      <p className="mt-3 text-sm font-semibold text-slate-500">
+                        {ONLINE_CLASS_ENDED_MESSAGE}
+                      </p>
                     ) : null}
                     {canChange && actionEnrollmentId ? (
                       <div className="mt-3 flex flex-wrap gap-2">

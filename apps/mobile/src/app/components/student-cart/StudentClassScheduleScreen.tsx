@@ -64,6 +64,18 @@ export const StudentClassScheduleScreen: React.FC<StudentClassScheduleScreenProp
               ? 'Save new slot'
               : 'Save slot'
         }
+        footer={
+          !isReschedule ? (
+            <Pressable
+              style={styles.later}
+              onPress={onScheduleLater}
+              accessibilityRole="button"
+              accessibilityLabel="I will schedule later"
+            >
+              <Text style={styles.laterText}>I will schedule later</Text>
+            </Pressable>
+          ) : undefined
+        }
         onContinue={(draft) => {
           void (async () => {
             setErrorMessage(null);
@@ -90,24 +102,13 @@ export const StudentClassScheduleScreen: React.FC<StudentClassScheduleScreenProp
           })();
         }}
       />
-      {!isReschedule ? (
-        <Pressable
-          style={styles.later}
-          onPress={onScheduleLater}
-          accessibilityRole="button"
-          accessibilityLabel="I will schedule later"
-        >
-          <Text style={styles.laterText}>I will schedule later</Text>
-        </Pressable>
-      ) : null}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   later: {
-    marginHorizontal: 20,
-    marginBottom: 16,
+    marginTop: 4,
     alignItems: 'center',
     borderRadius: 12,
     borderWidth: 1,

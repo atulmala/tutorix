@@ -29,6 +29,7 @@ import { StudentProfilePage } from './components/student-profile';
 import { StudentTutorSearchPage } from './components/student-tutor-search/StudentTutorSearchPage';
 import { clearStudentTutorSearchDraft } from './components/student-tutor-search/student-tutor-search-draft';
 import { StudentTutorPreviewPage } from './components/student-tutor-preview/StudentTutorPreviewPage';
+import { StudentRebookTutorsPage } from './components/student-rebook/StudentRebookTutorsPage';
 import { StudentCartPage } from './components/student-cart/StudentCartPage';
 import { StudentCartCheckoutPage } from './components/student-cart/StudentCartCheckoutPage';
 import {
@@ -75,7 +76,9 @@ function AppContent() {
   const [tutorPreview, setTutorPreview] = useState<{
     tutorId: string;
     offeringId: string;
+    returnView: WebView;
   } | null>(null);
+  const [rebookReturnView, setRebookReturnView] = useState<WebView>('student-home');
   const [scheduleCredits, setScheduleCredits] = useState<StudentClassCredit[] | null>(null);
   const [resumeUserId, setResumeUserId] = useState<number | undefined>(undefined);
   const [resumeVerificationStatus, setResumeVerificationStatus] = useState<
@@ -549,6 +552,10 @@ function AppContent() {
               clearStudentTutorSearchDraft();
               setCurrentView('student-tutor-search');
             }}
+            onOpenRebook={() => {
+              setRebookReturnView('student-home');
+              setCurrentView('student-rebook-tutors');
+            }}
             onScheduleCredits={() => setCurrentView('student-class-credits')}
             onRescheduleCredit={(credit) => {
               setScheduleCredits([credit]);
@@ -571,6 +578,37 @@ function AppContent() {
     );
   }
 
+  if (currentView === 'student-rebook-tutors') {
+    return (
+      <div className="min-h-screen bg-subtle text-primary">
+        <AppHeader
+          title="Re-book"
+          onLogout={handleLogout}
+          onBack={() => setCurrentView(rebookReturnView)}
+          onProfilePress={() => setCurrentView('student-profile')}
+          onOpenWallet={() => handleOpenWallet('student-rebook-tutors')}
+          onOpenCart={openStudentCart}
+        />
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
+          <StudentRebookTutorsPage
+            onFindTutor={() => {
+              clearStudentTutorSearchDraft();
+              setCurrentView('student-tutor-search');
+            }}
+            onOpenTutorPreview={(tutorId, offeringId) => {
+              setTutorPreview({
+                tutorId,
+                offeringId,
+                returnView: 'student-rebook-tutors',
+              });
+              setCurrentView('student-tutor-preview');
+            }}
+          />
+        </main>
+      </div>
+    );
+  }
+
   if (
     currentView === 'student-tutor-search' ||
     (currentView === 'student-tutor-preview' && tutorPreview)
@@ -582,7 +620,9 @@ function AppContent() {
           title={onSearch ? 'Search' : 'Tutor'}
           onLogout={handleLogout}
           onBack={() =>
-            setCurrentView(onSearch ? 'student-home' : 'student-tutor-search')
+            setCurrentView(
+              onSearch ? 'student-home' : (tutorPreview?.returnView ?? 'student-tutor-search'),
+            )
           }
           onProfilePress={() => setCurrentView('student-profile')}
           onOpenWallet={() => handleOpenWallet('student-home')}
@@ -592,8 +632,16 @@ function AppContent() {
           <div className={onSearch ? 'w-full' : 'hidden'}>
             <StudentTutorSearchPage
               onOpenTutorPreview={(tutorId, offeringId) => {
-                setTutorPreview({ tutorId, offeringId });
+                setTutorPreview({
+                  tutorId,
+                  offeringId,
+                  returnView: 'student-tutor-search',
+                });
                 setCurrentView('student-tutor-preview');
+              }}
+              onRebook={() => {
+                setRebookReturnView('student-tutor-search');
+                setCurrentView('student-rebook-tutors');
               }}
             />
           </div>

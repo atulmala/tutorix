@@ -119,6 +119,22 @@ export const STUDENT_CLASS_BOOKINGS = gql`
   }
 `;
 
+export const STUDENT_REBOOK_TUTORS = gql`
+  query StudentRebookTutors {
+    studentRebookTutors {
+      tutorId
+      catalogOfferingId
+      displayName
+      photoUrl
+      offeringLabel
+      totalClassCount
+      lastBookedAt
+      lastDeliveryMode
+      totalExperienceMonths
+    }
+  }
+`;
+
 export const MY_CLASS_CREDITS = gql`
   query MyClassCredits {
     myClassCredits {
