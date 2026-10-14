@@ -3,17 +3,51 @@ import {
   Dimensions,
   Platform,
   StatusBar,
+  TurboModuleRegistry,
   View,
   SafeAreaView as RNSafeAreaView,
   type StyleProp,
+  type TurboModule,
   type ViewStyle,
 } from 'react-native';
+
+type StatusBarManagerModule = {
+  getConstants: () => { HEIGHT?: number };
+};
 
 /** Typical gesture nav bar height when edge-to-edge hides it from Dimensions. */
 const ANDROID_FALLBACK_BOTTOM_INSET_DP = 48;
 
-function androidEdgeToEdgeEnabled(): boolean {
+export function androidEdgeToEdgeEnabled(): boolean {
   return Platform.OS === 'android' && Number(Platform.Version) >= 35;
+}
+
+let statusBarHeight = 0;
+
+/**
+ * `StatusBar.currentHeight` is read once at startup from the window insets and
+ * is 0 when the window was not attached yet (cold start, Metro reload). Ask
+ * the native module again until it reports a real height.
+ */
+function androidStatusBarHeight(): number {
+  if (statusBarHeight > 0) {
+    return statusBarHeight;
+  }
+  let height = StatusBar.currentHeight ?? 0;
+  if (height <= 0) {
+    try {
+      const manager = TurboModuleRegistry.get<TurboModule>(
+        'StatusBarManager',
+      ) as StatusBarManagerModule | null;
+      height = manager?.getConstants().HEIGHT ?? 0;
+    } catch {
+      height = 0;
+    }
+  }
+  if (height > 0) {
+    statusBarHeight = height;
+  }
+  return height;
 }
 
 /**
@@ -24,7 +58,7 @@ export function androidTopInset(): number {
   if (!androidEdgeToEdgeEnabled()) {
     return 0;
   }
-  return StatusBar.currentHeight ?? 0;
+  return androidStatusBarHeight();
 }
 
 /** System navigation bar (gesture bar / 3-button bar) inset in layout dp. */

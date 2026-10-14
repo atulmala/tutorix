@@ -87,4 +87,7 @@ export class TutorBookedClassSession {
 
   @Field()
   isDemo!: boolean;
+
+  @Field(() => Date, { nullable: true })
+  endedAt?: Date | null;
 }

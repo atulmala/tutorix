@@ -203,6 +203,53 @@ describe('TutorHomePage', () => {
     expect(screen.queryByRole('button', { name: 'Request reschedule' })).toBeNull();
   });
 
+  it('offers Start Class, Restart Class, or an ended note for an online class', () => {
+    const startsAt = new Date(Date.now() - 60 * 1000);
+    const renderClass = (durationMinutes: number, endedAt: string | null) => {
+      mockUseQuery.mockImplementation((query: { kind?: string }) => {
+        if (query === TUTOR_BOOKED_CLASS_SESSIONS) {
+          return {
+            loading: false,
+            data: {
+              tutorBookedClassSessions: [
+                {
+                  enrollmentId: '5',
+                  sessionId: '5',
+                  startsAt: startsAt.toISOString(),
+                  durationMinutes,
+                  deliveryMode: 'online',
+                  offeringLabel: 'Economics',
+                  studentName: 'Ruchi Sharma',
+                  isDemo: false,
+                  endedAt,
+                },
+              ],
+            },
+          };
+        }
+        if (query === GET_MY_TUTOR_DETAIL) {
+          return { loading: false, data: { myTutorDetail: { offerings: [completeOffering] } } };
+        }
+        return { loading: false, data: { myTutorCalendarUpdatedTill: '2099-12-31T00:00:00.000Z' } };
+      });
+      return render(<TutorHomePage onJoinOnlineClass={jest.fn()} />);
+    };
+    const endedAt = new Date().toISOString();
+
+    const fresh = renderClass(60, null);
+    expect(screen.getByRole('button', { name: 'Start Class' })).toBeTruthy();
+    fresh.unmount();
+
+    const restartable = renderClass(60, endedAt);
+    expect(screen.getByRole('button', { name: 'Restart Class' })).toBeTruthy();
+    restartable.unmount();
+
+    renderClass(5, endedAt);
+    expect(screen.getByText('This class has ended')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Restart Class' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Start Class' })).toBeNull();
+  });
+
   it('lists classes whose end time has passed under concluded classes', () => {
     const startsAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
     mockUseQuery.mockImplementation((query: { kind?: string }) => {

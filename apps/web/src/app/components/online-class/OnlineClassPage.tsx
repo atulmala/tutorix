@@ -12,11 +12,15 @@ import AgoraRTM, { type RTMClient } from 'agora-rtm-sdk';
 import { createFastboard, mount } from '@netless/fastboard';
 import { END_ONLINE_CLASS, JOIN_ONLINE_CLASS } from '@tutorix/shared-graphql';
 import {
+  isOnlineClassEndedError,
   isOnlineClassEndedMessage,
   nameInitials,
+  ONLINE_CLASS_END_CONFIRM_MESSAGE,
+  ONLINE_CLASS_ENDED_MESSAGE,
   ONLINE_CLASS_WHITEBOARD_HEIGHT_RATIO,
   ONLINE_CLASS_WRAP_UP_MESSAGE,
   onlineClassEndedPayload,
+  onlineClassHasTimeLeft,
   onlineClassScreenSharePayload,
   onlineClassScreenShareState,
 } from '@tutorix/shared-utils';
@@ -177,6 +181,7 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
   const namesRef = useRef<Map<number, string>>(new Map());
   const canDrawRef = useRef(canEndClass);
   const finishRef = useRef<() => void>(() => undefined);
+  const scheduledEndRef = useRef<string | null>(null);
   nameRef.current = displayName;
   canDrawRef.current = canEndClass;
 
@@ -231,6 +236,7 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
           (creds.participants ?? []).map((member) => [member.userId, member.name]),
         );
         namesRef.current = roster;
+        scheduledEndRef.current = creds.scheduledEnd;
         setClassTitle({
           tutorName: creds.tutorName?.trim() || 'Tutor',
           subjectName: creds.subjectName?.trim() || 'Class',
@@ -465,9 +471,14 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
           });
         }
       } catch (caught) {
-        if (!cancelled) {
-          setError(caught instanceof Error ? caught.message : 'Unable to join this class');
+        if (cancelled) {
+          return;
         }
+        if (isOnlineClassEndedError(caught)) {
+          setEnded(true);
+          return;
+        }
+        setError(caught instanceof Error ? caught.message : 'Unable to join this class');
       }
     })();
 
@@ -602,6 +613,12 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
     if (!canEndClass || ending) {
       return;
     }
+    if (
+      onlineClassHasTimeLeft(scheduledEndRef.current) &&
+      !window.confirm(ONLINE_CLASS_END_CONFIRM_MESSAGE)
+    ) {
+      return;
+    }
     setEnding(true);
     setError(null);
     try {
@@ -624,7 +641,7 @@ export const OnlineClassPage: React.FC<OnlineClassPageProps> = ({
   if (ended) {
     return (
       <div className="mx-auto max-w-lg rounded-[20px] bg-white p-8 text-center">
-        <p className="text-lg font-extrabold text-[#143055]">This class has ended</p>
+        <p className="text-lg font-extrabold text-[#143055]">{ONLINE_CLASS_ENDED_MESSAGE}</p>
         <button
           type="button"
           onClick={onLeave}

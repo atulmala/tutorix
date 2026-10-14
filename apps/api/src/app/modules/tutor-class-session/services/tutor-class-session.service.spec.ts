@@ -468,6 +468,7 @@ describe('TutorClassSessionService', () => {
         offeringLabel: 'Economics',
         studentName: 'Ruchi Sharma',
         isDemo: true,
+        endedAt: null,
       },
     ]);
   });

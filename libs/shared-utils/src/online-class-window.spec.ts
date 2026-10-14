@@ -1,11 +1,14 @@
 import {
   canJoinOnlineClass,
   fitWhiteboardStage,
+  isOnlineClassEndedError,
   nameInitials,
   onlineClassChannelName,
+  onlineClassHasTimeLeft,
   onlineClassScreenSharePayload,
   onlineClassScreenShareState,
   onlineClassWindow,
+  tutorOnlineClassAction,
 } from './online-class-window';
 
 /** 3:00 pm IST on 4 Oct 2026. */
@@ -30,6 +33,26 @@ describe('onlineClassWindow', () => {
 
   it('names the channel from the session id', () => {
     expect(onlineClassChannelName(42)).toBe('class-42');
+  });
+
+  it('has time left until more than 5 minutes before the 4:00 pm scheduled end', () => {
+    expect(onlineClassHasTimeLeft(window.scheduledEnd, new Date('2026-10-04T10:24:59.000Z'))).toBe(true);
+    expect(onlineClassHasTimeLeft(window.scheduledEnd, new Date('2026-10-04T10:25:00.000Z'))).toBe(false);
+    expect(onlineClassHasTimeLeft(null)).toBe(false);
+  });
+
+  it('offers the tutor start, restart, or an ended note', () => {
+    const at = (iso: string) => new Date(iso);
+    expect(tutorOnlineClassAction(START, 60, null, at('2026-10-04T09:24:00.000Z'))).toBeNull();
+    expect(tutorOnlineClassAction(START, 60, null, at('2026-10-04T09:25:00.000Z'))).toBe('start');
+    expect(tutorOnlineClassAction(START, 60, '2026-10-04T09:40:00.000Z', at('2026-10-04T10:24:00.000Z'))).toBe('restart');
+    expect(tutorOnlineClassAction(START, 60, '2026-10-04T09:40:00.000Z', at('2026-10-04T10:25:00.000Z'))).toBe('ended');
+    expect(tutorOnlineClassAction(START, 60, '2026-10-04T09:40:00.000Z', at('2026-10-04T10:35:00.000Z'))).toBeNull();
+  });
+
+  it('recognises the class-ended error', () => {
+    expect(isOnlineClassEndedError(new Error('This class has ended'))).toBe(true);
+    expect(isOnlineClassEndedError(new Error('This class is not open yet'))).toBe(false);
   });
 });
 

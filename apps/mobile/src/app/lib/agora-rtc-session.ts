@@ -40,11 +40,11 @@ const globalRtcEventHandler: IRtcEngineEventHandler = {
 
 /** Route native Agora events to the active class screen without re-registering on each render. */
 export function bindRtcEventDelegate(
-  engine: IRtcEngine,
+  engine: IRtcEngine | null,
   delegate: IRtcEngineEventHandler | null,
 ): void {
   rtcEventDelegate = delegate;
-  if (!globalHandlerRegistered) {
+  if (engine && !globalHandlerRegistered) {
     engine.registerEventHandler(globalRtcEventHandler);
     globalHandlerRegistered = true;
   }

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Alert } from 'react-native';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { OnlineClassScreen } from './OnlineClassScreen';
 
@@ -53,8 +54,13 @@ jest.mock('react-native-agora', () => ({
   RtcSurfaceView: () => null,
   RtcTextureView: () => null,
   RemoteVideoState: {
+    RemoteVideoStateStopped: 0,
     RemoteVideoStateStarting: 1,
     RemoteVideoStateDecoding: 2,
+  },
+  RemoteVideoStateReason: {
+    RemoteVideoStateReasonRemoteMuted: 5,
+    RemoteVideoStateReasonRemoteOffline: 7,
   },
 }));
 
@@ -168,6 +174,25 @@ describe('OnlineClassScreen', () => {
     expect(await screen.findByLabelText('Unmute camera')).toBeTruthy();
   });
 
+  it('shows only participant tiles with a loading spinner and no screen share', async () => {
+    const joined = await mockJoin();
+    mockJoin.mockResolvedValue({
+      data: {
+        joinOnlineClass: {
+          ...joined.data.joinOnlineClass,
+          participants: [
+            { userId: 8, name: 'Grace Hopper' },
+            { userId: 12, name: 'Ada Lovelace' },
+          ],
+        },
+      },
+    });
+    render(<OnlineClassScreen sessionId="9" displayName="Student" onLeave={jest.fn()} />);
+    expect(await screen.findByLabelText("Loading Ada Lovelace's video")).toBeTruthy();
+    expect(screen.queryByLabelText('You')).toBeNull();
+    expect(screen.queryByLabelText('Share screen')).toBeNull();
+  });
+
   it('shares one whiteboard stage across screen sizes', async () => {
     mockJoin.mockResolvedValue({
       data: {
@@ -210,5 +235,39 @@ describe('OnlineClassScreen', () => {
     fireEvent.press(await screen.findByLabelText('End class'));
     expect(await screen.findByText('This class has ended')).toBeTruthy();
     expect(mockEnd).toHaveBeenCalledWith({ variables: { sessionId: '9' } });
+  });
+
+  it('asks the tutor to confirm when more than 5 minutes remain', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    const joined = await mockJoin();
+    mockJoin.mockResolvedValue({
+      data: {
+        joinOnlineClass: {
+          ...joined.data.joinOnlineClass,
+          scheduledEnd: new Date(Date.now() + 30 * 60_000).toISOString(),
+        },
+      },
+    });
+    render(
+      <OnlineClassScreen sessionId="9" displayName="Tutor" canEndClass onLeave={jest.fn()} />,
+    );
+    await screen.findByText('Ada Lovelace');
+    fireEvent.press(screen.getByLabelText('End class'));
+
+    expect(alert).toHaveBeenCalledWith('End class', 'Are you sure to end this class?', expect.any(Array));
+    expect(mockEnd).not.toHaveBeenCalled();
+
+    const buttons = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+    buttons.find((button) => button.text === 'End class')?.onPress?.();
+    expect(await screen.findByText('This class has ended')).toBeTruthy();
+    expect(mockEnd).toHaveBeenCalledWith({ variables: { sessionId: '9' } });
+    alert.mockRestore();
+  });
+
+  it('shows the ended screen instead of the class when the join is refused', async () => {
+    mockJoin.mockRejectedValue(new Error('This class has ended'));
+    render(<OnlineClassScreen sessionId="9" displayName="Tutor" canEndClass onLeave={jest.fn()} />);
+    expect(await screen.findByText('This class has ended')).toBeTruthy();
+    expect(screen.queryByLabelText('End class')).toBeNull();
   });
 });

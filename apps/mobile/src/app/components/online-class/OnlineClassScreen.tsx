@@ -1,5 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
   Platform,
   LayoutChangeEvent,
   Pressable,
@@ -9,20 +13,23 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from '../SafeAreaView';
+import { androidEdgeToEdgeEnabled, SafeAreaView } from '../SafeAreaView';
 import { useMutation } from '@apollo/client';
 import type { IRtcEngine, IRtcEngineEventHandler } from 'react-native-agora';
-import type { IRtmClient } from 'agora-react-native-rtm';
+import type { RTMClient } from 'agora-react-native-rtm';
 import { FastRoom } from '@netless/react-native-fastboard';
 import { END_ONLINE_CLASS, JOIN_ONLINE_CLASS } from '@tutorix/shared-graphql/queries';
 import {
   fitWhiteboardStage,
+  isOnlineClassEndedError,
   isOnlineClassEndedMessage,
   nameInitials,
+  ONLINE_CLASS_END_CONFIRM_MESSAGE,
+  ONLINE_CLASS_ENDED_MESSAGE,
   ONLINE_CLASS_WHITEBOARD_HEIGHT_RATIO,
   ONLINE_CLASS_WRAP_UP_MESSAGE,
   onlineClassEndedPayload,
-  onlineClassScreenSharePayload,
+  onlineClassHasTimeLeft,
   onlineClassScreenShareState,
 } from '@tutorix/shared-utils/online-class-window';
 import {
@@ -50,6 +57,7 @@ type JoinPayload = {
   uid: number;
   expiresAt: string;
   warnAt: string;
+  scheduledEnd?: string | null;
   whiteboardAppIdentifier?: string | null;
   whiteboardRegion?: string | null;
   whiteboardRoomUuid?: string | null;
@@ -112,6 +120,8 @@ function debugOnlineClassLog(
 
 type ChatLine = { id: string; from: string; text: string };
 
+type RemoteVideoStatus = 'loading' | 'live' | 'off';
+
 type OnlineClassScreenProps = {
   sessionId: string;
   displayName: string;
@@ -133,13 +143,13 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
   const [chatOpen, setChatOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [lines, setLines] = useState<ChatLine[]>([]);
-  const [sharing, setSharing] = useState(false);
   const [remoteSharingUid, setRemoteSharingUid] = useState<number | null>(null);
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [ending, setEnding] = useState(false);
   const [remoteUids, setRemoteUids] = useState<number[]>([]);
   const [remoteVideoGeneration, setRemoteVideoGeneration] = useState<Record<number, number>>({});
+  const [remoteVideoStatus, setRemoteVideoStatus] = useState<Record<number, RemoteVideoStatus>>({});
   const [board, setBoard] = useState<JoinPayload | null>(null);
   const [whiteboardNote, setWhiteboardNote] = useState<string | null>(null);
   const [classTitle, setClassTitle] = useState<{ tutorName: string; subjectName: string } | null>(
@@ -147,8 +157,9 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
   );
   const [stage, setStage] = useState<{ width: number; height: number } | null>(null);
   const [agoraRtc, setAgoraRtc] = useState<AgoraRtcRuntime | null>(null);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const engineRef = useRef<IRtcEngine | null>(null);
-  const rtmRef = useRef<IRtmClient | null>(null);
+  const rtmRef = useRef<RTMClient | null>(null);
   const agoraRtcRef = useRef<AgoraRtcRuntime | null>(null);
   const channelRef = useRef('');
   const localUidRef = useRef(0);
@@ -245,7 +256,6 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
 
     void (async () => {
       try {
-        await ensureOnlineClassCallPermissions();
         const { data } = await joinOnlineClass({ variables: { sessionId } });
         const creds = data?.joinOnlineClass as JoinPayload | undefined;
         // #region agent log
@@ -260,6 +270,10 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
         });
         // #endregion
         if (cancelled || !creds) {
+          return;
+        }
+        await ensureOnlineClassCallPermissions();
+        if (cancelled) {
           return;
         }
         if (creds.whiteboardError) {
@@ -341,6 +355,15 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
             ...current,
             [uid]: (current[uid] ?? 0) + 1,
           }));
+        };
+        const markRemoteVideo = (rawUid: unknown, status: RemoteVideoStatus) => {
+          const uid = normalizeAgoraUid(rawUid);
+          if (uid == null) {
+            return;
+          }
+          setRemoteVideoStatus((current) =>
+            current[uid] === status ? current : { ...current, [uid]: status },
+          );
         };
         const connectClassChat = async () => {
           if (cancelled) {
@@ -434,19 +457,30 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
               return;
             }
             setRemoteUids((current) => current.filter((item) => item !== normalized));
+            markRemoteVideo(normalized, 'loading');
           },
-          onRemoteVideoStateChanged(_connection, uid, state) {
-            if (
-              state === rtc.RemoteVideoState.RemoteVideoStateStarting ||
-              state === rtc.RemoteVideoState.RemoteVideoStateDecoding
-            ) {
+          onRemoteVideoStateChanged(_connection, uid, state, reason) {
+            if (state === rtc.RemoteVideoState.RemoteVideoStateStarting) {
               rememberRemote(uid);
+              markRemoteVideo(uid, 'loading');
+              return;
+            }
+            if (state === rtc.RemoteVideoState.RemoteVideoStateDecoding) {
+              rememberRemote(uid);
+              markRemoteVideo(uid, 'live');
               bumpRemoteVideo(uid);
+              return;
+            }
+            if (state === rtc.RemoteVideoState.RemoteVideoStateStopped) {
+              const cameraOff =
+                reason === rtc.RemoteVideoStateReason.RemoteVideoStateReasonRemoteMuted ||
+                reason === rtc.RemoteVideoStateReason.RemoteVideoStateReasonRemoteOffline;
+              markRemoteVideo(uid, cameraOff ? 'off' : 'loading');
             }
           },
           onFirstRemoteVideoFrame(_connection, uid) {
             rememberRemote(uid);
-            bumpRemoteVideo(uid);
+            markRemoteVideo(uid, 'live');
           },
           onConnectionStateChanged(_connection, state, reason) {
             // #region agent log
@@ -516,9 +550,14 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
           message: caught instanceof Error ? caught.message : String(caught),
         });
         // #endregion
-        if (!cancelled) {
-          setError(caught instanceof Error ? caught.message : 'Unable to join this class');
+        if (cancelled) {
+          return;
         }
+        if (isOnlineClassEndedError(caught)) {
+          setEnded(true);
+          return;
+        }
+        setError(caught instanceof Error ? caught.message : 'Unable to join this class');
       }
     })();
 
@@ -554,6 +593,15 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
     // #endregion
   }, [agoraRtc, remoteUids, error]);
 
+  useEffect(() => {
+    const shown = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));
+    const hidden = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false));
+    return () => {
+      shown.remove();
+      hidden.remove();
+    };
+  }, []);
+
   const sendChat = async () => {
     const text = draft.trim();
     if (!text || !rtmRef.current || !channelRef.current) {
@@ -567,10 +615,21 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
     setLines((current) => [...current, { id: `me-${current.length}`, from: nameRef.current, text }]);
   };
 
-  const endClass = async () => {
+  const endClass = () => {
     if (!canEndClass || ending) {
       return;
     }
+    if (!onlineClassHasTimeLeft(board?.scheduledEnd)) {
+      void endClassNow();
+      return;
+    }
+    Alert.alert('End class', ONLINE_CLASS_END_CONFIRM_MESSAGE, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'End class', style: 'destructive', onPress: () => void endClassNow() },
+    ]);
+  };
+
+  const endClassNow = async () => {
     setEnding(true);
     setError(null);
     try {
@@ -587,30 +646,6 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
       setError(caught instanceof Error ? caught.message : 'Unable to end this class');
     } finally {
       setEnding(false);
-    }
-  };
-
-  const publishMedia = (screen: boolean) => {
-    const rtc = agoraRtcRef.current;
-    if (!rtc) {
-      return;
-    }
-    const options = new rtc.ChannelMediaOptions();
-    options.publishMicrophoneTrack = true;
-    options.publishCameraTrack = !screen;
-    options.publishScreenCaptureVideo = screen;
-    options.publishScreenCaptureAudio = false;
-    engineRef.current?.updateChannelMediaOptions(options);
-  };
-
-  const publishScreenState = async (active: boolean) => {
-    if (!rtmRef.current || !channelRef.current) {
-      return;
-    }
-    try {
-      await rtmRef.current.publish(channelRef.current, onlineClassScreenSharePayload(active));
-    } catch {
-      // The screen track still switches even if the stage signal is missed.
     }
   };
 
@@ -642,33 +677,11 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
     setCamOn(next);
   };
 
-  const toggleScreen = () => {
-    const engine = engineRef.current;
-    if (!engine) {
-      return;
-    }
-    if (sharing) {
-      engine.stopScreenCapture();
-      publishMedia(false);
-      setSharing(false);
-      void publishScreenState(false);
-      return;
-    }
-    const started = engine.startScreenCapture({ captureAudio: false, captureVideo: true });
-    if (started < 0) {
-      setError('Unable to share the screen');
-      return;
-    }
-    publishMedia(true);
-    setSharing(true);
-    void publishScreenState(true);
-  };
-
   if (ended) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.ended}>
-          <Text style={styles.endedTitle}>This class has ended</Text>
+          <Text style={styles.endedTitle}>{ONLINE_CLASS_ENDED_MESSAGE}</Text>
           <Pressable accessibilityRole="button" onPress={onLeave}>
             <Text style={styles.leave}>Back</Text>
           </Pressable>
@@ -679,21 +692,8 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
 
   const canDraw = canEndClass || Boolean(board?.whiteboardWritable);
   const webViewReady = isWebViewNativeAvailable();
-  const VideoSourceType = agoraRtc?.VideoSourceType;
   const RenderModeType = agoraRtc?.RenderModeType;
   const RtcVideoView = pickRtcVideoView(agoraRtc);
-
-  const onLocalPreviewLayout = (event: LayoutChangeEvent) => {
-    const { width, height } = event.nativeEvent.layout;
-    if (width < 2 || height < 2) {
-      return;
-    }
-    if (joinedChannelRef.current) {
-      publishCameraToChannel();
-    } else {
-      refreshLocalPreview();
-    }
-  };
 
   const onBoardLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
@@ -712,7 +712,10 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-    <View style={styles.page}>
+    <KeyboardAvoidingView
+      style={styles.page}
+      behavior={Platform.OS === 'ios' || androidEdgeToEdgeEnabled() ? 'padding' : undefined}
+    >
       {classTitle ? (
         <View style={styles.title}>
           <Text style={styles.tutorName}>{classTitle.tutorName}</Text>
@@ -729,7 +732,11 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
       ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {whiteboardNote ? <Text style={styles.note}>{whiteboardNote}</Text> : null}
-      <View testID="whiteboard-board" style={styles.board} onLayout={onBoardLayout}>
+      <View
+        testID="whiteboard-board"
+        style={[styles.board, keyboardOpen && styles.boardWhileTyping]}
+        onLayout={onBoardLayout}
+      >
         {!webViewReady ? (
           <Text style={styles.note}>
             Whiteboard is unavailable on this build. Reinstall the app after a full native rebuild.
@@ -782,52 +789,40 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
           <Text style={styles.note}>Whiteboard will appear when the room is ready.</Text>
         )}
       </View>
-      {sharing && RtcVideoView && VideoSourceType ? (
-        <View collapsable={false} style={styles.screenFrame}>
-          <RtcVideoView
-            style={styles.rtcSurface}
-            canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceScreen }}
-          />
-        </View>
-      ) : null}
       {remoteSharingUid != null && RtcVideoView ? (
         <View collapsable={false} style={styles.screenFrame}>
           <RtcVideoView style={styles.rtcSurface} canvas={{ uid: remoteSharingUid }} />
         </View>
       ) : null}
       <ScrollView horizontal style={styles.videos} contentContainerStyle={styles.videoRow}>
-        {agoraRtc && RtcVideoView && RenderModeType && VideoSourceType ? (
-          <View collapsable={false} style={styles.videoItem}>
-            <View collapsable={false} style={styles.tileFrame} onLayout={onLocalPreviewLayout}>
-              <RtcVideoView
-                zOrderMediaOverlay={Platform.OS === 'android'}
-                style={styles.rtcSurface}
-                canvas={{
-                  uid: 0,
-                  sourceType: VideoSourceType.VideoSourceCamera,
-                  renderMode: RenderModeType.RenderModeFit,
-                }}
-              />
-            </View>
-            <Text style={styles.initials} accessibilityLabel="You">
-              You
-            </Text>
-          </View>
-        ) : null}
         {remoteUids.map((uid) => {
           const name = rosterName(board?.participants, uid, '');
           const videoKey = remoteVideoGeneration[uid] ?? 0;
+          const status = remoteVideoStatus[uid] ?? 'loading';
           return (
             <View key={`${uid}-${videoKey}`} collapsable={false} style={styles.videoItem}>
-              {RtcVideoView && RenderModeType ? (
-                <View collapsable={false} style={styles.tileFrame}>
+              <View collapsable={false} style={styles.tileFrame}>
+                {RtcVideoView && RenderModeType && status !== 'off' ? (
                   <RtcVideoView
                     zOrderMediaOverlay={Platform.OS === 'android'}
-                    style={styles.rtcSurface}
+                    style={status === 'live' ? styles.rtcSurface : styles.rtcSurfacePending}
                     canvas={{ uid, renderMode: RenderModeType.RenderModeFit }}
                   />
-                </View>
-              ) : null}
+                ) : null}
+                {status === 'loading' ? (
+                  <View style={styles.tileOverlay}>
+                    <ActivityIndicator
+                      color="#ffffff"
+                      accessibilityLabel={name ? `Loading ${name}'s video` : 'Loading video'}
+                    />
+                  </View>
+                ) : null}
+                {status === 'off' ? (
+                  <View style={styles.tileOverlay}>
+                    <Text style={styles.cameraOff}>Camera off</Text>
+                  </View>
+                ) : null}
+              </View>
               {nameInitials(name) ? (
                 <Text style={styles.initials} accessibilityLabel={name}>
                   {nameInitials(name)}
@@ -864,9 +859,6 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
         <Pressable accessibilityRole="button" accessibilityLabel={camOn ? 'Mute camera' : 'Unmute camera'} onPress={toggleCamera}>
           <Text style={styles.action}>{camOn ? 'Mute camera' : 'Unmute camera'}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={sharing ? 'Stop sharing' : 'Share screen'} onPress={toggleScreen}>
-          <Text style={styles.action}>{sharing ? 'Stop sharing' : 'Share screen'}</Text>
-        </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={chatOpen ? 'Hide chat' : 'Open chat'} onPress={() => setChatOpen((open) => !open)}>
           <Text style={styles.action}>{chatOpen ? 'Hide chat' : 'Open chat'}</Text>
         </Pressable>
@@ -875,7 +867,7 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
             accessibilityRole="button"
             accessibilityLabel="End class"
             disabled={ending}
-            onPress={() => void endClass()}
+            onPress={endClass}
           >
             <Text style={styles.end}>End class</Text>
           </Pressable>
@@ -890,7 +882,7 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
           <Text style={styles.leave}>Leave</Text>
         </Pressable>
       </View>
-    </View>
+    </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -922,6 +914,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#fff',
   },
+  boardWhileTyping: { minHeight: 0 },
   videos: { maxHeight: 176 },
   videoRow: { gap: 8 },
   videoItem: { width: 104, alignItems: 'center' },
@@ -940,6 +933,13 @@ const styles = StyleSheet.create({
   },
   /** No background on TextureView / SurfaceView (Android throws otherwise). */
   rtcSurface: { width: '100%', height: '100%' },
+  /**
+   * Keeps the remote renderer attached while loading. Android draws the video
+   * surface above React views, so it must stay tiny for the spinner to show.
+   */
+  rtcSurfacePending: { width: 1, height: 1 },
+  tileOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  cameraOff: { color: '#cbd5e1', fontSize: 12, fontWeight: '700' },
   initials: { marginTop: 4, color: '#143055', fontSize: 12, fontWeight: '700', letterSpacing: 0.4 },
   chat: { backgroundColor: '#fff', borderRadius: 16, padding: 12, maxHeight: 180 },
   chatLine: { color: '#143055', marginBottom: 4 },

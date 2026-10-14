@@ -294,6 +294,7 @@ export class TutorClassSessionService {
         offeringLabel: session.tutorOffering?.offering?.displayName ?? 'Class',
         studentName: personName(booked.bookedStudent?.user) || 'Student',
         isDemo: booked.classCredit?.isDemo === true,
+        endedAt: session.endedAt ?? null,
       };
     });
   }
