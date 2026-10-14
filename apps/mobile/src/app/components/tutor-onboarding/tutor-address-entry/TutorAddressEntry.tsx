@@ -36,6 +36,7 @@ const InputGroup = React.memo(
     onFocus,
     error,
     editable,
+    keyboardType,
   }: {
     label: string;
     value: string;
@@ -45,6 +46,7 @@ const InputGroup = React.memo(
     onFocus?: () => void;
     error?: string;
     editable?: boolean;
+    keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad' | 'number-pad';
   }) => (
     <View style={styles.inputGroup}>
       <Text style={styles.label}>
@@ -58,6 +60,7 @@ const InputGroup = React.memo(
         placeholder={placeholder}
         placeholderTextColor="#9ca3af"
         editable={editable}
+        keyboardType={keyboardType}
       />
       {!!error && <Text style={styles.fieldError}>{error}</Text>}
     </View>
@@ -253,11 +256,7 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
-    >
-      <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
+    <View style={styles.container}>
         <AddressCityLocalityFields
           search={search}
           cityError={errors.citySearch}
@@ -365,6 +364,7 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = () => {
               onFocus={onOtherFieldFocus}
               error={errors.postalCode}
               editable={!isSubmitting}
+              keyboardType="numeric"
             />
           </View>
           <View style={styles.half}>
@@ -409,22 +409,16 @@ export const TutorAddressEntry: React.FC<StepComponentProps> = () => {
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    overflow: 'hidden',
-  },
-  scroll: {
-    flex: 1,
     padding: 24,
   },
   inputGroup: {

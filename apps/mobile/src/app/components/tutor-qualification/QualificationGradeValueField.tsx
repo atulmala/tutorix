@@ -63,7 +63,11 @@ export function QualificationGradeValueField({
       placeholder={getQualificationGradeValuePlaceholder(gradeType)}
       placeholderTextColor="#9ca3af"
       editable={!disabled}
-      keyboardType={gradeType === GradeType.CGPA ? 'decimal-pad' : 'default'}
+      keyboardType={
+        gradeType === GradeType.CGPA || gradeType === GradeType.PERCENTAGE
+          ? 'decimal-pad'
+          : 'default'
+      }
     />
   );
 }

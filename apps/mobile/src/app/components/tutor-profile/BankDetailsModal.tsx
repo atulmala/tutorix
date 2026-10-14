@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,14 @@ import {
   Modal,
   ScrollView,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   ActivityIndicator,
 } from 'react-native';
 import { INDIAN_BANKS, OTHER_BANK_OPTION } from '@tutorix/shared-utils/indian-banks';
 import { validateBankDetailsForm } from '@tutorix/shared-utils/bank-details-formatters';
 import type { BankDetailsFormValues } from '@tutorix/tutor-detail-ui';
+import { scrollFocusedInputToTop } from '../../lib/scrollFocusedInputIntoView';
 
 type BankDetailsModalProps = {
   visible: boolean;
@@ -61,6 +63,21 @@ export function BankDetailsModal({
   const [panNumber, setPanNumber] = useState('');
   const [gstNumber, setGstNumber] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollOffsetY = useRef(0);
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+    const show = Keyboard.addListener('keyboardDidShow', () => {
+      requestAnimationFrame(() => {
+        scrollFocusedInputToTop(scrollRef, scrollOffsetY.current);
+      });
+    });
+    return () => show.remove();
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) {
@@ -127,9 +144,14 @@ export function BankDetailsModal({
           </View>
 
           <ScrollView
+            ref={scrollRef}
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
+            scrollEventThrottle={16}
+            onScroll={(event) => {
+              scrollOffsetY.current = event.nativeEvent.contentOffset.y;
+            }}
           >
             {description ? (
               <Text style={styles.description} accessibilityRole="text">
@@ -343,7 +365,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   scroll: { maxHeight: '100%' },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 28 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 180 },
   label: {
     fontSize: 14,
     fontWeight: '600',
