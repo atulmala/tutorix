@@ -201,3 +201,18 @@ dependencies {
 apply plugin: 'com.google.gms.google-services'
 // Apply Crashlytics plugin for Firebase Crashlytics
 apply plugin: 'com.google.firebase.crashlytics'
+
+// Automatically reverse ports for Metro (8081) and API (3000) whenever installing on device.
+tasks.configureEach { task ->
+    if (task.name.startsWith("install")) {
+        task.doLast {
+            try {
+                exec { commandLine 'adb', 'reverse', 'tcp:8081', 'tcp:8081' }
+                exec { commandLine 'adb', 'reverse', 'tcp:3000', 'tcp:3000' }
+            } catch (Exception ignored) {
+                // Ignore if no device is connected
+            }
+        }
+    }
+}
+
