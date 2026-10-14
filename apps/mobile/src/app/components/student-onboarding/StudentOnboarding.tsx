@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 24,
-    paddingBottom: 48,
+    paddingBottom: 180,
   },
   card: {
     backgroundColor: '#fff',

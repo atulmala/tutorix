@@ -35,6 +35,7 @@ const InputGroup = React.memo(
     onFocus,
     error,
     editable,
+    keyboardType,
   }: {
     label: string;
     value: string;
@@ -44,6 +45,7 @@ const InputGroup = React.memo(
     onFocus?: () => void;
     error?: string;
     editable?: boolean;
+    keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad' | 'number-pad';
   }) => (
     <View style={styles.inputGroup}>
       <Text style={styles.label}>
@@ -57,6 +59,7 @@ const InputGroup = React.memo(
         placeholder={placeholder}
         placeholderTextColor="#9ca3af"
         editable={editable}
+        keyboardType={keyboardType}
       />
       {!!error && <Text style={styles.fieldError}>{error}</Text>}
     </View>
@@ -388,6 +391,7 @@ export const StudentAddressStep: React.FC = () => {
                 onFocus={onOtherFieldFocus}
                 error={errors.postalCode}
                 editable={!isSubmitting}
+                keyboardType="numeric"
               />
             </View>
             <View style={styles.half}>

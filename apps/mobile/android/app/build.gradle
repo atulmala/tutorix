@@ -207,8 +207,8 @@ tasks.configureEach { task ->
     if (task.name.startsWith("install")) {
         task.doLast {
             try {
-                exec { commandLine 'adb', 'reverse', 'tcp:8081', 'tcp:8081' }
-                exec { commandLine 'adb', 'reverse', 'tcp:3000', 'tcp:3000' }
+                project.exec { commandLine 'adb', 'reverse', 'tcp:8081', 'tcp:8081' }
+                project.exec { commandLine 'adb', 'reverse', 'tcp:3000', 'tcp:3000' }
             } catch (Exception ignored) {
                 // Ignore if no device is connected
             }

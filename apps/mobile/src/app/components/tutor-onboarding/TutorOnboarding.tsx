@@ -244,6 +244,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 24,
+    paddingBottom: 180,
   },
   placeholder: {
     padding: 24,
