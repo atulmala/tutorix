@@ -10,6 +10,7 @@ import { TutorOfferingStatusEnum } from '../../tutor/enums/tutor.enums';
 import { TutorOfferingEntity } from '../../tutor/entities/tutor-offering.entity';
 import { Tutor } from '../../tutor/entities/tutor.entity';
 import { TutorOfferingRateCardEntity } from '../entities/tutor-offering-rate-card.entity';
+import { ClassPricingSettingsService } from '../../class-pricing-settings/services/class-pricing-settings.service';
 import { TutorRateCardService } from './tutor-rate-card.service';
 
 const COMPLETE_BANK_DETAILS = {
@@ -47,6 +48,7 @@ describe('TutorRateCardService', () => {
   let tutorOfferingRepo: { findOne: jest.Mock; find: jest.Mock };
   let tutorRepo: { findOne: jest.Mock };
   let userBankDetailsService: { findByUserId: jest.Mock };
+  let classPricingSettingsService: { getSettings: jest.Mock };
 
   beforeEach(async () => {
     rateCardRepo = {
@@ -71,6 +73,12 @@ describe('TutorRateCardService', () => {
     userBankDetailsService = {
       findByUserId: jest.fn().mockResolvedValue(COMPLETE_BANK_DETAILS),
     };
+    classPricingSettingsService = {
+      getSettings: jest.fn().mockResolvedValue({
+        minimumOnlinePricePerClassInr: 0,
+        minimumOfflinePricePerClassInr: 0,
+      }),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -79,6 +87,7 @@ describe('TutorRateCardService', () => {
         { provide: getRepositoryToken(TutorOfferingEntity), useValue: tutorOfferingRepo },
         { provide: getRepositoryToken(Tutor), useValue: tutorRepo },
         { provide: UserBankDetailsService, useValue: userBankDetailsService },
+        { provide: ClassPricingSettingsService, useValue: classPricingSettingsService },
       ],
     }).compile();
 
@@ -115,6 +124,18 @@ describe('TutorRateCardService', () => {
       expect(rateCardRepo.save).toHaveBeenCalled();
       expect(result.offlineEnabled).toBe(true);
       expect(result.isComplete).toBe(true);
+    });
+
+    it('rejects offline rate below configured minimum', async () => {
+      classPricingSettingsService.getSettings.mockResolvedValue({
+        minimumOnlinePricePerClassInr: 0,
+        minimumOfflinePricePerClassInr: 600,
+      });
+
+      await expect(
+        service.saveForTutorUser(5, { ...VALID_INPUT, offlineBaseRate: 500 }),
+      ).rejects.toThrow(BadRequestException);
+      expect(rateCardRepo.save).not.toHaveBeenCalled();
     });
 
     it('copies the rate card onto other passed offerings that share the PT', async () => {

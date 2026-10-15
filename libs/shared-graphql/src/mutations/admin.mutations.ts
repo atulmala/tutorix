@@ -48,6 +48,21 @@ export const ADMIN_UPDATE_PLATFORM_FEE = gql`
   }
 `;
 
+export const ADMIN_UPDATE_CLASS_PRICING_SETTINGS = gql`
+  mutation AdminUpdateClassPricingSettings(
+    $input: AdminUpdateClassPricingSettingsInput!
+  ) {
+    adminUpdateClassPricingSettings(input: $input) {
+      minimumOnlinePricePerClassInr
+      minimumOfflinePricePerClassInr
+      commissionSlabThresholdInr
+      tutorCommissionPercentUpToSlab
+      tutorCommissionPercentAboveSlab
+      platformFeePerParticipantInr
+    }
+  }
+`;
+
 export const ADMIN_UPDATE_REGISTRATION_SETTINGS = gql`
   mutation AdminUpdateRegistrationSettings(
     $input: AdminUpdateRegistrationSettingsInput!

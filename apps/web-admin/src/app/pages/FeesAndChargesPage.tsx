@@ -1,7 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import {
+  ADMIN_UPDATE_CLASS_PRICING_SETTINGS,
   ADMIN_UPDATE_PLATFORM_FEE,
+  GET_ADMIN_CLASS_PRICING_SETTINGS,
   GET_ADMIN_PLATFORM_FEES,
 } from '@tutorix/shared-graphql';
 
@@ -218,6 +220,148 @@ function FeeRowEditor({
   );
 }
 
+type ClassPricingSettings = {
+  minimumOnlinePricePerClassInr: number;
+  minimumOfflinePricePerClassInr: number;
+  commissionSlabThresholdInr: number;
+  tutorCommissionPercentUpToSlab: number;
+  tutorCommissionPercentAboveSlab: number;
+  platformFeePerParticipantInr: number;
+};
+
+type AdminClassPricingData = {
+  adminClassPricingSettings: ClassPricingSettings;
+};
+
+function toClassPricingMutationInput(
+  source: ClassPricingSettings & { __typename?: string },
+): ClassPricingSettings {
+  return {
+    minimumOnlinePricePerClassInr: source.minimumOnlinePricePerClassInr,
+    minimumOfflinePricePerClassInr: source.minimumOfflinePricePerClassInr,
+    commissionSlabThresholdInr: source.commissionSlabThresholdInr,
+    tutorCommissionPercentUpToSlab: source.tutorCommissionPercentUpToSlab,
+    tutorCommissionPercentAboveSlab: source.tutorCommissionPercentAboveSlab,
+    platformFeePerParticipantInr: source.platformFeePerParticipantInr,
+  };
+}
+
+function ClassPricingSection() {
+  const { data, loading, error, refetch } = useQuery<AdminClassPricingData>(
+    GET_ADMIN_CLASS_PRICING_SETTINGS,
+    { fetchPolicy: 'network-only' },
+  );
+  const [draft, setDraft] = useState<ClassPricingSettings>({
+    minimumOnlinePricePerClassInr: 0,
+    minimumOfflinePricePerClassInr: 0,
+    commissionSlabThresholdInr: 600,
+    tutorCommissionPercentUpToSlab: 0,
+    tutorCommissionPercentAboveSlab: 0,
+    platformFeePerParticipantInr: 0,
+  });
+  const [saved, setSaved] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
+
+  useEffect(() => {
+    const settings = data?.adminClassPricingSettings;
+    if (!settings) {
+      return;
+    }
+    setDraft(toClassPricingMutationInput(settings));
+  }, [data]);
+
+  const [updateSettings, { loading: saving }] = useMutation(
+    ADMIN_UPDATE_CLASS_PRICING_SETTINGS,
+    {
+      onCompleted: () => {
+        setSaved(true);
+        setErrorText(null);
+        void refetch();
+        window.setTimeout(() => setSaved(false), 2000);
+      },
+      onError: (err) => {
+        setErrorText(err.message);
+      },
+    },
+  );
+
+  const handleSave = () => {
+    setErrorText(null);
+    const input = toClassPricingMutationInput(draft);
+    void updateSettings({ variables: { input } });
+  };
+
+  if (loading) {
+    return <p className="text-sm text-muted">Loading class pricing…</p>;
+  }
+  if (error) {
+    return <p className="text-sm text-red-700">{error.message}</p>;
+  }
+
+  const numberField = (
+    label: string,
+    key: keyof ClassPricingSettings,
+    options?: { min?: number; max?: number },
+  ) => (
+    <div>
+      <label className="block text-sm font-medium text-primary">{label}</label>
+      <input
+        type="number"
+        min={options?.min ?? 0}
+        max={options?.max}
+        value={draft[key]}
+        onChange={(e) =>
+          setDraft((current) => ({
+            ...current,
+            [key]: Number(e.target.value),
+          }))
+        }
+        className="mt-1 h-10 w-full max-w-xs rounded-lg border border-subtle px-3 text-sm"
+      />
+    </div>
+  );
+
+  return (
+    <div className="space-y-4 rounded-xl border border-subtle bg-white p-6">
+      <div>
+        <h2 className="text-lg font-semibold text-primary">Class pricing</h2>
+        <p className="mt-1 text-sm text-muted">
+          Minimum tutor rates apply to the lowest discounted per-class price (including
+          bulk slabs). Commission and per-participant fees are stored for billing later.
+        </p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {numberField('Minimum online class price (INR)', 'minimumOnlinePricePerClassInr')}
+        {numberField('Minimum offline class price (INR)', 'minimumOfflinePricePerClassInr')}
+        {numberField('Commission slab threshold (INR)', 'commissionSlabThresholdInr', {
+          min: 1,
+        })}
+        {numberField(
+          'Tutor commission % (class rate up to threshold)',
+          'tutorCommissionPercentUpToSlab',
+          { max: 100 },
+        )}
+        {numberField(
+          'Tutor commission % (class rate above threshold)',
+          'tutorCommissionPercentAboveSlab',
+          { max: 100 },
+        )}
+        {numberField('Platform fee per participant (INR)', 'platformFeePerParticipantInr')}
+      </div>
+      {errorText ? <p className="text-sm text-red-700">{errorText}</p> : null}
+      {saved ? <p className="text-sm text-green-700">Class pricing saved.</p> : null}
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={saving}
+        className="h-10 rounded-lg bg-primary px-4 text-sm font-semibold text-white disabled:opacity-50"
+      >
+        {saving ? 'Saving…' : 'Save class pricing'}
+      </button>
+    </div>
+  );
+}
+
 export function FeesAndChargesPage() {
   const { data, loading, error, refetch } = useQuery<AdminPlatformFeesData>(
     GET_ADMIN_PLATFORM_FEES,
@@ -230,8 +374,8 @@ export function FeesAndChargesPage() {
       <div>
         <h1 className="text-2xl font-semibold text-primary">Fees & Charges</h1>
         <p className="mt-1 text-sm text-muted">
-          Manage platform fees used in tutor and student onboarding and proficiency
-          tests.
+          Manage onboarding and proficiency test fees, plus class pricing rules for
+          tutor rate cards and platform billing.
         </p>
       </div>
 
@@ -269,6 +413,8 @@ export function FeesAndChargesPage() {
           </table>
         </div>
       ) : null}
+
+      <ClassPricingSection />
     </div>
   );
 }

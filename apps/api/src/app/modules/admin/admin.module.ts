@@ -15,6 +15,7 @@ import { PlatformFeeModule } from '../platform-fee/platform-fee.module';
 import { CommerceModule } from '../commerce/commerce.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { RegistrationSettingsModule } from '../registration-settings/registration-settings.module';
+import { ClassPricingSettingsModule } from '../class-pricing-settings/class-pricing-settings.module';
 import { CommunicationModule } from '../communication/communication.module';
 import { StudentCartModule } from '../student-cart/student-cart.module';
 import { AdminService } from './admin.service';
@@ -36,6 +37,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
     CommerceModule,
     WalletModule,
     RegistrationSettingsModule,
+    ClassPricingSettingsModule,
     CommunicationModule,
     StudentCartModule,
   ],

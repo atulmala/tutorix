@@ -303,6 +303,39 @@ describe('rate-card', () => {
       expect(result.ok).toBe(false);
     });
 
+    it('requires explicit slab discounts when base slab has a discount', () => {
+      const result = validateRateCardForm({
+        ...validOfflineOnly,
+        offline: {
+          ...validOfflineOnly.offline,
+          baseDiscountPct: '5',
+          slab2DiscountPct: '',
+          slab3DiscountPct: '',
+        },
+      });
+      expect(result).toEqual({
+        ok: false,
+        message:
+          'Offline: Please offer discount of at least 5% on slabs 5–10 classes and 11+ classes.',
+      });
+    });
+
+    it('requires explicit 11+ discount when 5–10 slab is set', () => {
+      const result = validateRateCardForm({
+        ...validOfflineOnly,
+        offline: {
+          ...validOfflineOnly.offline,
+          baseDiscountPct: '5',
+          slab2DiscountPct: '5',
+          slab3DiscountPct: '',
+        },
+      });
+      expect(result).toEqual({
+        ok: false,
+        message: 'Offline: Please offer discount of at least 5% on 11+ classes.',
+      });
+    });
+
     it('rejects when base discount exceeds slab 2', () => {
       const result = validateRateCardForm({
         ...validOfflineOnly,

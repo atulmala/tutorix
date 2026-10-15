@@ -45,6 +45,7 @@ import { InvoiceLineEntity } from '../modules/commerce/entities/invoice-line.ent
 import { UserWalletEntity } from '../modules/wallet/entities/user-wallet.entity';
 import { WalletTransactionEntity } from '../modules/wallet/entities/wallet-transaction.entity';
 import { RegistrationSettingsEntity } from '../modules/registration-settings/entities/registration-settings.entity';
+import { ClassPricingSettingsEntity } from '../modules/class-pricing-settings/entities/class-pricing-settings.entity';
 import { EmailSendEntity } from '../modules/communication/email/entities/email-send.entity';
 import { CommunicationRuleEntity } from '../modules/communication/entities/communication-rule.entity';
 import { CommunicationTemplateEntity } from '../modules/communication/entities/communication-template.entity';
@@ -113,6 +114,7 @@ export function createDatabaseOptions(
       UserWalletEntity,
       WalletTransactionEntity,
       RegistrationSettingsEntity,
+      ClassPricingSettingsEntity,
       EmailSendEntity,
       CommunicationRuleEntity,
       CommunicationTemplateEntity,

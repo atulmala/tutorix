@@ -12,6 +12,7 @@ import {
 import { StudentDetailService } from '../student/services/student-detail.service';
 import { PlatformFeeService } from '../platform-fee/services/platform-fee.service';
 import { RegistrationSettingsService } from '../registration-settings/services/registration-settings.service';
+import { ClassPricingSettingsService } from '../class-pricing-settings/services/class-pricing-settings.service';
 import { StudentOnboardingStageEnum } from '../student/enums/student.enums';
 import { SessionService } from '../auth/services/session.service';
 import { DocumentScreeningService } from '../document/services/document-screening.service';
@@ -132,6 +133,10 @@ describe('AdminService', () => {
         },
         {
           provide: RegistrationSettingsService,
+          useValue: { getSettings: jest.fn(), updateSettings: jest.fn() },
+        },
+        {
+          provide: ClassPricingSettingsService,
           useValue: { getSettings: jest.fn(), updateSettings: jest.fn() },
         },
       ],

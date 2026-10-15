@@ -13,6 +13,13 @@ import {
   RATE_CARD_SLABS,
   skippedRateCardModePrompt,
   validateRateCardForm,
+  getRateCardModeFloorInr,
+  isRateCardBelowMinimumPrice,
+  rateCardMinimumPriceUserMessage,
+  rateCardMinimumPriceWarning,
+  validateRateCardMinimumPrices,
+  type ClassPricingMinimumFloors,
+  type RateCardDeliveryMode,
   type RateCardFormInput,
   type RateCardFormValues,
   type RateCardLike,
@@ -112,6 +119,8 @@ type ModeSectionProps = {
   values: RateCardFormInput['offline'];
   onChange: (next: RateCardFormInput['offline']) => void;
   disabled?: boolean;
+  deliveryMode: RateCardDeliveryMode;
+  minimumPriceInr?: number;
 };
 
 type RateCardModeTabsProps = {
@@ -170,7 +179,15 @@ function slabInputCls(inputsDisabled?: boolean): string {
   }`;
 }
 
-function ModeSection({ title, offerTip, values, onChange, disabled }: ModeSectionProps) {
+function ModeSection({
+  title,
+  offerTip,
+  values,
+  onChange,
+  disabled,
+  deliveryMode,
+  minimumPriceInr = 0,
+}: ModeSectionProps) {
   const offerCheckboxId = `rate-card-offer-${title.replace(/\s+/g, '-').toLowerCase()}`;
   const inputsDisabled = disabled || !values.enabled;
   const baseRateNum = Number.parseInt(values.baseRate.trim(), 10);
@@ -209,6 +226,11 @@ function ModeSection({ title, offerTip, values, onChange, disabled }: ModeSectio
       </div>
 
       <div className="mt-4 space-y-4" aria-disabled={inputsDisabled}>
+        {values.enabled && minimumPriceInr > 0 ? (
+          <p className="text-sm text-amber-900" role="status">
+            {rateCardMinimumPriceUserMessage(deliveryMode, minimumPriceInr)}
+          </p>
+        ) : null}
         <div className="flex flex-nowrap items-start gap-3">
           <div className="min-w-0 flex-1 space-y-1.5 text-left">
             <FieldLabelWithTip
@@ -365,6 +387,7 @@ type RateCardModalProps = {
   laterLabel?: string;
   onClose?: () => void;
   onSubmit?: (values: RateCardFormValues) => void;
+  minimumPriceFloors?: ClassPricingMinimumFloors;
 };
 
 export function RateCardModal({
@@ -380,6 +403,7 @@ export function RateCardModal({
   laterLabel,
   onClose,
   onSubmit,
+  minimumPriceFloors,
 }: RateCardModalProps) {
   const [form, setForm] = useState<RateCardFormInput>(() => rateCardToFormInput(initialValues));
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -419,9 +443,59 @@ export function RateCardModal({
 
   const fieldsDisabled = readOnly || saving;
 
+  const liveFormValidationMessage = useMemo(() => {
+    if (readOnly) {
+      return null;
+    }
+    const result = validateRateCardForm(form);
+    return result.ok === false ? result.message : null;
+  }, [form, readOnly]);
+
+  const liveMinimumWarning = useMemo(() => {
+    if (readOnly || !minimumPriceFloors) {
+      return null;
+    }
+    const result = validateRateCardForm(form);
+    if (result.ok === false) {
+      return null;
+    }
+    return rateCardMinimumPriceWarning(form, minimumPriceFloors);
+  }, [form, minimumPriceFloors, readOnly]);
+
+  const saveDisabledByValidation = useMemo(() => {
+    if (readOnly) {
+      return false;
+    }
+    return validateRateCardForm(form).ok === false;
+  }, [form, readOnly]);
+
+  const saveDisabledByMinimum = useMemo(() => {
+    if (readOnly || !minimumPriceFloors) {
+      return false;
+    }
+    return isRateCardBelowMinimumPrice(form, minimumPriceFloors);
+  }, [form, minimumPriceFloors, readOnly]);
+
   if (!open) {
     return null;
   }
+
+  const handleModeChange = (
+    mode: RateCardDeliveryMode,
+    next: RateCardFormInput['offline'],
+  ) => {
+    setForm((prev) =>
+      mode === 'online' ? { ...prev, online: next } : { ...prev, offline: next },
+    );
+  };
+
+  const minimumPriceMessage = (normalized: RateCardFormValues): string | null => {
+    if (!minimumPriceFloors) {
+      return null;
+    }
+    const check = validateRateCardMinimumPrices(normalized, minimumPriceFloors);
+    return check.ok === false ? check.message : null;
+  };
 
   const handleSubmit = () => {
     if (readOnly || !onSubmit) {
@@ -430,6 +504,11 @@ export function RateCardModal({
     const result = validateRateCardForm(form);
     if (result.ok === false) {
       setValidationError(result.message);
+      return;
+    }
+    const floorMessage = minimumPriceMessage(result.normalized);
+    if (floorMessage) {
+      setValidationError(floorMessage);
       return;
     }
     setValidationError(null);
@@ -446,6 +525,11 @@ export function RateCardModal({
 
   const continueSave = (normalized: RateCardFormValues) => {
     if (!onSubmit) {
+      return;
+    }
+    const floorMessage = minimumPriceMessage(normalized);
+    if (floorMessage) {
+      setValidationError(floorMessage);
       return;
     }
     const prompt = skippedRateCardModePrompt(normalized);
@@ -496,7 +580,9 @@ export function RateCardModal({
     onSubmit(values);
   };
 
-  const displayError = readOnly ? null : validationError ?? error;
+  const displayError = readOnly
+    ? null
+    : validationError ?? liveFormValidationMessage ?? liveMinimumWarning ?? error;
 
   const card = (
       <div
@@ -573,8 +659,14 @@ export function RateCardModal({
                 <ModeSection
                   title="Offer offline class"
                   offerTip={OFFLINE_OFFER_TIP}
+                  deliveryMode="offline"
+                  minimumPriceInr={
+                    minimumPriceFloors
+                      ? getRateCardModeFloorInr('offline', minimumPriceFloors)
+                      : 0
+                  }
                   values={form.offline}
-                  onChange={(offline) => setForm((prev) => ({ ...prev, offline }))}
+                  onChange={(offline) => handleModeChange('offline', offline)}
                   disabled={fieldsDisabled}
                 />
               </div>
@@ -587,8 +679,14 @@ export function RateCardModal({
                 <ModeSection
                   title="Offer online class"
                   offerTip={ONLINE_OFFER_TIP}
+                  deliveryMode="online"
+                  minimumPriceInr={
+                    minimumPriceFloors
+                      ? getRateCardModeFloorInr('online', minimumPriceFloors)
+                      : 0
+                  }
                   values={form.online}
-                  onChange={(online) => setForm((prev) => ({ ...prev, online }))}
+                  onChange={(online) => handleModeChange('online', online)}
                   disabled={fieldsDisabled}
                 />
               </div>
@@ -680,7 +778,7 @@ export function RateCardModal({
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    disabled={saving}
+                    disabled={saving || saveDisabledByValidation || saveDisabledByMinimum}
                     className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {saving ? 'Saving…' : 'Save rate card'}

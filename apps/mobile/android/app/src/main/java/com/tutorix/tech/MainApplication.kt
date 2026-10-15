@@ -38,6 +38,17 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
+    if (BuildConfig.DEBUG) {
+      try {
+        val prefs = getSharedPreferences("developer_suppport_prefs", MODE_PRIVATE)
+        val currentHost = prefs.getString("debug_http_host", "")
+        if (currentHost.isNullOrEmpty()) {
+          prefs.edit().putString("debug_http_host", "192.168.1.145:8081").apply()
+        }
+      } catch (_: Exception) {
+        // Ignore
+      }
+    }
     createDefaultNotificationChannel()
     SoLoader.init(this, OpenSourceMergedSoMapping)
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
