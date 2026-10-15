@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import {
+  GET_CLASS_PRICING_SETTINGS,
   GET_MY_TUTOR_DETAIL,
   GET_MY_TUTOR_PROFILE,
   SAVE_MY_TUTOR_OFFERING_RATE_CARD,
 } from '@tutorix/shared-graphql';
 import {
+  classPricingMinimumFloorsFromSettings,
   PENDING_RATE_CARD_TASK_MESSAGE,
   RATE_CARD_LATER_ACTION,
   RATE_CARD_LATER_WARNING,
@@ -83,6 +85,11 @@ export const TutorRateCardSetupPage: React.FC<TutorRateCardSetupPageProps> = ({
   const { data, loading } = useQuery<MyTutorDetailData>(GET_MY_TUTOR_DETAIL, {
     fetchPolicy: 'cache-and-network',
   });
+  const { data: pricingData } = useQuery(GET_CLASS_PRICING_SETTINGS);
+  const minimumPriceFloors = useMemo(
+    () => classPricingMinimumFloorsFromSettings(pricingData?.classPricingSettings),
+    [pricingData?.classPricingSettings],
+  );
   const [saveRateCard, { loading: saving }] = useMutation(SAVE_MY_TUTOR_OFFERING_RATE_CARD, {
     refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }, { query: GET_MY_TUTOR_DETAIL }],
     awaitRefetchQueries: true,
@@ -183,6 +190,7 @@ export const TutorRateCardSetupPage: React.FC<TutorRateCardSetupPageProps> = ({
         onClose={
           canDefer && onLater ? () => confirmRateCardLater(onLater) : undefined
         }
+        minimumPriceFloors={minimumPriceFloors}
         onSubmit={(values) => {
           void handleSubmit(values);
         }}

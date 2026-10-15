@@ -376,18 +376,38 @@ function validateMode(
     return { ok: false, message: `${modeLabel}: 11+ class discount must be between 0 and 99%.` };
   }
 
-  if (slab2 != null && baseDiscount > slab2) {
-    return {
-      ok: false,
-      message: `${modeLabel}: 5–10 class discount must be at least the base discount.`,
-    };
+  if (baseDiscount > 0) {
+    if (slab2 == null) {
+      return {
+        ok: false,
+        message: `${modeLabel}: Please offer discount of at least ${baseDiscount}% on slabs 5–10 classes and 11+ classes.`,
+      };
+    }
+    if (slab2 < baseDiscount) {
+      return {
+        ok: false,
+        message: `${modeLabel}: 5–10 class discount must be at least ${baseDiscount}%.`,
+      };
+    }
   }
 
-  if (slab2 != null && slab3 != null && slab3 < slab2) {
-    return {
-      ok: false,
-      message: `${modeLabel}: 11+ class discount must be at least the 5–10 class discount.`,
-    };
+  const minSlab3Discount =
+    slab2 != null ? Math.max(slab2, baseDiscount) : baseDiscount > 0 ? baseDiscount : 0;
+  const requiresExplicitSlab3 = baseDiscount > 0 || (slab2 != null && slab2 > 0);
+
+  if (requiresExplicitSlab3) {
+    if (slab3 == null) {
+      return {
+        ok: false,
+        message: `${modeLabel}: Please offer discount of at least ${minSlab3Discount}% on 11+ classes.`,
+      };
+    }
+    if (slab3 < minSlab3Discount) {
+      return {
+        ok: false,
+        message: `${modeLabel}: 11+ class discount must be at least ${minSlab3Discount}%.`,
+      };
+    }
   }
 
   const parsedBatch = parseBatchSize(batchSize);

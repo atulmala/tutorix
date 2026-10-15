@@ -14,7 +14,10 @@ import {
 } from 'react-native';
 import Svg, { Line, Path, Text as SvgText } from 'react-native-svg';
 import { useMutation, useQuery } from '@apollo/client';
-import { GET_MY_TUTOR_DETAIL } from '@tutorix/shared-graphql/queries';
+import {
+  GET_CLASS_PRICING_SETTINGS,
+  GET_MY_TUTOR_DETAIL,
+} from '@tutorix/shared-graphql/queries';
 import {
   CONFIRM_PROFILE_PICTURE_UPLOAD,
   CREATE_TUTOR_ADDRESS,
@@ -64,6 +67,7 @@ import {
   type OnboardingTimelineEntry,
   type QualificationFormRow,
 } from '@tutorix/shared-utils';
+import { classPricingMinimumFloorsFromSettings } from '@tutorix/shared-utils/class-pricing-settings';
 import type {
   BankDetailsFormValues,
   RateCardFormValues,
@@ -252,6 +256,11 @@ export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
   const { data, loading, error, refetch } = useQuery<MyTutorDetailData>(GET_MY_TUTOR_DETAIL, {
     fetchPolicy: 'cache-and-network',
   });
+  const { data: pricingData } = useQuery(GET_CLASS_PRICING_SETTINGS);
+  const minimumPriceFloors = useMemo(
+    () => classPricingMinimumFloorsFromSettings(pricingData?.classPricingSettings),
+    [pricingData?.classPricingSettings],
+  );
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [requestUploadUrl] = useMutation(REQUEST_PROFILE_PICTURE_UPLOAD_URL);
@@ -1356,6 +1365,7 @@ export const TutorDetailScreen: React.FC<TutorDetailScreenProps> = ({
         initialValues={rateCardOffering?.rateCard}
         saving={savingRateCard}
         error={rateCardSaveError}
+        minimumPriceFloors={minimumPriceFloors}
         onClose={() => {
           setRateCardOffering(null);
           setRateCardSaveError(null);

@@ -11,8 +11,10 @@ import {
   isBankDetailsComplete,
   isRateCardComplete,
   validateRateCardForm,
+  validateRateCardMinimumPrices,
   type RateCardFormValues,
 } from '@tutorix/shared-utils';
+import { ClassPricingSettingsService } from '../../class-pricing-settings/services/class-pricing-settings.service';
 import { UserBankDetailsService } from '../../user-bank-details/services/user-bank-details.service';
 import { TutorOfferingEntity } from '../../tutor/entities/tutor-offering.entity';
 import { TutorOfferingStatusEnum } from '../../tutor/enums/tutor.enums';
@@ -31,6 +33,7 @@ export class TutorRateCardService {
     @InjectRepository(Tutor)
     private readonly tutorRepo: Repository<Tutor>,
     private readonly userBankDetailsService: UserBankDetailsService,
+    private readonly classPricingSettingsService: ClassPricingSettingsService,
   ) {}
 
   async findByTutorOfferingIds(
@@ -125,6 +128,16 @@ export class TutorRateCardService {
     }
 
     const normalized = validation.normalized;
+    const pricingSettings = await this.classPricingSettingsService.getSettings();
+    const minimumCheck = validateRateCardMinimumPrices(normalized, {
+      onlineMinimumPricePerClassInr:
+        pricingSettings.minimumOnlinePricePerClassInr,
+      offlineMinimumPricePerClassInr:
+        pricingSettings.minimumOfflinePricePerClassInr,
+    });
+    if (minimumCheck.ok === false) {
+      throw new BadRequestException(minimumCheck.message);
+    }
     const fields = this.fieldsFromNormalized(normalized);
     const saved = await this.upsertRateCard(input.tutorOfferingId, fields);
     await this.copyToSamePtSiblings(tutorOffering, fields);

@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQuery } from '@apollo/client';
-import { GET_MY_TUTOR_DETAIL, GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
+import {
+  GET_CLASS_PRICING_SETTINGS,
+  GET_MY_TUTOR_DETAIL,
+  GET_MY_TUTOR_PROFILE,
+} from '@tutorix/shared-graphql/queries';
 import { SAVE_MY_TUTOR_OFFERING_RATE_CARD } from '@tutorix/shared-graphql/mutations';
 import {
   PENDING_RATE_CARD_TASK_MESSAGE,
@@ -15,6 +19,7 @@ import {
   type RateCardFormValues,
   type RateCardLike,
 } from '@tutorix/shared-utils/rate-card';
+import { classPricingMinimumFloorsFromSettings } from '@tutorix/shared-utils/class-pricing-settings';
 import { RateCardModal } from '../tutor-profile/RateCardModal';
 
 export function confirmRateCardLater(onConfirm: () => void) {
@@ -82,6 +87,11 @@ export const TutorRateCardSetupScreen: React.FC<TutorRateCardSetupScreenProps> =
   const { data, loading } = useQuery<MyTutorDetailData>(GET_MY_TUTOR_DETAIL, {
     fetchPolicy: 'cache-and-network',
   });
+  const { data: pricingData } = useQuery(GET_CLASS_PRICING_SETTINGS);
+  const minimumPriceFloors = useMemo(
+    () => classPricingMinimumFloorsFromSettings(pricingData?.classPricingSettings),
+    [pricingData?.classPricingSettings],
+  );
   const [saveRateCard, { loading: saving }] = useMutation(SAVE_MY_TUTOR_OFFERING_RATE_CARD, {
     refetchQueries: [{ query: GET_MY_TUTOR_PROFILE }, { query: GET_MY_TUTOR_DETAIL }],
     awaitRefetchQueries: true,
@@ -181,6 +191,7 @@ export const TutorRateCardSetupScreen: React.FC<TutorRateCardSetupScreenProps> =
         saving={saving}
         error={error}
         laterLabel={canDefer ? RATE_CARD_LATER_ACTION : undefined}
+        minimumPriceFloors={minimumPriceFloors}
         onClose={
           canDefer && onLater ? () => confirmRateCardLater(onLater) : undefined
         }

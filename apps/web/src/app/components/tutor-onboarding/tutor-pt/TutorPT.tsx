@@ -4,6 +4,7 @@ import {
   COMPLETE_WALLET_PURCHASE,
   CONFIRM_WALLET_TOP_UP,
   CREDIT_OVERLAPPING_PT_PASS,
+  GET_CLASS_PRICING_SETTINGS,
   GET_MY_TUTOR_DETAIL,
   GET_MY_TUTOR_PROFILE,
   GET_PROFICIENCY_TEST_FOR_TAKER,
@@ -14,6 +15,7 @@ import {
   SUBMIT_PROFICIENCY_TEST,
 } from '@tutorix/shared-graphql';
 import {
+  classPricingMinimumFloorsFromSettings,
   formatProficiencyTestFeeMessage,
   hasPassedOverlappingPt,
   isPtFeePaymentRequired,
@@ -139,6 +141,11 @@ export const TutorPT: React.FC<TutorPTProps> = ({
     skip: isOnboardingPt || tutorOfferingsProp != null,
     fetchPolicy: 'cache-and-network',
   });
+  const { data: pricingData } = useQuery(GET_CLASS_PRICING_SETTINGS);
+  const minimumPriceFloors = useMemo(
+    () => classPricingMinimumFloorsFromSettings(pricingData?.classPricingSettings),
+    [pricingData?.classPricingSettings],
+  );
 
   const offeringsForOverlap = useMemo((): PtOverlapOfferingLike[] => {
     if (tutorOfferingsProp) {
@@ -462,6 +469,7 @@ export const TutorPT: React.FC<TutorPTProps> = ({
           offeringName={offeringName ?? 'this offering'}
           saving={savingRateCard}
           error={rateCardError}
+          minimumPriceFloors={minimumPriceFloors}
           onClose={finishPtFlow}
           onSubmit={(values) => {
             void handleSaveRateCard(values);

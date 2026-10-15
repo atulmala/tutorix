@@ -195,6 +195,21 @@ export function rateForModeAndQuantity(
   );
 }
 
+export function discountPercentForQuantity(
+  quantity: number,
+  baseDiscount?: number | null,
+  slab2Discount?: number | null,
+  slab3Discount?: number | null,
+): number {
+  const value = discountForQuantity(
+    quantity,
+    baseDiscount,
+    slab2Discount,
+    slab3Discount,
+  );
+  return value ?? 0;
+}
+
 function discountForQuantity(
   quantity: number,
   baseDiscount?: number | null,

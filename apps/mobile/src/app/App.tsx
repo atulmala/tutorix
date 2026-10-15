@@ -169,7 +169,11 @@ function viewShowsStudentTabBar(
 function viewShowsTutorTabBar(
   view: AppView,
   walletReturnView: WalletReturnView,
+  tutorCalendarWithoutTabBar: boolean,
 ): boolean {
+  if (view === 'tutorCalendar' && tutorCalendarWithoutTabBar) {
+    return false;
+  }
   if (TUTOR_VIEWS_WITH_TAB_BAR.includes(view)) {
     return true;
   }
@@ -179,10 +183,11 @@ function viewShowsTutorTabBar(
 function screenHostBottomInset(
   view: AppView,
   walletReturnView: WalletReturnView,
+  tutorCalendarWithoutTabBar: boolean,
 ): number {
   if (
     viewShowsStudentTabBar(view, walletReturnView) ||
-    viewShowsTutorTabBar(view, walletReturnView)
+    viewShowsTutorTabBar(view, walletReturnView, tutorCalendarWithoutTabBar)
   ) {
     return 0;
   }
@@ -1026,7 +1031,13 @@ function AppContent() {
         ? 'studentCart'
         : currentView;
 
-  const hostBottomInset = screenHostBottomInset(currentView, walletReturnView);
+  const tutorCalendarWithoutTabBar =
+    currentView === 'tutorCalendar' && forceWeeklyAvailability;
+  const hostBottomInset = screenHostBottomInset(
+    currentView,
+    walletReturnView,
+    tutorCalendarWithoutTabBar,
+  );
 
   const studentCartOverlayNode = studentCartOverlay ? (
     <View

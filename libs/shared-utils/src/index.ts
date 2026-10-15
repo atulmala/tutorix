@@ -19,6 +19,7 @@ export * from './bank-details-formatters';
 export * from './tutor-experience-form';
 export * from './tutor-qualification-form';
 export * from './rate-card';
+export * from './class-pricing-settings';
 export * from './tutor-offering-display';
 export * from './tutor-calendar';
 export * from './tutor-weekly-calendar';
