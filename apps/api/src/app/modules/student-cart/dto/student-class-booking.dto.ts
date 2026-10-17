@@ -83,6 +83,12 @@ export class StudentClassBookingRow {
   concludedCount!: number;
 
   @Field(() => Int)
+  cancellableCount!: number;
+
+  @Field()
+  canCancel!: boolean;
+
+  @Field(() => Int)
   linePaidInr!: number;
 
   @Field()

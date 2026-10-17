@@ -25,8 +25,23 @@ type StudentClassBookingRow = {
   unscheduledCount: number;
   cancelledCount: number;
   concludedCount: number;
+  cancellableCount: number;
+  canCancel: boolean;
   linePaidInr: number;
   isDemo: boolean;
+};
+
+type StudentBookingHistoryPageProps = {
+  onCancelBooking?: (booking: {
+    orderItemId: number;
+    tutorName: string;
+    offeringLabel: string;
+    classCount: number;
+    scheduledCount: number;
+    unscheduledCount: number;
+    concludedCount: number;
+    cancellableCount: number;
+  }) => void;
 };
 
 type StudentClassBookingsData = {
@@ -44,7 +59,9 @@ type StudentClassBookingsData = {
 const fieldClass =
   'h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-[#143055]';
 
-export const StudentBookingHistoryPage: React.FC = () => {
+export const StudentBookingHistoryPage: React.FC<StudentBookingHistoryPageProps> = ({
+  onCancelBooking,
+}) => {
   const [page, setPage] = useState(1);
   const [tutorId, setTutorId] = useState('');
   const [offeringLabel, setOfferingLabel] = useState('');
@@ -138,6 +155,7 @@ export const StudentBookingHistoryPage: React.FC = () => {
                   <th className="px-4 py-3 font-semibold">Scheduling status</th>
                   <th className="px-4 py-3 font-semibold">Concluded status</th>
                   <th className="px-4 py-3 font-semibold">Amount</th>
+                  <th className="px-4 py-3 font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -160,6 +178,30 @@ export const StudentBookingHistoryPage: React.FC = () => {
                     <td className="px-4 py-3">{tutorBookingSchedulingLabel(row)}</td>
                     <td className="px-4 py-3">{tutorBookingConclusionLabel(row)}</td>
                     <td className="px-4 py-3">{formatTutorBookingAmount(row.linePaidInr)}</td>
+                    <td className="px-4 py-3">
+                      {row.canCancel && onCancelBooking ? (
+                        <button
+                          type="button"
+                          className="text-sm font-semibold text-[#2563eb]"
+                          onClick={() =>
+                            onCancelBooking({
+                              orderItemId: row.orderItemId,
+                              tutorName: row.tutorName,
+                              offeringLabel: row.offeringLabel,
+                              classCount: row.classCount,
+                              scheduledCount: row.scheduledCount,
+                              unscheduledCount: row.unscheduledCount,
+                              concludedCount: row.concludedCount,
+                              cancellableCount: row.cancellableCount,
+                            })
+                          }
+                        >
+                          Cancel classes
+                        </button>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

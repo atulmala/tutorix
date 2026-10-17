@@ -121,6 +121,51 @@ export class StudentClassCreditDto {
 }
 
 @ObjectType()
+export class ClassBookingCancellationBreakdown {
+  @Field(() => Int)
+  activeCount!: number;
+
+  @Field(() => Int)
+  cancelCount!: number;
+
+  @Field(() => Int)
+  remainingCount!: number;
+
+  @Field(() => Int)
+  netPaidBeforeInr!: number;
+
+  @Field(() => Int)
+  fairTotalAfterInr!: number;
+
+  @Field(() => Int)
+  refundInr!: number;
+
+  @Field(() => [String])
+  lines!: string[];
+
+  @Field()
+  breakdownText!: string;
+}
+
+@ObjectType()
+export class PreviewClassBookingCancellationResult {
+  @Field(() => Int)
+  orderItemId!: number;
+
+  @Field(() => Int)
+  cancellableCount!: number;
+
+  @Field(() => Int)
+  cancelCount!: number;
+
+  @Field(() => Int)
+  refundInr!: number;
+
+  @Field(() => ClassBookingCancellationBreakdown)
+  breakdown!: ClassBookingCancellationBreakdown;
+}
+
+@ObjectType()
 export class CancelClassCreditsResult {
   @Field(() => Int)
   cancelledCount!: number;

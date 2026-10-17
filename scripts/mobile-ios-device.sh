@@ -47,6 +47,37 @@ fi
 
 echo "Installing on ${label}"
 
+device_name=""
+if [[ "$label" =~ ^(.+)\ \([0-9][0-9.]+\)\ \(([0-9A-Fa-f-]+)\)[[:space:]]*$ ]]; then
+  device_name="${BASH_REMATCH[1]}"
+fi
+
+ios_dir="${repo_root}/apps/mobile/ios"
+destinations="$(xcodebuild -workspace "${ios_dir}/Mobile.xcworkspace" -scheme Mobile -showdestinations 2>&1 || true)"
+device_line="$(grep "${udid}" <<< "$destinations" || true)"
+
+if [[ -z "$device_line" ]]; then
+  echo "Xcode does not list this device yet. Unlock the phone, trust this Mac, and try again." >&2
+  exit 1
+fi
+
+if [[ "$device_line" == *"error:"* ]]; then
+  echo "Xcode cannot deploy to this device right now:" >&2
+  echo "  ${device_line}" >&2
+  echo "" >&2
+  echo "Try:" >&2
+  echo "  • Keep the iPhone unlocked and on the home screen during install" >&2
+  echo "  • Settings → Privacy & Security → Developer Mode → On (restart if asked)" >&2
+  echo "  • Unplug/replug USB; tap Trust on the phone" >&2
+  echo "  • Xcode → Settings → Accounts: sign in (fixes missing Xcode-Token / signing)" >&2
+  echo "  • Open ${ios_dir}/Mobile.xcworkspace and run once on this device" >&2
+  exit 1
+fi
+
+if grep -q "missing Xcode-Token" <<< "$destinations"; then
+  echo "Warning: Apple ID in Xcode needs to sign in again (Xcode → Settings → Accounts)." >&2
+fi
+
 lan_host="$(node -e "const {detectLanHost}=require('${repo_root}/apps/mobile/detect-lan-host.cjs'); process.stdout.write(detectLanHost()||'');")"
 if [[ -n "$lan_host" ]]; then
   echo ""
@@ -55,10 +86,13 @@ if [[ -n "$lan_host" ]]; then
   echo "  • iPhone and Mac on the same Wi‑Fi"
   echo "  • Settings → Tutorix → Local Network: ON"
   echo "  • Metro must be running (port 8081); reload app after changing .env"
+  echo "  • Keep the phone unlocked until the build finishes"
   echo ""
 else
   echo "Warning: could not detect a LAN IPv4. Set DEV_LAN_HOST in .env and restart Metro." >&2
 fi
 
 cd "${repo_root}/apps/mobile"
-exec npx react-native run-ios --udid "$udid" --extra-params "-allowProvisioningUpdates"
+# Physical devices: use --device (UDID or name). --udid is for simulators only.
+device_arg="${device_name:-$udid}"
+exec npx react-native run-ios --device "$device_arg" --extra-params "-allowProvisioningUpdates"

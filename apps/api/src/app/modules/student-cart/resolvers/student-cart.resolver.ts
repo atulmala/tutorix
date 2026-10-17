@@ -10,6 +10,7 @@ import { WalletService } from '../../wallet/services/wallet.service';
 import { ClassSessionDeliveryModeEnum } from '../../tutor-class-session/enums/class-session-delivery-mode.enum';
 import {
   CancelClassCreditsResult,
+  PreviewClassBookingCancellationResult,
   CartCheckoutPreviewDto,
   ScheduleClassCreditResult,
   StudentCartDto,
@@ -91,6 +92,23 @@ export class StudentCartResolver {
     @Args('input') input: StudentClassBookingListInput,
   ): Promise<StudentClassBookingListResult> {
     return this.tutorClassBookingService.listForStudent(user, input);
+  }
+
+  @Query(() => PreviewClassBookingCancellationResult, {
+    name: 'previewClassBookingCancellation',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  previewClassBookingCancellation(
+    @CurrentUser() user: User,
+    @Args('orderItemId', { type: () => ID }) orderItemId: string | number,
+    @Args('cancelCount', { type: () => Int }) cancelCount: number,
+  ): Promise<PreviewClassBookingCancellationResult> {
+    return this.cancellationService.previewClassBookingCancellation(
+      user,
+      orderItemId,
+      cancelCount,
+    );
   }
 
   @Query(() => [StudentRebookTutor], {
@@ -183,6 +201,24 @@ export class StudentCartResolver {
     refundMethod: ClassCreditRefundMethodEnum,
   ): Promise<CancelClassCreditsResult> {
     return this.cancellationService.cancel(user, creditIds, refundMethod);
+  }
+
+  @Mutation(() => CancelClassCreditsResult, { name: 'cancelClassBooking' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  cancelClassBooking(
+    @CurrentUser() user: User,
+    @Args('orderItemId', { type: () => ID }) orderItemId: string | number,
+    @Args('cancelCount', { type: () => Int }) cancelCount: number,
+    @Args('refundMethod', { type: () => ClassCreditRefundMethodEnum })
+    refundMethod: ClassCreditRefundMethodEnum,
+  ): Promise<CancelClassCreditsResult> {
+    return this.cancellationService.cancelClassBooking(
+      user,
+      orderItemId,
+      cancelCount,
+      refundMethod,
+    );
   }
 
   @Mutation(() => TutorScheduledClassActionResult, {

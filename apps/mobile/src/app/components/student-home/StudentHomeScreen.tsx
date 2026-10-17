@@ -159,6 +159,7 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
   const booked = (data?.studentBookedClassSessions ?? []) as BookedClass[];
   const credits = (creditData?.myClassCredits ?? []) as StudentClassCredit[];
   const unscheduledCount = credits.filter((row) => row.status === 'unscheduled').length;
+  const totalClassesBooked = credits.length;
   const dayClasses = booked.filter(
     (row) => istDayKey(new Date(row.startsAt)) === selected?.key,
   );
@@ -378,15 +379,26 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
       </View>
 
       <View style={styles.concludedCard}>
-        <Text style={styles.concludedTitle}>Booking history</Text>
-        <Pressable
-          style={styles.detailsButton}
-          onPress={onOpenBookingHistory}
-          accessibilityRole="button"
-          accessibilityLabel="See booking history"
-        >
-          <Text style={styles.detailsButtonText}>See details</Text>
-        </Pressable>
+        <View style={styles.bookingHistoryRow}>
+          <View style={styles.bookingHistoryLeft}>
+            <Text style={styles.concludedTitle}>Booking history</Text>
+            <Pressable
+              style={styles.detailsButton}
+              onPress={onOpenBookingHistory}
+              accessibilityRole="button"
+              accessibilityLabel="See booking history"
+            >
+              <Text style={styles.detailsButtonText}>See details</Text>
+            </Pressable>
+          </View>
+          <View
+            style={styles.bookingHistoryHighlight}
+            accessibilityLabel={`${totalClassesBooked} classes booked so far`}
+          >
+            <Text style={styles.bookingHistoryCount}>{totalClassesBooked}</Text>
+            <Text style={styles.bookingHistoryCountLabel}>classes booked</Text>
+          </View>
+        </View>
       </View>
 
       <View style={styles.concludedCard}>
@@ -550,6 +562,40 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   concludedTitle: { fontSize: 16, fontWeight: '800', color: '#143055' },
+  bookingHistoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 14,
+  },
+  bookingHistoryLeft: { flex: 1, minWidth: 0 },
+  bookingHistoryHighlight: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 96,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 18,
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  bookingHistoryCount: {
+    fontSize: 40,
+    fontWeight: '800',
+    color: '#1d4ed8',
+    lineHeight: 44,
+    fontVariant: ['tabular-nums'],
+  },
+  bookingHistoryCountLabel: {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#2563eb',
+    textAlign: 'center',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
   detailsButton: {
     alignSelf: 'flex-start',
     marginTop: 12,

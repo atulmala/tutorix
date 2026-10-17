@@ -1,4 +1,4 @@
-import { scheduledClassHasEnded } from '@tutorix/shared-utils';
+import { isClassCreditCancellable, scheduledClassHasEnded } from '@tutorix/shared-utils';
 import { ClassSessionDeliveryModeEnum } from '../tutor-class-session/enums/class-session-delivery-mode.enum';
 import { personDisplayName } from './admin-class-booking.utils';
 import { orderItemPaidInrPerCredit, OrderItemPaidParts } from './admin-class-booking-order-item.util';
@@ -141,6 +141,7 @@ type GroupAccumulator = {
   unscheduledCount: number;
   cancelledCount: number;
   concludedCount: number;
+  cancellableCount: number;
   linePaidInr: number;
   demoCount: number;
 };
@@ -237,6 +238,7 @@ export function groupTutorClassBookings(
         unscheduledCount: 0,
         cancelledCount: 0,
         concludedCount: 0,
+        cancellableCount: 0,
         linePaidInr: 0,
         demoCount: 0,
       };
@@ -248,6 +250,21 @@ export function groupTutorClassBookings(
     }
     group.classCount += 1;
     group.linePaidInr += orderItemPaidInrPerCredit(row.orderItemPaidParts);
+    if (
+      isClassCreditCancellable(
+        {
+          id: 0,
+          status: row.status,
+          isDemo: row.isDemo,
+          startsAt: row.startsAt,
+          durationMinutes: row.durationMinutes,
+          deliveryMode: row.deliveryMode,
+        },
+        now,
+      )
+    ) {
+      group.cancellableCount += 1;
+    }
     if (row.isDemo) {
       group.demoCount += 1;
     }
@@ -279,6 +296,13 @@ export function groupTutorClassBookings(
       unscheduledCount: group.unscheduledCount,
       cancelledCount: group.cancelledCount,
       concludedCount: group.concludedCount,
+      cancellableCount:
+        group.demoCount === group.classCount && group.classCount > 0
+          ? 0
+          : group.cancellableCount,
+      canCancel:
+        !(group.demoCount === group.classCount && group.classCount > 0) &&
+        group.cancellableCount > 0,
       linePaidInr: group.demoCount === group.classCount ? 0 : group.linePaidInr,
       isDemo: group.demoCount === group.classCount && group.classCount > 0,
     }))

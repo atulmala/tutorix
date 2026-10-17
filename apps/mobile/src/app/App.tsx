@@ -27,6 +27,10 @@ import { StudentDetailScreen } from './components/student-profile/StudentDetailS
 import { StudentHomeScreen } from './components/student-home/StudentHomeScreen';
 import { OnlineClassScreen } from './components/online-class/OnlineClassScreen';
 import { StudentBookingHistoryScreen } from './components/student-home/StudentBookingHistoryScreen';
+import {
+  ClassCancellationBooking,
+  StudentClassCancellationScreen,
+} from './components/student-home/StudentClassCancellationScreen';
 import { StudentConcludedClassesScreen } from './components/student-home/StudentConcludedClassesScreen';
 import { StudentTutorSearchScreen } from './components/student-tutor-search/StudentTutorSearchScreen';
 import { StudentTutorSearchResultsScreen } from './components/student-tutor-search/StudentTutorSearchResultsScreen';
@@ -231,6 +235,8 @@ function AppContent() {
   } | null>(null);
   const [rebookReturnView, setRebookReturnView] = useState<AppView>('studentHome');
   const [scheduleCredits, setScheduleCredits] = useState<StudentClassCredit[] | null>(null);
+  const [classCancellationBooking, setClassCancellationBooking] =
+    useState<ClassCancellationBooking | null>(null);
   const [tutorSearchParams, setTutorSearchParams] =
     useState<StudentTutorSearchParams | null>(null);
   const [signupResume, setSignupResume] = useState<{
@@ -806,7 +812,32 @@ function AppContent() {
         onLogout={handleLogout}
         onOpenCart={openStudentCart}
       />,
-      <StudentBookingHistoryScreen />,
+      <StudentBookingHistoryScreen
+        onCancelBooking={(booking) => {
+          setClassCancellationBooking(booking);
+          setCurrentView('studentClassCancellation');
+        }}
+      />,
+      { backgroundColor: '#e8f4ff' },
+    );
+  } else if (currentView === 'studentClassCancellation' && classCancellationBooking) {
+    const leaveClassCancellation = () => {
+      setClassCancellationBooking(null);
+      setCurrentView('studentBookingHistory');
+    };
+    screen = renderStudentShell(
+      null,
+      <StudentNavHeader
+        title="Class cancellation"
+        onBack={leaveClassCancellation}
+        onLogout={handleLogout}
+        onOpenCart={openStudentCart}
+      />,
+      <StudentClassCancellationScreen
+        booking={classCancellationBooking}
+        onComplete={leaveClassCancellation}
+        onBack={leaveClassCancellation}
+      />,
       { backgroundColor: '#e8f4ff' },
     );
   } else if (currentView === 'studentConcludedClasses') {

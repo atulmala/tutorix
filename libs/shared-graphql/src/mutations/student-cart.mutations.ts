@@ -79,6 +79,46 @@ export const CANCEL_CLASS_CREDITS = gql`
   }
 `;
 
+export const PREVIEW_CLASS_BOOKING_CANCELLATION = gql`
+  query PreviewClassBookingCancellation($orderItemId: ID!, $cancelCount: Int!) {
+    previewClassBookingCancellation(orderItemId: $orderItemId, cancelCount: $cancelCount) {
+      orderItemId
+      cancellableCount
+      cancelCount
+      refundInr
+      breakdown {
+        activeCount
+        cancelCount
+        remainingCount
+        netPaidBeforeInr
+        fairTotalAfterInr
+        refundInr
+        lines
+        breakdownText
+      }
+    }
+  }
+`;
+
+export const CANCEL_CLASS_BOOKING = gql`
+  mutation CancelClassBooking(
+    $orderItemId: ID!
+    $cancelCount: Int!
+    $refundMethod: ClassCreditRefundMethod!
+  ) {
+    cancelClassBooking(
+      orderItemId: $orderItemId
+      cancelCount: $cancelCount
+      refundMethod: $refundMethod
+    ) {
+      cancelledCount
+      amountInr
+      refundMethod
+      walletBalanceInr
+    }
+  }
+`;
+
 export const TUTOR_CANCEL_SCHEDULED_CLASS = gql`
   mutation TutorCancelScheduledClass($enrollmentId: ID!) {
     tutorCancelScheduledClass(enrollmentId: $enrollmentId) {

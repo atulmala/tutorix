@@ -44,6 +44,12 @@ export class TutorClassBookingRow {
   concludedCount!: number;
 
   @Field(() => Int)
+  cancellableCount!: number;
+
+  @Field()
+  canCancel!: boolean;
+
+  @Field(() => Int)
   linePaidInr!: number;
 
   @Field()

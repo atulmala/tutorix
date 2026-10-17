@@ -31,6 +31,7 @@ export * from './online-class-window';
 export * from './online-class-agora-cost';
 export * from './tutor-booking-history';
 export * from './student-class-credit-groups';
+export * from './class-credit-cancellation-refund';
 export * from './student-onboarding-types';
 export * from './student-onboarding-timeline';
 export * from './address-places';

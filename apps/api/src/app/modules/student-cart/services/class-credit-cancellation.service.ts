@@ -8,10 +8,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import {
+  allocateRefundAcrossCredits,
   canChangeScheduledClass,
   classChangeDeadlineMessage,
+  computeClassCancellationRefund,
   formatIstBookingDateLabel,
   formatIstBookingTimeRange,
+  pickCreditsForCancellation,
+  scheduledClassHasEnded,
 } from '@tutorix/shared-utils';
 import { User } from '../../auth/entities/user.entity';
 import { UserRole } from '../../auth/enums/user-role.enum';
@@ -29,13 +33,22 @@ import { ClassSessionEnrollmentStatusEnum } from '../../tutor-class-session/enum
 import { ClassSessionStatusEnum } from '../../tutor-class-session/enums/class-session-status.enum';
 import { WalletService } from '../../wallet/services/wallet.service';
 import { orderItemPaidInrPerCredit } from '../admin-class-booking-order-item.util';
+import {
+  orderItemToPaidParts,
+  rateCardForOrderItem,
+} from '../class-order-item-pricing.util';
 import { allocateGatewayRefund } from '../class-credit-refund-allocation.util';
 import {
   buildClassScheduleTable,
   formatInrAmount,
 } from '../class-booking-email-table.util';
+import { OrderItemEntity } from '../../commerce/entities/order-item.entity';
+import { TutorOfferingEntity } from '../../tutor/entities/tutor-offering.entity';
+import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
 import {
   CancelClassCreditsResult,
+  ClassBookingCancellationBreakdown,
+  PreviewClassBookingCancellationResult,
   TutorScheduledClassActionResult,
 } from '../dto/student-cart.dto';
 import { ClassCreditCancellationEntity } from '../entities/class-credit-cancellation.entity';
@@ -73,8 +86,56 @@ export class ClassCreditCancellationService {
     private readonly paymentAttemptRepo: Repository<PaymentAttemptEntity>,
     @InjectRepository(ClassCreditGatewayRefundEntity)
     private readonly gatewayRefundRepo: Repository<ClassCreditGatewayRefundEntity>,
+    @InjectRepository(ClassCreditCancellationEntity)
+    private readonly cancellationRepo: Repository<ClassCreditCancellationEntity>,
+    @InjectRepository(TutorOfferingEntity)
+    private readonly tutorOfferingRepo: Repository<TutorOfferingEntity>,
+    private readonly rateCardService: TutorRateCardService,
     private readonly communicationService: CommunicationService,
   ) {}
+
+  async previewClassBookingCancellation(
+    user: User,
+    orderItemIdInput: string | number,
+    cancelCountInput: number,
+  ): Promise<PreviewClassBookingCancellationResult> {
+    const student = await this.requireStudent(user);
+    const orderItemId = asId(orderItemIdInput);
+    const cancelCount = Math.floor(Number(cancelCountInput));
+    const { orderItem, picked, activeCount, cancellableCount } =
+      await this.resolveOrderItemCancellation(student.id, orderItemId, cancelCount);
+    const { breakdown } = await this.buildRefundBreakdown(
+      orderItem,
+      picked[0]?.tutorOfferingId ?? 0,
+      activeCount,
+      cancelCount,
+    );
+    return {
+      orderItemId,
+      cancellableCount,
+      cancelCount,
+      refundInr: breakdown.refundInr,
+      breakdown: this.toBreakdownDto(breakdown),
+    };
+  }
+
+  async cancelClassBooking(
+    user: User,
+    orderItemIdInput: string | number,
+    cancelCountInput: number,
+    refundMethod: ClassCreditRefundMethodEnum,
+  ): Promise<CancelClassCreditsResult> {
+    const student = await this.requireStudent(user);
+    const orderItemId = asId(orderItemIdInput);
+    const cancelCount = Math.floor(Number(cancelCountInput));
+    const { picked } = await this.resolveOrderItemCancellation(
+      student.id,
+      orderItemId,
+      cancelCount,
+    );
+    const creditIds = picked.map((credit) => credit.id);
+    return this.cancel(user, creditIds, refundMethod);
+  }
 
   async cancel(
     user: User,
@@ -105,9 +166,9 @@ export class ClassCreditCancellationService {
       this.assertCancellable(credit);
     }
 
+    const amountByCreditId = await this.refundAmountsByCreditId(student.id, credits);
     const amountInr = credits.reduce(
-      (sum, credit) =>
-        sum + (credit.orderItem ? orderItemPaidInrPerCredit(credit.orderItem) : 0),
+      (sum, credit) => sum + (amountByCreditId.get(credit.id) ?? 0),
       0,
     );
 
@@ -142,7 +203,7 @@ export class ClassCreditCancellationService {
             creditId: locked.id,
             studentId: student.id,
             userId: user.id,
-            amountInr: credit.orderItem ? orderItemPaidInrPerCredit(credit.orderItem) : 0,
+            amountInr: amountByCreditId.get(locked.id) ?? 0,
             refundMethod,
           }),
         );
@@ -353,6 +414,9 @@ export class ClassCreditCancellationService {
   }
 
   private assertCancellable(credit: StudentClassCreditEntity): void {
+    if (credit.isDemo === true) {
+      throw new BadRequestException('Demo classes cannot be cancelled');
+    }
     if (credit.status === ClassCreditStatusEnum.cancelled) {
       throw new BadRequestException('This class is already cancelled');
     }
@@ -360,9 +424,194 @@ export class ClassCreditCancellationService {
       return;
     }
     const startsAt = credit.enrollment?.session?.tutorCalendar?.startsAt;
+    const durationMinutes =
+      credit.enrollment?.session?.tutorCalendar?.durationMinutes ?? null;
+    if (scheduledClassHasEnded(startsAt, durationMinutes)) {
+      throw new BadRequestException('Concluded classes cannot be cancelled');
+    }
     if (!canChangeScheduledClass(startsAt, credit.deliveryMode)) {
       throw new BadRequestException(classChangeDeadlineMessage(credit.deliveryMode));
     }
+  }
+
+  private toBreakdownDto(
+    breakdown: ReturnType<typeof computeClassCancellationRefund>,
+  ): ClassBookingCancellationBreakdown {
+    return {
+      activeCount: breakdown.activeCount,
+      cancelCount: breakdown.cancelCount,
+      remainingCount: breakdown.remainingCount,
+      netPaidBeforeInr: breakdown.netPaidBeforeInr,
+      fairTotalAfterInr: breakdown.fairTotalAfterInr,
+      refundInr: breakdown.refundInr,
+      lines: breakdown.lines,
+      breakdownText: breakdown.lines.join('\n'),
+    };
+  }
+
+  private async resolveOrderItemCancellation(
+    studentId: number,
+    orderItemId: number,
+    cancelCount: number,
+  ): Promise<{
+    orderItem: OrderItemEntity;
+    picked: StudentClassCreditEntity[];
+    activeCount: number;
+    cancellableCount: number;
+  }> {
+    if (!Number.isFinite(cancelCount) || cancelCount < 1) {
+      throw new BadRequestException('Enter how many classes to cancel');
+    }
+    const orderItem = await this.dataSource.getRepository(OrderItemEntity).findOne({
+      where: { id: orderItemId, deleted: false },
+    });
+    if (!orderItem) {
+      throw new NotFoundException('Booking not found');
+    }
+    const lineCredits = await this.creditRepo.find({
+      where: { studentId, orderItemId, deleted: false },
+      relations: [
+        'orderItem',
+        'enrollment',
+        'enrollment.session',
+        'enrollment.session.tutorCalendar',
+      ],
+      order: { id: 'ASC' },
+    });
+    if (lineCredits.length === 0) {
+      throw new NotFoundException('Booking not found');
+    }
+    if (lineCredits.every((row) => row.isDemo)) {
+      throw new BadRequestException('Demo bookings cannot be cancelled');
+    }
+    const pickInputs = lineCredits.map((credit) => ({
+      id: credit.id,
+      status: credit.status,
+      isDemo: credit.isDemo,
+      startsAt: credit.enrollment?.session?.tutorCalendar?.startsAt ?? null,
+      durationMinutes:
+        credit.enrollment?.session?.tutorCalendar?.durationMinutes ?? null,
+      deliveryMode: credit.deliveryMode,
+    }));
+    const cancellableCount = pickInputs.filter((row) =>
+      pickCreditsForCancellation([row], 1).length === 1,
+    ).length;
+    if (cancellableCount === 0) {
+      throw new BadRequestException('No classes on this booking can be cancelled');
+    }
+    if (cancelCount > cancellableCount) {
+      throw new BadRequestException(
+        `You can cancel at most ${cancellableCount} class${cancellableCount === 1 ? '' : 'es'} on this booking`,
+      );
+    }
+    const picked = pickCreditsForCancellation(pickInputs, cancelCount).map((row) => {
+      const credit = lineCredits.find((candidate) => candidate.id === row.id);
+      if (!credit) {
+        throw new NotFoundException('Class not found');
+      }
+      return credit;
+    });
+    const activeCount = lineCredits.filter(
+      (row) => row.status !== ClassCreditStatusEnum.cancelled,
+    ).length;
+    return { orderItem, picked, activeCount, cancellableCount };
+  }
+
+  private async priorRefundsInrForOrderItem(orderItemId: number): Promise<number> {
+    const row = await this.cancellationRepo
+      .createQueryBuilder('cancellation')
+      .innerJoin(StudentClassCreditEntity, 'credit', 'credit.id = cancellation.credit_id')
+      .where('credit.order_item_id = :orderItemId', { orderItemId })
+      .select('COALESCE(SUM(cancellation.amount_inr), 0)', 'total')
+      .getRawOne<{ total: string }>();
+    return Number(row?.total ?? 0);
+  }
+
+  private async buildRefundBreakdown(
+    orderItem: OrderItemEntity,
+    tutorOfferingId: number,
+    activeCount: number,
+    cancelCount: number,
+  ) {
+    const pricing = await this.resolvePricing(orderItem, tutorOfferingId);
+    if (!pricing) {
+      throw new BadRequestException('Pricing for this booking is unavailable');
+    }
+    const priorRefundsInr = await this.priorRefundsInrForOrderItem(orderItem.id);
+    const breakdown = computeClassCancellationRefund({
+      parts: orderItemToPaidParts(orderItem),
+      mode: pricing.mode,
+      rateCard: pricing.rateCard,
+      activeCount,
+      cancelCount,
+      priorRefundsInr,
+    });
+    return { breakdown, pricing };
+  }
+
+  private async resolvePricing(
+    orderItem: OrderItemEntity,
+    tutorOfferingId: number,
+  ): Promise<{ mode: 'online' | 'offline'; rateCard: import('@tutorix/shared-utils').RateCardLike } | null> {
+    const offering = tutorOfferingId
+      ? await this.tutorOfferingRepo.findOne({
+          where: { id: tutorOfferingId, deleted: false },
+        })
+      : null;
+    const fallbackMap = offering
+      ? await this.rateCardService.resolveCompleteRateCards([offering])
+      : new Map();
+    const fallback = offering ? fallbackMap.get(offering.id) ?? null : null;
+    return rateCardForOrderItem(orderItem, fallback);
+  }
+
+  private async refundAmountsByCreditId(
+    studentId: number,
+    credits: StudentClassCreditEntity[],
+  ): Promise<Map<number, number>> {
+    const amounts = new Map<number, number>();
+    const byOrderItem = new Map<number, StudentClassCreditEntity[]>();
+    for (const credit of credits) {
+      const bucket = byOrderItem.get(credit.orderItemId);
+      if (bucket) {
+        bucket.push(credit);
+      } else {
+        byOrderItem.set(credit.orderItemId, [credit]);
+      }
+    }
+    for (const [orderItemId, groupCredits] of byOrderItem) {
+      const orderItem =
+        groupCredits[0]?.orderItem ??
+        (await this.dataSource.getRepository(OrderItemEntity).findOne({
+          where: { id: orderItemId, deleted: false },
+        }));
+      if (!orderItem) {
+        for (const credit of groupCredits) {
+          amounts.set(credit.id, 0);
+        }
+        continue;
+      }
+      const lineCredits = await this.creditRepo.find({
+        where: { studentId, orderItemId, deleted: false },
+      });
+      const activeCount = lineCredits.filter(
+        (row) => row.status !== ClassCreditStatusEnum.cancelled,
+      ).length;
+      const { breakdown } = await this.buildRefundBreakdown(
+        orderItem,
+        groupCredits[0]?.tutorOfferingId ?? 0,
+        activeCount,
+        groupCredits.length,
+      );
+      const allocations = allocateRefundAcrossCredits(
+        breakdown.refundInr,
+        groupCredits.length,
+      );
+      groupCredits.forEach((credit, index) => {
+        amounts.set(credit.id, allocations[index] ?? 0);
+      });
+    }
+    return amounts;
   }
 
   private async refundThroughGateway(

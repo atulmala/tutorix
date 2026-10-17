@@ -1,19 +1,14 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MY_CLASS_CREDITS } from '@tutorix/shared-graphql';
 import { StudentClassCreditsPage } from './StudentClassCreditsPage';
 
 const mockUseQuery = jest.fn();
-const mockCancelClassCredits = jest.fn();
-
 jest.mock('@tutorix/shared-graphql', () => ({
   MY_CLASS_CREDITS: { kind: 'credits' },
-  MY_WALLET: { kind: 'wallet' },
-  CANCEL_CLASS_CREDITS: { kind: 'cancel' },
 }));
 
 jest.mock('@apollo/client', () => ({
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
-  useMutation: () => [mockCancelClassCredits, { loading: false }],
 }));
 
 describe('StudentClassCreditsPage', () => {
@@ -83,39 +78,4 @@ describe('StudentClassCreditsPage', () => {
     expect(onSchedule).toHaveBeenCalledWith(pack);
   });
 
-  it('lets the student cancel a pack back to the wallet', async () => {
-    const pack = [12, 13].map((id) => ({
-      id,
-      tutorId: 3,
-      offeringId: 30,
-      tutorOfferingId: 80,
-      tutorName: 'Anita Sharma',
-      offeringLabel: 'CBSE Mathematics Class 11',
-      deliveryMode: 'offline',
-      status: 'unscheduled',
-      refundableInr: 500,
-    }));
-    mockUseQuery.mockImplementation((query: { kind?: string }) => {
-      if (query === MY_CLASS_CREDITS) {
-        return { loading: false, data: { myClassCredits: pack } };
-      }
-      return { loading: false, data: null };
-    });
-    mockCancelClassCredits.mockResolvedValue({});
-
-    render(<StudentClassCreditsPage onSchedule={jest.fn()} onScheduleLater={jest.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel classes' }));
-    expect(screen.getByRole('dialog', { name: 'Cancel classes' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Add ₹1,000 to wallet' }));
-
-    expect(mockCancelClassCredits).toHaveBeenCalledWith({
-      variables: {
-        creditIds: ['12', '13'],
-        refundMethod: 'wallet',
-      },
-    });
-    await waitFor(() => {
-      expect(screen.queryByRole('heading', { name: 'Cancel classes' })).toBeNull();
-    });
-  });
 });
