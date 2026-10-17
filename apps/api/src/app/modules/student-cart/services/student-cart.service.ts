@@ -10,6 +10,7 @@ import { Repository } from 'typeorm';
 import {
   bulkDiscountNudge,
   classPackSlabLinesForMode,
+  classPricingSnapshotFromRateCard,
   isWithinOfflineBookingDistance,
   OFFLINE_BOOKING_MAX_DISTANCE_KM,
   quoteClassPack,
@@ -228,6 +229,17 @@ export class StudentCartService {
         item.deliveryMode,
         item.quantity,
       );
+      const tutorOffering = await this.tutorOfferingRepo.findOne({
+        where: { id: item.tutorOfferingId, deleted: false },
+      });
+      const rateCardMap = tutorOffering
+        ? await this.rateCardService.resolveCompleteRateCards([tutorOffering])
+        : new Map();
+      const rateCard = rateCardMap.get(item.tutorOfferingId) ?? {};
+      const classPricingSnapshot = classPricingSnapshotFromRateCard(
+        rateCard,
+        item.deliveryMode,
+      );
       if (item.unitRateInr !== quote.unitRateInr) {
         item.unitRateInr = quote.unitRateInr;
         await this.itemRepo.save(item);
@@ -247,6 +259,7 @@ export class StudentCartService {
         discountInr: quote.savingsInr,
         waiverApplied: false,
         amountDueInr: dto.lineTotalInr,
+        classPricingSnapshot,
       });
     }
     return { cart, items, dtos, totalInr, lines };

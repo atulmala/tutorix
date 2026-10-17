@@ -26,6 +26,8 @@ const row = {
   unscheduledCount: 3,
   cancelledCount: 0,
   concludedCount: 2,
+  cancellableCount: 0,
+  canCancel: false,
   linePaidInr: 0,
   isDemo: true,
 };

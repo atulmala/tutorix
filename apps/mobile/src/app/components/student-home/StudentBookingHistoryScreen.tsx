@@ -23,9 +23,26 @@ type StudentClassBookingRow = {
   schedulingStatus: string;
   conclusionStatus?: string | null;
   scheduledCount: number;
+  unscheduledCount: number;
+  cancelledCount: number;
   concludedCount: number;
+  cancellableCount: number;
+  canCancel: boolean;
   linePaidInr: number;
   isDemo: boolean;
+};
+
+type StudentBookingHistoryScreenProps = {
+  onCancelBooking?: (booking: {
+    orderItemId: number;
+    tutorName: string;
+    offeringLabel: string;
+    classCount: number;
+    scheduledCount: number;
+    unscheduledCount: number;
+    concludedCount: number;
+    cancellableCount: number;
+  }) => void;
 };
 
 type StudentClassBookingsData = {
@@ -111,7 +128,9 @@ function FilterDropdown({
   );
 }
 
-export const StudentBookingHistoryScreen: React.FC = () => {
+export const StudentBookingHistoryScreen: React.FC<StudentBookingHistoryScreenProps> = ({
+  onCancelBooking,
+}) => {
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<StudentClassBookingRow[]>([]);
   const [tutorId, setTutorId] = useState<number | null>(null);
@@ -229,6 +248,27 @@ export const StudentBookingHistoryScreen: React.FC = () => {
             </Text>
             <Text style={styles.status}>Scheduling · {tutorBookingSchedulingLabel(row)}</Text>
             <Text style={styles.status}>Concluded · {tutorBookingConclusionLabel(row)}</Text>
+            {row.canCancel && onCancelBooking ? (
+              <Pressable
+                onPress={() =>
+                  onCancelBooking({
+                    orderItemId: row.orderItemId,
+                    tutorName: row.tutorName,
+                    offeringLabel: row.offeringLabel,
+                    classCount: row.classCount,
+                    scheduledCount: row.scheduledCount,
+                    unscheduledCount: row.unscheduledCount,
+                    concludedCount: row.concludedCount,
+                    cancellableCount: row.cancellableCount,
+                  })
+                }
+                accessibilityRole="button"
+                accessibilityLabel="Cancel classes"
+                style={styles.cancelButton}
+              >
+                <Text style={styles.cancelButtonText}>Cancel classes</Text>
+              </Pressable>
+            ) : null}
           </View>
         ))
       )}
@@ -332,6 +372,8 @@ const styles = StyleSheet.create({
   offering: { marginTop: 4, fontSize: 15, fontWeight: '700', color: '#1d4ed8' },
   meta: { marginTop: 8, fontSize: 13, fontWeight: '700', color: '#0f766e' },
   status: { marginTop: 3, fontSize: 13, fontWeight: '600', color: '#475569' },
+  cancelButton: { marginTop: 12, alignSelf: 'flex-start' },
+  cancelButtonText: { fontSize: 15, fontWeight: '800', color: '#2563eb' },
   amount: {
     fontSize: 22,
     fontWeight: '800',

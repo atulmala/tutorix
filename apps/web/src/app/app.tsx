@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { useLazyQuery, useMutation } from '@apollo/client';
 import { GET_MY_STUDENT_PROFILE, GET_MY_TUTOR_DETAIL, GET_MY_TUTOR_PROFILE, HEARTBEAT } from '@tutorix/shared-graphql';
 import { HomeScreen } from './components/HomeScreen';
@@ -24,6 +24,10 @@ import { StudentOnboarding } from './components/student-onboarding';
 import { StudentHomePage } from './components/student-home';
 import { OnlineClassPage } from './components/online-class/OnlineClassPage';
 import { StudentBookingHistoryPage } from './components/student-home/StudentBookingHistoryPage';
+import {
+  ClassCancellationBooking,
+  StudentClassCancellationPage,
+} from './components/student-home/StudentClassCancellationPage';
 import { StudentConcludedClassesPage } from './components/student-home/StudentConcludedClassesPage';
 import { StudentProfilePage } from './components/student-profile';
 import { StudentTutorSearchPage } from './components/student-tutor-search/StudentTutorSearchPage';
@@ -80,6 +84,8 @@ function AppContent() {
   } | null>(null);
   const [rebookReturnView, setRebookReturnView] = useState<WebView>('student-home');
   const [scheduleCredits, setScheduleCredits] = useState<StudentClassCredit[] | null>(null);
+  const [classCancellationBooking, setClassCancellationBooking] =
+    useState<ClassCancellationBooking | null>(null);
   const [resumeUserId, setResumeUserId] = useState<number | undefined>(undefined);
   const [resumeVerificationStatus, setResumeVerificationStatus] = useState<
     | {
@@ -125,6 +131,13 @@ function AppContent() {
   const setCurrentView = useCallback((view: WebView) => {
     setCurrentViewInternal(view);
   }, []);
+
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.scrollTo(0, 0);
+  }, [currentView, studentCartOverlay, onlineClassSession?.sessionId, classCancellationBooking?.orderItemId]);
 
   const [fetchMyTutorProfile] = useLazyQuery(GET_MY_TUTOR_PROFILE, {
     fetchPolicy: 'network-only',
@@ -669,7 +682,38 @@ function AppContent() {
           onOpenCart={openStudentCart}
         />
         <main className="mx-auto min-h-screen max-w-6xl px-4 py-8">
-          <StudentBookingHistoryPage />
+          <StudentBookingHistoryPage
+            onCancelBooking={(booking) => {
+              setClassCancellationBooking(booking);
+              setCurrentView('student-class-cancellation');
+            }}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'student-class-cancellation' && classCancellationBooking) {
+    const leaveClassCancellation = () => {
+      setClassCancellationBooking(null);
+      setCurrentView('student-booking-history');
+    };
+    return (
+      <div className="min-h-screen bg-[#e8f4ff] text-primary">
+        <AppHeader
+          title="Class cancellation"
+          onLogout={handleLogout}
+          onBack={leaveClassCancellation}
+          onProfilePress={() => setCurrentView('student-profile')}
+          onOpenWallet={() => handleOpenWallet('student-class-cancellation')}
+          onOpenCart={openStudentCart}
+        />
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-8">
+          <StudentClassCancellationPage
+            booking={classCancellationBooking}
+            onComplete={leaveClassCancellation}
+            onBack={leaveClassCancellation}
+          />
         </main>
       </div>
     );

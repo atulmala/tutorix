@@ -4,6 +4,7 @@ import { ClassCreditCancellationEntity } from '../entities/class-credit-cancella
 import { StudentClassCreditEntity } from '../entities/student-class-credit.entity';
 import { ClassCreditRefundMethodEnum } from '../enums/class-credit-refund-method.enum';
 import { ClassCreditStatusEnum } from '../enums/class-credit-status.enum';
+import { Tutor } from '../../tutor/entities/tutor.entity';
 import { ClassCreditCancellationService } from './class-credit-cancellation.service';
 
 describe('ClassCreditCancellationService', () => {
@@ -15,6 +16,13 @@ describe('ClassCreditCancellationService', () => {
     sgstInr: 0,
     igstInr: 0,
     quantity: 4,
+    classPricingSnapshot: {
+      mode: 'offline',
+      baseRate: 500,
+      baseDiscountPct: 0,
+      slab2DiscountPct: 0,
+      slab3DiscountPct: 0,
+    },
   };
   let creditFind: jest.Mock;
   let creditFindOne: jest.Mock;
@@ -64,11 +72,26 @@ describe('ClassCreditCancellationService', () => {
       }),
     );
 
+    const cancellationQueryBuilder = {
+      innerJoin: () => cancellationQueryBuilder,
+      where: () => cancellationQueryBuilder,
+      select: () => cancellationQueryBuilder,
+      getRawOne: async () => ({ total: '0' }),
+    };
+
     service = new ClassCreditCancellationService(
       { findByUserId: jest.fn().mockResolvedValue({ id: 21, userId: 9 }) } as never,
       { creditClassRefundWithManager: creditClassRefund } as never,
       { refundPayment } as never,
-      { transaction, getRepository: () => ({ findOne: findTutor }) } as never,
+      {
+        transaction,
+        getRepository: (entity: unknown) => {
+          if (entity === Tutor) {
+            return { findOne: findTutor };
+          }
+          return { findOne: async () => null };
+        },
+      } as never,
       {
         find: creditFind,
         findOne: creditFindOne,
@@ -78,8 +101,15 @@ describe('ClassCreditCancellationService', () => {
       {
         createQueryBuilder: () => queryBuilder([]),
         create: (row: unknown) => row,
+        save: jest.fn(async (row) => row),
+      } as never,
+      {
+        createQueryBuilder: () => cancellationQueryBuilder,
+        create: (row: unknown) => row,
         save: jest.fn(),
       } as never,
+      { findOne: jest.fn().mockResolvedValue({ id: 3 }) } as never,
+      { resolveCompleteRateCards: jest.fn().mockResolvedValue(new Map()) } as never,
       { emit: emitMail } as never,
     );
   });
@@ -89,11 +119,18 @@ describe('ClassCreditCancellationService', () => {
       id: 12,
       studentId: 21,
       orderId: 40,
+      orderItemId: 88,
+      tutorOfferingId: 3,
       status: ClassCreditStatusEnum.unscheduled,
       enrollmentId: null,
       orderItem,
     };
-    creditFind.mockResolvedValue([credit]);
+    creditFind.mockImplementation(async (options: { where?: { orderItemId?: number } }) => {
+      if (options?.where?.orderItemId) {
+        return [credit];
+      }
+      return [credit];
+    });
     const locked = { ...credit };
     transaction.mockImplementation(async (fn: (mgr: unknown) => unknown) =>
       fn({
@@ -125,14 +162,14 @@ describe('ClassCreditCancellationService', () => {
 
     expect(result).toMatchObject({
       cancelledCount: 1,
-      amountInr: 500,
+      amountInr: 2000,
       refundMethod: ClassCreditRefundMethodEnum.wallet,
       walletBalanceInr: 1500,
     });
     expect(locked.status).toBe(ClassCreditStatusEnum.cancelled);
     expect(creditClassRefund).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ userId: 9, amountInr: 500 }),
+      expect.objectContaining({ userId: 9, amountInr: 2000 }),
     );
     expect(refundPayment).not.toHaveBeenCalled();
   });

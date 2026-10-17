@@ -103,6 +103,8 @@ export const STUDENT_CLASS_BOOKINGS = gql`
         unscheduledCount
         cancelledCount
         concludedCount
+        cancellableCount
+        canCancel
         linePaidInr
         isDemo
       }

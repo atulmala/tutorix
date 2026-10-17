@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PlatformFeeCodeEnum } from '../../platform-fee/enums/platform-fee-code.enum';
 import { PlatformFeeConfigEntity } from '../../platform-fee/entities/platform-fee-config.entity';
 import { PlatformFeeService } from '../../platform-fee/services/platform-fee.service';
+import type { ClassOrderPricingSnapshot } from '@tutorix/shared-utils';
 import {
   OrderItemReferenceTypeEnum,
   OrderItemTypeEnum,
@@ -18,6 +19,7 @@ export type PlatformFeeLineInput = {
   discountInr: number;
   waiverApplied: boolean;
   amountDueInr: number;
+  classPricingSnapshot?: ClassOrderPricingSnapshot | null;
 };
 
 const FEE_CODE_TO_ITEM_TYPE: Record<PlatformFeeCodeEnum, OrderItemTypeEnum> = {

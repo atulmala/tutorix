@@ -112,6 +112,7 @@ export class OrderService {
         referenceType: line.referenceType,
         referenceId: line.referenceId,
         fulfillmentStatus: OrderItemFulfillmentStatusEnum.pending,
+        classPricingSnapshot: line.classPricingSnapshot ?? null,
       }),
     );
     await this.orderItemRepo.save(items);

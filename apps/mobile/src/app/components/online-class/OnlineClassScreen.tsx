@@ -33,7 +33,6 @@ import {
   onlineClassScreenShareState,
 } from '@tutorix/shared-utils/online-class-window';
 import {
-  isAgoraRtcNativeAvailable,
   loadAgoraRtcModule,
   loadAgoraRtmModule,
   normalizeAgoraUid,
@@ -92,31 +91,6 @@ function seedRemoteUidsFromRoster(
     .map((member) => member.userId)
     .filter((userId) => userId !== localUid);
 }
-
-// #region agent log
-function debugOnlineClassLog(
-  hypothesisId: string,
-  location: string,
-  message: string,
-  data: Record<string, unknown>,
-) {
-  const payload = {
-    sessionId: 'ec2e4a',
-    hypothesisId,
-    location,
-    message,
-    data,
-    timestamp: Date.now(),
-    runId: 'post-fix',
-  };
-  console.log('[debug-ec2e4a]', message, data);
-  fetch('http://127.0.0.1:7676/ingest/864fd570-d922-464e-bce0-8023d73126b8', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'ec2e4a' },
-    body: JSON.stringify(payload),
-  }).catch(() => undefined);
-}
-// #endregion
 
 type ChatLine = { id: string; from: string; text: string };
 
@@ -182,43 +156,21 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
     if (joinedChannelRef.current) {
       // In-channel: local video is published + bound via RtcSurfaceView. startPreview(sourceType)
       // throws on Android (Iris RtcEngine_startPreview_*).
-      // #region agent log
-      debugOnlineClassLog('H5', 'OnlineClassScreen:refreshLocalPreview', 'skipped startPreview (in channel)', {
-        platform: Platform.OS,
-      });
-      // #endregion
       return;
     }
-    let previewResult: number | undefined;
-    let previewPath = 'startPreview';
     try {
       const legacy = engine as IRtcEngine & { startPreviewWithoutSourceType?: () => number };
       if (
         Platform.OS === 'android' &&
         typeof legacy.startPreviewWithoutSourceType === 'function'
       ) {
-        previewPath = 'startPreviewWithoutSourceType';
-        previewResult = legacy.startPreviewWithoutSourceType();
+        legacy.startPreviewWithoutSourceType();
       } else {
-        previewResult = engine.startPreview();
+        engine.startPreview();
       }
-    } catch (caught) {
-      // #region agent log
-      debugOnlineClassLog('H5', 'OnlineClassScreen:refreshLocalPreview', 'startPreview threw', {
-        platform: Platform.OS,
-        message: caught instanceof Error ? caught.message : String(caught),
-      });
-      // #endregion
+    } catch {
       return;
     }
-    // #region agent log
-    debugOnlineClassLog('H5', 'OnlineClassScreen:refreshLocalPreview', 'startPreview result', {
-      platform: Platform.OS,
-      previewPath,
-      previewResult,
-      joinedChannel: joinedChannelRef.current,
-    });
-    // #endregion
   };
 
   const publishCameraToChannel = () => {
@@ -258,17 +210,6 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
       try {
         const { data } = await joinOnlineClass({ variables: { sessionId } });
         const creds = data?.joinOnlineClass as JoinPayload | undefined;
-        // #region agent log
-        debugOnlineClassLog('H1', 'OnlineClassScreen:join', 'joinOnlineClass response', {
-          hasCreds: Boolean(creds),
-          sessionId,
-          participantCount: creds?.participants?.length ?? 0,
-          participantUserIds: (creds?.participants ?? []).map((p) => p.userId),
-          localUid: creds?.uid ?? null,
-          channelName: creds?.channelName ?? null,
-          hasAppId: Boolean(creds?.appId),
-        });
-        // #endregion
         if (cancelled || !creds) {
           return;
         }
@@ -309,30 +250,11 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
         if (rosterRemoteUids.length > 0) {
           setRemoteUids(rosterRemoteUids);
         }
-        // #region agent log
-        debugOnlineClassLog('H4', 'OnlineClassScreen:join', 'roster seeded from join payload', {
-          rosterRemoteUids,
-        });
-        // #endregion
-        // #region agent log
-        debugOnlineClassLog('H3', 'OnlineClassScreen:agora', 'native module before load', {
-          rtcNativeAvailable: isAgoraRtcNativeAvailable(),
-          platform: Platform.OS,
-        });
-        // #endregion
         const rtc = loadAgoraRtcModule();
         agoraRtcRef.current = rtc;
         if (!cancelled) {
           setAgoraRtc(rtc);
         }
-        // #region agent log
-        debugOnlineClassLog('H3', 'OnlineClassScreen:agora', 'rtc module loaded', {
-          hasTextureView: Boolean(rtc.RtcTextureView),
-          hasSurfaceView: Boolean(rtc.RtcSurfaceView),
-          hasVideoSourceType: Boolean(rtc.VideoSourceType),
-          hasRenderModeType: Boolean(rtc.RenderModeType),
-        });
-        // #endregion
         const { engine, initCode } = ensureAgoraRtcEngine(rtc, creds.appId);
         engineRef.current = engine;
         if (typeof initCode === 'number' && initCode !== 0) {
@@ -403,52 +325,21 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
           });
           await rtm.login({ token: creds.rtmToken });
           await rtm.subscribe(creds.channelName);
-          // #region agent log
-          debugOnlineClassLog('H2', 'OnlineClassScreen:rtm', 'rtm connected after rtc join', {
-            channelName: creds.channelName,
-          });
-          // #endregion
         };
-        const completeRtcJoin = (source: string, elapsed?: number) => {
+        const completeRtcJoin = () => {
           if (rtcPublishStartedRef.current) {
             return;
           }
           rtcPublishStartedRef.current = true;
           joinedChannelRef.current = true;
-          // #region agent log
-          debugOnlineClassLog('H2', 'OnlineClassScreen:agora', 'rtc join complete', {
-            source,
-            elapsed,
-            localUid: localUidRef.current,
-            rosterRemoteUids,
-          });
-          // #endregion
           publishCameraToChannel();
           if (!rtmStartedRef.current) {
             rtmStartedRef.current = true;
-            void connectClassChat().catch((rtmError: unknown) => {
-              // #region agent log
-              debugOnlineClassLog('H2', 'OnlineClassScreen:rtm', 'rtm connect failed', {
-                message: rtmError instanceof Error ? rtmError.message : String(rtmError),
-              });
-              // #endregion
-            });
+            void connectClassChat().catch(() => undefined);
           }
         };
         const agoraHandler: IRtcEngineEventHandler = {
-          onError(err, msg) {
-            // #region agent log
-            debugOnlineClassLog('H2', 'OnlineClassScreen:agora', 'onError', { err, msg });
-            // #endregion
-          },
           onUserJoined(_connection, uid) {
-            // #region agent log
-            debugOnlineClassLog('H4', 'OnlineClassScreen:agora', 'onUserJoined', {
-              rawUid: uid,
-              normalized: normalizeAgoraUid(uid),
-              localUid: localUidRef.current,
-            });
-            // #endregion
             rememberRemote(uid);
           },
           onUserOffline(_connection, uid) {
@@ -483,21 +374,15 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
             markRemoteVideo(uid, 'live');
           },
           onConnectionStateChanged(_connection, state, reason) {
-            // #region agent log
-            debugOnlineClassLog('H2', 'OnlineClassScreen:agora', 'onConnectionStateChanged', {
-              state,
-              reason,
-            });
-            // #endregion
             if (state === rtc.ConnectionStateType.ConnectionStateConnected) {
-              completeRtcJoin('onConnectionStateChanged');
+              completeRtcJoin();
             }
             if (reason === rtc.ConnectionChangedReasonType.ConnectionChangedBannedByServer) {
               finish();
             }
           },
-          onJoinChannelSuccess(_connection, elapsed) {
-            completeRtcJoin('onJoinChannelSuccess', elapsed);
+          onJoinChannelSuccess() {
+            completeRtcJoin();
           },
         };
         bindRtcEventDelegate(engine, agoraHandler);
@@ -529,27 +414,12 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
           localUidRef.current,
           joinOptions,
         );
-        // #region agent log
-        debugOnlineClassLog('H2', 'OnlineClassScreen:agora', 'joinChannel called', {
-          joinResultCode: joinResult ?? null,
-          joinResultType: typeof joinResult,
-          joinOk: joinResult === 0,
-          localUid: localUidRef.current,
-        });
-        // #endregion
         if (typeof joinResult === 'number' && joinResult !== 0) {
           setError(`Could not join video (code ${joinResult}). Leave and try again.`);
         } else if (joinResult === 0 || joinResult === undefined) {
-          completeRtcJoin(
-            joinResult === 0 ? 'sync-join-return-0' : 'sync-join-return-undefined',
-          );
+          completeRtcJoin();
         }
       } catch (caught) {
-        // #region agent log
-        debugOnlineClassLog('H1', 'OnlineClassScreen:join', 'join flow threw', {
-          message: caught instanceof Error ? caught.message : String(caught),
-        });
-        // #endregion
         if (cancelled) {
           return;
         }
@@ -574,24 +444,6 @@ export const OnlineClassScreen: React.FC<OnlineClassScreenProps> = ({
       rtmRef.current = null;
     };
   }, [joinOnlineClass, sessionId]);
-
-  useEffect(() => {
-    const RtcVideoView = pickRtcVideoView(agoraRtc);
-    // #region agent log
-    debugOnlineClassLog('H3', 'OnlineClassScreen:render', 'video strip state', {
-      hasAgoraRtc: Boolean(agoraRtc),
-      hasRtcVideoView: Boolean(RtcVideoView),
-      hasRenderModeType: Boolean(agoraRtc?.RenderModeType),
-      hasVideoSourceType: Boolean(agoraRtc?.VideoSourceType),
-      remoteUidCount: remoteUids.length,
-      remoteUids,
-      joinedChannel: joinedChannelRef.current,
-      error,
-      platform: Platform.OS,
-      videoViewKind: 'RtcSurfaceView',
-    });
-    // #endregion
-  }, [agoraRtc, remoteUids, error]);
 
   useEffect(() => {
     const shown = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));

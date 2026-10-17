@@ -7,6 +7,7 @@ import {
   OrderItemTypeEnum,
 } from '../enums/commerce.enums';
 import { OrderEntity } from './order.entity';
+import type { ClassOrderPricingSnapshot } from '@tutorix/shared-utils';
 
 @ObjectType()
 @Entity('commerce_order_item')
@@ -14,7 +15,7 @@ export class OrderItemEntity extends QBaseEntity {
   @Field(() => Int)
   @Column({ name: 'order_id', type: 'integer' })
   @Index()
-  orderId: number;
+  orderId!: number;
 
   @ManyToOne(() => OrderEntity, (order) => order.items, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'order_id' })
@@ -26,43 +27,43 @@ export class OrderItemEntity extends QBaseEntity {
     type: 'enum',
     enum: OrderItemTypeEnum,
   })
-  itemType: OrderItemTypeEnum;
+  itemType!: OrderItemTypeEnum;
 
   @Field()
   @Column({ type: 'text' })
-  description: string;
+  description!: string;
 
   @Field(() => Int)
   @Column({ type: 'smallint', default: 1 })
-  quantity: number;
+  quantity!: number;
 
   @Field(() => Int)
   @Column({ name: 'unit_rate_inr', type: 'integer' })
-  unitRateInr: number;
+  unitRateInr!: number;
 
   @Field(() => Int)
   @Column({ name: 'line_subtotal_inr', type: 'integer' })
-  lineSubtotalInr: number;
+  lineSubtotalInr!: number;
 
   @Field(() => Int)
   @Column({ name: 'discount_inr', type: 'integer', default: 0 })
-  discountInr: number;
+  discountInr!: number;
 
   @Field()
   @Column({ name: 'waiver_applied', type: 'boolean', default: false })
-  waiverApplied: boolean;
+  waiverApplied!: boolean;
 
   @Field(() => Int)
   @Column({ name: 'cgst_inr', type: 'integer', default: 0 })
-  cgstInr: number;
+  cgstInr!: number;
 
   @Field(() => Int)
   @Column({ name: 'sgst_inr', type: 'integer', default: 0 })
-  sgstInr: number;
+  sgstInr!: number;
 
   @Field(() => Int)
   @Column({ name: 'igst_inr', type: 'integer', default: 0 })
-  igstInr: number;
+  igstInr!: number;
 
   @Field(() => Float)
   @Column({
@@ -72,7 +73,7 @@ export class OrderItemEntity extends QBaseEntity {
     scale: 2,
     default: 0,
   })
-  gstRatePercent: number;
+  gstRatePercent!: number;
 
   @Field(() => OrderItemReferenceTypeEnum)
   @Column({
@@ -80,12 +81,12 @@ export class OrderItemEntity extends QBaseEntity {
     type: 'enum',
     enum: OrderItemReferenceTypeEnum,
   })
-  referenceType: OrderItemReferenceTypeEnum;
+  referenceType!: OrderItemReferenceTypeEnum;
 
   @Field(() => Int)
   @Column({ name: 'reference_id', type: 'integer' })
   @Index()
-  referenceId: number;
+  referenceId!: number;
 
   @Field(() => OrderItemFulfillmentStatusEnum)
   @Column({
@@ -94,5 +95,8 @@ export class OrderItemEntity extends QBaseEntity {
     enum: OrderItemFulfillmentStatusEnum,
     default: OrderItemFulfillmentStatusEnum.pending,
   })
-  fulfillmentStatus: OrderItemFulfillmentStatusEnum;
+  fulfillmentStatus!: OrderItemFulfillmentStatusEnum;
+
+  @Column({ name: 'class_pricing_snapshot', type: 'jsonb', nullable: true })
+  classPricingSnapshot?: ClassOrderPricingSnapshot | null;
 }

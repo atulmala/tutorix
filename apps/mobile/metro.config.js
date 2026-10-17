@@ -100,7 +100,15 @@ module.exports = (async () => {
   // A second copy leaves the view registry and hook dispatcher empty.
   const previousResolveRequest = metroConfig.resolver.resolveRequest;
   const mobilePackageRoot = path.join(__dirname, 'node_modules/react-native/package.json');
+  const sharedGraphqlNativeEntry = path.resolve(
+    __dirname,
+    '../../libs/shared-graphql/src/index.native.ts',
+  );
   metroConfig.resolver.resolveRequest = (context, moduleName, platform) => {
+    // tsconfig paths map the package root to index.ts (web client + import.meta).
+    if (moduleName === '@tutorix/shared-graphql') {
+      return { type: 'sourceFile', filePath: sharedGraphqlNativeEntry };
+    }
     if (moduleName === 'react' || moduleName.startsWith('react/')) {
       return {
         type: 'sourceFile',
