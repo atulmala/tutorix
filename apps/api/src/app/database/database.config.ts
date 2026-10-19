@@ -34,6 +34,7 @@ import { StudentCartItemEntity } from '../modules/student-cart/entities/student-
 import { StudentClassCreditEntity } from '../modules/student-cart/entities/student-class-credit.entity';
 import { ClassCreditCancellationEntity } from '../modules/student-cart/entities/class-credit-cancellation.entity';
 import { ClassCreditGatewayRefundEntity } from '../modules/student-cart/entities/class-credit-gateway-refund.entity';
+import { ClassCancellationRefundRequestEntity } from '../modules/student-cart/entities/class-cancellation-refund-request.entity';
 import { TutorClassEmailQueueEntity } from '../modules/student-cart/entities/tutor-class-email-queue.entity';
 import { PlatformFeeConfigEntity } from '../modules/platform-fee/entities/platform-fee-config.entity';
 import { PlatformFeePaymentEntity } from '../modules/payment/entities/platform-fee-payment.entity';
@@ -103,6 +104,7 @@ export function createDatabaseOptions(
       StudentClassCreditEntity,
       ClassCreditCancellationEntity,
       ClassCreditGatewayRefundEntity,
+      ClassCancellationRefundRequestEntity,
       TutorClassEmailQueueEntity,
       PlatformFeeConfigEntity,
       PlatformFeePaymentEntity,

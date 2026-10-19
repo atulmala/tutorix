@@ -65,6 +65,7 @@ export const StudentClassCancellationScreen: React.FC<StudentClassCancellationSc
   const canCancelAny = booking.cancellableCount > 0;
   const [cancelCount, setCancelCount] = useState('1');
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -78,9 +79,7 @@ export const StudentClassCancellationScreen: React.FC<StudentClassCancellationSc
     { fetchPolicy: 'network-only' },
   );
 
-  const [cancelBooking, { loading: cancelling }] = useMutation(CANCEL_CLASS_BOOKING, {
-    onCompleted: () => onComplete(),
-  });
+  const [cancelBooking, { loading: cancelling }] = useMutation(CANCEL_CLASS_BOOKING);
 
   useEffect(() => {
     if (!canCancelAny || !canSubmitCancel) {
@@ -115,12 +114,38 @@ export const StudentClassCancellationScreen: React.FC<StudentClassCancellationSc
         cancelCount: parsedCancelCount,
         refundMethod,
       },
-    }).catch((failure: unknown) => {
-      setCancelError(
-        failure instanceof Error ? failure.message : 'Could not cancel these classes.',
-      );
-    });
+    })
+      .then((result) => {
+        const amount = result.data?.cancelClassBooking?.amountInr ?? refundInr;
+        if (refundMethod === 'wallet') {
+          setSuccessMessage(
+            `Your classes were cancelled and a refund of ${formatInr(amount)} has been initiated. It will be credited to your wallet after processing.`,
+          );
+        } else {
+          setSuccessMessage(
+            `Your classes were cancelled and a cash refund of ${formatInr(amount)} has been initiated. It will be processed within 2 working days.`,
+          );
+        }
+      })
+      .catch((failure: unknown) => {
+        setCancelError(
+          failure instanceof Error ? failure.message : 'Could not cancel these classes.',
+        );
+      });
   };
+
+  if (successMessage) {
+    return (
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.title}>Cancellation confirmed</Text>
+        <Text style={styles.subtitle}>{successMessage}</Text>
+        <Text style={styles.hint}>We will email you when your refund is complete.</Text>
+        <Pressable onPress={onComplete} style={styles.primaryButton} accessibilityRole="button">
+          <Text style={styles.primaryButtonText}>Done</Text>
+        </Pressable>
+      </ScrollView>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -191,7 +216,7 @@ export const StudentClassCancellationScreen: React.FC<StudentClassCancellationSc
         accessibilityRole="button"
       >
         <Text style={styles.primaryButtonText}>
-          {cancelling ? 'Cancelling…' : `Add ${formatInr(refundInr)} to wallet`}
+          {cancelling ? 'Cancelling…' : `Cancel and refund ${formatInr(refundInr)} to wallet`}
         </Text>
       </Pressable>
 
@@ -208,7 +233,8 @@ export const StudentClassCancellationScreen: React.FC<StudentClassCancellationSc
       </Pressable>
 
       <Text style={styles.hint}>
-        Cash refunds are credited to your payment method within 3 working days.
+        Cash refunds are initiated immediately and credited to your payment method within 2 working
+        days after processing.
       </Text>
         </>
       ) : null}

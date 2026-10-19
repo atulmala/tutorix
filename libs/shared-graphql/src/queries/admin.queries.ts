@@ -487,6 +487,65 @@ export const GET_ADMIN_TUTOR_WALLET_TRANSACTIONS = gql`
   }
 `;
 
+export const GET_ADMIN_CLASS_CANCELLATION_REFUNDS = gql`
+  query GetAdminClassCancellationRefunds($input: AdminClassCancellationRefundListInput!) {
+    adminClassCancellationRefundRequests(input: $input) {
+      items {
+        id
+        initiatedBy
+        studentId
+        studentName
+        tutorId
+        tutorName
+        offeringLabel
+        classCount
+        amountInr
+        refundMethod
+        payoutStatus
+        aiStatus
+        aiRejectionReason
+        aiSummary
+        initiatedAt
+        orderId
+      }
+      total
+      page
+      pageSize
+    }
+  }
+`;
+
+export const GET_ADMIN_CLASS_CANCELLATION_REFUND_DETAIL = gql`
+  query GetAdminClassCancellationRefundDetail($requestId: Int!) {
+    adminClassCancellationRefundRequestDetail(requestId: $requestId) {
+      id
+      initiatedBy
+      studentId
+      studentName
+      tutorId
+      tutorName
+      offeringLabel
+      classCount
+      amountInr
+      refundMethod
+      payoutStatus
+      aiStatus
+      aiRejectionReason
+      aiSummary
+      aiConfidence
+      breakdownText
+      aiChecksJson
+      creditIds
+      orderId
+      orderItemId
+      failureReason
+      initiatedAt
+      processedAt
+      walletTransactionId
+    }
+  }
+`;
+
 export const GET_ADMIN_EMAIL_STATUS = gql`
   query GetAdminEmailStatus {
     adminEmailStatus {

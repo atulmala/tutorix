@@ -229,6 +229,30 @@ export class RazorpayGateway implements PaymentGateway {
     return payload.id;
   }
 
+  async fetchRefundStatus(refundId: string): Promise<string | null> {
+    if (!this.isConfigured()) {
+      return null;
+    }
+    const response = await fetch(
+      `https://api.razorpay.com/v1/refunds/${encodeURIComponent(refundId)}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: this.getAuthHeader(),
+        },
+      },
+    );
+    if (!response.ok) {
+      const body = await response.text();
+      if (isRazorpayUnknownIdResponse(response.status, body)) {
+        return null;
+      }
+      throw new Error(`Razorpay refund fetch failed (${response.status}): ${body}`);
+    }
+    const payload = (await response.json()) as { status?: string };
+    return payload.status ?? null;
+  }
+
   async fetchSettlementForPayment(
     paymentId: string,
   ): Promise<PaymentSettlementDetails | null> {

@@ -1,0 +1,1 @@
+Hi {{studentName}}, refund {{amountRefunded}} for {{offeringName}} initiated ({{refundMethodLabel}}). {{initiatedByLabel}} cancelled. Ref {{requestId}}.

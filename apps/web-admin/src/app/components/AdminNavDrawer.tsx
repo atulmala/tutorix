@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { to: '/communication', label: 'Communication' },
   { to: '/orders', label: 'Orders' },
   { to: '/class-bookings', label: 'Class bookings' },
+  { to: '/class-cancellations', label: 'Class cancellation' },
 ] as const;
 
 export function AdminNavDrawer() {

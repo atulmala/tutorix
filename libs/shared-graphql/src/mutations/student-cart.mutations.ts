@@ -75,6 +75,8 @@ export const CANCEL_CLASS_CREDITS = gql`
       amountInr
       refundMethod
       walletBalanceInr
+      refundRequestId
+      refundInitiated
     }
   }
 `;
@@ -115,6 +117,8 @@ export const CANCEL_CLASS_BOOKING = gql`
       amountInr
       refundMethod
       walletBalanceInr
+      refundRequestId
+      refundInitiated
     }
   }
 `;

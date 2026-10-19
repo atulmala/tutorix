@@ -178,6 +178,12 @@ export class CancelClassCreditsResult {
 
   @Field(() => Int, { nullable: true })
   walletBalanceInr?: number | null;
+
+  @Field(() => Int, { nullable: true })
+  refundRequestId?: number | null;
+
+  @Field(() => Boolean, { nullable: true })
+  refundInitiated?: boolean | null;
 }
 
 @ObjectType()

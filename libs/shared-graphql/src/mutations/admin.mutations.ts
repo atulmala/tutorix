@@ -75,6 +75,34 @@ export const ADMIN_UPDATE_REGISTRATION_SETTINGS = gql`
   }
 `;
 
+export const ADMIN_PROCESS_CLASS_CANCELLATION_REFUND = gql`
+  mutation AdminProcessClassCancellationRefund($requestId: Int!) {
+    adminProcessClassCancellationRefund(requestId: $requestId) {
+      id
+      payoutStatus
+      aiStatus
+      walletTransactionId
+      failureReason
+      processedAt
+    }
+  }
+`;
+
+export const ADMIN_RUN_CLASS_CANCELLATION_REFUND_BATCH = gql`
+  mutation AdminRunClassCancellationRefundAnalysisBatch(
+    $reanalyzePendingPayouts: Boolean
+  ) {
+    adminRunClassCancellationRefundAnalysisBatch(
+      reanalyzePendingPayouts: $reanalyzePendingPayouts
+    ) {
+      resetForReanalysis
+      itemsFound
+      analyzed
+      gatewaySynced
+    }
+  }
+`;
+
 export const ADMIN_SEND_EMAIL = gql`
   mutation AdminSendEmail($input: AdminSendEmailInput!) {
     adminSendEmail(input: $input) {

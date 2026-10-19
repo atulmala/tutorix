@@ -10,6 +10,7 @@ import { DocumentScreeningBatchCron } from './document-screening/document-screen
 import { TutorOnboardingApprovalBatchCron } from './tutor-onboarding-approval/tutor-onboarding-approval-batch.cron';
 import { PaymentSettlementBatchCron } from './payment-settlement/payment-settlement-batch.cron';
 import { TutorClassEmailBatchCron } from './tutor-class-email/tutor-class-email-batch.cron';
+import { ClassCancellationRefundBatchCron } from './class-cancellation-refund/class-cancellation-refund-batch.cron';
 
 /**
  * Central module for scheduled batch jobs.
@@ -30,6 +31,7 @@ import { TutorClassEmailBatchCron } from './tutor-class-email/tutor-class-email-
     TutorOnboardingApprovalBatchCron,
     PaymentSettlementBatchCron,
     TutorClassEmailBatchCron,
+    ClassCancellationRefundBatchCron,
   ],
 })
 export class BatchJobsModule {}

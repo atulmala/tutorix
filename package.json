@@ -40,6 +40,7 @@
     "migration:show": "ts-node --project apps/api/tsconfig.app.json ./node_modules/typeorm/cli.js migration:show -d apps/api/src/data-source.ts",
     "generate:jwt-secret": "node apps/api/src/app/common/scripts/generate-jwt-secret.js",
     "create:admin": "ts-node --project apps/api/tsconfig.app.json apps/api/src/app/common/scripts/create-admin-user.ts",
+    "batch:class-cancellation-refund": "ts-node -r tsconfig-paths/register --project apps/api/tsconfig.app.json apps/api/src/app/common/scripts/run-class-cancellation-refund-batch.ts",
     "test:auth": "bash apps/api/src/app/common/scripts/test-auth.sh",
     "jira:create-from-plan": "node scripts/jira/create-ticket-from-plan.mjs",
     "jira:bulk-sync-plans": "node scripts/jira/bulk-sync-plans-to-jira.mjs",

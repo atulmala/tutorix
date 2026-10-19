@@ -190,6 +190,20 @@ export function fairLinePaidTotalInr(
   return Math.round((originalPaid * fairPreTax) / originalPreTax);
 }
 
+/**
+ * Active classes on a booking line for refund math, including credits cancelled in the
+ * current operation (they may already be marked cancelled in the DB).
+ */
+export function activeClassCountForCancellationRefund(
+  lineCredits: Array<{ id: number; status: string }>,
+  cancellingCreditIds: number[],
+): number {
+  const cancelling = new Set(cancellingCreditIds);
+  return lineCredits.filter(
+    (row) => row.status !== 'cancelled' || cancelling.has(row.id),
+  ).length;
+}
+
 export function allocateRefundAcrossCredits(
   totalRefundInr: number,
   creditCount: number,

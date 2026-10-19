@@ -35,6 +35,14 @@ import { AdminOrderDetail } from '../commerce/dto/admin/admin-order-detail.dto';
 import { AdminClassBookingListInput } from '../student-cart/dto/admin/admin-class-booking-list.input';
 import { AdminClassBookingListResult } from '../student-cart/dto/admin/admin-class-booking-list-result.dto';
 import { AdminClassBookingService } from '../student-cart/services/admin-class-booking.service';
+import { AdminClassCancellationRefundListInput } from '../student-cart/dto/admin/admin-class-cancellation-refund-list.input';
+import { AdminClassCancellationRefundListResult } from '../student-cart/dto/admin/admin-class-cancellation-refund-list-result.dto';
+import { AdminClassCancellationRefundDetail } from '../student-cart/dto/admin/admin-class-cancellation-refund-detail.dto';
+import { AdminClassCancellationRefundService } from '../student-cart/services/admin-class-cancellation-refund.service';
+import { ClassCancellationRefundPayoutService } from '../student-cart/services/class-cancellation-refund-payout.service';
+import { ClassCancellationRefundBatchService } from '../student-cart/services/class-cancellation-refund-batch.service';
+import { AdminClassCancellationRefundBatchResult } from '../student-cart/dto/admin/admin-class-cancellation-refund-batch-result.dto';
+import { BatchJobTriggerEnum } from '../../batch-jobs/enums/batch-job-trigger.enum';
 import { StudentService } from '../student/services/student.service';
 import { TutorService } from '../tutor/services/tutor.service';
 import { WalletService } from '../wallet/services/wallet.service';
@@ -65,6 +73,9 @@ export class AdminResolver {
     private readonly emailService: EmailService,
     private readonly communicationAdminService: CommunicationAdminService,
     private readonly adminClassBookingService: AdminClassBookingService,
+    private readonly adminClassCancellationRefundService: AdminClassCancellationRefundService,
+    private readonly classCancellationRefundPayoutService: ClassCancellationRefundPayoutService,
+    private readonly classCancellationRefundBatchService: ClassCancellationRefundBatchService,
   ) {}
 
   @Query(() => AdminDashboardStats, {
@@ -321,6 +332,61 @@ export class AdminResolver {
     @Args('input') input: AdminClassBookingListInput,
   ): Promise<AdminClassBookingListResult> {
     return this.adminClassBookingService.list(input);
+  }
+
+  @Query(() => AdminClassCancellationRefundListResult, {
+    description: 'Class cancellation refund requests (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminClassCancellationRefundRequests(
+    @Args('input') input: AdminClassCancellationRefundListInput,
+  ): Promise<AdminClassCancellationRefundListResult> {
+    return this.adminClassCancellationRefundService.list(input);
+  }
+
+  @Query(() => AdminClassCancellationRefundDetail, {
+    description: 'Class cancellation refund request detail (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminClassCancellationRefundRequestDetail(
+    @Args('requestId', { type: () => Int }) requestId: number,
+  ): Promise<AdminClassCancellationRefundDetail> {
+    return this.adminClassCancellationRefundService.getDetail(requestId);
+  }
+
+  @Mutation(() => AdminClassCancellationRefundDetail, {
+    description: 'Process payout for a class cancellation refund (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminProcessClassCancellationRefund(
+    @CurrentUser() user: User,
+    @Args('requestId', { type: () => Int }) requestId: number,
+  ): Promise<AdminClassCancellationRefundDetail> {
+    await this.classCancellationRefundPayoutService.processRefund(requestId, user.id);
+    return this.adminClassCancellationRefundService.getDetail(requestId);
+  }
+
+  @Mutation(() => AdminClassCancellationRefundBatchResult, {
+    description:
+      'Run class cancellation refund AI analysis batch (admin only). Optionally re-queues analyzed rows still awaiting payout.',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminRunClassCancellationRefundAnalysisBatch(
+    @Args('reanalyzePendingPayouts', {
+      type: () => Boolean,
+      nullable: true,
+      defaultValue: true,
+    })
+    reanalyzePendingPayouts: boolean,
+  ): Promise<AdminClassCancellationRefundBatchResult> {
+    return this.classCancellationRefundBatchService.runBatch({
+      reanalyzePendingPayouts,
+      triggeredBy: BatchJobTriggerEnum.MANUAL,
+    });
   }
 
   @Query(() => UserWalletDto, {

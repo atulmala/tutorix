@@ -30,8 +30,8 @@ describe('ClassCreditCancellationService', () => {
   let emitMail: jest.Mock;
   let creditSave: jest.Mock;
   let cancellationSave: jest.Mock;
-  let creditClassRefund: jest.Mock;
-  let refundPayment: jest.Mock;
+  let createRefundRequest: jest.Mock;
+  let canGatewayCover: jest.Mock;
   let transaction: jest.Mock;
   let service: ClassCreditCancellationService;
 
@@ -59,8 +59,8 @@ describe('ClassCreditCancellationService', () => {
     emitMail = jest.fn().mockResolvedValue(undefined);
     creditSave = jest.fn(async (row) => row);
     cancellationSave = jest.fn(async (row) => row);
-    creditClassRefund = jest.fn(async () => ({ balanceInr: 1500 }));
-    refundPayment = jest.fn();
+    createRefundRequest = jest.fn().mockResolvedValue({ id: 99 });
+    canGatewayCover = jest.fn().mockResolvedValue(true);
     transaction = jest.fn(async (fn: (mgr: unknown) => unknown) =>
       fn({
         getRepository: () => ({
@@ -81,8 +81,6 @@ describe('ClassCreditCancellationService', () => {
 
     service = new ClassCreditCancellationService(
       { findByUserId: jest.fn().mockResolvedValue({ id: 21, userId: 9 }) } as never,
-      { creditClassRefundWithManager: creditClassRefund } as never,
-      { refundPayment } as never,
       {
         transaction,
         getRepository: (entity: unknown) => {
@@ -97,20 +95,16 @@ describe('ClassCreditCancellationService', () => {
         findOne: creditFindOne,
         createQueryBuilder: () => queryBuilder(null),
       } as never,
-      { createQueryBuilder: () => queryBuilder([]) } as never,
-      {
-        createQueryBuilder: () => queryBuilder([]),
-        create: (row: unknown) => row,
-        save: jest.fn(async (row) => row),
-      } as never,
       {
         createQueryBuilder: () => cancellationQueryBuilder,
         create: (row: unknown) => row,
-        save: jest.fn(),
+        save: cancellationSave,
       } as never,
       { findOne: jest.fn().mockResolvedValue({ id: 3 }) } as never,
       { resolveCompleteRateCards: jest.fn().mockResolvedValue(new Map()) } as never,
       { emit: emitMail } as never,
+      { createRequest: createRefundRequest } as never,
+      { canGatewayCoverAmount: canGatewayCover } as never,
     );
   });
 
@@ -164,14 +158,18 @@ describe('ClassCreditCancellationService', () => {
       cancelledCount: 1,
       amountInr: 2000,
       refundMethod: ClassCreditRefundMethodEnum.wallet,
-      walletBalanceInr: 1500,
+      walletBalanceInr: null,
+      refundRequestId: 99,
+      refundInitiated: true,
     });
     expect(locked.status).toBe(ClassCreditStatusEnum.cancelled);
-    expect(creditClassRefund).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ userId: 9, amountInr: 2000 }),
+    expect(createRefundRequest).toHaveBeenCalled();
+    expect(emitMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'CLASS_CANCELLATION_REFUND_INITIATED',
+        userId: 9,
+      }),
     );
-    expect(refundPayment).not.toHaveBeenCalled();
   });
 
   it('rejects a class that has already started', async () => {
@@ -190,7 +188,7 @@ describe('ClassCreditCancellationService', () => {
     await expect(
       service.cancel(studentUser as never, [12], ClassCreditRefundMethodEnum.wallet),
     ).rejects.toBeInstanceOf(BadRequestException);
-    expect(creditClassRefund).not.toHaveBeenCalled();
+    expect(createRefundRequest).not.toHaveBeenCalled();
   });
 
   it('rejects a tutor change inside the offline lead time', async () => {
@@ -211,7 +209,7 @@ describe('ClassCreditCancellationService', () => {
     await expect(
       service.cancelScheduledClassByTutor({ id: 4, role: UserRole.TUTOR } as never, 5),
     ).rejects.toThrow(/30 minutes before/);
-    expect(creditClassRefund).not.toHaveBeenCalled();
+    expect(createRefundRequest).not.toHaveBeenCalled();
   });
 
   it('rejects a gateway refund when no captured payment can cover it', async () => {
@@ -224,11 +222,12 @@ describe('ClassCreditCancellationService', () => {
       },
     ]);
 
+    canGatewayCover.mockResolvedValue(false);
+
     await expect(
       service.cancel(studentUser as never, [12], ClassCreditRefundMethodEnum.gateway),
     ).rejects.toBeInstanceOf(BadRequestException);
-    expect(creditClassRefund).not.toHaveBeenCalled();
-    expect(refundPayment).not.toHaveBeenCalled();
+    expect(createRefundRequest).not.toHaveBeenCalled();
   });
 
   it('refunds the student wallet when a tutor cancels a future class', async () => {
@@ -238,6 +237,8 @@ describe('ClassCreditCancellationService', () => {
       studentId: 21,
       tutorId: 71,
       orderId: 40,
+      orderItemId: 88,
+      tutorOfferingId: 3,
       enrollmentId: 5,
       status: ClassCreditStatusEnum.scheduled,
       deliveryMode: 'offline',
@@ -250,6 +251,12 @@ describe('ClassCreditCancellationService', () => {
       enrollment: { session: { tutorCalendar: { startsAt, durationMinutes: 60 } } },
     };
     creditFindOne.mockResolvedValue(credit);
+    creditFind.mockImplementation(async (options: { where?: { orderItemId?: number } }) => {
+      if (options?.where?.orderItemId) {
+        return [credit];
+      }
+      return [credit];
+    });
     const locked = { ...credit };
     transaction.mockImplementation(async (fn: (mgr: unknown) => unknown) =>
       fn({
@@ -259,9 +266,6 @@ describe('ClassCreditCancellationService', () => {
               createQueryBuilder: () => queryBuilder(locked),
               save: creditSave,
             };
-          }
-          if (entity === ClassCreditCancellationEntity) {
-            return { create: (row: unknown) => row, save: cancellationSave };
           }
           return {
             createQueryBuilder: () => queryBuilder(null),
@@ -278,19 +282,15 @@ describe('ClassCreditCancellationService', () => {
       5,
     );
 
-    expect(result.amountRefundedInr).toBe(500);
+    expect(result.amountRefundedInr).toBe(2000);
     expect(locked.status).toBe(ClassCreditStatusEnum.cancelled);
     expect(locked.enrollmentId).toBeNull();
-    expect(creditClassRefund).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ userId: 9, amountInr: 500 }),
-    );
+    expect(createRefundRequest).toHaveBeenCalled();
     expect(emitMail).toHaveBeenCalledWith(
       expect.objectContaining({
-        event: 'CLASS_CANCELLED_BY_TUTOR',
+        event: 'CLASS_CANCELLATION_REFUND_INITIATED',
         userId: 9,
         audience: 'STUDENT',
-        payload: expect.objectContaining({ amountRefunded: '₹500' }),
       }),
     );
   });
@@ -314,6 +314,8 @@ describe('ClassCreditCancellationService', () => {
       ...shared,
       id: 12,
       studentId: 21,
+      orderItemId: 88,
+      tutorOfferingId: 3,
       enrollmentId: 5,
       student: { userId: 9, user: { firstName: 'Ruchi', lastName: 'Shah' } },
     };
@@ -321,11 +323,24 @@ describe('ClassCreditCancellationService', () => {
       ...shared,
       id: 13,
       studentId: 22,
+      orderItemId: 89,
+      tutorOfferingId: 3,
       enrollmentId: 6,
       student: { userId: 10, user: { firstName: 'Amit', lastName: 'Kumar' } },
     };
     creditFindOne.mockResolvedValue(first);
-    creditFind.mockResolvedValue([first, second]);
+    creditFind.mockImplementation(async (options: { where?: { orderItemId?: number; studentId?: number } }) => {
+      if (options?.where?.orderItemId === 88) {
+        return [first];
+      }
+      if (options?.where?.orderItemId === 89) {
+        return [second];
+      }
+      if (options?.where?.studentId == null) {
+        return [first, second];
+      }
+      return [first, second];
+    });
     const locked = [{ ...first }, { ...second }];
     let lockIndex = 0;
     transaction.mockImplementation(async (fn: (mgr: unknown) => unknown) =>
@@ -365,20 +380,12 @@ describe('ClassCreditCancellationService', () => {
       5,
     );
 
-    expect(result.amountRefundedInr).toBe(1000);
+    expect(result.amountRefundedInr).toBe(4000);
     expect(locked.map((row) => row.status)).toEqual([
       ClassCreditStatusEnum.cancelled,
       ClassCreditStatusEnum.cancelled,
     ]);
-    expect(creditClassRefund).toHaveBeenCalledTimes(2);
-    expect(creditClassRefund).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ userId: 9, amountInr: 500 }),
-    );
-    expect(creditClassRefund).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ userId: 10, amountInr: 500 }),
-    );
+    expect(createRefundRequest).toHaveBeenCalledTimes(2);
     expect(emitMail).toHaveBeenCalledTimes(2);
   });
 
@@ -429,7 +436,7 @@ describe('ClassCreditCancellationService', () => {
     expect(result).toMatchObject({ enrollmentId: 5, amountRefundedInr: 0 });
     expect(locked.status).toBe(ClassCreditStatusEnum.unscheduled);
     expect(locked.enrollmentId).toBeNull();
-    expect(creditClassRefund).not.toHaveBeenCalled();
+    expect(createRefundRequest).not.toHaveBeenCalled();
     expect(cancellationSave).not.toHaveBeenCalled();
     expect(emitMail).toHaveBeenCalledWith(
       expect.objectContaining({

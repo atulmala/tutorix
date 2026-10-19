@@ -34,4 +34,8 @@ export class ClassCreditCancellationEntity extends QBaseEntity {
     enum: ClassCreditRefundMethodEnum,
   })
   refundMethod!: ClassCreditRefundMethodEnum;
+
+  @Column({ name: 'refund_request_id', type: 'integer', nullable: true })
+  @Index()
+  refundRequestId?: number | null;
 }
