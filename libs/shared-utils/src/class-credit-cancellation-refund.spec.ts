@@ -104,7 +104,7 @@ describe('fairLinePaidTotalInr', () => {
 });
 
 describe('pickCreditsForCancellation', () => {
-  it('picks unscheduled before scheduled and sorts by id / start time', () => {
+  it('picks unscheduled first, then scheduled slots farthest in the future', () => {
     const picked = pickCreditsForCancellation(
       [
         {
@@ -123,7 +123,7 @@ describe('pickCreditsForCancellation', () => {
       ],
       2,
     );
-    expect(picked.map((row) => row.id)).toEqual([1, 2]);
+    expect(picked.map((row) => row.id)).toEqual([1, 3]);
   });
 });
 

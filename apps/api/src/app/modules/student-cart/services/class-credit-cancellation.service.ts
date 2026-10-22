@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, In, Not, Repository } from 'typeorm';
 import {
   activeClassCountForCancellationRefund,
   allocateRefundAcrossCredits,
@@ -38,6 +38,7 @@ import {
   formatInrAmount,
 } from '../class-booking-email-table.util';
 import { OrderItemEntity } from '../../commerce/entities/order-item.entity';
+import { OrderEntity } from '../../commerce/entities/order.entity';
 import { TutorOfferingEntity } from '../../tutor/entities/tutor-offering.entity';
 import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
 import {
@@ -148,6 +149,13 @@ export class ClassCreditCancellationService {
       where: { id: In(ids), studentId: student.id, deleted: false },
       relations: [
         'orderItem',
+        'orderItem.order',
+        'student',
+        'student.user',
+        'tutorOffering',
+        'tutorOffering.offering',
+        'tutorOffering.tutor',
+        'tutorOffering.tutor.user',
         'enrollment',
         'enrollment.session',
         'enrollment.session.tutorCalendar',
@@ -261,6 +269,11 @@ export class ClassCreditCancellationService {
           breakdownText: snapshot?.breakdownText,
         });
       }
+      await this.emitBookingCancellationToTutor({
+        orderItemId,
+        studentId: student.id,
+        groupCredits,
+      });
     }
 
     return {
@@ -702,6 +715,81 @@ export class ClassCreditCancellationService {
       });
     }
     return { amountByCreditId: amounts, breakdownSnapshots };
+  }
+
+  private async emitBookingCancellationToTutor(params: {
+    orderItemId: number;
+    studentId: number;
+    groupCredits: StudentClassCreditEntity[];
+  }): Promise<void> {
+    const primary = params.groupCredits[0];
+    if (!primary) {
+      return;
+    }
+    const tutorUserId =
+      primary.tutorOffering?.tutor?.userId ?? primary.tutorOffering?.tutor?.user?.id;
+    if (!tutorUserId) {
+      this.logger.warn(
+        `CLASS_BOOKING_CANCELLATION_TUTOR skipped for order item ${params.orderItemId}: missing tutor user`,
+      );
+      return;
+    }
+    const orderItem =
+      primary.orderItem ??
+      (await this.dataSource.getRepository(OrderItemEntity).findOne({
+        where: { id: params.orderItemId, deleted: false },
+        relations: ['order'],
+      }));
+    if (!orderItem) {
+      return;
+    }
+    const order =
+      orderItem.order ??
+      (orderItem.orderId
+        ? await this.dataSource.getRepository(OrderEntity).findOne({
+            where: { id: orderItem.orderId, deleted: false },
+          })
+        : null);
+    const remainingClassCount = await this.creditRepo.count({
+      where: {
+        orderItemId: params.orderItemId,
+        studentId: params.studentId,
+        deleted: false,
+        status: Not(ClassCreditStatusEnum.cancelled),
+      },
+    });
+    const bookingDate = order?.createdDate
+      ? formatIstBookingDateLabel(order.createdDate)
+      : formatIstBookingDateLabel(orderItem.createdDate);
+    const tutorName = personName(primary.tutorOffering?.tutor?.user) || 'Tutor';
+    const studentName = personName(primary.student?.user) || 'Student';
+    const offeringName = primary.tutorOffering?.offering?.displayName ?? 'Class';
+    try {
+      await this.communicationService.emit({
+        event: CommunicationEvent.CLASS_BOOKING_CANCELLATION_TUTOR,
+        userId: tutorUserId,
+        audience: CommunicationAudience.TUTOR,
+        entityType: 'commerce_order_item',
+        entityId: params.orderItemId,
+        payload: {
+          tutorName,
+          studentName,
+          offeringName,
+          bookingId: String(params.orderItemId),
+          orderNumber: order?.orderNumber ?? String(orderItem.orderId),
+          bookingDate,
+          originalClassCount: String(orderItem.quantity),
+          cancelledClassCount: String(params.groupCredits.length),
+          remainingClassCount: String(remainingClassCount),
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `CLASS_BOOKING_CANCELLATION_TUTOR emit failed for order item ${params.orderItemId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   private async emitRefundInitiated(params: {

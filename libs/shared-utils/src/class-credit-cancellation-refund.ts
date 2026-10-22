@@ -146,7 +146,8 @@ export function pickCreditsForCancellation<T extends CancellableCreditPick>(
       const leftStart = left.startsAt ? new Date(left.startsAt).getTime() : 0;
       const rightStart = right.startsAt ? new Date(right.startsAt).getTime() : 0;
       if (leftStart !== rightStart) {
-        return leftStart - rightStart;
+        // Farthest (latest) scheduled slots first after unscheduled credits.
+        return rightStart - leftStart;
       }
       return left.id - right.id;
     });

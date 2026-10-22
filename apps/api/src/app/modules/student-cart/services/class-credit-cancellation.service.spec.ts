@@ -26,6 +26,7 @@ describe('ClassCreditCancellationService', () => {
   };
   let creditFind: jest.Mock;
   let creditFindOne: jest.Mock;
+  let creditCount: jest.Mock;
   let findTutor: jest.Mock;
   let emitMail: jest.Mock;
   let creditSave: jest.Mock;
@@ -55,6 +56,7 @@ describe('ClassCreditCancellationService', () => {
   beforeEach(() => {
     creditFind = jest.fn();
     creditFindOne = jest.fn();
+    creditCount = jest.fn().mockResolvedValue(3);
     findTutor = jest.fn().mockResolvedValue({ id: 71, userId: 4 });
     emitMail = jest.fn().mockResolvedValue(undefined);
     creditSave = jest.fn(async (row) => row);
@@ -93,6 +95,7 @@ describe('ClassCreditCancellationService', () => {
       {
         find: creditFind,
         findOne: creditFindOne,
+        count: creditCount,
         createQueryBuilder: () => queryBuilder(null),
       } as never,
       {
@@ -117,7 +120,12 @@ describe('ClassCreditCancellationService', () => {
       tutorOfferingId: 3,
       status: ClassCreditStatusEnum.unscheduled,
       enrollmentId: null,
-      orderItem,
+      orderItem: { ...orderItem, orderId: 40, order: { orderNumber: 'ORD-40', createdDate: new Date('2025-08-18') } },
+      student: { user: { firstName: 'Ada', lastName: 'Lovelace' } },
+      tutorOffering: {
+        offering: { displayName: 'Class 10 Maths' },
+        tutor: { userId: 4, user: { firstName: 'Priya', lastName: 'Sharma' } },
+      },
     };
     creditFind.mockImplementation(async (options: { where?: { orderItemId?: number } }) => {
       if (options?.where?.orderItemId) {
@@ -168,6 +176,20 @@ describe('ClassCreditCancellationService', () => {
       expect.objectContaining({
         event: 'CLASS_CANCELLATION_REFUND_INITIATED',
         userId: 9,
+      }),
+    );
+    expect(emitMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'CLASS_BOOKING_CANCELLATION_TUTOR',
+        userId: 4,
+        audience: 'TUTOR',
+        payload: expect.objectContaining({
+          bookingId: '88',
+          orderNumber: 'ORD-40',
+          originalClassCount: '4',
+          cancelledClassCount: '1',
+          remainingClassCount: '3',
+        }),
       }),
     );
   });

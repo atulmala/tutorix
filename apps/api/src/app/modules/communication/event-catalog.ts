@@ -66,6 +66,17 @@ const CLASS_REFUND_VARS = [
   'linesHtml',
   'linesText',
 ];
+const CLASS_BOOKING_CANCELLATION_TUTOR_VARS = [
+  'tutorName',
+  'studentName',
+  'offeringName',
+  'bookingId',
+  'orderNumber',
+  'bookingDate',
+  'originalClassCount',
+  'cancelledClassCount',
+  'remainingClassCount',
+];
 const SCHEDULE_VARS = [
   'tutorName',
   'studentName',
@@ -184,6 +195,14 @@ export const COMMUNICATION_CATALOG: CatalogEntry[] = [
     defaultChannels: { ...NONE, email: true, push: true },
     allowedVariables: CLASS_REFUND_VARS,
     label: 'Class cancellation refund completed',
+  },
+  {
+    event: CommunicationEvent.CLASS_BOOKING_CANCELLATION_TUTOR,
+    audience: CommunicationAudience.TUTOR,
+    mandatory: false,
+    defaultChannels: { ...NONE, email: true, push: true },
+    allowedVariables: CLASS_BOOKING_CANCELLATION_TUTOR_VARS,
+    label: 'Student cancelled classes on a booking (tutor)',
   },
   {
     event: CommunicationEvent.CLASS_STARTING_SOON,
@@ -347,6 +366,18 @@ export function samplePayload(event: CommunicationEvent): Record<string, string>
         breakdownText: 'Refund breakdown',
         linesHtml: '<table><tr><td>Class 10 Maths</td></tr></table>',
         linesText: 'Priya Sharma | Class 10 Maths | Online | Mon 18 Aug, 5:00–6:00 PM',
+      };
+    case CommunicationEvent.CLASS_BOOKING_CANCELLATION_TUTOR:
+      return {
+        tutorName: 'Priya Sharma',
+        studentName: 'Ada Lovelace',
+        offeringName: 'Class 10 Maths',
+        bookingId: '88',
+        orderNumber: 'ORD-10042',
+        bookingDate: '18 Aug 2025',
+        originalClassCount: '4',
+        cancelledClassCount: '1',
+        remainingClassCount: '3',
       };
     case CommunicationEvent.CLASS_STARTING_SOON:
       return {

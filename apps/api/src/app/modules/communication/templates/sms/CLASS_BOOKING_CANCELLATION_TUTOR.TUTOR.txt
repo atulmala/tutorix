@@ -1,0 +1,1 @@
+Dear {{tutorName}}, {{studentName}} cancelled {{cancelledClassCount}} class(es) on booking {{bookingId}} ({{orderNumber}}, {{bookingDate}}). {{offeringName}}: {{originalClassCount}} booked, {{remainingClassCount}} remaining.
