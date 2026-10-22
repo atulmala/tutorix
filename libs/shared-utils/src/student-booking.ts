@@ -158,10 +158,30 @@ export function lockedDeliveryMode(
   return null;
 }
 
+function pad2(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
 export function formatIstBookingDateLabel(instant: Date): string {
   const parts = toIstParts(instant);
   const dow = new Date(Date.UTC(parts.year, parts.month, parts.day)).getUTCDay();
   return `${IST_WEEKDAY_SHORT[dow]} ${parts.day} ${IST_MONTH_SHORT[parts.month]}`;
+}
+
+/** Booking card date in IST: `dd/mm/yyyy`. */
+export function formatIstBookingDateDdMmYyyy(instant: Date): string {
+  const parts = toIstParts(instant);
+  return `${pad2(parts.day)}/${pad2(parts.month + 1)}/${parts.year}`;
+}
+
+export function formatIstScheduledClassDateTime(
+  startsAt: Date,
+  durationMinutes = SLOT_DURATION_MINUTES,
+): string {
+  return `${formatIstBookingDateDdMmYyyy(startsAt)}, ${formatIstBookingTimeRange(
+    startsAt,
+    durationMinutes,
+  )}`;
 }
 
 export function formatIstBookingTimeRange(

@@ -1,13 +1,19 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import {
+  RazorpayGateway,
+  SIMULATED_GATEWAY_REFUND_PREFIX,
+} from '../../payment/services/payment-gateways';
 import { personDisplayName } from '../admin-class-booking.utils';
+import { AdminClassCancellationGatewayRefund } from '../dto/admin/admin-class-cancellation-gateway-refund.dto';
 import { AdminClassCancellationRefundDetail } from '../dto/admin/admin-class-cancellation-refund-detail.dto';
 import { AdminClassCancellationRefundListInput } from '../dto/admin/admin-class-cancellation-refund-list.input';
 import { AdminClassCancellationRefundListItem } from '../dto/admin/admin-class-cancellation-refund-list-item.dto';
 import { AdminClassCancellationRefundListResult } from '../dto/admin/admin-class-cancellation-refund-list-result.dto';
 import { ClassCancellationRefundRequestEntity } from '../entities/class-cancellation-refund-request.entity';
 import { ClassCreditCancellationEntity } from '../entities/class-credit-cancellation.entity';
+import { ClassCreditGatewayRefundEntity } from '../entities/class-credit-gateway-refund.entity';
 
 @Injectable()
 export class AdminClassCancellationRefundService {
@@ -16,6 +22,9 @@ export class AdminClassCancellationRefundService {
     private readonly requestRepo: Repository<ClassCancellationRefundRequestEntity>,
     @InjectRepository(ClassCreditCancellationEntity)
     private readonly cancellationRepo: Repository<ClassCreditCancellationEntity>,
+    @InjectRepository(ClassCreditGatewayRefundEntity)
+    private readonly gatewayRefundRepo: Repository<ClassCreditGatewayRefundEntity>,
+    private readonly razorpayGateway: RazorpayGateway,
   ) {}
 
   async list(
@@ -109,6 +118,12 @@ export class AdminClassCancellationRefundService {
       where: { refundRequestId: id, deleted: false },
     });
     const breakdown = request.refundBreakdownJson as { breakdownText?: string } | null;
+    const gatewayRefundRows = await this.gatewayRefundRepo.find({
+      where: { refundRequestId: id, deleted: false },
+      order: { id: 'ASC' },
+    });
+    const gatewayRefunds = await this.buildGatewayRefundDtos(gatewayRefundRows);
+    const gatewayPayoutNote = this.gatewayPayoutNoteFor(gatewayRefunds);
     return {
       id: request.id,
       initiatedBy: request.initiatedBy,
@@ -144,7 +159,52 @@ export class AdminClassCancellationRefundService {
       initiatedAt: request.initiatedAt,
       processedAt: request.processedAt,
       walletTransactionId: request.walletTransactionId,
+      gatewayRefunds,
+      gatewayPayoutNote,
     };
+  }
+
+  private async buildGatewayRefundDtos(
+    rows: ClassCreditGatewayRefundEntity[],
+  ): Promise<AdminClassCancellationGatewayRefund[]> {
+    return Promise.all(
+      rows.map(async (row) => {
+        const simulated = row.gatewayRefundId.startsWith(
+          SIMULATED_GATEWAY_REFUND_PREFIX,
+        );
+        let razorpayRefundStatus: string | null = null;
+        if (!simulated) {
+          try {
+            razorpayRefundStatus = await this.razorpayGateway.fetchRefundStatus(
+              row.gatewayRefundId,
+            );
+          } catch {
+            razorpayRefundStatus = null;
+          }
+        }
+        return {
+          id: row.id,
+          paymentAttemptId: row.paymentAttemptId,
+          gatewayPaymentId: row.gatewayPaymentId,
+          gatewayRefundId: row.gatewayRefundId,
+          amountInr: row.amountInr,
+          simulated,
+          razorpayRefundStatus,
+        };
+      }),
+    );
+  }
+
+  private gatewayPayoutNoteFor(
+    gatewayRefunds: AdminClassCancellationGatewayRefund[],
+  ): string | null {
+    if (gatewayRefunds.length === 0) {
+      return null;
+    }
+    if (gatewayRefunds.some((row) => row.simulated)) {
+      return 'CLASS_CANCELLATION_GATEWAY_REFUND_SIMULATE is enabled — gateway refunds exist only in Tutorix, not on the Razorpay dashboard.';
+    }
+    return 'Use the payment and refund IDs below in the Razorpay dashboard (test vs live must match API keys).';
   }
 
   private toListItem(

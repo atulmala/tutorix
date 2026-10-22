@@ -23,6 +23,7 @@ jest.mock('@tutorix/shared-graphql/queries', () => ({
   GET_MY_TUTOR_DETAIL: { kind: 'detail' },
   GET_MY_TUTOR_CALENDAR_UPDATED_TILL: { kind: 'till' },
   TUTOR_BOOKED_CLASS_SESSIONS: { kind: 'sessions' },
+  TUTOR_CLASS_BOOKINGS: { kind: 'bookings' },
 }));
 
 jest.mock('@apollo/client', () => ({
@@ -66,6 +67,15 @@ function mockHomeQueries({
     }
     if (query === GET_MY_TUTOR_DETAIL) {
       return { loading: false, data: { myTutorDetail: { offerings } } };
+    }
+    if (query.kind === 'bookings') {
+      return {
+        loading: false,
+        data: { tutorClassBookings: { totalCount: 0, items: [] } },
+      };
+    }
+    if (query.kind === 'sessions') {
+      return { loading: false, data: { tutorBookedClassSessions: [] } };
     }
     return { loading: false, data: null };
   });

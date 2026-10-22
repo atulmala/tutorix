@@ -23,6 +23,10 @@ const first = {
   schedulingStatus: 'partial',
   conclusionStatus: 'not_concluded',
   scheduledCount: 2,
+  unscheduledCount: 3,
+  cancelledCount: 0,
+  cancellableCount: 0,
+  canCancel: false,
   concludedCount: 0,
   linePaidInr: 0,
   isDemo: true,
@@ -118,9 +122,41 @@ describe('StudentBookingHistoryScreen', () => {
     expect(screen.getByText('Tutor · Grace Hopper')).toBeTruthy();
     expect(screen.getByText('CBSE | Economics | Classes 11 · Free demo')).toBeTruthy();
     expect(screen.getByText('₹0')).toBeTruthy();
-    expect(screen.getByText('Scheduling · 2 of 5 scheduled')).toBeTruthy();
+    expect(screen.getByText(/Total classes booked/)).toBeTruthy();
+    expect(screen.getByText(/Scheduled:/)).toBeTruthy();
     fireEvent.press(screen.getByLabelText('Load more'));
     expect(screen.getByText('Tutor · Alan Turing')).toBeTruthy();
     expect(screen.getByText('₹800')).toBeTruthy();
+  });
+
+  it('updates booking row fields when the same page is refetched', () => {
+    let cancellableCount = 3;
+    mockUseQuery.mockImplementation(
+      (_query: unknown, queryOptions?: { variables?: { input?: { page?: number } } }) => {
+        const page = queryOptions?.variables?.input?.page ?? 1;
+        return {
+          loading: false,
+          data: {
+            studentClassBookings: {
+              items: page === 1
+                ? [{ ...first, cancellableCount, canCancel: cancellableCount > 0 }]
+                : [second],
+              ...options,
+              totalCount: 2,
+              page,
+              pageSize: 20,
+              totalPages: 1,
+            },
+          },
+        };
+      },
+    );
+
+    const screen = render(<StudentBookingHistoryScreen />);
+    expect(screen.getByLabelText('Cancel classes')).toBeTruthy();
+
+    cancellableCount = 0;
+    screen.rerender(<StudentBookingHistoryScreen />);
+    expect(screen.queryByLabelText('Cancel classes')).toBeNull();
   });
 });

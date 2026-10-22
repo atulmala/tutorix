@@ -6,6 +6,7 @@ import {
   GET_MY_TUTOR_DETAIL,
   TUTOR_BOOKED_CLASS_SESSIONS,
   TUTOR_CANCEL_SCHEDULED_CLASS,
+  TUTOR_CLASS_BOOKINGS,
   TUTOR_REQUEST_CLASS_RESCHEDULE,
 } from '@tutorix/shared-graphql';
 import {
@@ -27,6 +28,8 @@ import {
   PENDING_RATE_CARD_TASK_MESSAGE,
   type RateCardOfferingLike,
 } from '@tutorix/shared-utils';
+
+const HOME_BOOKING_HISTORY_INPUT = { page: 1, pageSize: 1 };
 
 type TutorHomePageProps = {
   onSetRateCard?: () => void;
@@ -209,6 +212,11 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
     GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
     { fetchPolicy: 'cache-and-network' },
   );
+  const { data: bookingHistoryData } = useQuery(TUTOR_CLASS_BOOKINGS, {
+    variables: { input: HOME_BOOKING_HISTORY_INPUT },
+    fetchPolicy: 'cache-and-network',
+  });
+  const totalBookings = bookingHistoryData?.tutorClassBookings?.totalCount ?? 0;
   const sessionVariables = {
     from: scheduleRange.from.toISOString(),
     to: scheduleRange.to.toISOString(),
@@ -649,15 +657,30 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
       </section>
 
       <section className="rounded-[20px] bg-white p-5">
-        <h2 className="text-base font-extrabold text-[#143055]">Booking history</h2>
-        <button
-          type="button"
-          onClick={onOpenBookingHistory}
-          aria-label="See booking history"
-          className="mt-3 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
-        >
-          See details
-        </button>
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-extrabold text-[#143055]">Booking history</h2>
+            <button
+              type="button"
+              onClick={onOpenBookingHistory}
+              aria-label="See booking history"
+              className="mt-3 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+            >
+              See details
+            </button>
+          </div>
+          <div
+            className="flex min-w-[96px] flex-col items-center justify-center rounded-[18px] border border-blue-200 bg-blue-50 px-3.5 py-3"
+            aria-label={`${totalBookings} bookings so far`}
+          >
+            <span className="text-[40px] font-extrabold leading-none tabular-nums text-[#1d4ed8]">
+              {totalBookings}
+            </span>
+            <span className="mt-0.5 text-center text-[11px] font-extrabold uppercase tracking-wide text-[#2563eb]">
+              bookings
+            </span>
+          </div>
+        </div>
       </section>
 
       <section className="rounded-[20px] bg-white p-5">

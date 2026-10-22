@@ -1,13 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@apollo/client';
 import { STUDENT_CLASS_BOOKINGS } from '@tutorix/shared-graphql';
-import {
-  formatIstBookingDateLabel,
-  formatTutorBookingAmount,
-  tutorBookingConclusionLabel,
-  tutorBookingModeLabel,
-  tutorBookingSchedulingLabel,
-} from '@tutorix/shared-utils';
+import { formatIstBookingDateLabel, formatTutorBookingAmount } from '@tutorix/shared-utils';
+import type { BookingScheduledClassesContext } from './StudentBookingScheduledClassesPage';
 
 const PAGE_SIZE = 20;
 
@@ -31,18 +26,37 @@ type StudentClassBookingRow = {
   isDemo: boolean;
 };
 
-type StudentBookingHistoryPageProps = {
-  onCancelBooking?: (booking: {
-    orderItemId: number;
-    tutorName: string;
-    offeringLabel: string;
-    classCount: number;
-    scheduledCount: number;
-    unscheduledCount: number;
-    concludedCount: number;
-    cancellableCount: number;
-  }) => void;
+export type StudentBookingHistoryCancelPayload = {
+  orderItemId: number;
+  tutorName: string;
+  offeringLabel: string;
+  classCount: number;
+  scheduledCount: number;
+  unscheduledCount: number;
+  concludedCount: number;
+  cancelledCount: number;
+  cancellableCount: number;
 };
+
+type StudentBookingHistoryPageProps = {
+  onCancelBooking?: (booking: StudentBookingHistoryCancelPayload) => void;
+  onScheduleBooking?: (orderItemId: number) => void;
+  onViewScheduledClasses?: (booking: BookingScheduledClassesContext) => void;
+};
+
+function bookingCancelPayload(row: StudentClassBookingRow): StudentBookingHistoryCancelPayload {
+  return {
+    orderItemId: row.orderItemId,
+    tutorName: row.tutorName,
+    offeringLabel: row.offeringLabel,
+    classCount: row.classCount,
+    scheduledCount: row.scheduledCount,
+    unscheduledCount: row.unscheduledCount,
+    concludedCount: row.concludedCount,
+    cancelledCount: row.cancelledCount,
+    cancellableCount: row.cancellableCount,
+  };
+}
 
 type StudentClassBookingsData = {
   studentClassBookings: {
@@ -61,6 +75,8 @@ const fieldClass =
 
 export const StudentBookingHistoryPage: React.FC<StudentBookingHistoryPageProps> = ({
   onCancelBooking,
+  onScheduleBooking,
+  onViewScheduledClasses,
 }) => {
   const [page, setPage] = useState(1);
   const [tutorId, setTutorId] = useState('');
@@ -137,78 +153,94 @@ export const StudentBookingHistoryPage: React.FC<StudentBookingHistoryPageProps>
         </p>
       ) : null}
 
-      <div className="overflow-hidden rounded-[20px] bg-white">
-        {loading && items.length === 0 ? (
-          <p className="p-6 text-sm text-slate-500">Loading bookings…</p>
-        ) : !error && items.length === 0 ? (
-          <p className="p-6 text-sm text-slate-500">No bookings found.</p>
-        ) : items.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-slate-100 text-xs uppercase text-slate-500">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Booking date</th>
-                  <th className="px-4 py-3 font-semibold">Tutor</th>
-                  <th className="px-4 py-3 font-semibold">Offering</th>
-                  <th className="px-4 py-3 font-semibold">Classes booked</th>
-                  <th className="px-4 py-3 font-semibold">Mode</th>
-                  <th className="px-4 py-3 font-semibold">Scheduling status</th>
-                  <th className="px-4 py-3 font-semibold">Concluded status</th>
-                  <th className="px-4 py-3 font-semibold">Amount</th>
-                  <th className="px-4 py-3 font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((row) => (
-                  <tr key={row.orderItemId} className="border-b border-slate-50 text-[#143055]">
-                    <td className="px-4 py-3">
-                      {formatIstBookingDateLabel(new Date(row.bookedAt))}
-                    </td>
-                    <td className="px-4 py-3">{row.tutorName}</td>
-                    <td className="px-4 py-3">
-                      {row.offeringLabel}
-                      {row.isDemo ? (
-                        <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">
-                          Free demo
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3">{row.classCount}</td>
-                    <td className="px-4 py-3">{tutorBookingModeLabel(row.deliveryMode)}</td>
-                    <td className="px-4 py-3">{tutorBookingSchedulingLabel(row)}</td>
-                    <td className="px-4 py-3">{tutorBookingConclusionLabel(row)}</td>
-                    <td className="px-4 py-3">{formatTutorBookingAmount(row.linePaidInr)}</td>
-                    <td className="px-4 py-3">
-                      {row.canCancel && onCancelBooking ? (
-                        <button
-                          type="button"
-                          className="text-sm font-semibold text-[#2563eb]"
-                          onClick={() =>
-                            onCancelBooking({
-                              orderItemId: row.orderItemId,
-                              tutorName: row.tutorName,
-                              offeringLabel: row.offeringLabel,
-                              classCount: row.classCount,
-                              scheduledCount: row.scheduledCount,
-                              unscheduledCount: row.unscheduledCount,
-                              concludedCount: row.concludedCount,
-                              cancellableCount: row.cancellableCount,
-                            })
-                          }
-                        >
-                          Cancel classes
-                        </button>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
-      </div>
+      {loading && items.length === 0 ? (
+        <p className="text-sm text-slate-500">Loading bookings…</p>
+      ) : !error && items.length === 0 ? (
+        <p className="text-sm text-slate-500">No bookings found.</p>
+      ) : (
+        <ul className="space-y-3">
+          {items.map((row) => (
+            <li
+              key={row.orderItemId}
+              className="rounded-[18px] border-l-[5px] border-l-[#2563eb] bg-white px-4 py-4 shadow-sm"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-extrabold text-[#2563eb]">
+                  {formatIstBookingDateLabel(new Date(row.bookedAt))}
+                </p>
+                <p className="text-[22px] font-extrabold text-emerald-600">
+                  {formatTutorBookingAmount(row.linePaidInr)}
+                </p>
+              </div>
+              <p className="mt-1.5 text-[17px] font-extrabold text-[#0f2744]">
+                Tutor · {row.tutorName}
+              </p>
+              <p className="mt-1 text-[15px] font-bold text-[#1d4ed8]">
+                {row.offeringLabel}
+                {row.isDemo ? (
+                  <span className="ml-2 font-semibold text-slate-600">· Free demo</span>
+                ) : null}
+              </p>
+              <p className="mt-2 text-sm font-semibold text-slate-600">
+                Total classes booked:{' '}
+                <span className="font-extrabold text-[#143055]">{row.classCount}</span>
+              </p>
+              <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm font-semibold text-slate-600">
+                {row.scheduledCount > 0 && onViewScheduledClasses ? (
+                  <button
+                    type="button"
+                    className="text-left text-slate-600"
+                    onClick={() =>
+                      onViewScheduledClasses({
+                        orderItemId: row.orderItemId,
+                        tutorName: row.tutorName,
+                        offeringLabel: row.offeringLabel,
+                      })
+                    }
+                  >
+                    Scheduled:{' '}
+                    <span className="font-extrabold text-[#2563eb] underline">
+                      {row.scheduledCount}
+                    </span>
+                  </button>
+                ) : (
+                  <p>
+                    Scheduled:{' '}
+                    <span className="font-extrabold text-[#143055]">{row.scheduledCount}</span>
+                  </p>
+                )}
+                <p>
+                  Concluded:{' '}
+                  <span className="font-extrabold text-[#143055]">{row.concludedCount}</span>
+                </p>
+              </div>
+              {(row.unscheduledCount > 0 && onScheduleBooking) ||
+              (row.canCancel && onCancelBooking) ? (
+                <div className="mt-2 flex flex-wrap items-center gap-4">
+                  {row.unscheduledCount > 0 && onScheduleBooking ? (
+                    <button
+                      type="button"
+                      className="text-sm font-extrabold text-[#2563eb]"
+                      onClick={() => onScheduleBooking(row.orderItemId)}
+                    >
+                      Schedule class
+                    </button>
+                  ) : null}
+                  {row.canCancel && onCancelBooking ? (
+                    <button
+                      type="button"
+                      className="text-sm font-extrabold text-red-600"
+                      onClick={() => onCancelBooking(bookingCancelPayload(row))}
+                    >
+                      Cancel classes
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
 
       {result && result.totalPages > 1 ? (
         <div className="flex items-center justify-between text-sm">

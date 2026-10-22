@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@apollo/client';
-import { MY_CLASS_CREDITS, STUDENT_BOOKED_CLASS_SESSIONS } from '@tutorix/shared-graphql';
+import { useMutation, useQuery } from '@apollo/client';
+import {
+  MY_CLASS_CREDITS,
+  STUDENT_BOOKED_CLASS_SESSIONS,
+  STUDENT_CLASS_BOOKINGS,
+  UNSCHEDULE_CLASS_CREDIT,
+} from '@tutorix/shared-graphql';
 import type { StudentClassCredit } from '../student-cart/StudentClassCreditsPage';
 import {
   canChangeScheduledClass,
@@ -10,14 +15,18 @@ import {
   istDayKey,
   istHomeScheduleDays,
   scheduledClassHasEnded,
+  isClassCreditCancellable,
 } from '@tutorix/shared-utils';
 import { useStudentHasRebookTutors } from '../student-rebook/useStudentHasRebookTutors';
+
+const HOME_BOOKING_HISTORY_INPUT = { page: 1, pageSize: 1 };
 
 type StudentHomePageProps = {
   onOpenTutorSearch: () => void;
   onOpenRebook?: () => void;
   onScheduleCredits?: () => void;
   onRescheduleCredit?: (credit: StudentClassCredit) => void;
+  onCancelScheduledClass?: (credit: StudentClassCredit) => void;
   onOpenConcludedClasses?: () => void;
   onOpenBookingHistory?: () => void;
   onJoinOnlineClass?: (sessionId: string) => void;
@@ -100,6 +109,7 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
   onOpenRebook,
   onScheduleCredits,
   onRescheduleCredit,
+  onCancelScheduledClass,
   onOpenConcludedClasses,
   onOpenBookingHistory,
   onJoinOnlineClass,
@@ -112,18 +122,45 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
   const [now, setNow] = useState(() => new Date());
   const classScrollerRef = useRef<HTMLUListElement>(null);
   const selected = weekDays.find((d) => d.key === selectedKey) ?? weekDays[0];
-
-  const { data } = useQuery(STUDENT_BOOKED_CLASS_SESSIONS, {
-    variables: {
+  const scheduleQueryVariables = useMemo(
+    () => ({
       from: scheduleRange.from.toISOString(),
       to: scheduleRange.to.toISOString(),
-    },
+    }),
+    [scheduleRange.from, scheduleRange.to],
+  );
+
+  const [unscheduleClass] = useMutation(UNSCHEDULE_CLASS_CREDIT, {
+    refetchQueries: [
+      { query: STUDENT_BOOKED_CLASS_SESSIONS, variables: scheduleQueryVariables },
+      { query: MY_CLASS_CREDITS },
+      'StudentClassBookings',
+    ],
+  });
+
+  const confirmUnschedule = (credit: StudentClassCredit) => {
+    const ok = window.confirm(
+      'Unschedule this class? This frees the tutor and your slot. The class moves back to unscheduled and you can pick a new time later.',
+    );
+    if (!ok) {
+      return;
+    }
+    void unscheduleClass({ variables: { creditId: String(credit.id) } });
+  };
+
+  const { data } = useQuery(STUDENT_BOOKED_CLASS_SESSIONS, {
+    variables: scheduleQueryVariables,
     fetchPolicy: 'network-only',
   });
   const showRebook = useStudentHasRebookTutors();
   const { data: creditData } = useQuery(MY_CLASS_CREDITS, {
     fetchPolicy: 'cache-and-network',
   });
+  const { data: bookingHistoryData } = useQuery(STUDENT_CLASS_BOOKINGS, {
+    variables: { input: HOME_BOOKING_HISTORY_INPUT },
+    fetchPolicy: 'cache-and-network',
+  });
+  const totalBookings = bookingHistoryData?.studentClassBookings?.totalCount ?? 0;
   const booked = (data?.studentBookedClassSessions ?? []) as BookedClass[];
   const credits = (creditData?.myClassCredits ?? []) as StudentClassCredit[];
   const unscheduledCount = credits.filter((row) => row.status === 'unscheduled').length;
@@ -292,10 +329,24 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
                   const credit = credits.find(
                     (item) => String(item.enrollmentId) === String(row.enrollmentId),
                   );
+                  const canChange = canChangeScheduledClass(row.startsAt, row.deliveryMode);
                   const canReschedule =
-                    Boolean(onRescheduleCredit) &&
-                    Boolean(credit) &&
-                    canChangeScheduledClass(row.startsAt, row.deliveryMode);
+                    Boolean(onRescheduleCredit) && Boolean(credit) && canChange;
+                  const canUnschedule = Boolean(credit) && canChange;
+                  const canCancelClass =
+                    Boolean(onCancelScheduledClass) &&
+                    credit != null &&
+                    isClassCreditCancellable(
+                      {
+                        id: credit.id,
+                        status: credit.status,
+                        isDemo: credit.isDemo,
+                        startsAt: row.startsAt,
+                        durationMinutes: row.durationMinutes,
+                        deliveryMode: row.deliveryMode,
+                      },
+                      now,
+                    );
                   const canJoin =
                     Boolean(onJoinOnlineClass) &&
                     Boolean(row.sessionId) &&
@@ -323,15 +374,35 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
                           Join class
                         </button>
                       ) : null}
-                      {canReschedule && credit && onRescheduleCredit ? (
-                        <button
-                          type="button"
-                          onClick={() => onRescheduleCredit(credit)}
-                          className="mt-3 text-sm font-semibold text-[#2563eb]"
-                        >
-                          Reschedule
-                        </button>
-                      ) : null}
+                      <div className="mt-3 flex flex-wrap items-center gap-3">
+                        {canReschedule && credit && onRescheduleCredit ? (
+                          <button
+                            type="button"
+                            onClick={() => onRescheduleCredit(credit)}
+                            className="text-sm font-extrabold text-[#2563eb]"
+                          >
+                            Reschedule
+                          </button>
+                        ) : null}
+                        {canUnschedule && credit ? (
+                          <button
+                            type="button"
+                            onClick={() => confirmUnschedule(credit)}
+                            className="text-sm font-extrabold text-red-600"
+                          >
+                            Unschedule
+                          </button>
+                        ) : null}
+                        {canCancelClass && credit && onCancelScheduledClass ? (
+                          <button
+                            type="button"
+                            onClick={() => onCancelScheduledClass(credit)}
+                            className="text-sm font-extrabold text-red-700"
+                          >
+                            Cancel class
+                          </button>
+                        ) : null}
+                      </div>
                     </li>
                   );
                 })}
@@ -378,15 +449,30 @@ export const StudentHomePage: React.FC<StudentHomePageProps> = ({
       </section>
 
       <section className="rounded-[20px] bg-white p-5">
-        <h2 className="text-base font-extrabold text-[#143055]">Booking history</h2>
-        <button
-          type="button"
-          onClick={onOpenBookingHistory}
-          aria-label="See booking history"
-          className="mt-3 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
-        >
-          See details
-        </button>
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-extrabold text-[#143055]">Booking history</h2>
+            <button
+              type="button"
+              onClick={onOpenBookingHistory}
+              aria-label="See booking history"
+              className="mt-3 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+            >
+              See details
+            </button>
+          </div>
+          <div
+            className="flex min-w-[96px] flex-col items-center justify-center rounded-[18px] border border-blue-200 bg-blue-50 px-3.5 py-3"
+            aria-label={`${totalBookings} bookings so far`}
+          >
+            <span className="text-[40px] font-extrabold leading-none tabular-nums text-[#1d4ed8]">
+              {totalBookings}
+            </span>
+            <span className="mt-0.5 text-center text-[11px] font-extrabold uppercase tracking-wide text-[#2563eb]">
+              bookings
+            </span>
+          </div>
+        </div>
       </section>
 
       <section className="rounded-[20px] bg-white p-5">

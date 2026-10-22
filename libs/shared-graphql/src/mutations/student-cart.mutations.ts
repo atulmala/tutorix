@@ -150,3 +150,11 @@ export const RESCHEDULE_CLASS_CREDIT = gql`
     }
   }
 `;
+
+export const UNSCHEDULE_CLASS_CREDIT = gql`
+  mutation UnscheduleClassCredit($creditId: ID!) {
+    unscheduleClassCredit(creditId: $creditId) {
+      creditId
+    }
+  }
+`;

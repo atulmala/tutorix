@@ -141,6 +141,7 @@ export class ClassCancellationRefundPayoutService {
       studentUserId,
       request.amountInr,
       requestId,
+      request.orderId ?? undefined,
     );
 
     await this.dataSource.transaction(async (manager) => {
@@ -235,6 +236,7 @@ export class ClassCancellationRefundPayoutService {
     userId: number,
     amountInr: number,
     refundRequestId: number,
+    preferredOrderId?: number,
   ): Promise<
     Array<{
       paymentAttemptId: number;
@@ -243,15 +245,25 @@ export class ClassCancellationRefundPayoutService {
       amountInr: number;
     }>
   > {
-    const attempts = await this.paymentAttemptRepo
+    const rawAttempts = await this.paymentAttemptRepo
       .createQueryBuilder('attempt')
       .innerJoin('attempt.order', 'order')
       .where('order.user_id = :userId', { userId })
       .andWhere('attempt.status = :status', { status: PaymentAttemptStatusEnum.paid })
       .andWhere('attempt.gateway_payment_id IS NOT NULL')
       .andWhere('attempt.deleted = false')
-      .orderBy('attempt.id', 'DESC')
       .getMany();
+
+    const attempts = [...rawAttempts].sort((left, right) => {
+      if (preferredOrderId != null) {
+        const leftPref = left.orderId === preferredOrderId ? 1 : 0;
+        const rightPref = right.orderId === preferredOrderId ? 1 : 0;
+        if (leftPref !== rightPref) {
+          return rightPref - leftPref;
+        }
+      }
+      return right.id - left.id;
+    });
 
     const refundedRows = await this.gatewayRefundRepo
       .createQueryBuilder('refund')
@@ -267,7 +279,7 @@ export class ClassCancellationRefundPayoutService {
 
     const slices = allocateGatewayRefund(
       amountInr,
-      attempts.map((attempt) => ({
+      attempts.map((attempt: PaymentAttemptEntity) => ({
         paymentAttemptId: attempt.id,
         gatewayPaymentId: attempt.gatewayPaymentId ?? '',
         amountInr: attempt.amountInr,
@@ -291,6 +303,7 @@ export class ClassCancellationRefundPayoutService {
         const gatewayRefundId = await this.razorpayGateway.refundPayment(
           slice.gatewayPaymentId,
           slice.amountInr,
+          { receipt: `cc-ref-${refundRequestId}` },
         );
         completed.push({ ...slice, gatewayRefundId });
       } catch (error) {

@@ -78,17 +78,18 @@ describe('StudentBookingHistoryPage', () => {
     mockUseQuery.mockReset();
   });
 
-  it('renders booking columns with the tutor and a free demo', () => {
+  it('renders booking card details with tutor and demo label', () => {
     mockResult({ totalPages: 1, totalCount: 1 });
     render(<StudentBookingHistoryPage />);
 
-    expect(screen.getByRole('columnheader', { name: 'Tutor' })).toBeTruthy();
-    expect(screen.getByRole('columnheader', { name: 'Booking date' })).toBeTruthy();
-    expect(screen.getAllByText('Grace Hopper').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('CBSE | Economics | Classes 11').length).toBeGreaterThan(0);
-    expect(screen.getByText('Free demo')).toBeTruthy();
-    expect(screen.getByText('2 of 5 scheduled')).toBeTruthy();
-    expect(screen.getByText('2 of 5 concluded')).toBeTruthy();
+    expect(screen.getAllByText(/Grace Hopper/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/CBSE \| Economics \| Classes 11/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Free demo/)).toBeTruthy();
+    expect(screen.getByText(/Total classes booked:/)).toBeTruthy();
+    expect(screen.getByText('5')).toBeTruthy();
+    expect(screen.getByText(/Scheduled:/)).toBeTruthy();
+    expect(screen.getByText('2')).toBeTruthy();
+    expect(screen.getByText(/Concluded:/)).toBeTruthy();
     expect(screen.getByText('₹0')).toBeTruthy();
   });
 
@@ -123,6 +124,26 @@ describe('StudentBookingHistoryPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     const lastCall = mockUseQuery.mock.calls.at(-1);
     expect(lastCall?.[1].variables.input.page).toBe(2);
+  });
+
+  it('shows schedule and cancel actions when applicable', () => {
+    const onScheduleBooking = jest.fn();
+    const onCancelBooking = jest.fn();
+    mockResult({
+      items: [{ ...row, canCancel: true, cancellableCount: 2 }],
+      totalPages: 1,
+      totalCount: 1,
+    });
+    render(
+      <StudentBookingHistoryPage
+        onScheduleBooking={onScheduleBooking}
+        onCancelBooking={onCancelBooking}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Schedule class' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel classes' }));
+    expect(onScheduleBooking).toHaveBeenCalledWith(15);
+    expect(onCancelBooking).toHaveBeenCalled();
   });
 
   it('shows an empty state and an error', () => {

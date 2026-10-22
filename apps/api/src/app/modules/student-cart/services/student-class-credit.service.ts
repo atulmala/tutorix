@@ -53,6 +53,7 @@ import {
 import {
   ScheduleClassCreditResult,
   StudentClassCreditDto,
+  UnscheduleClassCreditResult,
 } from '../dto/student-cart.dto';
 import { StudentCartItemEntity } from '../entities/student-cart-item.entity';
 import { StudentClassCreditEntity } from '../entities/student-class-credit.entity';
@@ -185,6 +186,59 @@ export class StudentClassCreditService {
     tutorCalendarIdInput: string | number,
   ): Promise<ScheduleClassCreditResult> {
     return this.assignSlot(user, asId(creditIdInput), asId(tutorCalendarIdInput), true);
+  }
+
+  async unschedule(
+    user: User,
+    creditIdInput: string | number,
+  ): Promise<UnscheduleClassCreditResult> {
+    const student = await this.requireStudent(user);
+    const creditId = asId(creditIdInput);
+    const credit = await this.creditRepo.findOne({
+      where: { id: creditId, studentId: student.id, deleted: false },
+      relations: [
+        'enrollment',
+        'enrollment.session',
+        'enrollment.session.tutorCalendar',
+      ],
+    });
+    if (!credit) {
+      throw new NotFoundException('Class credit not found');
+    }
+    if (credit.status !== ClassCreditStatusEnum.scheduled || !credit.enrollmentId) {
+      throw new BadRequestException('This class is not scheduled');
+    }
+    if (
+      !canChangeScheduledClass(
+        credit.enrollment?.session?.tutorCalendar?.startsAt,
+        credit.deliveryMode,
+      )
+    ) {
+      throw new BadRequestException(classChangeDeadlineMessage(credit.deliveryMode));
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      const locked = await manager
+        .getRepository(StudentClassCreditEntity)
+        .createQueryBuilder('credit')
+        .setLock('pessimistic_write')
+        .where('credit.id = :id', { id: creditId })
+        .andWhere('credit.student_id = :studentId', { studentId: student.id })
+        .andWhere('credit.deleted = false')
+        .getOne();
+      if (!locked || locked.status !== ClassCreditStatusEnum.scheduled) {
+        throw new BadRequestException('This class is not scheduled');
+      }
+      if (!locked.enrollmentId) {
+        throw new BadRequestException('This class is not scheduled');
+      }
+      await this.releaseEnrollment(manager, locked.enrollmentId, student.id);
+      locked.enrollmentId = null;
+      locked.status = ClassCreditStatusEnum.unscheduled;
+      await manager.getRepository(StudentClassCreditEntity).save(locked);
+    });
+
+    return { creditId };
   }
 
   private async assignSlot(
@@ -477,6 +531,7 @@ export class StudentClassCreditService {
     );
     return {
       id: row.id,
+      orderItemId: row.orderItemId,
       tutorId: row.tutorId,
       tutorOfferingId: row.tutorOfferingId,
       offeringId,

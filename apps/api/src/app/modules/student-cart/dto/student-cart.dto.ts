@@ -87,6 +87,9 @@ export class StudentClassCreditDto {
   id!: number;
 
   @Field(() => Int)
+  orderItemId!: number;
+
+  @Field(() => Int)
   tutorId!: number;
 
   @Field(() => Int)
@@ -205,4 +208,10 @@ export class ScheduleClassCreditResult {
 
   @Field(() => Int)
   sessionId!: number;
+}
+
+@ObjectType()
+export class UnscheduleClassCreditResult {
+  @Field(() => Int)
+  creditId!: number;
 }

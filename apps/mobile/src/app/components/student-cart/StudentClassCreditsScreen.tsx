@@ -10,6 +10,7 @@ import { groupUnscheduledClassCredits } from '@tutorix/shared-utils/student-clas
 
 export type StudentClassCredit = {
   id: number;
+  orderItemId: number;
   tutorId: number;
   offeringId: number;
   tutorOfferingId: number;

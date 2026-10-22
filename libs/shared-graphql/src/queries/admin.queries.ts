@@ -542,6 +542,16 @@ export const GET_ADMIN_CLASS_CANCELLATION_REFUND_DETAIL = gql`
       initiatedAt
       processedAt
       walletTransactionId
+      gatewayPayoutNote
+      gatewayRefunds {
+        id
+        paymentAttemptId
+        gatewayPaymentId
+        gatewayRefundId
+        amountInr
+        simulated
+        razorpayRefundStatus
+      }
     }
   }
 `;

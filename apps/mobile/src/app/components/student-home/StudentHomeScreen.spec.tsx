@@ -9,6 +9,7 @@ const mockUseQuery = jest.fn();
 jest.mock('@tutorix/shared-graphql/queries', () => ({
   STUDENT_BOOKED_CLASS_SESSIONS: { kind: 'booked' },
   MY_CLASS_CREDITS: { kind: 'credits' },
+  STUDENT_CLASS_BOOKINGS: { kind: 'bookings' },
   STUDENT_REBOOK_TUTORS: { kind: 'rebook' },
 }));
 
@@ -25,6 +26,12 @@ describe('StudentHomeScreen', () => {
       }
       if (query.kind === 'credits') {
         return { loading: false, data: { myClassCredits: [] } };
+      }
+      if (query.kind === 'bookings') {
+        return {
+          loading: false,
+          data: { studentClassBookings: { totalCount: 0, items: [] } },
+        };
       }
       return { loading: false, data: { studentBookedClassSessions: [] } };
     });

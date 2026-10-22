@@ -81,6 +81,20 @@ function formatDate(value: string): string {
   return new Date(value).toLocaleString();
 }
 
+function razorpayPaymentDashboardUrl(gatewayPaymentId: string): string {
+  return `https://dashboard.razorpay.com/app/payments/${encodeURIComponent(gatewayPaymentId)}`;
+}
+
+type GatewayRefundDetail = {
+  id: number;
+  paymentAttemptId: number;
+  gatewayPaymentId: string;
+  gatewayRefundId: string;
+  amountInr: number;
+  simulated: boolean;
+  razorpayRefundStatus?: string | null;
+};
+
 export function ClassCancellationsPage() {
   const [tab, setTab] = useState<Tab>('student');
   const [page, setPage] = useState(1);
@@ -352,6 +366,63 @@ export function ClassCancellationsPage() {
           <p>Credit IDs: {detail.creditIds.join(', ')}</p>
           {detail.failureReason ? (
             <p className="text-red-600">Failure: {detail.failureReason}</p>
+          ) : null}
+          {detail.walletTransactionId ? (
+            <p className="tabular-nums">Wallet transaction ID: {detail.walletTransactionId}</p>
+          ) : null}
+          {detail.gatewayPayoutNote ? (
+            <p className="text-muted text-xs">{detail.gatewayPayoutNote}</p>
+          ) : null}
+          {detail.gatewayRefunds?.length ? (
+            <div className="space-y-2">
+              <h3 className="font-semibold text-primary">Gateway refunds</h3>
+              <table className="min-w-full text-left text-xs border border-subtle rounded overflow-hidden">
+                <thead className="bg-gray-50 text-muted uppercase">
+                  <tr>
+                    <th className="px-2 py-2">Payment attempt</th>
+                    <th className="px-2 py-2">Gateway payment</th>
+                    <th className="px-2 py-2">Gateway refund</th>
+                    <th className="px-2 py-2">Amount</th>
+                    <th className="px-2 py-2">Razorpay status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(detail.gatewayRefunds as GatewayRefundDetail[]).map((row) => (
+                    <tr key={row.id} className="border-t border-subtle">
+                      <td className="px-2 py-2 tabular-nums">#{row.paymentAttemptId}</td>
+                      <td className="px-2 py-2 font-mono">
+                        {row.simulated ? (
+                          row.gatewayPaymentId
+                        ) : (
+                          <a
+                            href={razorpayPaymentDashboardUrl(row.gatewayPaymentId)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary underline"
+                          >
+                            {row.gatewayPaymentId}
+                          </a>
+                        )}
+                      </td>
+                      <td className="px-2 py-2 font-mono">
+                        {row.gatewayRefundId}
+                        {row.simulated ? (
+                          <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">
+                            Simulated
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="px-2 py-2 tabular-nums">{formatInr(row.amountInr)}</td>
+                      <td className="px-2 py-2 capitalize">
+                        {row.simulated
+                          ? '—'
+                          : row.razorpayRefundStatus ?? 'unknown'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : null}
         </div>
       ) : null}

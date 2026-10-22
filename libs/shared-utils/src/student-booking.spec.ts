@@ -7,7 +7,9 @@ import {
   bookingCalendarFromDraft,
   bookingDaysWithSlots,
   formatIstBookingChipLabel,
+  formatIstBookingDateDdMmYyyy,
   formatIstBookingDateLabel,
+  formatIstScheduledClassDateTime,
   formatIstBookingTimeRange,
   isStudentBookingDraftReady,
   lockedDeliveryMode,
@@ -80,6 +82,10 @@ describe('student booking helpers', () => {
   it('formats IST date and 1-hour range labels', () => {
     const startsAt = istSlotToUtc(2026, 8, 24, 17, 0);
     expect(formatIstBookingDateLabel(startsAt)).toBe('Thu 24 Sep');
+    expect(formatIstBookingDateDdMmYyyy(startsAt)).toBe('24/09/2026');
+    expect(formatIstScheduledClassDateTime(startsAt)).toBe(
+      '24/09/2026, 5:00 PM – 6:00 PM',
+    );
     expect(formatIstBookingTimeRange(startsAt)).toBe('5:00 PM – 6:00 PM');
     expect(formatIstBookingChipLabel(startsAt)).toBe('5:00 PM');
   });

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -24,6 +24,7 @@ export type ClassCancellationBooking = {
   scheduledCount: number;
   unscheduledCount: number;
   concludedCount: number;
+  cancelledCount: number;
   cancellableCount: number;
 };
 
@@ -33,8 +34,14 @@ function BookingClassSummary({ booking }: { booking: ClassCancellationBooking })
     { label: 'Scheduled classes', value: booking.scheduledCount },
     { label: 'Unscheduled classes', value: booking.unscheduledCount },
     { label: 'Concluded classes', value: booking.concludedCount },
-    { label: 'Classes available for cancellation', value: booking.cancellableCount },
   ];
+  if (booking.cancelledCount > 0) {
+    rows.push({ label: 'Cancelled classes', value: booking.cancelledCount });
+  }
+  rows.push({
+    label: 'Classes available for cancellation',
+    value: booking.cancellableCount,
+  });
   return (
     <View style={styles.summaryCard}>
       {rows.map((row) => (
@@ -62,24 +69,36 @@ export const StudentClassCancellationScreen: React.FC<StudentClassCancellationSc
   onComplete,
   onBack,
 }) => {
-  const canCancelAny = booking.cancellableCount > 0;
   const [cancelCount, setCancelCount] = useState('1');
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
-  const parsedCancelCount =
-    cancelCount.trim() === '' ? 0 : Math.floor(Number(cancelCount)) || 0;
-  const canSubmitCancel =
-    parsedCancelCount > 0 && parsedCancelCount <= booking.cancellableCount;
-
   const [loadPreview, { data: previewData, loading: previewLoading }] = useLazyQuery(
     PREVIEW_CLASS_BOOKING_CANCELLATION,
     { fetchPolicy: 'network-only' },
   );
 
-  const [cancelBooking, { loading: cancelling }] = useMutation(CANCEL_CLASS_BOOKING);
+  const [cancelBooking, { loading: cancelling }] = useMutation(CANCEL_CLASS_BOOKING, {
+    refetchQueries: ['StudentClassBookings'],
+  });
+
+  const preview = previewData?.previewClassBookingCancellation;
+
+  const displayBooking = useMemo(
+    () => ({
+      ...booking,
+      cancellableCount: preview?.cancellableCount ?? booking.cancellableCount,
+    }),
+    [booking, preview?.cancellableCount],
+  );
+
+  const parsedCancelCount =
+    cancelCount.trim() === '' ? 0 : Math.floor(Number(cancelCount)) || 0;
+  const canCancelAny = displayBooking.cancellableCount > 0;
+  const canSubmitCancel =
+    parsedCancelCount > 0 && parsedCancelCount <= displayBooking.cancellableCount;
 
   useEffect(() => {
     if (!canCancelAny || !canSubmitCancel) {
@@ -99,7 +118,6 @@ export const StudentClassCancellationScreen: React.FC<StudentClassCancellationSc
     loadPreview,
   ]);
 
-  const preview = previewData?.previewClassBookingCancellation;
   const refundInr = canSubmitCancel ? preview?.refundInr ?? 0 : 0;
   const breakdownText = canSubmitCancel ? preview?.breakdown?.breakdownText ?? '' : '';
 
@@ -163,7 +181,7 @@ export const StudentClassCancellationScreen: React.FC<StudentClassCancellationSc
       <Text style={styles.title}>Class cancellation</Text>
       <Text style={styles.meta}>{booking.offeringLabel} · {booking.tutorName}</Text>
 
-      <BookingClassSummary booking={booking} />
+      <BookingClassSummary booking={displayBooking} />
 
       {!canCancelAny ? (
         <Text style={styles.subtitle}>

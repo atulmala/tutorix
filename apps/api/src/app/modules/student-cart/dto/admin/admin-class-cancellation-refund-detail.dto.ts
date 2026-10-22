@@ -3,6 +3,7 @@ import { ClassCancellationRefundAiStatusEnum } from '../../enums/class-cancellat
 import { ClassCancellationRefundInitiatedByEnum } from '../../enums/class-cancellation-refund-initiated-by.enum';
 import { ClassCancellationRefundPayoutStatusEnum } from '../../enums/class-cancellation-refund-payout-status.enum';
 import { ClassCreditRefundMethodEnum } from '../../enums/class-credit-refund-method.enum';
+import { AdminClassCancellationGatewayRefund } from './admin-class-cancellation-gateway-refund.dto';
 
 @ObjectType()
 export class AdminClassCancellationRefundDetail {
@@ -77,4 +78,10 @@ export class AdminClassCancellationRefundDetail {
 
   @Field(() => Int, { nullable: true })
   walletTransactionId?: number | null;
+
+  @Field(() => [AdminClassCancellationGatewayRefund])
+  gatewayRefunds!: AdminClassCancellationGatewayRefund[];
+
+  @Field(() => String, { nullable: true })
+  gatewayPayoutNote?: string | null;
 }
