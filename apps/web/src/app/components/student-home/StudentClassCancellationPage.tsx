@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLazyQuery, useMutation } from '@apollo/client';
 import {
   CANCEL_CLASS_BOOKING,
@@ -14,6 +14,7 @@ export type ClassCancellationBooking = {
   scheduledCount: number;
   unscheduledCount: number;
   concludedCount: number;
+  cancelledCount: number;
   cancellableCount: number;
 };
 
@@ -23,8 +24,14 @@ function BookingClassSummary({ booking }: { booking: ClassCancellationBooking })
     { label: 'Scheduled classes', value: booking.scheduledCount },
     { label: 'Unscheduled classes', value: booking.unscheduledCount },
     { label: 'Concluded classes', value: booking.concludedCount },
-    { label: 'Classes available for cancellation', value: booking.cancellableCount },
   ];
+  if (booking.cancelledCount > 0) {
+    rows.push({ label: 'Cancelled classes', value: booking.cancelledCount });
+  }
+  rows.push({
+    label: 'Classes available for cancellation',
+    value: booking.cancellableCount,
+  });
   return (
     <dl className="space-y-2 rounded-xl border border-slate-200 bg-white p-4 text-sm">
       {rows.map((row) => (
@@ -48,17 +55,10 @@ export const StudentClassCancellationPage: React.FC<StudentClassCancellationPage
   onComplete,
   onBack,
 }) => {
-  const canCancelAny = booking.cancellableCount > 0;
   const [cancelCountInput, setCancelCountInput] = useState('1');
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [showBreakdown, setShowBreakdown] = useState(false);
-
-  const parsedCancelCount =
-    cancelCountInput.trim() === ''
-      ? 0
-      : Math.floor(Number(cancelCountInput)) || 0;
-  const canSubmitCancel =
-    parsedCancelCount > 0 && parsedCancelCount <= booking.cancellableCount;
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [loadPreview, { data: previewData, loading: previewLoading }] = useLazyQuery(
     PREVIEW_CLASS_BOOKING_CANCELLATION,
@@ -66,8 +66,26 @@ export const StudentClassCancellationPage: React.FC<StudentClassCancellationPage
   );
 
   const [cancelBooking, { loading: cancelling }] = useMutation(CANCEL_CLASS_BOOKING, {
-    onCompleted: () => onComplete(),
+    refetchQueries: ['StudentClassBookings'],
   });
+
+  const preview = previewData?.previewClassBookingCancellation;
+
+  const displayBooking = useMemo(
+    () => ({
+      ...booking,
+      cancellableCount: preview?.cancellableCount ?? booking.cancellableCount,
+    }),
+    [booking, preview?.cancellableCount],
+  );
+
+  const parsedCancelCount =
+    cancelCountInput.trim() === ''
+      ? 0
+      : Math.floor(Number(cancelCountInput)) || 0;
+  const canCancelAny = displayBooking.cancellableCount > 0;
+  const canSubmitCancel =
+    parsedCancelCount > 0 && parsedCancelCount <= displayBooking.cancellableCount;
 
   useEffect(() => {
     if (!canCancelAny || !canSubmitCancel) {
@@ -81,14 +99,12 @@ export const StudentClassCancellationPage: React.FC<StudentClassCancellationPage
     });
   }, [
     booking.orderItemId,
-    booking.cancellableCount,
+    displayBooking.cancellableCount,
     parsedCancelCount,
     canCancelAny,
     canSubmitCancel,
     loadPreview,
   ]);
-
-  const preview = previewData?.previewClassBookingCancellation;
   const refundInr = canSubmitCancel ? preview?.refundInr ?? 0 : 0;
   const breakdownText = canSubmitCancel ? preview?.breakdown?.breakdownText ?? '' : '';
 
@@ -103,12 +119,42 @@ export const StudentClassCancellationPage: React.FC<StudentClassCancellationPage
         cancelCount: parsedCancelCount,
         refundMethod,
       },
-    }).catch((failure: unknown) => {
-      setCancelError(
-        failure instanceof Error ? failure.message : 'Could not cancel these classes.',
-      );
-    });
+    })
+      .then((result) => {
+        const amount = result.data?.cancelClassBooking?.amountInr ?? refundInr;
+        if (refundMethod === 'wallet') {
+          setSuccessMessage(
+            `Your classes were cancelled and a refund of ${formatInr(amount)} has been initiated. It will be credited to your wallet after processing.`,
+          );
+        } else {
+          setSuccessMessage(
+            `Your classes were cancelled and a cash refund of ${formatInr(amount)} has been initiated. It will be processed within 2 working days.`,
+          );
+        }
+      })
+      .catch((failure: unknown) => {
+        setCancelError(
+          failure instanceof Error ? failure.message : 'Could not cancel these classes.',
+        );
+      });
   };
+
+  if (successMessage) {
+    return (
+      <div className="w-full max-w-xl space-y-4">
+        <h1 className="text-[26px] font-extrabold text-[#143055]">Cancellation confirmed</h1>
+        <p className="text-sm text-slate-700">{successMessage}</p>
+        <p className="text-xs text-slate-500">We will email you when your refund is complete.</p>
+        <button
+          type="button"
+          onClick={onComplete}
+          className="rounded-xl bg-[#2563eb] px-3 py-2 text-sm font-semibold text-white"
+        >
+          Done
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-xl space-y-4">
@@ -117,7 +163,7 @@ export const StudentClassCancellationPage: React.FC<StudentClassCancellationPage
         {booking.offeringLabel} · {booking.tutorName}
       </p>
 
-      <BookingClassSummary booking={booking} />
+      <BookingClassSummary booking={displayBooking} />
 
       {!canCancelAny ? (
         <p className="text-sm text-slate-600">
@@ -132,7 +178,7 @@ export const StudentClassCancellationPage: React.FC<StudentClassCancellationPage
         <input
           type="number"
           min={0}
-          max={booking.cancellableCount}
+          max={displayBooking.cancellableCount}
           value={cancelCountInput}
           onChange={(event) => {
             const raw = event.target.value;
@@ -145,7 +191,7 @@ export const StudentClassCancellationPage: React.FC<StudentClassCancellationPage
               return;
             }
             setCancelCountInput(
-              String(Math.min(booking.cancellableCount, Math.floor(next))),
+              String(Math.min(displayBooking.cancellableCount, Math.floor(next))),
             );
           }}
           className="mt-1 w-full max-w-[8rem] rounded-xl border border-slate-200 px-3 py-2"
@@ -187,7 +233,7 @@ export const StudentClassCancellationPage: React.FC<StudentClassCancellationPage
           onClick={() => confirmCancel('wallet')}
           className="rounded-xl bg-[#2563eb] px-3 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
         >
-          {cancelling ? 'Cancelling…' : `Add ${formatInr(refundInr)} to wallet`}
+          {cancelling ? 'Cancelling…' : `Cancel and refund ${formatInr(refundInr)} to wallet`}
         </button>
         <button
           type="button"
@@ -198,7 +244,8 @@ export const StudentClassCancellationPage: React.FC<StudentClassCancellationPage
           Cash refund {formatInr(refundInr)}
         </button>
         <p className="text-xs text-slate-500">
-          Cash refunds are credited to your payment method within 3 working days.
+          Cash refunds are initiated immediately and credited to your payment method within 2
+          working days after processing.
         </p>
       </div>
       </>

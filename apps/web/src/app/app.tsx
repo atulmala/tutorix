@@ -1,6 +1,13 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { useLazyQuery, useMutation } from '@apollo/client';
-import { GET_MY_STUDENT_PROFILE, GET_MY_TUTOR_DETAIL, GET_MY_TUTOR_PROFILE, HEARTBEAT } from '@tutorix/shared-graphql';
+import { useApolloClient, useLazyQuery, useMutation } from '@apollo/client';
+import {
+  GET_MY_STUDENT_PROFILE,
+  GET_MY_TUTOR_DETAIL,
+  GET_MY_TUTOR_PROFILE,
+  HEARTBEAT,
+  MY_CLASS_CREDITS,
+  STUDENT_CLASS_BOOKINGS,
+} from '@tutorix/shared-graphql';
 import { HomeScreen } from './components/HomeScreen';
 import { AudienceDetailPage } from './components/home/AudienceDetailPage';
 import { studentDetailCopy, tutorDetailCopy } from './components/home/audience-detail-copy';
@@ -24,6 +31,10 @@ import { StudentOnboarding } from './components/student-onboarding';
 import { StudentHomePage } from './components/student-home';
 import { OnlineClassPage } from './components/online-class/OnlineClassPage';
 import { StudentBookingHistoryPage } from './components/student-home/StudentBookingHistoryPage';
+import {
+  StudentBookingScheduledClassesPage,
+  type BookingScheduledClassesContext,
+} from './components/student-home/StudentBookingScheduledClassesPage';
 import {
   ClassCancellationBooking,
   StudentClassCancellationPage,
@@ -63,6 +74,7 @@ import {
 } from '@tutorix/shared-utils';
 
 function AppContent() {
+  const apolloClient = useApolloClient();
   const { user: currentUser, refreshUser, logout } = useWebAuth();
   const [currentView, setCurrentViewInternal] = useState<WebView>('home');
   const [onlineClassSession, setOnlineClassSession] = useState<{
@@ -84,6 +96,16 @@ function AppContent() {
   } | null>(null);
   const [rebookReturnView, setRebookReturnView] = useState<WebView>('student-home');
   const [scheduleCredits, setScheduleCredits] = useState<StudentClassCredit[] | null>(null);
+  const [scheduleReturnView, setScheduleReturnView] = useState<
+    | 'student-class-credits'
+    | 'student-booking-history'
+    | 'student-booking-scheduled-classes'
+    | 'student-home'
+  >('student-class-credits');
+  const [cancellationReturnView, setCancellationReturnView] =
+    useState<WebView>('student-booking-history');
+  const [bookingScheduledContext, setBookingScheduledContext] =
+    useState<BookingScheduledClassesContext | null>(null);
   const [classCancellationBooking, setClassCancellationBooking] =
     useState<ClassCancellationBooking | null>(null);
   const [resumeUserId, setResumeUserId] = useState<number | undefined>(undefined);
@@ -131,6 +153,64 @@ function AppContent() {
   const setCurrentView = useCallback((view: WebView) => {
     setCurrentViewInternal(view);
   }, []);
+
+  const startScheduleForBooking = useCallback(
+    async (orderItemId: number) => {
+      try {
+        const { data } = await apolloClient.query({
+          query: MY_CLASS_CREDITS,
+          fetchPolicy: 'network-only',
+        });
+        const credits = (data?.myClassCredits ?? []) as StudentClassCredit[];
+        const pack = credits.filter(
+          (row) => row.orderItemId === orderItemId && row.status === 'unscheduled',
+        );
+        if (pack.length === 0) {
+          return;
+        }
+        setScheduleCredits(pack);
+        setScheduleReturnView('student-booking-history');
+        setCurrentView('student-class-schedule');
+      } catch {
+        // Booking history stays visible if credits cannot be loaded.
+      }
+    },
+    [apolloClient, setCurrentView],
+  );
+
+  const openCancellationForCredit = useCallback(
+    async (credit: StudentClassCredit) => {
+      try {
+        const { data } = await apolloClient.query({
+          query: STUDENT_CLASS_BOOKINGS,
+          variables: { input: { page: 1, pageSize: 100 } },
+          fetchPolicy: 'network-only',
+        });
+        const row = data?.studentClassBookings?.items?.find(
+          (item: { orderItemId: number }) => item.orderItemId === credit.orderItemId,
+        );
+        if (!row?.canCancel) {
+          return;
+        }
+        setClassCancellationBooking({
+          orderItemId: row.orderItemId,
+          tutorName: row.tutorName,
+          offeringLabel: row.offeringLabel,
+          classCount: row.classCount,
+          scheduledCount: row.scheduledCount,
+          unscheduledCount: row.unscheduledCount,
+          concludedCount: row.concludedCount,
+          cancelledCount: row.cancelledCount,
+          cancellableCount: row.cancellableCount,
+        });
+        setCancellationReturnView('student-home');
+        setCurrentView('student-class-cancellation');
+      } catch {
+        // Stay on home if booking details cannot be loaded.
+      }
+    },
+    [apolloClient, setCurrentView],
+  );
 
   useLayoutEffect(() => {
     if (typeof window === 'undefined') {
@@ -571,9 +651,11 @@ function AppContent() {
             }}
             onScheduleCredits={() => setCurrentView('student-class-credits')}
             onRescheduleCredit={(credit) => {
+              setScheduleReturnView('student-home');
               setScheduleCredits([credit]);
               setCurrentView('student-class-schedule');
             }}
+            onCancelScheduledClass={(credit) => void openCancellationForCredit(credit)}
             onOpenConcludedClasses={() => setCurrentView('student-concluded-classes')}
             onOpenBookingHistory={() => setCurrentView('student-booking-history')}
             onJoinOnlineClass={(sessionId) => {
@@ -684,8 +766,42 @@ function AppContent() {
         <main className="mx-auto min-h-screen max-w-6xl px-4 py-8">
           <StudentBookingHistoryPage
             onCancelBooking={(booking) => {
+              setCancellationReturnView('student-booking-history');
               setClassCancellationBooking(booking);
               setCurrentView('student-class-cancellation');
+            }}
+            onScheduleBooking={(orderItemId) => void startScheduleForBooking(orderItemId)}
+            onViewScheduledClasses={(booking) => {
+              setBookingScheduledContext(booking);
+              setCurrentView('student-booking-scheduled-classes');
+            }}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'student-booking-scheduled-classes' && bookingScheduledContext) {
+    return (
+      <div className="min-h-screen bg-[#e8f4ff] text-primary">
+        <AppHeader
+          title="Scheduled classes"
+          onLogout={handleLogout}
+          onBack={() => {
+            setBookingScheduledContext(null);
+            setCurrentView('student-booking-history');
+          }}
+          onProfilePress={() => setCurrentView('student-profile')}
+          onOpenWallet={() => handleOpenWallet('student-booking-history')}
+          onOpenCart={openStudentCart}
+        />
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-8">
+          <StudentBookingScheduledClassesPage
+            booking={bookingScheduledContext}
+            onReschedule={(credit) => {
+              setScheduleReturnView('student-booking-scheduled-classes');
+              setScheduleCredits([credit]);
+              setCurrentView('student-class-schedule');
             }}
           />
         </main>
@@ -696,7 +812,7 @@ function AppContent() {
   if (currentView === 'student-class-cancellation' && classCancellationBooking) {
     const leaveClassCancellation = () => {
       setClassCancellationBooking(null);
-      setCurrentView('student-booking-history');
+      setCurrentView(cancellationReturnView);
     };
     return (
       <div className="min-h-screen bg-[#e8f4ff] text-primary">
@@ -751,6 +867,7 @@ function AppContent() {
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
           <StudentClassCreditsPage
             onSchedule={(credits) => {
+              setScheduleReturnView('student-class-credits');
               setScheduleCredits(credits);
               setCurrentView('student-class-schedule');
             }}
@@ -762,26 +879,44 @@ function AppContent() {
   }
 
   if (currentView === 'student-class-schedule' && scheduleCredits?.length) {
+    const leaveSchedule = () => {
+      setScheduleCredits(null);
+      if (scheduleReturnView === 'student-booking-history') {
+        setCurrentView('student-booking-history');
+      } else if (scheduleReturnView === 'student-booking-scheduled-classes') {
+        setCurrentView('student-booking-scheduled-classes');
+      } else if (scheduleReturnView === 'student-home') {
+        setCurrentView('student-home');
+      } else {
+        setCurrentView('student-class-credits');
+      }
+      setScheduleReturnView('student-class-credits');
+    };
+    const finishSchedule = () => {
+      setScheduleCredits(null);
+      if (scheduleReturnView === 'student-booking-history') {
+        setCurrentView('student-booking-history');
+      } else if (scheduleReturnView === 'student-booking-scheduled-classes') {
+        setCurrentView('student-booking-scheduled-classes');
+      } else {
+        setCurrentView('student-home');
+      }
+      setScheduleReturnView('student-class-credits');
+    };
     return (
       <div className="min-h-screen bg-subtle text-primary">
         <AppHeader
           title="Schedule class"
           onLogout={handleLogout}
-          onBack={() => setCurrentView('student-class-credits')}
+          onBack={leaveSchedule}
           onProfilePress={() => setCurrentView('student-profile')}
           onOpenWallet={() => handleOpenWallet('student-home')}
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
           <StudentClassSchedulePage
             credits={scheduleCredits}
-            onScheduled={() => {
-              setScheduleCredits(null);
-              setCurrentView('student-home');
-            }}
-            onScheduleLater={() => {
-              setScheduleCredits(null);
-              setCurrentView('student-home');
-            }}
+            onScheduled={finishSchedule}
+            onScheduleLater={finishSchedule}
           />
         </main>
       </div>

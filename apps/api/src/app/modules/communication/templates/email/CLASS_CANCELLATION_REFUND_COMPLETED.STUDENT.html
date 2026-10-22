@@ -1,0 +1,14 @@
+---
+subject: Your class cancellation refund is complete
+text: Hi {{studentName}}, your refund of {{amountRefunded}} for {{offeringName}} has been processed to {{refundMethodLabel}}. {{initiatedByLabel}} cancelled. Request {{requestId}}.
+---
+<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial, Helvetica, sans-serif; color: #111827; line-height: 1.5;">
+    <p>Hi {{studentName}},</p>
+    <p>Your refund of <strong>{{amountRefunded}}</strong> for <strong>{{offeringName}}</strong> has been processed to <strong>{{refundMethodLabel}}</strong>.</p>
+    <p>{{initiatedByLabel}} initiated this cancellation.</p>
+    <p><em>Tutor-initiated: {{isTutorInitiated}}</em></p>
+    <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">Reference: {{requestId}} — Tutorix</p>
+  </body>
+</html>

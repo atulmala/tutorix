@@ -75,6 +75,8 @@ export const CANCEL_CLASS_CREDITS = gql`
       amountInr
       refundMethod
       walletBalanceInr
+      refundRequestId
+      refundInitiated
     }
   }
 `;
@@ -115,6 +117,8 @@ export const CANCEL_CLASS_BOOKING = gql`
       amountInr
       refundMethod
       walletBalanceInr
+      refundRequestId
+      refundInitiated
     }
   }
 `;
@@ -143,6 +147,14 @@ export const RESCHEDULE_CLASS_CREDIT = gql`
       creditId
       enrollmentId
       sessionId
+    }
+  }
+`;
+
+export const UNSCHEDULE_CLASS_CREDIT = gql`
+  mutation UnscheduleClassCredit($creditId: ID!) {
+    unscheduleClassCredit(creditId: $creditId) {
+      creditId
     }
   }
 `;

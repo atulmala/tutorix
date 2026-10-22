@@ -16,6 +16,7 @@ import {
   StudentCartDto,
   StudentClassCreditDto,
   TutorScheduledClassActionResult,
+  UnscheduleClassCreditResult,
 } from '../dto/student-cart.dto';
 import { StudentClassBookingListResult } from '../dto/student-class-booking.dto';
 import { StudentClassBookingListInput } from '../dto/student-class-booking.dto';
@@ -189,6 +190,16 @@ export class StudentCartResolver {
     @Args('tutorCalendarId', { type: () => ID }) tutorCalendarId: number,
   ): Promise<ScheduleClassCreditResult> {
     return this.creditService.reschedule(user, creditId, tutorCalendarId);
+  }
+
+  @Mutation(() => UnscheduleClassCreditResult, { name: 'unscheduleClassCredit' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  unscheduleClassCredit(
+    @CurrentUser() user: User,
+    @Args('creditId', { type: () => ID }) creditId: number,
+  ): Promise<UnscheduleClassCreditResult> {
+    return this.creditService.unschedule(user, creditId);
   }
 
   @Mutation(() => CancelClassCreditsResult, { name: 'cancelClassCredits' })

@@ -146,7 +146,8 @@ export function pickCreditsForCancellation<T extends CancellableCreditPick>(
       const leftStart = left.startsAt ? new Date(left.startsAt).getTime() : 0;
       const rightStart = right.startsAt ? new Date(right.startsAt).getTime() : 0;
       if (leftStart !== rightStart) {
-        return leftStart - rightStart;
+        // Farthest (latest) scheduled slots first after unscheduled credits.
+        return rightStart - leftStart;
       }
       return left.id - right.id;
     });
@@ -188,6 +189,20 @@ export function fairLinePaidTotalInr(
     return 0;
   }
   return Math.round((originalPaid * fairPreTax) / originalPreTax);
+}
+
+/**
+ * Active classes on a booking line for refund math, including credits cancelled in the
+ * current operation (they may already be marked cancelled in the DB).
+ */
+export function activeClassCountForCancellationRefund(
+  lineCredits: Array<{ id: number; status: string }>,
+  cancellingCreditIds: number[],
+): number {
+  const cancelling = new Set(cancellingCreditIds);
+  return lineCredits.filter(
+    (row) => row.status !== 'cancelled' || cancelling.has(row.id),
+  ).length;
 }
 
 export function allocateRefundAcrossCredits(

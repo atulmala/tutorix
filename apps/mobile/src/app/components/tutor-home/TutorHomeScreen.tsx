@@ -10,7 +10,10 @@ import {
   GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
   GET_MY_TUTOR_DETAIL,
   TUTOR_BOOKED_CLASS_SESSIONS,
+  TUTOR_CLASS_BOOKINGS,
 } from '@tutorix/shared-graphql/queries';
+
+const HOME_BOOKING_HISTORY_INPUT = { page: 1, pageSize: 1 };
 import {
   canChangeScheduledClass,
   formatIstBookingTimeRange,
@@ -283,6 +286,11 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
     GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
     { fetchPolicy: 'cache-and-network' },
   );
+  const { data: bookingHistoryData } = useQuery(TUTOR_CLASS_BOOKINGS, {
+    variables: { input: HOME_BOOKING_HISTORY_INPUT },
+    fetchPolicy: 'cache-and-network',
+  });
+  const totalBookings = bookingHistoryData?.tutorClassBookings?.totalCount ?? 0;
 
   const showRateCardTask =
     !detailLoading &&
@@ -598,15 +606,26 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
       </View>
 
       <View style={styles.concludedCard}>
-        <Text style={styles.concludedTitle}>Booking history</Text>
-        <Pressable
-          style={styles.detailsButton}
-          onPress={onOpenBookingHistory}
-          accessibilityRole="button"
-          accessibilityLabel="See booking history"
-        >
-          <Text style={styles.detailsButtonText}>See details</Text>
-        </Pressable>
+        <View style={styles.bookingHistoryRow}>
+          <View style={styles.bookingHistoryLeft}>
+            <Text style={styles.concludedTitle}>Booking history</Text>
+            <Pressable
+              style={styles.detailsButton}
+              onPress={onOpenBookingHistory}
+              accessibilityRole="button"
+              accessibilityLabel="See booking history"
+            >
+              <Text style={styles.detailsButtonText}>See details</Text>
+            </Pressable>
+          </View>
+          <View
+            style={styles.bookingHistoryHighlight}
+            accessibilityLabel={`${totalBookings} bookings so far`}
+          >
+            <Text style={styles.bookingHistoryCount}>{totalBookings}</Text>
+            <Text style={styles.bookingHistoryCountLabel}>bookings</Text>
+          </View>
+        </View>
       </View>
 
       <View style={styles.concludedCard}>
@@ -787,6 +806,40 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   concludedTitle: { fontSize: 16, fontWeight: '800', color: '#143055' },
+  bookingHistoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 14,
+  },
+  bookingHistoryLeft: { flex: 1, minWidth: 0 },
+  bookingHistoryHighlight: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 96,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 18,
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  bookingHistoryCount: {
+    fontSize: 40,
+    fontWeight: '800',
+    color: '#1d4ed8',
+    lineHeight: 44,
+    fontVariant: ['tabular-nums'],
+  },
+  bookingHistoryCountLabel: {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#2563eb',
+    textAlign: 'center',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
   detailsButton: {
     alignSelf: 'flex-start',
     marginTop: 12,

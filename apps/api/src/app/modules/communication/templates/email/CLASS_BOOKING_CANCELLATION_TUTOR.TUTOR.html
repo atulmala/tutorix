@@ -1,0 +1,42 @@
+---
+subject: Classes cancelled on a booking with you
+text: Dear {{tutorName}}, {{studentName}} cancelled {{cancelledClassCount}} class(es) on booking {{bookingId}} (order {{orderNumber}}, booked {{bookingDate}}) for {{offeringName}}. Original classes: {{originalClassCount}}. Remaining: {{remainingClassCount}}.
+---
+<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial, Helvetica, sans-serif; color: #111827; line-height: 1.5;">
+    <p>Dear {{tutorName}},</p>
+    <p>
+      <strong>{{studentName}}</strong> cancelled
+      <strong>{{cancelledClassCount}}</strong> class(es) on a booking with you for
+      <strong>{{offeringName}}</strong>.
+    </p>
+    <table style="border-collapse: collapse; margin-top: 16px; font-size: 14px;">
+      <tr>
+        <td style="padding: 6px 16px 6px 0; color: #6b7280;">Booking ID</td>
+        <td style="padding: 6px 0; font-weight: 600;">{{bookingId}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 16px 6px 0; color: #6b7280;">Order number</td>
+        <td style="padding: 6px 0; font-weight: 600;">{{orderNumber}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 16px 6px 0; color: #6b7280;">Booking date</td>
+        <td style="padding: 6px 0; font-weight: 600;">{{bookingDate}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 16px 6px 0; color: #6b7280;">Original classes</td>
+        <td style="padding: 6px 0; font-weight: 600;">{{originalClassCount}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 16px 6px 0; color: #6b7280;">Cancelled now</td>
+        <td style="padding: 6px 0; font-weight: 600;">{{cancelledClassCount}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 6px 16px 6px 0; color: #6b7280;">Remaining on booking</td>
+        <td style="padding: 6px 0; font-weight: 600;">{{remainingClassCount}}</td>
+      </tr>
+    </table>
+    <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">— Tutorix</p>
+  </body>
+</html>

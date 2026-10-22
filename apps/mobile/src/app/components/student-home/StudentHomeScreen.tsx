@@ -1,14 +1,22 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { useQuery } from '@apollo/client';
-import { MY_CLASS_CREDITS, STUDENT_BOOKED_CLASS_SESSIONS } from '@tutorix/shared-graphql/queries';
+import { useMutation, useQuery } from '@apollo/client';
+import { UNSCHEDULE_CLASS_CREDIT } from '@tutorix/shared-graphql/mutations';
+import {
+  MY_CLASS_CREDITS,
+  STUDENT_BOOKED_CLASS_SESSIONS,
+  STUDENT_CLASS_BOOKINGS,
+} from '@tutorix/shared-graphql/queries';
+
+const HOME_BOOKING_HISTORY_INPUT = { page: 1, pageSize: 1 };
 import type { StudentClassCredit } from '../student-cart/StudentClassCreditsScreen';
 import {
   canChangeScheduledClass,
   formatIstBookingTimeRange,
   scheduledClassHasEnded,
 } from '@tutorix/shared-utils/student-booking';
+import { isClassCreditCancellable } from '@tutorix/shared-utils/class-credit-cancellation-refund';
 import { canJoinOnlineClass } from '@tutorix/shared-utils/online-class-window';
 import {
   istBookedClassQueryRange,
@@ -22,6 +30,7 @@ type StudentHomeScreenProps = {
   onOpenRebook?: () => void;
   onScheduleCredits?: () => void;
   onRescheduleCredit?: (credit: StudentClassCredit) => void;
+  onCancelScheduledClass?: (credit: StudentClassCredit) => void;
   onOpenConcludedClasses?: () => void;
   onOpenBookingHistory?: () => void;
   onJoinOnlineClass?: (sessionId: string) => void;
@@ -132,6 +141,7 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
   onOpenRebook,
   onScheduleCredits,
   onRescheduleCredit,
+  onCancelScheduledClass,
   onOpenConcludedClasses,
   onOpenBookingHistory,
   onJoinOnlineClass,
@@ -145,21 +155,54 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
   const [now, setNow] = useState(() => new Date());
   const classCarouselRef = useRef<ScrollView>(null);
   const selected = weekDays.find((d) => d.key === selectedKey) ?? weekDays[0];
-  const { data } = useQuery(STUDENT_BOOKED_CLASS_SESSIONS, {
-    variables: {
+  const scheduleQueryVariables = useMemo(
+    () => ({
       from: scheduleRange.from.toISOString(),
       to: scheduleRange.to.toISOString(),
-    },
+    }),
+    [scheduleRange.from, scheduleRange.to],
+  );
+  const [unscheduleClass] = useMutation(UNSCHEDULE_CLASS_CREDIT, {
+    refetchQueries: [
+      { query: STUDENT_BOOKED_CLASS_SESSIONS, variables: scheduleQueryVariables },
+      { query: MY_CLASS_CREDITS },
+      'StudentClassBookings',
+    ],
+  });
+
+  const confirmUnschedule = (credit: StudentClassCredit) => {
+    Alert.alert(
+      'Unschedule class?',
+      'This frees the tutor and your slot. The class moves back to unscheduled and you can pick a new time later.',
+      [
+        { text: 'Keep scheduled', style: 'cancel' },
+        {
+          text: 'Unschedule',
+          style: 'destructive',
+          onPress: () => {
+            void unscheduleClass({ variables: { creditId: String(credit.id) } });
+          },
+        },
+      ],
+    );
+  };
+
+  const { data } = useQuery(STUDENT_BOOKED_CLASS_SESSIONS, {
+    variables: scheduleQueryVariables,
     fetchPolicy: 'network-only',
   });
   const showRebook = useStudentHasRebookTutors();
   const { data: creditData } = useQuery(MY_CLASS_CREDITS, {
     fetchPolicy: 'cache-and-network',
   });
+  const { data: bookingHistoryData } = useQuery(STUDENT_CLASS_BOOKINGS, {
+    variables: { input: HOME_BOOKING_HISTORY_INPUT },
+    fetchPolicy: 'cache-and-network',
+  });
   const booked = (data?.studentBookedClassSessions ?? []) as BookedClass[];
   const credits = (creditData?.myClassCredits ?? []) as StudentClassCredit[];
   const unscheduledCount = credits.filter((row) => row.status === 'unscheduled').length;
-  const totalClassesBooked = credits.length;
+  const totalBookings = bookingHistoryData?.studentClassBookings?.totalCount ?? 0;
   const dayClasses = booked.filter(
     (row) => istDayKey(new Date(row.startsAt)) === selected?.key,
   );
@@ -310,10 +353,24 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
                   const credit = credits.find(
                     (item) => String(item.enrollmentId) === String(row.enrollmentId),
                   );
+                  const canChange = canChangeScheduledClass(row.startsAt, row.deliveryMode);
                   const canReschedule =
-                    Boolean(onRescheduleCredit) &&
+                    Boolean(onRescheduleCredit) && Boolean(credit) && canChange;
+                  const canUnschedule = Boolean(credit) && canChange;
+                  const canCancelClass =
                     Boolean(credit) &&
-                    canChangeScheduledClass(row.startsAt, row.deliveryMode);
+                    Boolean(onCancelScheduledClass) &&
+                    isClassCreditCancellable(
+                      {
+                        id: credit?.id ?? 0,
+                        status: credit?.status ?? 'scheduled',
+                        isDemo: credit?.isDemo,
+                        startsAt: row.startsAt,
+                        durationMinutes: row.durationMinutes,
+                        deliveryMode: row.deliveryMode,
+                      },
+                      now,
+                    );
                   const canJoin =
                     Boolean(onJoinOnlineClass) &&
                     Boolean(row.sessionId) &&
@@ -338,14 +395,34 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
                           accessibilityLabel="Join class"
                           onPress={() => onJoinOnlineClass(String(row.sessionId))}
                         >
-                          <Text style={styles.reschedule}>Join class</Text>
+                          <Text style={styles.actionPrimary}>Join class</Text>
                         </Pressable>
                       ) : null}
-                      {canReschedule && credit && onRescheduleCredit ? (
-                        <Pressable onPress={() => onRescheduleCredit(credit)}>
-                          <Text style={styles.reschedule}>Reschedule</Text>
-                        </Pressable>
-                      ) : null}
+                      <View style={styles.classActions}>
+                        {canReschedule && credit && onRescheduleCredit ? (
+                          <Pressable onPress={() => onRescheduleCredit(credit)}>
+                            <Text style={styles.actionPrimary}>Reschedule</Text>
+                          </Pressable>
+                        ) : null}
+                        {canUnschedule && credit ? (
+                          <Pressable
+                            onPress={() => confirmUnschedule(credit)}
+                            accessibilityRole="button"
+                            accessibilityLabel="Unschedule class"
+                          >
+                            <Text style={styles.actionUnschedule}>Unschedule</Text>
+                          </Pressable>
+                        ) : null}
+                        {canCancelClass && credit && onCancelScheduledClass ? (
+                          <Pressable
+                            onPress={() => onCancelScheduledClass(credit)}
+                            accessibilityRole="button"
+                            accessibilityLabel="Cancel class"
+                          >
+                            <Text style={styles.actionCancel}>Cancel class</Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
                     </View>
                   );
                 })}
@@ -393,10 +470,10 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
           </View>
           <View
             style={styles.bookingHistoryHighlight}
-            accessibilityLabel={`${totalClassesBooked} classes booked so far`}
+            accessibilityLabel={`${totalBookings} bookings so far`}
           >
-            <Text style={styles.bookingHistoryCount}>{totalClassesBooked}</Text>
-            <Text style={styles.bookingHistoryCountLabel}>classes booked</Text>
+            <Text style={styles.bookingHistoryCount}>{totalBookings}</Text>
+            <Text style={styles.bookingHistoryCountLabel}>bookings</Text>
           </View>
         </View>
       </View>
@@ -433,7 +510,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  reschedule: { marginTop: 6, color: '#2563eb', fontWeight: '700' },
+  actionPrimary: { color: '#2563eb', fontWeight: '800', fontSize: 14 },
+  classActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  actionUnschedule: { color: '#dc2626', fontWeight: '800', fontSize: 14 },
+  actionCancel: { color: '#b91c1c', fontWeight: '800', fontSize: 14 },
   weekChip: {
     backgroundColor: '#fff',
     borderRadius: 999,

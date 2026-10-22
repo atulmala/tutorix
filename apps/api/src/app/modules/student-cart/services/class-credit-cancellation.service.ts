@@ -6,8 +6,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, In, Not, Repository } from 'typeorm';
 import {
+  activeClassCountForCancellationRefund,
   allocateRefundAcrossCredits,
   canChangeScheduledClass,
   classChangeDeadlineMessage,
@@ -22,27 +23,22 @@ import { UserRole } from '../../auth/enums/user-role.enum';
 import { CommunicationAudience } from '../../communication/enums/communication-audience.enum';
 import { CommunicationEvent } from '../../communication/enums/communication-event.enum';
 import { CommunicationService } from '../../communication/communication.service';
-import { PaymentAttemptEntity } from '../../commerce/entities/payment-attempt.entity';
-import { PaymentAttemptStatusEnum } from '../../commerce/enums/commerce.enums';
-import { RazorpayGateway } from '../../payment/services/payment-gateways';
 import { StudentService } from '../../student/services/student.service';
 import { Tutor } from '../../tutor/entities/tutor.entity';
 import { TutorClassSessionEnrollmentEntity } from '../../tutor-class-session/entities/tutor-class-session-enrollment.entity';
 import { TutorClassSessionEntity } from '../../tutor-class-session/entities/tutor-class-session.entity';
 import { ClassSessionEnrollmentStatusEnum } from '../../tutor-class-session/enums/class-session-enrollment-status.enum';
 import { ClassSessionStatusEnum } from '../../tutor-class-session/enums/class-session-status.enum';
-import { WalletService } from '../../wallet/services/wallet.service';
-import { orderItemPaidInrPerCredit } from '../admin-class-booking-order-item.util';
 import {
   orderItemToPaidParts,
   rateCardForOrderItem,
 } from '../class-order-item-pricing.util';
-import { allocateGatewayRefund } from '../class-credit-refund-allocation.util';
 import {
   buildClassScheduleTable,
   formatInrAmount,
 } from '../class-booking-email-table.util';
 import { OrderItemEntity } from '../../commerce/entities/order-item.entity';
+import { OrderEntity } from '../../commerce/entities/order.entity';
 import { TutorOfferingEntity } from '../../tutor/entities/tutor-offering.entity';
 import { TutorRateCardService } from '../../tutor-rate-card/services/tutor-rate-card.service';
 import {
@@ -52,10 +48,15 @@ import {
   TutorScheduledClassActionResult,
 } from '../dto/student-cart.dto';
 import { ClassCreditCancellationEntity } from '../entities/class-credit-cancellation.entity';
-import { ClassCreditGatewayRefundEntity } from '../entities/class-credit-gateway-refund.entity';
 import { StudentClassCreditEntity } from '../entities/student-class-credit.entity';
 import { ClassCreditRefundMethodEnum } from '../enums/class-credit-refund-method.enum';
 import { ClassCreditStatusEnum } from '../enums/class-credit-status.enum';
+import { ClassCancellationRefundInitiatedByEnum } from '../enums/class-cancellation-refund-initiated-by.enum';
+import {
+  ClassCancellationRefundRequestService,
+  RefundBreakdownSnapshot,
+} from './class-cancellation-refund-request.service';
+import { ClassCancellationRefundChecksService } from './class-cancellation-refund-checks.service';
 
 function personName(
   user?: { firstName?: string | null; lastName?: string | null } | null,
@@ -77,21 +78,17 @@ export class ClassCreditCancellationService {
 
   constructor(
     private readonly studentService: StudentService,
-    private readonly walletService: WalletService,
-    private readonly razorpayGateway: RazorpayGateway,
     private readonly dataSource: DataSource,
     @InjectRepository(StudentClassCreditEntity)
     private readonly creditRepo: Repository<StudentClassCreditEntity>,
-    @InjectRepository(PaymentAttemptEntity)
-    private readonly paymentAttemptRepo: Repository<PaymentAttemptEntity>,
-    @InjectRepository(ClassCreditGatewayRefundEntity)
-    private readonly gatewayRefundRepo: Repository<ClassCreditGatewayRefundEntity>,
     @InjectRepository(ClassCreditCancellationEntity)
     private readonly cancellationRepo: Repository<ClassCreditCancellationEntity>,
     @InjectRepository(TutorOfferingEntity)
     private readonly tutorOfferingRepo: Repository<TutorOfferingEntity>,
     private readonly rateCardService: TutorRateCardService,
     private readonly communicationService: CommunicationService,
+    private readonly refundRequestService: ClassCancellationRefundRequestService,
+    private readonly refundChecksService: ClassCancellationRefundChecksService,
   ) {}
 
   async previewClassBookingCancellation(
@@ -152,6 +149,13 @@ export class ClassCreditCancellationService {
       where: { id: In(ids), studentId: student.id, deleted: false },
       relations: [
         'orderItem',
+        'orderItem.order',
+        'student',
+        'student.user',
+        'tutorOffering',
+        'tutorOffering.offering',
+        'tutorOffering.tutor',
+        'tutorOffering.tutor.user',
         'enrollment',
         'enrollment.session',
         'enrollment.session.tutorCalendar',
@@ -166,19 +170,23 @@ export class ClassCreditCancellationService {
       this.assertCancellable(credit);
     }
 
-    const amountByCreditId = await this.refundAmountsByCreditId(student.id, credits);
+    const { amountByCreditId, breakdownSnapshots } =
+      await this.refundAmountsByCreditId(student.id, credits);
     const amountInr = credits.reduce(
       (sum, credit) => sum + (amountByCreditId.get(credit.id) ?? 0),
       0,
     );
 
-    const gatewayRefunds =
-      refundMethod === ClassCreditRefundMethodEnum.gateway && amountInr > 0
-        ? await this.refundThroughGateway(user.id, amountInr)
-        : [];
+    if (
+      refundMethod === ClassCreditRefundMethodEnum.gateway &&
+      amountInr > 0 &&
+      !(await this.refundChecksService.canGatewayCoverAmount(user.id, amountInr))
+    ) {
+      throw new BadRequestException(
+        'This amount cannot be refunded to your payment method. Add it to your wallet instead.',
+      );
+    }
 
-    let walletBalanceInr: number | null = null;
-    try {
     await this.dataSource.transaction(async (manager) => {
       for (const credit of credits) {
         const locked = await manager
@@ -208,48 +216,73 @@ export class ClassCreditCancellationService {
           }),
         );
       }
-
-      for (const refund of gatewayRefunds) {
-        await manager.getRepository(ClassCreditGatewayRefundEntity).save(
-          manager.getRepository(ClassCreditGatewayRefundEntity).create({
-            userId: user.id,
-            paymentAttemptId: refund.paymentAttemptId,
-            gatewayPaymentId: refund.gatewayPaymentId,
-            gatewayRefundId: refund.gatewayRefundId,
-            amountInr: refund.amountInr,
-          }),
-        );
-      }
-
-      if (refundMethod === ClassCreditRefundMethodEnum.wallet && amountInr > 0) {
-        const wallet = await this.walletService.creditClassRefundWithManager(manager, {
-          userId: user.id,
-          amountInr,
-          commerceOrderId: credits[0]?.orderId,
-          referenceType: 'class_credit',
-          referenceId: credits[0]?.id,
-          description:
-            credits.length === 1
-              ? 'Class cancellation refund'
-              : `Class cancellation refund · ${credits.length} classes`,
-        });
-        walletBalanceInr = wallet.balanceInr;
-      }
     });
-    } catch (error) {
-      if (gatewayRefunds.length > 0) {
-        this.logger.error(
-          `Gateway refund succeeded but class cancellation was not saved: ${JSON.stringify(gatewayRefunds)}`,
-        );
+
+    const byOrderItem = new Map<number, StudentClassCreditEntity[]>();
+    for (const credit of credits) {
+      const bucket = byOrderItem.get(credit.orderItemId);
+      if (bucket) {
+        bucket.push(credit);
+      } else {
+        byOrderItem.set(credit.orderItemId, [credit]);
       }
-      throw error;
+    }
+
+    let firstRefundRequestId: number | null = null;
+    for (const [orderItemId, groupCredits] of byOrderItem) {
+      const groupAmount = groupCredits.reduce(
+        (sum, credit) => sum + (amountByCreditId.get(credit.id) ?? 0),
+        0,
+      );
+      const snapshot = breakdownSnapshots.get(orderItemId);
+      const primary = groupCredits[0];
+      const refundRequest = await this.refundRequestService.createRequest({
+        initiatedBy: ClassCancellationRefundInitiatedByEnum.student,
+        studentId: student.id,
+        tutorId: primary?.tutorId ?? null,
+        tutorOfferingId: primary?.tutorOfferingId ?? null,
+        orderItemId,
+        orderId: primary?.orderId ?? null,
+        classCount: groupCredits.length,
+        amountInr: groupAmount,
+        refundMethod,
+        initiatedByUserId: user.id,
+        creditIds: groupCredits.map((credit) => credit.id),
+        refundBreakdown: this.mergeBreakdownSnapshot(
+          snapshot,
+          groupCredits,
+          amountByCreditId,
+        ),
+      });
+      if (refundRequest && firstRefundRequestId == null) {
+        firstRefundRequestId = refundRequest.id;
+      }
+      if (refundRequest) {
+        await this.emitRefundInitiated({
+          requestId: refundRequest.id,
+          studentUserId: user.id,
+          credits: groupCredits,
+          amountInr: groupAmount,
+          refundMethod,
+          isTutorInitiated: false,
+          classCount: groupCredits.length,
+          breakdownText: snapshot?.breakdownText,
+        });
+      }
+      await this.emitBookingCancellationToTutor({
+        orderItemId,
+        studentId: student.id,
+        groupCredits,
+      });
     }
 
     return {
       cancelledCount: credits.length,
       amountInr,
       refundMethod,
-      walletBalanceInr,
+      walletBalanceInr: null,
+      refundRequestId: firstRefundRequestId,
+      refundInitiated: amountInr > 0,
     };
   }
 
@@ -260,21 +293,19 @@ export class ClassCreditCancellationService {
     const anchor = await this.requireTutorScheduledCredit(user, enrollmentIdInput);
     const credits = await this.creditsSharingSession(anchor);
     let amountRefundedInr = 0;
-    const notified: Array<{
-      credit: StudentClassCreditEntity;
-      studentUserId: number;
-      amountInr: number;
-    }> = [];
+
+    const byStudent = new Map<number, StudentClassCreditEntity[]>();
+    for (const credit of credits) {
+      const bucket = byStudent.get(credit.studentId);
+      if (bucket) {
+        bucket.push(credit);
+      } else {
+        byStudent.set(credit.studentId, [credit]);
+      }
+    }
 
     await this.dataSource.transaction(async (manager) => {
       for (const credit of credits) {
-        const studentUserId = credit.student?.userId ?? credit.student?.user?.id;
-        if (!studentUserId) {
-          throw new NotFoundException('Student not found');
-        }
-        const amountInr = credit.orderItem
-          ? orderItemPaidInrPerCredit(credit.orderItem)
-          : 0;
         const locked = await this.lockTutorCredit(manager, credit.id, credit.tutorId);
         if (locked.enrollmentId) {
           await this.releaseEnrollment(manager, locked.enrollmentId, credit.studentId);
@@ -282,38 +313,81 @@ export class ClassCreditCancellationService {
         locked.status = ClassCreditStatusEnum.cancelled;
         locked.enrollmentId = null;
         await manager.getRepository(StudentClassCreditEntity).save(locked);
-        await manager.getRepository(ClassCreditCancellationEntity).save(
-          manager.getRepository(ClassCreditCancellationEntity).create({
-            creditId: locked.id,
+      }
+      await this.markSessionCancelled(manager, anchor.enrollment?.session?.id);
+    });
+
+    for (const [studentId, studentCredits] of byStudent) {
+      const studentUserId =
+        studentCredits[0]?.student?.userId ?? studentCredits[0]?.student?.user?.id;
+      if (!studentUserId) {
+        throw new NotFoundException('Student not found');
+      }
+      const { amountByCreditId, breakdownSnapshots } =
+        await this.refundAmountsByCreditId(studentId, studentCredits);
+
+      for (const credit of studentCredits) {
+        const amountInr = amountByCreditId.get(credit.id) ?? 0;
+        await this.cancellationRepo.save(
+          this.cancellationRepo.create({
+            creditId: credit.id,
             studentId: credit.studentId,
             userId: user.id,
             amountInr,
             refundMethod: ClassCreditRefundMethodEnum.wallet,
           }),
         );
-        if (amountInr > 0) {
-          await this.walletService.creditClassRefundWithManager(manager, {
-            userId: studentUserId,
-            amountInr,
-            commerceOrderId: credit.orderId,
-            referenceType: 'class_credit',
-            referenceId: credit.id,
-            description: 'Class cancelled by tutor',
+      }
+
+      const byOrderItem = new Map<number, StudentClassCreditEntity[]>();
+      for (const credit of studentCredits) {
+        const bucket = byOrderItem.get(credit.orderItemId);
+        if (bucket) {
+          bucket.push(credit);
+        } else {
+          byOrderItem.set(credit.orderItemId, [credit]);
+        }
+      }
+
+      for (const [orderItemId, groupCredits] of byOrderItem) {
+        const groupAmount = groupCredits.reduce(
+          (sum, credit) => sum + (amountByCreditId.get(credit.id) ?? 0),
+          0,
+        );
+        amountRefundedInr += groupAmount;
+        const snapshot = breakdownSnapshots.get(orderItemId);
+        const primary = groupCredits[0];
+        const refundRequest = await this.refundRequestService.createRequest({
+          initiatedBy: ClassCancellationRefundInitiatedByEnum.tutor,
+          studentId,
+          tutorId: primary?.tutorId ?? anchor.tutorId,
+          tutorOfferingId: primary?.tutorOfferingId ?? null,
+          orderItemId,
+          orderId: primary?.orderId ?? null,
+          classCount: groupCredits.length,
+          amountInr: groupAmount,
+          refundMethod: ClassCreditRefundMethodEnum.wallet,
+          initiatedByUserId: user.id,
+          creditIds: groupCredits.map((credit) => credit.id),
+          refundBreakdown: this.mergeBreakdownSnapshot(
+            snapshot,
+            groupCredits,
+            amountByCreditId,
+          ),
+        });
+        if (refundRequest) {
+          await this.emitRefundInitiated({
+            requestId: refundRequest.id,
+            studentUserId,
+            credits: groupCredits,
+            amountInr: groupAmount,
+            refundMethod: ClassCreditRefundMethodEnum.wallet,
+            isTutorInitiated: true,
+            classCount: groupCredits.length,
+            breakdownText: snapshot?.breakdownText,
           });
         }
-        amountRefundedInr += amountInr;
-        notified.push({ credit, studentUserId, amountInr });
       }
-      await this.markSessionCancelled(manager, anchor.enrollment?.session?.id);
-    });
-
-    for (const item of notified) {
-      await this.emitTutorClassChange({
-        event: CommunicationEvent.CLASS_CANCELLED_BY_TUTOR,
-        credit: item.credit,
-        studentUserId: item.studentUserId,
-        amountInr: item.amountInr,
-      });
     }
 
     return {
@@ -565,11 +639,29 @@ export class ClassCreditCancellationService {
     return rateCardForOrderItem(orderItem, fallback);
   }
 
+  private mergeBreakdownSnapshot(
+    snapshot: RefundBreakdownSnapshot | undefined,
+    credits: StudentClassCreditEntity[],
+    amountByCreditId: Map<number, number>,
+  ): RefundBreakdownSnapshot {
+    return {
+      ...snapshot,
+      perCreditAmounts: credits.map((credit) => ({
+        creditId: credit.id,
+        amountInr: amountByCreditId.get(credit.id) ?? 0,
+      })),
+    };
+  }
+
   private async refundAmountsByCreditId(
     studentId: number,
     credits: StudentClassCreditEntity[],
-  ): Promise<Map<number, number>> {
+  ): Promise<{
+    amountByCreditId: Map<number, number>;
+    breakdownSnapshots: Map<number, RefundBreakdownSnapshot>;
+  }> {
     const amounts = new Map<number, number>();
+    const breakdownSnapshots = new Map<number, RefundBreakdownSnapshot>();
     const byOrderItem = new Map<number, StudentClassCreditEntity[]>();
     for (const credit of credits) {
       const bucket = byOrderItem.get(credit.orderItemId);
@@ -594,15 +686,26 @@ export class ClassCreditCancellationService {
       const lineCredits = await this.creditRepo.find({
         where: { studentId, orderItemId, deleted: false },
       });
-      const activeCount = lineCredits.filter(
-        (row) => row.status !== ClassCreditStatusEnum.cancelled,
-      ).length;
+      const activeCount = activeClassCountForCancellationRefund(
+        lineCredits,
+        groupCredits.map((credit) => credit.id),
+      );
+      const priorRefundsInr = await this.priorRefundsInrForOrderItem(orderItemId);
       const { breakdown } = await this.buildRefundBreakdown(
         orderItem,
         groupCredits[0]?.tutorOfferingId ?? 0,
         activeCount,
         groupCredits.length,
       );
+      breakdownSnapshots.set(orderItemId, {
+        breakdownText: breakdown.lines.join('\n'),
+        lines: breakdown.lines,
+        orderItemId,
+        activeCount,
+        cancelCount: groupCredits.length,
+        priorRefundsInr,
+        refundInr: breakdown.refundInr,
+      });
       const allocations = allocateRefundAcrossCredits(
         breakdown.refundInr,
         groupCredits.length,
@@ -611,90 +714,155 @@ export class ClassCreditCancellationService {
         amounts.set(credit.id, allocations[index] ?? 0);
       });
     }
-    return amounts;
+    return { amountByCreditId: amounts, breakdownSnapshots };
   }
 
-  private async refundThroughGateway(
-    userId: number,
-    amountInr: number,
-  ): Promise<
-    Array<{
-      paymentAttemptId: number;
-      gatewayPaymentId: string;
-      gatewayRefundId: string;
-      amountInr: number;
-    }>
-  > {
-    const attempts = await this.paymentAttemptRepo
-      .createQueryBuilder('attempt')
-      .innerJoin('attempt.order', 'order')
-      .where('order.user_id = :userId', { userId })
-      .andWhere('attempt.status = :status', { status: PaymentAttemptStatusEnum.paid })
-      .andWhere('attempt.gateway_payment_id IS NOT NULL')
-      .andWhere('attempt.deleted = false')
-      .orderBy('attempt.id', 'DESC')
-      .getMany();
-
-    const refundedRows = await this.gatewayRefundRepo
-      .createQueryBuilder('refund')
-      .select('refund.payment_attempt_id', 'paymentAttemptId')
-      .addSelect('SUM(refund.amount_inr)', 'total')
-      .where('refund.user_id = :userId', { userId })
-      .andWhere('refund.deleted = false')
-      .groupBy('refund.payment_attempt_id')
-      .getRawMany<{ paymentAttemptId: string; total: string }>();
-    const refundedByAttempt = new Map(
-      refundedRows.map((row) => [Number(row.paymentAttemptId), Number(row.total)]),
-    );
-
-    const slices = allocateGatewayRefund(
-      amountInr,
-      attempts.map((attempt) => ({
-        paymentAttemptId: attempt.id,
-        gatewayPaymentId: attempt.gatewayPaymentId ?? '',
-        amountInr: attempt.amountInr,
-        refundedInr: refundedByAttempt.get(attempt.id) ?? 0,
-      })),
-    );
-    if (slices.length === 0) {
-      throw new BadRequestException(
-        'This amount cannot be refunded to your payment method. Add it to your wallet instead.',
+  private async emitBookingCancellationToTutor(params: {
+    orderItemId: number;
+    studentId: number;
+    groupCredits: StudentClassCreditEntity[];
+  }): Promise<void> {
+    const primary = params.groupCredits[0];
+    if (!primary) {
+      return;
+    }
+    const tutorUserId =
+      primary.tutorOffering?.tutor?.userId ?? primary.tutorOffering?.tutor?.user?.id;
+    if (!tutorUserId) {
+      this.logger.warn(
+        `CLASS_BOOKING_CANCELLATION_TUTOR skipped for order item ${params.orderItemId}: missing tutor user`,
+      );
+      return;
+    }
+    const orderItem =
+      primary.orderItem ??
+      (await this.dataSource.getRepository(OrderItemEntity).findOne({
+        where: { id: params.orderItemId, deleted: false },
+        relations: ['order'],
+      }));
+    if (!orderItem) {
+      return;
+    }
+    const order =
+      orderItem.order ??
+      (orderItem.orderId
+        ? await this.dataSource.getRepository(OrderEntity).findOne({
+            where: { id: orderItem.orderId, deleted: false },
+          })
+        : null);
+    const remainingClassCount = await this.creditRepo.count({
+      where: {
+        orderItemId: params.orderItemId,
+        studentId: params.studentId,
+        deleted: false,
+        status: Not(ClassCreditStatusEnum.cancelled),
+      },
+    });
+    const bookingDate = order?.createdDate
+      ? formatIstBookingDateLabel(order.createdDate)
+      : formatIstBookingDateLabel(orderItem.createdDate);
+    const tutorName = personName(primary.tutorOffering?.tutor?.user) || 'Tutor';
+    const studentName = personName(primary.student?.user) || 'Student';
+    const offeringName = primary.tutorOffering?.offering?.displayName ?? 'Class';
+    try {
+      await this.communicationService.emit({
+        event: CommunicationEvent.CLASS_BOOKING_CANCELLATION_TUTOR,
+        userId: tutorUserId,
+        audience: CommunicationAudience.TUTOR,
+        entityType: 'commerce_order_item',
+        entityId: params.orderItemId,
+        payload: {
+          tutorName,
+          studentName,
+          offeringName,
+          bookingId: String(params.orderItemId),
+          orderNumber: order?.orderNumber ?? String(orderItem.orderId),
+          bookingDate,
+          originalClassCount: String(orderItem.quantity),
+          cancelledClassCount: String(params.groupCredits.length),
+          remainingClassCount: String(remainingClassCount),
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `CLASS_BOOKING_CANCELLATION_TUTOR emit failed for order item ${params.orderItemId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
     }
+  }
 
-    const completed: Array<{
-      paymentAttemptId: number;
-      gatewayPaymentId: string;
-      gatewayRefundId: string;
-      amountInr: number;
-    }> = [];
-    for (const slice of slices) {
-      try {
-        const gatewayRefundId = await this.razorpayGateway.refundPayment(
-          slice.gatewayPaymentId,
-          slice.amountInr,
-        );
-        completed.push({ ...slice, gatewayRefundId });
-      } catch (error) {
-        this.logger.error(
-          `Gateway refund failed for payment ${slice.gatewayPaymentId}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-        if (completed.length > 0) {
-          await this.gatewayRefundRepo.save(
-            completed.map((refund) => this.gatewayRefundRepo.create(refund)),
-          );
-          throw new BadRequestException(
-            'Part of this refund was sent to your payment method, but the cancellation did not finish. Contact support before trying again.',
-          );
-        }
-        throw new BadRequestException(
-          'The payment gateway could not refund this amount. Add it to your wallet instead.',
-        );
-      }
+  private async emitRefundInitiated(params: {
+    requestId: number;
+    studentUserId: number;
+    credits: StudentClassCreditEntity[];
+    amountInr: number;
+    refundMethod: ClassCreditRefundMethodEnum;
+    isTutorInitiated: boolean;
+    classCount: number;
+    breakdownText?: string;
+  }): Promise<void> {
+    const credit = params.credits[0];
+    if (!credit) {
+      return;
     }
-    return completed;
+    const startsAt = credit.enrollment?.session?.tutorCalendar?.startsAt;
+    const duration =
+      credit.enrollment?.session?.tutorCalendar?.durationMinutes ?? 60;
+    const classTime = startsAt
+      ? `${formatIstBookingDateLabel(startsAt)} ${formatIstBookingTimeRange(startsAt, duration)}`
+      : 'your class';
+    const tutorName = personName(credit.tutorOffering?.tutor?.user) || 'Your tutor';
+    const studentName = personName(credit.student?.user) || 'Student';
+    const offeringName = credit.tutorOffering?.offering?.displayName ?? 'Class';
+    const deliveryMode = credit.deliveryMode === 'online' ? 'Online' : 'Offline';
+    const table = buildClassScheduleTable({
+      counterpartLabel: 'Tutor',
+      counterpartName: tutorName,
+      offeringLabel: offeringName,
+      deliveryMode,
+      classTime,
+    });
+    const refundMethodLabel =
+      params.refundMethod === ClassCreditRefundMethodEnum.wallet
+        ? 'Wallet'
+        : 'Cash to payment method';
+    const expectedTimeline =
+      params.refundMethod === ClassCreditRefundMethodEnum.wallet
+        ? 'after our team processes your refund'
+        : 'within 2 working days after processing';
+    try {
+      await this.communicationService.emit({
+        event: CommunicationEvent.CLASS_CANCELLATION_REFUND_INITIATED,
+        userId: params.studentUserId,
+        audience: CommunicationAudience.STUDENT,
+        entityType: 'class_cancellation_refund_request',
+        entityId: params.requestId,
+        payload: {
+          studentName,
+          tutorName,
+          offeringName,
+          deliveryMode,
+          classTime,
+          classCount: String(params.classCount),
+          amountRefunded: formatInrAmount(params.amountInr),
+          refundMethodLabel,
+          initiatedByLabel: params.isTutorInitiated ? 'Your tutor' : 'You',
+          expectedTimeline,
+          isTutorInitiated: params.isTutorInitiated ? 'true' : 'false',
+          requestId: String(params.requestId),
+          breakdownText: params.breakdownText ?? '',
+          linesHtml: table.html,
+          linesText: table.text,
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Refund initiated emit failed for request ${params.requestId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   private async releaseEnrollment(

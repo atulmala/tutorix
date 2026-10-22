@@ -28,6 +28,10 @@ import { StudentHomeScreen } from './components/student-home/StudentHomeScreen';
 import { OnlineClassScreen } from './components/online-class/OnlineClassScreen';
 import { StudentBookingHistoryScreen } from './components/student-home/StudentBookingHistoryScreen';
 import {
+  StudentBookingScheduledClassesScreen,
+  type BookingScheduledClassesContext,
+} from './components/student-home/StudentBookingScheduledClassesScreen';
+import {
   ClassCancellationBooking,
   StudentClassCancellationScreen,
 } from './components/student-home/StudentClassCancellationScreen';
@@ -81,7 +85,13 @@ import {
 import { isBankDetailsMarkedComplete } from '@tutorix/shared-utils/bank-details-formatters';
 import { needsRateCardSetup } from '@tutorix/shared-utils/rate-card';
 import { ALREADY_REGISTERED_LOGIN_MESSAGE } from '@tutorix/shared-utils/already-registered';
-import { GET_MY_STUDENT_PROFILE, GET_MY_TUTOR_DETAIL, GET_MY_TUTOR_PROFILE } from '@tutorix/shared-graphql/queries';
+import {
+  GET_MY_STUDENT_PROFILE,
+  GET_MY_TUTOR_DETAIL,
+  GET_MY_TUTOR_PROFILE,
+  MY_CLASS_CREDITS,
+  STUDENT_CLASS_BOOKINGS,
+} from '@tutorix/shared-graphql/queries';
 import { LOGIN } from '@tutorix/shared-graphql/mutations';
 import {
   registerPushNotifications,
@@ -235,8 +245,13 @@ function AppContent() {
   } | null>(null);
   const [rebookReturnView, setRebookReturnView] = useState<AppView>('studentHome');
   const [scheduleCredits, setScheduleCredits] = useState<StudentClassCredit[] | null>(null);
+  const [scheduleReturnView, setScheduleReturnView] = useState<AppView>('studentClassCredits');
   const [classCancellationBooking, setClassCancellationBooking] =
     useState<ClassCancellationBooking | null>(null);
+  const [bookingScheduledContext, setBookingScheduledContext] =
+    useState<BookingScheduledClassesContext | null>(null);
+  const [cancellationReturnView, setCancellationReturnView] =
+    useState<AppView>('studentBookingHistory');
   const [tutorSearchParams, setTutorSearchParams] =
     useState<StudentTutorSearchParams | null>(null);
   const [signupResume, setSignupResume] = useState<{
@@ -277,6 +292,64 @@ function AppContent() {
       pushBannerTimerRef.current = null;
     }
   }, [apolloClient]);
+
+  const startScheduleForBooking = useCallback(
+    async (orderItemId: number) => {
+      try {
+        const { data } = await apolloClient.query({
+          query: MY_CLASS_CREDITS,
+          fetchPolicy: 'network-only',
+        });
+        const credits = (data?.myClassCredits ?? []) as StudentClassCredit[];
+        const pack = credits.filter(
+          (row) => row.orderItemId === orderItemId && row.status === 'unscheduled',
+        );
+        if (pack.length === 0) {
+          return;
+        }
+        setScheduleCredits(pack);
+        setScheduleReturnView('studentBookingHistory');
+        setCurrentView('studentClassSchedule');
+      } catch {
+        // Booking history stays visible if credits cannot be loaded.
+      }
+    },
+    [apolloClient],
+  );
+
+  const openCancellationForCredit = useCallback(
+    async (credit: StudentClassCredit) => {
+      try {
+        const { data } = await apolloClient.query({
+          query: STUDENT_CLASS_BOOKINGS,
+          variables: { input: { page: 1, pageSize: 100 } },
+          fetchPolicy: 'network-only',
+        });
+        const row = data?.studentClassBookings?.items?.find(
+          (item: { orderItemId: number }) => item.orderItemId === credit.orderItemId,
+        );
+        if (!row?.canCancel) {
+          return;
+        }
+        setClassCancellationBooking({
+          orderItemId: row.orderItemId,
+          tutorName: row.tutorName,
+          offeringLabel: row.offeringLabel,
+          classCount: row.classCount,
+          scheduledCount: row.scheduledCount,
+          unscheduledCount: row.unscheduledCount,
+          concludedCount: row.concludedCount,
+          cancelledCount: row.cancelledCount,
+          cancellableCount: row.cancellableCount,
+        });
+        setCancellationReturnView('studentHome');
+        setCurrentView('studentClassCancellation');
+      } catch {
+        // Stay on home if booking details cannot be loaded.
+      }
+    },
+    [apolloClient],
+  );
 
   const openTutorCalendar = useCallback((returnTo: AppView) => {
     setForceWeeklyAvailability(false);
@@ -709,9 +782,11 @@ function AppContent() {
         }}
         onScheduleCredits={() => setCurrentView('studentClassCredits')}
         onRescheduleCredit={(credit) => {
+          setScheduleReturnView('studentHome');
           setScheduleCredits([credit]);
           setCurrentView('studentClassSchedule');
         }}
+        onCancelScheduledClass={(credit) => void openCancellationForCredit(credit)}
         onOpenConcludedClasses={() => setCurrentView('studentConcludedClasses')}
         onOpenBookingHistory={() => setCurrentView('studentBookingHistory')}
         onJoinOnlineClass={(sessionId) => {
@@ -814,8 +889,36 @@ function AppContent() {
       />,
       <StudentBookingHistoryScreen
         onCancelBooking={(booking) => {
+          setCancellationReturnView('studentBookingHistory');
           setClassCancellationBooking(booking);
           setCurrentView('studentClassCancellation');
+        }}
+        onScheduleBooking={(orderItemId) => void startScheduleForBooking(orderItemId)}
+        onViewScheduledClasses={(booking) => {
+          setBookingScheduledContext(booking);
+          setCurrentView('studentBookingScheduledClasses');
+        }}
+      />,
+      { backgroundColor: '#e8f4ff' },
+    );
+  } else if (currentView === 'studentBookingScheduledClasses' && bookingScheduledContext) {
+    screen = renderStudentShell(
+      null,
+      <StudentNavHeader
+        title="Scheduled classes"
+        onBack={() => {
+          setBookingScheduledContext(null);
+          setCurrentView('studentBookingHistory');
+        }}
+        onLogout={handleLogout}
+        onOpenCart={openStudentCart}
+      />,
+      <StudentBookingScheduledClassesScreen
+        booking={bookingScheduledContext}
+        onReschedule={(credit) => {
+          setScheduleReturnView('studentBookingScheduledClasses');
+          setScheduleCredits([credit]);
+          setCurrentView('studentClassSchedule');
         }}
       />,
       { backgroundColor: '#e8f4ff' },
@@ -823,7 +926,7 @@ function AppContent() {
   } else if (currentView === 'studentClassCancellation' && classCancellationBooking) {
     const leaveClassCancellation = () => {
       setClassCancellationBooking(null);
-      setCurrentView('studentBookingHistory');
+      setCurrentView(cancellationReturnView);
     };
     screen = renderStudentShell(
       null,
@@ -863,6 +966,7 @@ function AppContent() {
       />,
       <StudentClassCreditsScreen
         onSchedule={(credits) => {
+          setScheduleReturnView('studentClassCredits');
           setScheduleCredits(credits);
           setCurrentView('studentClassSchedule');
         }}
@@ -870,23 +974,43 @@ function AppContent() {
       />,
     );
   } else if (currentView === 'studentClassSchedule' && scheduleCredits?.length) {
+    const leaveSchedule = () => {
+      setScheduleCredits(null);
+      if (scheduleReturnView === 'studentBookingHistory') {
+        setCurrentView('studentBookingHistory');
+      } else if (scheduleReturnView === 'studentBookingScheduledClasses') {
+        setCurrentView('studentBookingScheduledClasses');
+      } else if (scheduleReturnView === 'studentHome') {
+        setCurrentView('studentHome');
+      } else {
+        setCurrentView('studentClassCredits');
+      }
+      setScheduleReturnView('studentClassCredits');
+    };
+    const finishSchedule = () => {
+      setScheduleCredits(null);
+      if (scheduleReturnView === 'studentBookingHistory') {
+        setCurrentView('studentBookingHistory');
+      } else if (scheduleReturnView === 'studentBookingScheduledClasses') {
+        setCurrentView('studentBookingScheduledClasses');
+      } else if (scheduleReturnView === 'studentHome') {
+        setCurrentView('studentHome');
+      } else {
+        setCurrentView('studentHome');
+      }
+      setScheduleReturnView('studentClassCredits');
+    };
     screen = renderStudentShell(
       null,
       <StudentNavHeader
         title="Schedule class"
-        onBack={() => setCurrentView('studentClassCredits')}
+        onBack={leaveSchedule}
         onLogout={handleLogout}
       />,
       <StudentClassScheduleScreen
         credits={scheduleCredits}
-        onScheduled={() => {
-          setScheduleCredits(null);
-          setCurrentView('studentHome');
-        }}
-        onScheduleLater={() => {
-          setScheduleCredits(null);
-          setCurrentView('studentHome');
-        }}
+        onScheduled={finishSchedule}
+        onScheduleLater={finishSchedule}
       />,
     );
   } else if (currentView === 'studentProfile') {

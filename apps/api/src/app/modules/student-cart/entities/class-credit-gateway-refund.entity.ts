@@ -24,4 +24,8 @@ export class ClassCreditGatewayRefundEntity extends QBaseEntity {
 
   @Column({ name: 'amount_inr', type: 'integer' })
   amountInr!: number;
+
+  @Column({ name: 'refund_request_id', type: 'integer', nullable: true })
+  @Index()
+  refundRequestId?: number | null;
 }

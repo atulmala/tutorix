@@ -61,18 +61,32 @@ describe('RazorpayGateway', () => {
   });
 
   it('refunds a captured payment in paise', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({ id: 'rfnd_test' }),
-    });
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 'pay_test',
+          status: 'captured',
+          amount: 100000,
+          amount_refunded: 0,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'rfnd_test' }),
+      });
 
     await expect(gateway.refundPayment('pay_test', 500)).resolves.toBe('rfnd_test');
 
     expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.razorpay.com/v1/payments/pay_test',
+      expect.objectContaining({ method: 'GET' }),
+    );
+    expect(global.fetch).toHaveBeenCalledWith(
       'https://api.razorpay.com/v1/payments/pay_test/refund',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ amount: 50000, speed: 'normal' }),
+        body: JSON.stringify({ amount: 50000 }),
       }),
     );
   });

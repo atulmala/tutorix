@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -24,6 +24,7 @@ export type ClassCancellationBooking = {
   scheduledCount: number;
   unscheduledCount: number;
   concludedCount: number;
+  cancelledCount: number;
   cancellableCount: number;
 };
 
@@ -33,8 +34,14 @@ function BookingClassSummary({ booking }: { booking: ClassCancellationBooking })
     { label: 'Scheduled classes', value: booking.scheduledCount },
     { label: 'Unscheduled classes', value: booking.unscheduledCount },
     { label: 'Concluded classes', value: booking.concludedCount },
-    { label: 'Classes available for cancellation', value: booking.cancellableCount },
   ];
+  if (booking.cancelledCount > 0) {
+    rows.push({ label: 'Cancelled classes', value: booking.cancelledCount });
+  }
+  rows.push({
+    label: 'Classes available for cancellation',
+    value: booking.cancellableCount,
+  });
   return (
     <View style={styles.summaryCard}>
       {rows.map((row) => (
@@ -62,16 +69,11 @@ export const StudentClassCancellationScreen: React.FC<StudentClassCancellationSc
   onComplete,
   onBack,
 }) => {
-  const canCancelAny = booking.cancellableCount > 0;
   const [cancelCount, setCancelCount] = useState('1');
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
-
-  const parsedCancelCount =
-    cancelCount.trim() === '' ? 0 : Math.floor(Number(cancelCount)) || 0;
-  const canSubmitCancel =
-    parsedCancelCount > 0 && parsedCancelCount <= booking.cancellableCount;
 
   const [loadPreview, { data: previewData, loading: previewLoading }] = useLazyQuery(
     PREVIEW_CLASS_BOOKING_CANCELLATION,
@@ -79,8 +81,24 @@ export const StudentClassCancellationScreen: React.FC<StudentClassCancellationSc
   );
 
   const [cancelBooking, { loading: cancelling }] = useMutation(CANCEL_CLASS_BOOKING, {
-    onCompleted: () => onComplete(),
+    refetchQueries: ['StudentClassBookings'],
   });
+
+  const preview = previewData?.previewClassBookingCancellation;
+
+  const displayBooking = useMemo(
+    () => ({
+      ...booking,
+      cancellableCount: preview?.cancellableCount ?? booking.cancellableCount,
+    }),
+    [booking, preview?.cancellableCount],
+  );
+
+  const parsedCancelCount =
+    cancelCount.trim() === '' ? 0 : Math.floor(Number(cancelCount)) || 0;
+  const canCancelAny = displayBooking.cancellableCount > 0;
+  const canSubmitCancel =
+    parsedCancelCount > 0 && parsedCancelCount <= displayBooking.cancellableCount;
 
   useEffect(() => {
     if (!canCancelAny || !canSubmitCancel) {
@@ -100,7 +118,6 @@ export const StudentClassCancellationScreen: React.FC<StudentClassCancellationSc
     loadPreview,
   ]);
 
-  const preview = previewData?.previewClassBookingCancellation;
   const refundInr = canSubmitCancel ? preview?.refundInr ?? 0 : 0;
   const breakdownText = canSubmitCancel ? preview?.breakdown?.breakdownText ?? '' : '';
 
@@ -115,12 +132,38 @@ export const StudentClassCancellationScreen: React.FC<StudentClassCancellationSc
         cancelCount: parsedCancelCount,
         refundMethod,
       },
-    }).catch((failure: unknown) => {
-      setCancelError(
-        failure instanceof Error ? failure.message : 'Could not cancel these classes.',
-      );
-    });
+    })
+      .then((result) => {
+        const amount = result.data?.cancelClassBooking?.amountInr ?? refundInr;
+        if (refundMethod === 'wallet') {
+          setSuccessMessage(
+            `Your classes were cancelled and a refund of ${formatInr(amount)} has been initiated. It will be credited to your wallet after processing.`,
+          );
+        } else {
+          setSuccessMessage(
+            `Your classes were cancelled and a cash refund of ${formatInr(amount)} has been initiated. It will be processed within 2 working days.`,
+          );
+        }
+      })
+      .catch((failure: unknown) => {
+        setCancelError(
+          failure instanceof Error ? failure.message : 'Could not cancel these classes.',
+        );
+      });
   };
+
+  if (successMessage) {
+    return (
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.title}>Cancellation confirmed</Text>
+        <Text style={styles.subtitle}>{successMessage}</Text>
+        <Text style={styles.hint}>We will email you when your refund is complete.</Text>
+        <Pressable onPress={onComplete} style={styles.primaryButton} accessibilityRole="button">
+          <Text style={styles.primaryButtonText}>Done</Text>
+        </Pressable>
+      </ScrollView>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -138,7 +181,7 @@ export const StudentClassCancellationScreen: React.FC<StudentClassCancellationSc
       <Text style={styles.title}>Class cancellation</Text>
       <Text style={styles.meta}>{booking.offeringLabel} · {booking.tutorName}</Text>
 
-      <BookingClassSummary booking={booking} />
+      <BookingClassSummary booking={displayBooking} />
 
       {!canCancelAny ? (
         <Text style={styles.subtitle}>
@@ -191,7 +234,7 @@ export const StudentClassCancellationScreen: React.FC<StudentClassCancellationSc
         accessibilityRole="button"
       >
         <Text style={styles.primaryButtonText}>
-          {cancelling ? 'Cancelling…' : `Add ${formatInr(refundInr)} to wallet`}
+          {cancelling ? 'Cancelling…' : `Cancel and refund ${formatInr(refundInr)} to wallet`}
         </Text>
       </Pressable>
 
@@ -208,7 +251,8 @@ export const StudentClassCancellationScreen: React.FC<StudentClassCancellationSc
       </Pressable>
 
       <Text style={styles.hint}>
-        Cash refunds are credited to your payment method within 3 working days.
+        Cash refunds are initiated immediately and credited to your payment method within 2 working
+        days after processing.
       </Text>
         </>
       ) : null}

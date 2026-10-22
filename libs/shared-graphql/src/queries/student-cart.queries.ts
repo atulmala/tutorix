@@ -141,6 +141,7 @@ export const MY_CLASS_CREDITS = gql`
   query MyClassCredits {
     myClassCredits {
       id
+      orderItemId
       tutorId
       tutorOfferingId
       offeringId

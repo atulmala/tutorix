@@ -1,4 +1,5 @@
 import {
+  activeClassCountForCancellationRefund,
   allocateRefundAcrossCredits,
   computeClassCancellationRefund,
   fairLinePaidTotalInr,
@@ -103,7 +104,7 @@ describe('fairLinePaidTotalInr', () => {
 });
 
 describe('pickCreditsForCancellation', () => {
-  it('picks unscheduled before scheduled and sorts by id / start time', () => {
+  it('picks unscheduled first, then scheduled slots farthest in the future', () => {
     const picked = pickCreditsForCancellation(
       [
         {
@@ -122,7 +123,19 @@ describe('pickCreditsForCancellation', () => {
       ],
       2,
     );
-    expect(picked.map((row) => row.id)).toEqual([1, 2]);
+    expect(picked.map((row) => row.id)).toEqual([1, 3]);
+  });
+});
+
+describe('activeClassCountForCancellationRefund', () => {
+  it('includes credits being cancelled even when status is already cancelled', () => {
+    const line = [
+      { id: 1, status: 'scheduled' },
+      { id: 2, status: 'cancelled' },
+      { id: 3, status: 'unscheduled' },
+    ];
+    expect(activeClassCountForCancellationRefund(line, [2])).toBe(3);
+    expect(activeClassCountForCancellationRefund(line, [])).toBe(2);
   });
 });
 

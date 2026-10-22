@@ -87,6 +87,9 @@ export class StudentClassCreditDto {
   id!: number;
 
   @Field(() => Int)
+  orderItemId!: number;
+
+  @Field(() => Int)
   tutorId!: number;
 
   @Field(() => Int)
@@ -178,6 +181,12 @@ export class CancelClassCreditsResult {
 
   @Field(() => Int, { nullable: true })
   walletBalanceInr?: number | null;
+
+  @Field(() => Int, { nullable: true })
+  refundRequestId?: number | null;
+
+  @Field(() => Boolean, { nullable: true })
+  refundInitiated?: boolean | null;
 }
 
 @ObjectType()
@@ -199,4 +208,10 @@ export class ScheduleClassCreditResult {
 
   @Field(() => Int)
   sessionId!: number;
+}
+
+@ObjectType()
+export class UnscheduleClassCreditResult {
+  @Field(() => Int)
+  creditId!: number;
 }

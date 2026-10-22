@@ -1,0 +1,16 @@
+---
+subject: Your class cancellation refund has been initiated
+text: Hi {{studentName}}, your refund of {{amountRefunded}} for {{offeringName}} ({{classCount}} class(es)) has been initiated. Refund method: {{refundMethodLabel}}. {{initiatedByLabel}} cancelled. Expected: {{expectedTimeline}}. Request {{requestId}}.
+---
+<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial, Helvetica, sans-serif; color: #111827; line-height: 1.5;">
+    <p>Hi {{studentName}},</p>
+    <p>Your refund of <strong>{{amountRefunded}}</strong> for <strong>{{offeringName}}</strong> ({{classCount}} class{{classCount}}) has been initiated.</p>
+    <p>Refund method: <strong>{{refundMethodLabel}}</strong>.</p>
+    <p>{{initiatedByLabel}} initiated this cancellation. The refund will be credited {{expectedTimeline}}.</p>
+    <p><em>Tutor-initiated: {{isTutorInitiated}}</em></p>
+    {{{linesHtml}}}
+    <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">Reference: {{requestId}} — Tutorix</p>
+  </body>
+</html>

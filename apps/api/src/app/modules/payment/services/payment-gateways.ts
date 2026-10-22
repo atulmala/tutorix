@@ -16,6 +16,9 @@ import {
   resolveRazorpayCheckoutLogoUrl,
 } from '../utils/razorpay-checkout.util';
 
+/** Local dev only: skip live Razorpay refund API (netbanking partial refunds often fail in test). */
+export const SIMULATED_GATEWAY_REFUND_PREFIX = 'rfnd_sim_';
+
 /** Razorpay returns 400 (not 404) when a payment/settlement id is unknown to this key. */
 function isRazorpayUnknownIdResponse(status: number, body: string): boolean {
   if (status === 404) {
@@ -38,6 +41,21 @@ export class RazorpayGateway implements PaymentGateway {
       this.configService.get<string>('RAZORPAY_KEY_ID') &&
         this.configService.get<string>('RAZORPAY_KEY_SECRET'),
     );
+  }
+
+  private isGatewayRefundSimulated(): boolean {
+    const env =
+      this.configService.get<string>('TUTORIX_ENV') ||
+      process.env.TUTORIX_ENV ||
+      '';
+    if (env !== 'development') {
+      return false;
+    }
+    const flag =
+      this.configService.get<string>('CLASS_CANCELLATION_GATEWAY_REFUND_SIMULATE') ||
+      process.env.CLASS_CANCELLATION_GATEWAY_REFUND_SIMULATE ||
+      '';
+    return flag.toLowerCase() === 'true';
   }
 
   async createOrder(input: CreatePaymentOrderInput): Promise<PaymentOrderSession> {
@@ -197,36 +215,156 @@ export class RazorpayGateway implements PaymentGateway {
     return `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}`;
   }
 
-  async refundPayment(paymentId: string, amountInr: number): Promise<string> {
+  async fetchPaymentRefundContext(paymentId: string): Promise<{
+    id: string;
+    status: string;
+    amountPaise: number;
+    amountRefundedPaise: number;
+    refundablePaise: number;
+    method: string;
+  } | null> {
+    if (!this.isConfigured()) {
+      return null;
+    }
+    const response = await fetch(
+      `https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}`,
+      {
+        method: 'GET',
+        headers: { Authorization: this.getAuthHeader() },
+      },
+    );
+    if (!response.ok) {
+      const body = await response.text();
+      if (isRazorpayUnknownIdResponse(response.status, body)) {
+        return null;
+      }
+      throw new Error(`Razorpay payment fetch failed (${response.status}): ${body}`);
+    }
+    const payment = (await response.json()) as {
+      id?: string;
+      status?: string;
+      amount?: number;
+      amount_refunded?: number;
+      method?: string;
+    };
+    const amountPaise = payment.amount ?? 0;
+    const amountRefundedPaise = payment.amount_refunded ?? 0;
+    return {
+      id: payment.id ?? paymentId,
+      status: payment.status ?? 'unknown',
+      amountPaise,
+      amountRefundedPaise,
+      refundablePaise: Math.max(0, amountPaise - amountRefundedPaise),
+      method: payment.method ?? 'unknown',
+    };
+  }
+
+  async refundPayment(
+    paymentId: string,
+    amountInr: number,
+    options?: { receipt?: string },
+  ): Promise<string> {
     if (!this.isConfigured()) {
       throw new Error('Razorpay credentials are not configured');
     }
     if (amountInr < 1) {
       throw new Error('Refund amount must be at least ₹1');
     }
-    const response = await fetch(
-      `https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}/refund`,
-      {
+    const amountPaise = Math.round(amountInr * 100);
+
+    if (this.isGatewayRefundSimulated()) {
+      return `${SIMULATED_GATEWAY_REFUND_PREFIX}${paymentId}_${amountPaise}`;
+    }
+
+    const paymentContext = await this.fetchPaymentRefundContext(paymentId);
+    const isPartial =
+      paymentContext != null && amountPaise < paymentContext.refundablePaise;
+
+    if (paymentContext && paymentContext.status !== 'captured') {
+      throw new Error(
+        `Razorpay payment is not captured (status=${paymentContext.status})`,
+      );
+    }
+    if (paymentContext && amountPaise > paymentContext.refundablePaise) {
+      throw new Error(
+        `Refund ₹${amountInr} exceeds Razorpay refundable balance (₹${paymentContext.refundablePaise / 100})`,
+      );
+    }
+
+    const baseBody: Record<string, unknown> = { amount: amountPaise };
+    if (options?.receipt) {
+      baseBody.receipt = options.receipt.slice(0, 40);
+    }
+
+    const strategies: Array<{
+      endpoint: 'payment' | 'refunds';
+      body: Record<string, unknown>;
+    }> = [
+      { endpoint: 'payment', body: { ...baseBody } },
+      { endpoint: 'payment', body: { ...baseBody, speed: 'optimum' } },
+      { endpoint: 'payment', body: { ...baseBody, speed: 'normal' } },
+      { endpoint: 'refunds', body: { ...baseBody, payment_id: paymentId } },
+    ];
+
+    let lastError = '';
+    for (const strategy of strategies) {
+      const url =
+        strategy.endpoint === 'payment'
+          ? `https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}/refund`
+          : 'https://api.razorpay.com/v1/refunds';
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           Authorization: this.getAuthHeader(),
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          amount: amountInr * 100,
-          speed: 'normal',
-        }),
+        body: JSON.stringify(strategy.body),
+      });
+      if (response.ok) {
+        const payload = (await response.json()) as { id?: string };
+        if (!payload.id) {
+          throw new Error('Razorpay refund did not return an id');
+        }
+        return payload.id;
+      }
+      lastError = await response.text();
+    }
+
+    const methodHint = paymentContext?.method ?? 'unknown';
+    const partialHint =
+      isPartial && methodHint === 'netbanking'
+        ? ' Partial refunds on netbanking may be blocked in test mode or when the Razorpay refund balance is low—try wallet payout or a full refund from the Razorpay dashboard.'
+        : ' Ensure the Razorpay account has sufficient refund balance.';
+    throw new Error(
+      `Razorpay refund failed (${methodHint}): ${lastError}.${partialHint}`,
+    );
+  }
+
+  async fetchRefundStatus(refundId: string): Promise<string | null> {
+    if (refundId.startsWith(SIMULATED_GATEWAY_REFUND_PREFIX)) {
+      return 'processed';
+    }
+    if (!this.isConfigured()) {
+      return null;
+    }
+    const response = await fetch(
+      `https://api.razorpay.com/v1/refunds/${encodeURIComponent(refundId)}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: this.getAuthHeader(),
+        },
       },
     );
     if (!response.ok) {
       const body = await response.text();
-      throw new Error(`Razorpay refund failed (${response.status}): ${body}`);
+      if (isRazorpayUnknownIdResponse(response.status, body)) {
+        return null;
+      }
+      throw new Error(`Razorpay refund fetch failed (${response.status}): ${body}`);
     }
-    const payload = (await response.json()) as { id?: string };
-    if (!payload.id) {
-      throw new Error('Razorpay refund did not return an id');
-    }
-    return payload.id;
+    const payload = (await response.json()) as { status?: string };
+    return payload.status ?? null;
   }
 
   async fetchSettlementForPayment(

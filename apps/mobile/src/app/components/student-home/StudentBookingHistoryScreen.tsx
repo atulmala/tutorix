@@ -3,12 +3,8 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useQuery } from '@apollo/client';
 import { STUDENT_CLASS_BOOKINGS } from '@tutorix/shared-graphql/queries';
 import { formatIstBookingDateLabel } from '@tutorix/shared-utils/student-booking';
-import {
-  formatTutorBookingAmount,
-  tutorBookingConclusionLabel,
-  tutorBookingModeLabel,
-  tutorBookingSchedulingLabel,
-} from '@tutorix/shared-utils/tutor-booking-history';
+import { formatTutorBookingAmount } from '@tutorix/shared-utils/tutor-booking-history';
+import type { BookingScheduledClassesContext } from './StudentBookingScheduledClassesScreen';
 
 const PAGE_SIZE = 20;
 
@@ -32,18 +28,37 @@ type StudentClassBookingRow = {
   isDemo: boolean;
 };
 
-type StudentBookingHistoryScreenProps = {
-  onCancelBooking?: (booking: {
-    orderItemId: number;
-    tutorName: string;
-    offeringLabel: string;
-    classCount: number;
-    scheduledCount: number;
-    unscheduledCount: number;
-    concludedCount: number;
-    cancellableCount: number;
-  }) => void;
+export type StudentBookingHistoryCancelPayload = {
+  orderItemId: number;
+  tutorName: string;
+  offeringLabel: string;
+  classCount: number;
+  scheduledCount: number;
+  unscheduledCount: number;
+  concludedCount: number;
+  cancelledCount: number;
+  cancellableCount: number;
 };
+
+type StudentBookingHistoryScreenProps = {
+  onCancelBooking?: (booking: StudentBookingHistoryCancelPayload) => void;
+  onScheduleBooking?: (orderItemId: number) => void;
+  onViewScheduledClasses?: (booking: BookingScheduledClassesContext) => void;
+};
+
+function bookingCancelPayload(row: StudentClassBookingRow): StudentBookingHistoryCancelPayload {
+  return {
+    orderItemId: row.orderItemId,
+    tutorName: row.tutorName,
+    offeringLabel: row.offeringLabel,
+    classCount: row.classCount,
+    scheduledCount: row.scheduledCount,
+    unscheduledCount: row.unscheduledCount,
+    concludedCount: row.concludedCount,
+    cancelledCount: row.cancelledCount,
+    cancellableCount: row.cancellableCount,
+  };
+}
 
 type StudentClassBookingsData = {
   studentClassBookings?: {
@@ -130,6 +145,8 @@ function FilterDropdown({
 
 export const StudentBookingHistoryScreen: React.FC<StudentBookingHistoryScreenProps> = ({
   onCancelBooking,
+  onScheduleBooking,
+  onViewScheduledClasses,
 }) => {
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<StudentClassBookingRow[]>([]);
@@ -161,22 +178,15 @@ export const StudentBookingHistoryScreen: React.FC<StudentBookingHistoryScreenPr
       return;
     }
     setItems((current) => {
-      const incoming =
-        result.page === 1
-          ? result.items
-          : [
-              ...current,
-              ...result.items.filter(
-                (item) => !current.some((existing) => existing.orderItemId === item.orderItemId),
-              ),
-            ];
-      if (
-        incoming.length === current.length &&
-        incoming.every((item, index) => item.orderItemId === current[index]?.orderItemId)
-      ) {
-        return current;
+      if (result.page === 1) {
+        return result.items;
       }
-      return incoming;
+      return [
+        ...current,
+        ...result.items.filter(
+          (item) => !current.some((existing) => existing.orderItemId === item.orderItemId),
+        ),
+      ];
     });
   }, [result, page]);
 
@@ -242,32 +252,61 @@ export const StudentBookingHistoryScreen: React.FC<StudentBookingHistoryScreenPr
               {row.offeringLabel}
               {row.isDemo ? ' · Free demo' : ''}
             </Text>
-            <Text style={styles.meta}>
-              {row.classCount} {row.classCount === 1 ? 'class' : 'classes'} ·{' '}
-              {tutorBookingModeLabel(row.deliveryMode)}
+            <Text style={[styles.detailLine, styles.detailLineSpaced]}>
+              Total classes booked: <Text style={styles.detailValue}>{row.classCount}</Text>
             </Text>
-            <Text style={styles.status}>Scheduling · {tutorBookingSchedulingLabel(row)}</Text>
-            <Text style={styles.status}>Concluded · {tutorBookingConclusionLabel(row)}</Text>
-            {row.canCancel && onCancelBooking ? (
-              <Pressable
-                onPress={() =>
-                  onCancelBooking({
-                    orderItemId: row.orderItemId,
-                    tutorName: row.tutorName,
-                    offeringLabel: row.offeringLabel,
-                    classCount: row.classCount,
-                    scheduledCount: row.scheduledCount,
-                    unscheduledCount: row.unscheduledCount,
-                    concludedCount: row.concludedCount,
-                    cancellableCount: row.cancellableCount,
-                  })
-                }
-                accessibilityRole="button"
-                accessibilityLabel="Cancel classes"
-                style={styles.cancelButton}
-              >
-                <Text style={styles.cancelButtonText}>Cancel classes</Text>
-              </Pressable>
+            <View style={styles.detailRow}>
+              {row.scheduledCount > 0 && onViewScheduledClasses ? (
+                <Pressable
+                  onPress={() =>
+                    onViewScheduledClasses({
+                      orderItemId: row.orderItemId,
+                      tutorName: row.tutorName,
+                      offeringLabel: row.offeringLabel,
+                    })
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel={`${row.scheduledCount} scheduled classes`}
+                  style={styles.actionLink}
+                >
+                  <Text style={styles.detailLine}>
+                    Scheduled:{' '}
+                    <Text style={styles.detailLinkValue}>{row.scheduledCount}</Text>
+                  </Text>
+                </Pressable>
+              ) : (
+                <Text style={styles.detailLine}>
+                  Scheduled: <Text style={styles.detailValue}>{row.scheduledCount}</Text>
+                </Text>
+              )}
+              <Text style={styles.detailLine}>
+                Concluded: <Text style={styles.detailValue}>{row.concludedCount}</Text>
+              </Text>
+            </View>
+            {(row.unscheduledCount > 0 && onScheduleBooking) ||
+            (row.canCancel && onCancelBooking) ? (
+              <View style={styles.actionsRow}>
+                {row.unscheduledCount > 0 && onScheduleBooking ? (
+                  <Pressable
+                    onPress={() => onScheduleBooking(row.orderItemId)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Schedule class"
+                    style={styles.actionLink}
+                  >
+                    <Text style={styles.actionLinkText}>Schedule class</Text>
+                  </Pressable>
+                ) : null}
+                {row.canCancel && onCancelBooking ? (
+                  <Pressable
+                    onPress={() => onCancelBooking(bookingCancelPayload(row))}
+                    accessibilityRole="button"
+                    accessibilityLabel="Cancel classes"
+                    style={styles.actionLink}
+                  >
+                    <Text style={styles.actionLinkTextDanger}>Cancel classes</Text>
+                  </Pressable>
+                ) : null}
+              </View>
             ) : null}
           </View>
         ))
@@ -370,10 +409,27 @@ const styles = StyleSheet.create({
   date: { flex: 1, fontSize: 13, fontWeight: '800', color: '#2563eb', letterSpacing: 0.2 },
   tutor: { marginTop: 6, fontSize: 17, fontWeight: '800', color: '#0f2744' },
   offering: { marginTop: 4, fontSize: 15, fontWeight: '700', color: '#1d4ed8' },
-  meta: { marginTop: 8, fontSize: 13, fontWeight: '700', color: '#0f766e' },
-  status: { marginTop: 3, fontSize: 13, fontWeight: '600', color: '#475569' },
-  cancelButton: { marginTop: 12, alignSelf: 'flex-start' },
-  cancelButtonText: { fontSize: 15, fontWeight: '800', color: '#2563eb' },
+  detailLine: { fontSize: 14, fontWeight: '600', color: '#475569' },
+  detailLineSpaced: { marginTop: 6 },
+  detailRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 6,
+  },
+  detailValue: { fontWeight: '800', color: '#143055' },
+  detailLinkValue: { fontWeight: '800', color: '#2563eb', textDecorationLine: 'underline' },
+  actionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 16,
+    marginTop: 10,
+  },
+  actionLink: { alignSelf: 'flex-start' },
+  actionLinkText: { fontSize: 15, fontWeight: '800', color: '#2563eb' },
+  actionLinkTextDanger: { fontSize: 15, fontWeight: '800', color: '#dc2626' },
   amount: {
     fontSize: 22,
     fontWeight: '800',

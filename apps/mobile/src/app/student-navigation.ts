@@ -22,6 +22,7 @@ export type AppView =
   | 'studentClassSchedule'
   | 'studentConcludedClasses'
   | 'studentBookingHistory'
+  | 'studentBookingScheduledClasses'
   | 'studentClassCancellation'
   | 'tutorConcludedClasses'
   | 'tutorBookingHistory'
@@ -42,6 +43,7 @@ export type WalletReturnView =
   | 'studentClassSchedule'
   | 'studentConcludedClasses'
   | 'studentBookingHistory'
+  | 'studentBookingScheduledClasses'
   | 'studentClassCancellation'
   | 'tutorConcludedClasses'
   | 'tutorBookingHistory'
@@ -61,6 +63,7 @@ const STUDENT_CART_RETURN_VIEWS = [
   'studentClassSchedule',
   'studentConcludedClasses',
   'studentBookingHistory',
+  'studentBookingScheduledClasses',
   'studentClassCancellation',
 ] as const satisfies readonly AppView[];
 
