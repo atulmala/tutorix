@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@apollo/client';
 import { TUTOR_BOOKED_CLASS_SESSIONS } from '@tutorix/shared-graphql/queries';
 import {
@@ -16,9 +16,15 @@ type BookedClass = {
   offeringLabel: string;
   studentName: string;
   isDemo: boolean;
+  postClassRefundClaimId?: number | null;
+  postClassRefundClaimPendingTutorAction?: boolean;
 };
 
-export const TutorConcludedClassesScreen: React.FC = () => {
+type Props = {
+  onActOnRefundClaim?: (claimId: number) => void;
+};
+
+export const TutorConcludedClassesScreen: React.FC<Props> = ({ onActOnRefundClaim }) => {
   const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
   const { data, loading } = useQuery(TUTOR_BOOKED_CLASS_SESSIONS, {
     variables: {
@@ -49,6 +55,25 @@ export const TutorConcludedClassesScreen: React.FC = () => {
               {row.isDemo ? ' · Free demo' : ''}
             </Text>
             <Text style={styles.person}>Student · {row.studentName}</Text>
+            {row.postClassRefundClaimId ? (
+              <Text style={styles.claimBadge}>
+                {row.postClassRefundClaimPendingTutorAction
+                  ? 'Refund claim — your response needed'
+                  : 'Refund claim raised'}
+              </Text>
+            ) : null}
+            {row.postClassRefundClaimPendingTutorAction &&
+            row.postClassRefundClaimId &&
+            onActOnRefundClaim ? (
+              <Pressable
+                style={styles.respondButton}
+                onPress={() => onActOnRefundClaim(row.postClassRefundClaimId!)}
+                accessibilityRole="button"
+                accessibilityLabel="Respond to refund claim"
+              >
+                <Text style={styles.respondButtonText}>Respond to claim</Text>
+              </Pressable>
+            ) : null}
           </View>
         ))
       )}
@@ -70,4 +95,21 @@ const styles = StyleSheet.create({
   time: { marginTop: 2, fontSize: 14, color: '#143055' },
   subject: { marginTop: 6, fontSize: 14, color: '#143055' },
   person: { marginTop: 2, fontSize: 13, color: '#64748b' },
+  claimBadge: {
+    marginTop: 8,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    color: '#92400e',
+  },
+  respondButton: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    backgroundColor: '#d97706',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  respondButtonText: { fontSize: 12, fontWeight: '800', color: '#fff' },
 });

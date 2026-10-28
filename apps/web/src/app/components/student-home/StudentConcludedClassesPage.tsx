@@ -7,6 +7,7 @@ import {
   istBookedClassQueryRange,
   scheduledClassHasEnded,
 } from '@tutorix/shared-utils';
+import { postClassRefundClaimStudentStatusLabel } from './post-class-refund-claim-label';
 
 type BookedClass = {
   enrollmentId: string;
@@ -14,9 +15,18 @@ type BookedClass = {
   durationMinutes: number;
   offeringLabel: string;
   tutorName: string;
+  postClassRefundClaimEligible?: boolean;
+  postClassRefundClaimId?: number | null;
+  postClassRefundClaimStudentStatus?: string | null;
 };
 
-export const StudentConcludedClassesPage: React.FC = () => {
+type StudentConcludedClassesPageProps = {
+  onClaimRefund?: (enrollmentId: string) => void;
+};
+
+export const StudentConcludedClassesPage: React.FC<StudentConcludedClassesPageProps> = ({
+  onClaimRefund,
+}) => {
   const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
   const { data, loading } = useQuery(STUDENT_BOOKED_CLASS_SESSIONS, {
     variables: {
@@ -38,18 +48,36 @@ export const StudentConcludedClassesPage: React.FC = () => {
         <p className="mt-4 text-sm leading-6 text-slate-500">No concluded classes yet.</p>
       ) : (
         <ul className="mt-4 space-y-3">
-          {rows.map((row) => (
-            <li key={row.enrollmentId} className="rounded-2xl bg-white px-4 py-3">
-              <p className="text-sm font-extrabold text-[#143055]">
-                {formatIstBookingDateLabel(new Date(row.startsAt))}
-              </p>
-              <p className="mt-0.5 text-sm text-[#143055]">
-                {formatIstBookingTimeRange(new Date(row.startsAt), row.durationMinutes)}
-              </p>
-              <p className="mt-1 text-sm text-[#143055]">{row.offeringLabel}</p>
-              <p className="mt-0.5 text-sm text-slate-500">Tutor · {row.tutorName}</p>
-            </li>
-          ))}
+          {rows.map((row) => {
+            const statusLabel = postClassRefundClaimStudentStatusLabel(
+              row.postClassRefundClaimStudentStatus,
+            );
+            return (
+              <li key={row.enrollmentId} className="rounded-2xl bg-white px-4 py-3">
+                <p className="text-sm font-extrabold text-[#143055]">
+                  {formatIstBookingDateLabel(new Date(row.startsAt))}
+                </p>
+                <p className="mt-0.5 text-sm text-[#143055]">
+                  {formatIstBookingTimeRange(new Date(row.startsAt), row.durationMinutes)}
+                </p>
+                <p className="mt-1 text-sm text-[#143055]">{row.offeringLabel}</p>
+                <p className="mt-0.5 text-sm text-slate-500">Tutor · {row.tutorName}</p>
+                {statusLabel ? (
+                  <p className="mt-2 text-xs font-bold uppercase tracking-wide text-amber-800">
+                    Refund claim: {statusLabel}
+                  </p>
+                ) : row.postClassRefundClaimEligible && onClaimRefund ? (
+                  <button
+                    type="button"
+                    className="mt-3 rounded-lg border border-[#143055] px-3 py-1.5 text-xs font-extrabold text-[#143055]"
+                    onClick={() => onClaimRefund(row.enrollmentId)}
+                  >
+                    Claim refund
+                  </button>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

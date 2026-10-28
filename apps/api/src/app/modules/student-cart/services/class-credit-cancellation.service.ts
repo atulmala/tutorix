@@ -1031,4 +1031,136 @@ export class ClassCreditCancellationService {
     }
     return student;
   }
+
+  async refundPreviewForStudentCredits(
+    studentId: number,
+    credits: StudentClassCreditEntity[],
+  ) {
+    return this.refundAmountsByCreditId(studentId, credits);
+  }
+
+  async cancelConcludedCreditForPostClassClaim(
+    user: User,
+    credit: StudentClassCreditEntity,
+    refundMethod: ClassCreditRefundMethodEnum,
+  ): Promise<{
+    amountInr: number;
+    refundRequestId: number | null;
+    breakdownText: string;
+  }> {
+    if (credit.isDemo === true) {
+      throw new BadRequestException('Demo classes cannot be refunded');
+    }
+    if (credit.status === ClassCreditStatusEnum.cancelled) {
+      throw new BadRequestException('This class is already cancelled');
+    }
+    if (credit.status !== ClassCreditStatusEnum.scheduled) {
+      throw new BadRequestException('This class is not eligible for a post-class refund');
+    }
+    const startsAt = credit.enrollment?.session?.tutorCalendar?.startsAt;
+    const durationMinutes =
+      credit.enrollment?.session?.tutorCalendar?.durationMinutes ?? null;
+    if (!scheduledClassHasEnded(startsAt, durationMinutes)) {
+      throw new BadRequestException('This class has not concluded yet');
+    }
+
+    const studentId = credit.studentId;
+    const { amountByCreditId, breakdownSnapshots } =
+      await this.refundAmountsByCreditId(studentId, [credit]);
+    const amountInr = amountByCreditId.get(credit.id) ?? 0;
+    const snapshot = breakdownSnapshots.get(credit.orderItemId);
+    const breakdownText = snapshot?.breakdownText ?? '';
+
+    if (
+      refundMethod === ClassCreditRefundMethodEnum.gateway &&
+      amountInr > 0 &&
+      !(await this.refundChecksService.canGatewayCoverAmount(user.id, amountInr))
+    ) {
+      throw new BadRequestException(
+        'This amount cannot be refunded to your payment method. Add it to your wallet instead.',
+      );
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      const locked = await manager
+        .getRepository(StudentClassCreditEntity)
+        .createQueryBuilder('credit')
+        .setLock('pessimistic_write')
+        .where('credit.id = :id', { id: credit.id })
+        .andWhere('credit.student_id = :studentId', { studentId })
+        .andWhere('credit.deleted = false')
+        .getOne();
+      if (!locked || locked.status === ClassCreditStatusEnum.cancelled) {
+        throw new BadRequestException('This class can no longer be refunded');
+      }
+      if (locked.enrollmentId) {
+        await this.releaseEnrollment(manager, locked.enrollmentId, studentId);
+      }
+      locked.status = ClassCreditStatusEnum.cancelled;
+      locked.enrollmentId = null;
+      await manager.getRepository(StudentClassCreditEntity).save(locked);
+      await manager.getRepository(ClassCreditCancellationEntity).save(
+        manager.getRepository(ClassCreditCancellationEntity).create({
+          creditId: locked.id,
+          studentId,
+          userId: user.id,
+          amountInr,
+          refundMethod,
+        }),
+      );
+    });
+
+    let refundRequestId: number | null = null;
+    if (amountInr > 0) {
+      const refundRequest = await this.refundRequestService.createRequest({
+        initiatedBy: ClassCancellationRefundInitiatedByEnum.student,
+        studentId,
+        tutorId: credit.tutorId ?? null,
+        tutorOfferingId: credit.tutorOfferingId ?? null,
+        orderItemId: credit.orderItemId,
+        orderId: credit.orderId ?? null,
+        classCount: 1,
+        amountInr,
+        refundMethod,
+        initiatedByUserId: user.id,
+        creditIds: [credit.id],
+        refundBreakdown: this.mergeBreakdownSnapshot(
+          snapshot,
+          [credit],
+          amountByCreditId,
+        ),
+      });
+      refundRequestId = refundRequest?.id ?? null;
+    }
+
+    return { amountInr, refundRequestId, breakdownText };
+  }
+
+  async restoreConcludedCreditAsUnscheduled(
+    credit: StudentClassCreditEntity,
+    studentId: number,
+  ): Promise<void> {
+    if (credit.status !== ClassCreditStatusEnum.scheduled) {
+      throw new BadRequestException('This class cannot be restored as a credit');
+    }
+    await this.dataSource.transaction(async (manager) => {
+      const locked = await manager
+        .getRepository(StudentClassCreditEntity)
+        .createQueryBuilder('credit')
+        .setLock('pessimistic_write')
+        .where('credit.id = :id', { id: credit.id })
+        .andWhere('credit.student_id = :studentId', { studentId })
+        .andWhere('credit.deleted = false')
+        .getOne();
+      if (!locked) {
+        throw new NotFoundException('Class not found');
+      }
+      if (locked.enrollmentId) {
+        await this.releaseEnrollment(manager, locked.enrollmentId, studentId);
+      }
+      locked.status = ClassCreditStatusEnum.unscheduled;
+      locked.enrollmentId = null;
+      await manager.getRepository(StudentClassCreditEntity).save(locked);
+    });
+  }
 }

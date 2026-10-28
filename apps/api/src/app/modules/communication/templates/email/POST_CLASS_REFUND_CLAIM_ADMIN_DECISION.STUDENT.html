@@ -1,0 +1,16 @@
+---
+subject: Your class refund claim was {{actionLabel}}
+text: Your refund claim for {{offeringName}} ({{classTime}}) was {{actionLabel}}. Method: {{refundMethodLabel}}. Amount: ₹{{amountInr}}. {{adminComment}}
+---
+<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial, Helvetica, sans-serif; color: #111827; line-height: 1.5;">
+    <p>Dear {{studentName}},</p>
+    <p>
+      Your post-class refund claim for <strong>{{offeringName}}</strong> ({{classTime}}) has been
+      <strong>{{actionLabel}}</strong>.
+    </p>
+    <p>Refund method: {{refundMethodLabel}}. Amount: ₹{{amountInr}}.</p>
+    <p>Note: {{adminComment}}</p>
+  </body>
+</html>

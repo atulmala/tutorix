@@ -1,0 +1,1 @@
+A class refund request has been raised. Please check concluded classes to view and act on it before {{tutorResponseDeadline}}.

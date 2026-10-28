@@ -1,0 +1,20 @@
+---
+subject: A student claimed a class refund
+text: "{{studentName}}" claimed a refund for {{offeringName}} on {{classTime}}. Reason: {{refundReasonLabel}}. Please respond by {{tutorResponseDeadline}}.
+---
+<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial, Helvetica, sans-serif; color: #111827; line-height: 1.5;">
+    <p>Dear tutor,</p>
+    <p>
+      Student <strong>{{studentName}}</strong> has claimed a class refund for a class concluded on
+      <strong>{{classTime}}</strong> for <strong>{{offeringName}}</strong>.
+    </p>
+    <p><strong>The reason for refund:</strong> {{refundReasonLabel}}</p>
+    <p>
+      Please log in to your Tutorix account to accept or decline this refund. You should respond by
+      <strong>{{tutorResponseDeadline}}</strong>. If you do not respond, the claim will be deemed
+      legitimate and processed accordingly.
+    </p>
+  </body>
+</html>

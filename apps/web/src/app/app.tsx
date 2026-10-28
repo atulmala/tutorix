@@ -19,6 +19,7 @@ import { PasswordResetAcknowledgement } from './components/PasswordResetAcknowle
 import { TutorOnboarding } from './components/tutor-onboarding';
 import { TutorHomePage } from './components/tutor-home';
 import { TutorConcludedClassesPage } from './components/tutor-home/TutorConcludedClassesPage';
+import { TutorPostClassRefundClaimPage } from './components/tutor-home/TutorPostClassRefundClaimPage';
 import { TutorBookingHistoryPage } from './components/tutor-home/TutorBookingHistoryPage';
 import { TutorBankSetupPage } from './components/tutor-bank-setup';
 import {
@@ -40,6 +41,7 @@ import {
   StudentClassCancellationPage,
 } from './components/student-home/StudentClassCancellationPage';
 import { StudentConcludedClassesPage } from './components/student-home/StudentConcludedClassesPage';
+import { StudentPostClassRefundClaimPage } from './components/student-home/StudentPostClassRefundClaimPage';
 import { StudentProfilePage } from './components/student-profile';
 import { StudentTutorSearchPage } from './components/student-tutor-search/StudentTutorSearchPage';
 import { clearStudentTutorSearchDraft } from './components/student-tutor-search/student-tutor-search-draft';
@@ -108,6 +110,10 @@ function AppContent() {
     useState<BookingScheduledClassesContext | null>(null);
   const [classCancellationBooking, setClassCancellationBooking] =
     useState<ClassCancellationBooking | null>(null);
+  const [postClassRefundEnrollmentId, setPostClassRefundEnrollmentId] = useState<string | null>(
+    null,
+  );
+  const [tutorRefundClaimId, setTutorRefundClaimId] = useState<number | null>(null);
   const [resumeUserId, setResumeUserId] = useState<number | undefined>(undefined);
   const [resumeVerificationStatus, setResumeVerificationStatus] = useState<
     | {
@@ -847,7 +853,43 @@ function AppContent() {
           onOpenCart={openStudentCart}
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-8">
-          <StudentConcludedClassesPage />
+          <StudentConcludedClassesPage
+            onClaimRefund={(enrollmentId) => {
+              setPostClassRefundEnrollmentId(enrollmentId);
+              setCurrentView('student-post-class-refund-claim');
+            }}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'student-post-class-refund-claim' && postClassRefundEnrollmentId) {
+    return (
+      <div className="min-h-screen bg-[#e8f4ff] text-primary">
+        <AppHeader
+          title="Claim refund"
+          onLogout={handleLogout}
+          onBack={() => {
+            setPostClassRefundEnrollmentId(null);
+            setCurrentView('student-concluded-classes');
+          }}
+          onProfilePress={() => setCurrentView('student-profile')}
+          onOpenWallet={() => handleOpenWallet('student-concluded-classes')}
+          onOpenCart={openStudentCart}
+        />
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-8">
+          <StudentPostClassRefundClaimPage
+            enrollmentId={postClassRefundEnrollmentId}
+            onComplete={() => {
+              setPostClassRefundEnrollmentId(null);
+              setCurrentView('student-concluded-classes');
+            }}
+            onBack={() => {
+              setPostClassRefundEnrollmentId(null);
+              setCurrentView('student-concluded-classes');
+            }}
+          />
         </main>
       </div>
     );
@@ -1058,6 +1100,10 @@ function AppContent() {
               });
               setCurrentView('online-class');
             }}
+            onActOnRefundClaim={(claimId) => {
+              setTutorRefundClaimId(claimId);
+              setCurrentView('tutor-post-class-refund-claim');
+            }}
           />
         </main>
       </div>
@@ -1074,7 +1120,37 @@ function AppContent() {
           onOpenWallet={() => handleOpenWallet('tutor-concluded-classes')}
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-8">
-          <TutorConcludedClassesPage />
+          <TutorConcludedClassesPage
+            onActOnRefundClaim={(claimId) => {
+              setTutorRefundClaimId(claimId);
+              setCurrentView('tutor-post-class-refund-claim');
+            }}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'tutor-post-class-refund-claim' && tutorRefundClaimId != null) {
+    return (
+      <div className="min-h-screen bg-[#e8f4ff] text-primary">
+        <AppHeader
+          title="Refund request"
+          onLogout={handleLogout}
+          onBack={() => {
+            setTutorRefundClaimId(null);
+            setCurrentView('tutor-concluded-classes');
+          }}
+          onOpenWallet={() => handleOpenWallet('tutor-concluded-classes')}
+        />
+        <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-8">
+          <TutorPostClassRefundClaimPage
+            claimId={tutorRefundClaimId}
+            onComplete={() => {
+              setTutorRefundClaimId(null);
+              setCurrentView('tutor-concluded-classes');
+            }}
+          />
         </main>
       </div>
     );

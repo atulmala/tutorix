@@ -11,6 +11,7 @@ import { TutorOnboardingApprovalBatchCron } from './tutor-onboarding-approval/tu
 import { PaymentSettlementBatchCron } from './payment-settlement/payment-settlement-batch.cron';
 import { TutorClassEmailBatchCron } from './tutor-class-email/tutor-class-email-batch.cron';
 import { ClassCancellationRefundBatchCron } from './class-cancellation-refund/class-cancellation-refund-batch.cron';
+import { PostClassRefundClaimDeadlineCron } from './post-class-refund-claim/post-class-refund-claim-deadline.cron';
 
 /**
  * Central module for scheduled batch jobs.
@@ -32,6 +33,7 @@ import { ClassCancellationRefundBatchCron } from './class-cancellation-refund/cl
     PaymentSettlementBatchCron,
     TutorClassEmailBatchCron,
     ClassCancellationRefundBatchCron,
+    PostClassRefundClaimDeadlineCron,
   ],
 })
 export class BatchJobsModule {}

@@ -27,6 +27,7 @@ export * from './tutor-search';
 export * from './student-education-offering';
 export * from './student-schedule';
 export * from './student-booking';
+export * from './post-class-refund-claim';
 export * from './online-class-window';
 export * from './online-class-agora-cost';
 export * from './tutor-booking-history';

@@ -209,6 +209,10 @@ describe('TutorClassSessionService', () => {
       { findOne: offeringFindOne } as never,
       { find: sessionFind } as never,
       { createQueryBuilder: enrollmentQuery } as never,
+      {
+        enrollmentFieldsForStudent: async () => new Map(),
+        tutorEnrollmentFields: async () => new Map(),
+      } as never,
     );
   });
 

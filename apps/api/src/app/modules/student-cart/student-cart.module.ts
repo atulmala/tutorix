@@ -24,14 +24,23 @@ import './enums/class-cancellation-refund-initiated-by.enum';
 import './enums/class-cancellation-refund-payout-status.enum';
 import './enums/class-cancellation-refund-ai-status.enum';
 import './enums/tutor-booking-status.enum';
+import './enums/post-class-refund-claim-reason.enum';
+import './enums/post-class-refund-claim-method.enum';
+import './enums/post-class-refund-tutor-response-status.enum';
+import './enums/post-class-refund-admin-status.enum';
+import './enums/post-class-refund-claim-student-status.enum';
 import { ClassCancellationRefundRequestEntity } from './entities/class-cancellation-refund-request.entity';
+import { PostClassRefundClaimEntity } from './entities/post-class-refund-claim.entity';
 import { ClassCreditCancellationEntity } from './entities/class-credit-cancellation.entity';
 import { ClassCreditGatewayRefundEntity } from './entities/class-credit-gateway-refund.entity';
 import { StudentCartItemEntity } from './entities/student-cart-item.entity';
 import { StudentCartEntity } from './entities/student-cart.entity';
 import { StudentClassCreditEntity } from './entities/student-class-credit.entity';
 import { TutorClassEmailQueueEntity } from './entities/tutor-class-email-queue.entity';
+import { PostClassRefundClaimResolver } from './resolvers/post-class-refund-claim.resolver';
 import { StudentCartResolver } from './resolvers/student-cart.resolver';
+import { AdminPostClassRefundClaimService } from './services/admin-post-class-refund-claim.service';
+import { PostClassRefundClaimService } from './services/post-class-refund-claim.service';
 import { AdminClassCancellationRefundService } from './services/admin-class-cancellation-refund.service';
 import { AdminClassBookingService } from './services/admin-class-booking.service';
 import { ClassCancellationRefundAiService } from './services/class-cancellation-refund-ai.service';
@@ -54,6 +63,7 @@ import { TutorClassEmailBatchService } from './services/tutor-class-email-batch.
       ClassCreditCancellationEntity,
       ClassCreditGatewayRefundEntity,
       ClassCancellationRefundRequestEntity,
+      PostClassRefundClaimEntity,
       PaymentAttemptEntity,
       OrderItemEntity,
       Tutor,
@@ -88,9 +98,13 @@ import { TutorClassEmailBatchService } from './services/tutor-class-email-batch.
     AdminClassBookingService,
     AdminClassCancellationRefundService,
     TutorClassBookingService,
+    PostClassRefundClaimService,
+    AdminPostClassRefundClaimService,
     StudentCartResolver,
+    PostClassRefundClaimResolver,
   ],
   exports: [
+    PostClassRefundClaimService,
     StudentCartService,
     StudentClassCreditService,
     TutorClassEmailBatchService,
