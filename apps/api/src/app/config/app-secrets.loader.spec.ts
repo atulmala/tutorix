@@ -4,6 +4,7 @@ import {
   resetAppSecretsLoaderForTests,
   resolveTutorixEnv,
   shouldApplyRazorpayFromSecrets,
+  shouldSkipSecretsManagerKey,
 } from './app-secrets.loader';
 
 describe('app-secrets.loader', () => {
@@ -57,6 +58,15 @@ describe('app-secrets.loader', () => {
       expect(
         shouldApplyRazorpayFromSecrets({ TUTORIX_ENV: 'development' }),
       ).toBe(false);
+    });
+  });
+
+  describe('shouldSkipSecretsManagerKey', () => {
+    it('skips Agora and host-local keys', () => {
+      expect(shouldSkipSecretsManagerKey('AGORA_APP_ID')).toBe(true);
+      expect(shouldSkipSecretsManagerKey('AGORA_RTC_WEBHOOK_SECRET')).toBe(true);
+      expect(shouldSkipSecretsManagerKey('DB_HOST')).toBe(true);
+      expect(shouldSkipSecretsManagerKey('JWT_SECRET')).toBe(false);
     });
   });
 
@@ -137,6 +147,25 @@ describe('app-secrets.loader', () => {
       });
       expect(env.AWS_ACCESS_KEY_ID).toBe('local-key');
       expect(env.AWS_SECRET_ACCESS_KEY).toBe('local-secret');
+    });
+
+    it('ignores Agora keys from Secrets Manager (use server .env only)', async () => {
+      const env: NodeJS.ProcessEnv = {
+        TUTORIX_ENV: 'production',
+        AWS_REGION: 'us-east-1',
+        AGORA_APP_ID: 'from-env',
+        AGORA_RTC_WEBHOOK_SECRET: 'webhook-from-env',
+      };
+      await loadAppSecrets({
+        client: mockClient({
+          ...secretJson,
+          AGORA_APP_ID: 'from-sm',
+          AGORA_RTC_WEBHOOK_SECRET: 'webhook-from-sm',
+        }),
+        env,
+      });
+      expect(env.AGORA_APP_ID).toBe('from-env');
+      expect(env.AGORA_RTC_WEBHOOK_SECRET).toBe('webhook-from-env');
     });
 
     it('fails closed when DB password is missing', async () => {

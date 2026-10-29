@@ -37,6 +37,7 @@ async function bootstrap() {
   const { AppModule } = await import('./app/app.module');
 
   const app = await NestFactory.create(AppModule, {
+    bodyParser: false,
     // Ensure logger is enabled so GraphQL and other logs are visible
     logger:
       process.env.NODE_ENV === 'production'

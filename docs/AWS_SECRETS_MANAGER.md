@@ -25,6 +25,7 @@ Razorpay values in this secret are the **live** keys. They are applied only when
 - `DB_HOST`, `DB_PORT`, `DB_NAME`
 - `FRONTEND_URL`, `CORS_ORIGINS`, S3 bucket + `S3_DOCUMENTS_BUCKET_REGION`, SES
 - **Staging/local only:** `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` test keys (`rzp_test_...`)
+- **All Agora online-class keys** (`AGORA_*`, including `AGORA_RTC_WEBHOOK_SECRET`) — set on each EC2 host in `.env` and passed through `docker-compose.yml`. **Do not** add them to `tutorix/app`; the loader ignores any `AGORA_*` keys in Secrets Manager.
 - **Local only:** `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`. EC2 uses instance role `TutorixEC2Role`
 
 `TUTORIX_ENV=test` (Jest) does not call Secrets Manager.
@@ -36,8 +37,9 @@ Razorpay values in this secret are the **live** keys. They are applied only when
 1. Fetch `tutorix/app`.
 2. Assign JSON keys onto `process.env`.
 3. Never overwrite `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `DB_HOST`, `DB_PORT`, `DB_NAME`.
-4. Apply `RAZORPAY_*` from the secret **only** when `TUTORIX_ENV=production`.
-5. Fail closed if the fetch fails or `DB_USERNAME` / `DB_PASSWORD` are missing.
+4. **Ignore every `AGORA_*` key** in the secret (Agora lives in server `.env` only).
+5. Apply `RAZORPAY_*` from the secret **only** when `TUTORIX_ENV=production`.
+6. Fail closed if the fetch fails or `DB_USERNAME` / `DB_PASSWORD` are missing.
 
 ## IAM
 

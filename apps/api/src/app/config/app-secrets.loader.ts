@@ -12,6 +12,14 @@ const NEVER_OVERWRITE = new Set([
   'DB_NAME',
 ]);
 
+/** Agora (and other host-local keys) must come from server `.env` via Compose, not `tutorix/app`. */
+export function shouldSkipSecretsManagerKey(key: string): boolean {
+  if (NEVER_OVERWRITE.has(key)) {
+    return true;
+  }
+  return key.startsWith('AGORA_');
+}
+
 const RAZORPAY_KEYS = new Set(['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET']);
 
 export type TutorixEnv = 'development' | 'staging' | 'production' | 'test';
@@ -138,7 +146,7 @@ async function loadAppSecretsOnce(options?: {
 
   const applyRazorpay = shouldApplyRazorpayFromSecrets(env);
   for (const [key, raw] of Object.entries(parsed as Record<string, unknown>)) {
-    if (NEVER_OVERWRITE.has(key)) continue;
+    if (shouldSkipSecretsManagerKey(key)) continue;
     if (RAZORPAY_KEYS.has(key) && !applyRazorpay) continue;
     if (typeof raw !== 'string' || raw.length === 0) continue;
     if (key === 'FIREBASE_SERVICE_ACCOUNT_JSON') {

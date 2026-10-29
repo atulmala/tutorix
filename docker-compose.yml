@@ -71,6 +71,16 @@ services:
       SES_REGION: ${SES_REGION:-}
       # Firebase (Admin JSON from Secrets Manager)
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      # Agora (per-host .env; must match Agora Console signing secret for webhooks)
+      AGORA_APP_ID: ${AGORA_APP_ID:-}
+      AGORA_APP_CERTIFICATE: ${AGORA_APP_CERTIFICATE:-}
+      AGORA_CUSTOMER_KEY: ${AGORA_CUSTOMER_KEY:-}
+      AGORA_CUSTOMER_SECRET: ${AGORA_CUSTOMER_SECRET:-}
+      AGORA_WHITEBOARD_APP_IDENTIFIER: ${AGORA_WHITEBOARD_APP_IDENTIFIER:-}
+      AGORA_WHITEBOARD_AK: ${AGORA_WHITEBOARD_AK:-}
+      AGORA_WHITEBOARD_SK: ${AGORA_WHITEBOARD_SK:-}
+      AGORA_WHITEBOARD_REGION: ${AGORA_WHITEBOARD_REGION:-}
+      AGORA_RTC_WEBHOOK_SECRET: ${AGORA_RTC_WEBHOOK_SECRET:-}
     expose:
       - '3000'
     restart: unless-stopped

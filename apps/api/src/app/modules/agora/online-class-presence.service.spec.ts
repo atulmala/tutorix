@@ -208,8 +208,8 @@ describe('AgoraRtcWebhookController', () => {
 
     const result = await controller.handleAgoraRtcWebhook(
       { body: rawBody } as never,
-      agoraRtcWebhookSignature(rawBody, secret),
       undefined,
+      agoraRtcWebhookSignature(rawBody, secret),
     );
 
     expect(result).toEqual({ received: true });

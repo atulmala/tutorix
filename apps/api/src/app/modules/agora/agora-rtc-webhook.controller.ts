@@ -13,6 +13,7 @@ import { readAgoraConfig } from './agora.config';
 import {
   AgoraRtcChannelNotice,
   agoraRtcWebhookSignatureMatches,
+  agoraRtcWebhookSignatureV1Matches,
 } from './agora-rtc-webhook.util';
 import { OnlineClassPresenceService } from './online-class-presence.service';
 
@@ -43,7 +44,7 @@ export class AgoraRtcWebhookController {
 
     const signed =
       agoraRtcWebhookSignatureMatches(rawBody, secret, signatureV2) ||
-      agoraRtcWebhookSignatureMatches(rawBody, secret, signature);
+      agoraRtcWebhookSignatureV1Matches(rawBody, secret, signature);
     if (!signed) {
       throw new BadRequestException('Invalid Agora webhook signature');
     }

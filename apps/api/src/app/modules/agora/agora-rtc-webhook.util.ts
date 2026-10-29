@@ -16,25 +16,53 @@ export type AgoraRtcChannelNotice = {
   };
 };
 
-export function agoraRtcWebhookSignature(rawBody: Buffer | string, secret: string): string {
+export function agoraRtcWebhookSignatureV2(rawBody: Buffer | string, secret: string): string {
   return createHmac('sha256', secret).update(rawBody).digest('hex');
 }
 
-/** True when the header matches HMAC-SHA256 of the raw body. */
-export function agoraRtcWebhookSignatureMatches(
+/** Agora-Signature header (HMAC-SHA1). */
+export function agoraRtcWebhookSignatureV1(rawBody: Buffer | string, secret: string): string {
+  return createHmac('sha1', secret).update(rawBody).digest('hex');
+}
+
+/** @deprecated Use agoraRtcWebhookSignatureV2 */
+export function agoraRtcWebhookSignature(rawBody: Buffer | string, secret: string): string {
+  return agoraRtcWebhookSignatureV2(rawBody, secret);
+}
+
+function signatureMatches(
   rawBody: Buffer | string,
   secret: string,
   signature: string | undefined,
+  digest: (body: Buffer | string, secret: string) => string,
 ): boolean {
   if (!secret || !signature?.trim()) {
     return false;
   }
-  const expected = Buffer.from(agoraRtcWebhookSignature(rawBody, secret), 'utf8');
+  const expected = Buffer.from(digest(rawBody, secret), 'utf8');
   const received = Buffer.from(signature.trim().toLowerCase(), 'utf8');
   if (expected.length !== received.length) {
     return false;
   }
   return timingSafeEqual(expected, received);
+}
+
+/** True when the header matches HMAC-SHA256 of the raw body (Agora-Signature-V2). */
+export function agoraRtcWebhookSignatureMatches(
+  rawBody: Buffer | string,
+  secret: string,
+  signature: string | undefined,
+): boolean {
+  return signatureMatches(rawBody, secret, signature, agoraRtcWebhookSignatureV2);
+}
+
+/** True when the header matches HMAC-SHA1 of the raw body (Agora-Signature). */
+export function agoraRtcWebhookSignatureV1Matches(
+  rawBody: Buffer | string,
+  secret: string,
+  signature: string | undefined,
+): boolean {
+  return signatureMatches(rawBody, secret, signature, agoraRtcWebhookSignatureV1);
 }
 
 /** `class-{sessionId}` only. Other Agora channels are not class usage. */
