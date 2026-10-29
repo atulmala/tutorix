@@ -43,10 +43,34 @@ describe('StudentConcludedClassesPage', () => {
       return { loading: false, data: null };
     });
 
-    render(<StudentConcludedClassesPage />);
+    render(<StudentConcludedClassesPage onClaimRefund={jest.fn()} />);
 
     expect(screen.getByText('CBSE Class 12 Economics')).toBeTruthy();
     expect(screen.getByText('Tutor · Navya')).toBeTruthy();
     expect(screen.queryByText('Physics')).toBeNull();
+  });
+
+  it('shows refund claim status when present', () => {
+    const ended = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    mockUseQuery.mockReturnValue({
+      loading: false,
+      data: {
+        studentBookedClassSessions: [
+          {
+            enrollmentId: '38',
+            startsAt: ended.toISOString(),
+            durationMinutes: 60,
+            offeringLabel: 'Maths',
+            tutorName: 'Navya',
+            postClassRefundClaimEligible: false,
+            postClassRefundClaimStudentStatus: 'under_process',
+          },
+        ],
+      },
+    });
+
+    render(<StudentConcludedClassesPage />);
+
+    expect(screen.getByText(/Refund claim: Under process/)).toBeTruthy();
   });
 });

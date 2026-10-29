@@ -7,6 +7,7 @@ import {
   TUTOR_BOOKED_CLASS_SESSIONS,
   TUTOR_CANCEL_SCHEDULED_CLASS,
   TUTOR_CLASS_BOOKINGS,
+  TUTOR_PENDING_POST_CLASS_REFUND_CLAIM_ALERT,
   TUTOR_REQUEST_CLASS_RESCHEDULE,
 } from '@tutorix/shared-graphql';
 import {
@@ -37,6 +38,7 @@ type TutorHomePageProps = {
   onOpenConcludedClasses?: () => void;
   onOpenBookingHistory?: () => void;
   onJoinOnlineClass?: (sessionId: string) => void;
+  onActOnRefundClaim?: (claimId: number) => void;
 };
 
 type MyTutorDetailData = {
@@ -197,6 +199,7 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
   onOpenConcludedClasses,
   onOpenBookingHistory,
   onJoinOnlineClass,
+  onActOnRefundClaim,
 }) => {
   const weekDays = useMemo(() => istHomeScheduleDays(), []);
   const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
@@ -225,6 +228,11 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
     variables: sessionVariables,
     fetchPolicy: 'network-only',
   });
+  const { data: refundAlertData } = useQuery(TUTOR_PENDING_POST_CLASS_REFUND_CLAIM_ALERT, {
+    fetchPolicy: 'network-only',
+  });
+  const refundAlert = refundAlertData?.tutorPendingPostClassRefundClaimAlert;
+  const [refundAlertDismissed, setRefundAlertDismissed] = useState(false);
   const [cancelClass, { loading: cancelling }] = useMutation(TUTOR_CANCEL_SCHEDULED_CLASS, {
     refetchQueries: [{ query: TUTOR_BOOKED_CLASS_SESSIONS, variables: sessionVariables }],
   });
@@ -695,6 +703,40 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
           See details
         </button>
       </section>
+
+      {refundAlert && !refundAlertDismissed ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-lg">
+            <p className="text-sm leading-6 text-[#143055]">
+              A class refund request has been raised. Please check concluded classes to view and act
+              on it before {refundAlert.deadlineLabel}.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                type="button"
+                className="rounded-xl bg-[#143055] px-4 py-2 text-sm font-bold text-white"
+                onClick={() => {
+                  setRefundAlertDismissed(true);
+                  onActOnRefundClaim?.(refundAlert.claimId);
+                }}
+              >
+                Act now
+              </button>
+              <button
+                type="button"
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-[#143055]"
+                onClick={() => setRefundAlertDismissed(true)}
+              >
+                Later
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

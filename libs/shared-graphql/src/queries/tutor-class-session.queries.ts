@@ -34,6 +34,9 @@ export const STUDENT_BOOKED_CLASS_SESSIONS = gql`
       deliveryMode
       offeringLabel
       tutorName
+      postClassRefundClaimEligible
+      postClassRefundClaimId
+      postClassRefundClaimStudentStatus
     }
   }
 `;
@@ -51,6 +54,8 @@ export const TUTOR_BOOKED_CLASS_SESSIONS = gql`
       studentName
       isDemo
       endedAt
+      postClassRefundClaimId
+      postClassRefundClaimPendingTutorAction
     }
   }
 `;

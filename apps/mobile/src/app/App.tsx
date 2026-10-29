@@ -36,6 +36,7 @@ import {
   StudentClassCancellationScreen,
 } from './components/student-home/StudentClassCancellationScreen';
 import { StudentConcludedClassesScreen } from './components/student-home/StudentConcludedClassesScreen';
+import { StudentPostClassRefundClaimScreen } from './components/student-home/StudentPostClassRefundClaimScreen';
 import { StudentTutorSearchScreen } from './components/student-tutor-search/StudentTutorSearchScreen';
 import { StudentTutorSearchResultsScreen } from './components/student-tutor-search/StudentTutorSearchResultsScreen';
 import type { StudentTutorSearchParams } from './components/student-tutor-search/student-tutor-search-params';
@@ -57,6 +58,7 @@ import {
 import { TutorDetailScreen } from './components/tutor-profile/TutorDetailScreen';
 import { TutorHomeScreen } from './components/tutor-home/TutorHomeScreen';
 import { TutorConcludedClassesScreen } from './components/tutor-home/TutorConcludedClassesScreen';
+import { TutorPostClassRefundClaimScreen } from './components/tutor-home/TutorPostClassRefundClaimScreen';
 import { TutorBookingHistoryScreen } from './components/tutor-home/TutorBookingHistoryScreen';
 import { TutorBankSetupScreen } from './components/tutor-bank-setup/TutorBankSetupScreen';
 import {
@@ -246,6 +248,12 @@ function AppContent() {
   const [rebookReturnView, setRebookReturnView] = useState<AppView>('studentHome');
   const [scheduleCredits, setScheduleCredits] = useState<StudentClassCredit[] | null>(null);
   const [scheduleReturnView, setScheduleReturnView] = useState<AppView>('studentClassCredits');
+  const [postClassRefundEnrollmentId, setPostClassRefundEnrollmentId] = useState<string | null>(
+    null,
+  );
+  const [tutorPostClassRefundClaimId, setTutorPostClassRefundClaimId] = useState<number | null>(
+    null,
+  );
   const [classCancellationBooking, setClassCancellationBooking] =
     useState<ClassCancellationBooking | null>(null);
   const [bookingScheduledContext, setBookingScheduledContext] =
@@ -952,7 +960,37 @@ function AppContent() {
         onLogout={handleLogout}
         onOpenCart={openStudentCart}
       />,
-      <StudentConcludedClassesScreen />,
+      <StudentConcludedClassesScreen
+        onClaimRefund={(enrollmentId) => {
+          setPostClassRefundEnrollmentId(enrollmentId);
+          setCurrentView('studentPostClassRefundClaim');
+        }}
+      />,
+      { backgroundColor: '#e8f4ff' },
+    );
+  } else if (currentView === 'studentPostClassRefundClaim' && postClassRefundEnrollmentId) {
+    screen = renderStudentShell(
+      null,
+      <StudentNavHeader
+        title="Claim refund"
+        onBack={() => {
+          setPostClassRefundEnrollmentId(null);
+          setCurrentView('studentConcludedClasses');
+        }}
+        onLogout={handleLogout}
+        onOpenCart={openStudentCart}
+      />,
+      <StudentPostClassRefundClaimScreen
+        enrollmentId={postClassRefundEnrollmentId}
+        onComplete={() => {
+          setPostClassRefundEnrollmentId(null);
+          setCurrentView('studentConcludedClasses');
+        }}
+        onBack={() => {
+          setPostClassRefundEnrollmentId(null);
+          setCurrentView('studentConcludedClasses');
+        }}
+      />,
       { backgroundColor: '#e8f4ff' },
     );
   } else if (currentView === 'studentClassCredits') {
@@ -1077,6 +1115,10 @@ function AppContent() {
           });
           setCurrentView('onlineClass');
         }}
+        onActOnRefundClaim={(claimId) => {
+          setTutorPostClassRefundClaimId(claimId);
+          setCurrentView('tutorPostClassRefundClaim');
+        }}
       />,
     );
   } else if (currentView === 'tutorBookingHistory') {
@@ -1098,7 +1140,32 @@ function AppContent() {
         onBack={() => setCurrentView('tutorHome')}
         onLogout={handleLogout}
       />,
-      <TutorConcludedClassesScreen />,
+      <TutorConcludedClassesScreen
+        onActOnRefundClaim={(claimId) => {
+          setTutorPostClassRefundClaimId(claimId);
+          setCurrentView('tutorPostClassRefundClaim');
+        }}
+      />,
+      { backgroundColor: '#e8f4ff' },
+    );
+  } else if (currentView === 'tutorPostClassRefundClaim' && tutorPostClassRefundClaimId != null) {
+    screen = renderTutorShell(
+      null,
+      <TutorNavHeader
+        title="Refund request"
+        onBack={() => {
+          setTutorPostClassRefundClaimId(null);
+          setCurrentView('tutorConcludedClasses');
+        }}
+        onLogout={handleLogout}
+      />,
+      <TutorPostClassRefundClaimScreen
+        claimId={tutorPostClassRefundClaimId}
+        onComplete={() => {
+          setTutorPostClassRefundClaimId(null);
+          setCurrentView('tutorConcludedClasses');
+        }}
+      />,
       { backgroundColor: '#e8f4ff' },
     );
   } else if (currentView === 'tutorCalendar') {

@@ -42,6 +42,7 @@ import { ClassSessionDeliveryModeEnum } from '../enums/class-session-delivery-mo
 import { ClassSessionEnrollmentStatusEnum } from '../enums/class-session-enrollment-status.enum';
 import { ClassSessionStatusEnum } from '../enums/class-session-status.enum';
 import { classWindowsOverlap } from '../student-slot-conflict.util';
+import { PostClassRefundClaimService } from '../../student-cart/services/post-class-refund-claim.service';
 
 function asId(value: string | number): number {
   const id = Number(value);
@@ -83,6 +84,7 @@ export class TutorClassSessionService {
     private readonly sessionRepo: Repository<TutorClassSessionEntity>,
     @InjectRepository(TutorClassSessionEnrollmentEntity)
     private readonly enrollmentRepo: Repository<TutorClassSessionEnrollmentEntity>,
+    private readonly postClassRefundClaimService: PostClassRefundClaimService,
   ) {}
 
   async listBookableSlots(
@@ -277,6 +279,11 @@ export class TutorClassSessionService {
       .orderBy('c.startsAt', 'ASC')
       .getMany();
 
+    const tutorFields = await this.postClassRefundClaimService.tutorEnrollmentFields(
+      tutor.id,
+      enrollments.map((row) => row.id),
+    );
+
     return enrollments.map((row) => {
       const booked = row as TutorClassSessionEnrollmentEntity & {
         bookedStudent?: Student;
@@ -284,6 +291,7 @@ export class TutorClassSessionService {
       };
       const session = booked.session as TutorClassSessionEntity;
       const calendar = session.tutorCalendar as TutorCalendar;
+      const claimFields = tutorFields.get(booked.id);
       return {
         enrollmentId: booked.id,
         sessionId: session.id,
@@ -295,6 +303,8 @@ export class TutorClassSessionService {
         studentName: personName(booked.bookedStudent?.user) || 'Student',
         isDemo: booked.classCredit?.isDemo === true,
         endedAt: session.endedAt ?? null,
+        postClassRefundClaimId: claimFields?.postClassRefundClaimId ?? null,
+        postClassRefundClaimPendingTutorAction: claimFields?.pendingTutorAction ?? false,
       };
     });
   }
@@ -333,6 +343,12 @@ export class TutorClassSessionService {
       .leftJoinAndSelect('toffer.offering', 'o')
       .leftJoinAndSelect('toffer.tutor', 't')
       .leftJoinAndSelect('t.user', 'u')
+      .leftJoinAndMapOne(
+        'e.classCredit',
+        StudentClassCreditEntity,
+        'credit',
+        'credit.enrollment_id = e.id AND credit.deleted = false',
+      )
       .where('e.student_id = :studentId', { studentId: student.id })
       .andWhere('e.deleted = false')
       .andWhere('e.status = :enrolled', {
@@ -347,9 +363,27 @@ export class TutorClassSessionService {
       .orderBy('c.startsAt', 'ASC')
       .getMany();
 
+    const claimFields = await this.postClassRefundClaimService.enrollmentFieldsForStudent(
+      student.id,
+      enrollments.map((row) => {
+        const booked = row as TutorClassSessionEnrollmentEntity & {
+          classCredit?: StudentClassCreditEntity | null;
+        };
+        const session = row.session as TutorClassSessionEntity;
+        const calendar = session.tutorCalendar as TutorCalendar;
+        return {
+          enrollmentId: row.id,
+          startsAt: calendar.startsAt,
+          durationMinutes: calendar.durationMinutes ?? 60,
+          isDemo: booked.classCredit?.isDemo === true,
+        };
+      }),
+    );
+
     return enrollments.map((row) => {
       const session = row.session as TutorClassSessionEntity;
       const calendar = session.tutorCalendar as TutorCalendar;
+      const fields = claimFields.get(row.id);
       return {
         enrollmentId: row.id,
         sessionId: session.id,
@@ -359,6 +393,9 @@ export class TutorClassSessionService {
         deliveryMode: session.deliveryMode,
         offeringLabel: session.tutorOffering?.offering?.displayName ?? 'Class',
         tutorName: personName(session.tutorOffering?.tutor?.user) || 'Tutor',
+        postClassRefundClaimEligible: fields?.postClassRefundClaimEligible ?? false,
+        postClassRefundClaimId: fields?.postClassRefundClaimId ?? null,
+        postClassRefundClaimStudentStatus: fields?.postClassRefundClaimStudentStatus ?? null,
       };
     });
   }

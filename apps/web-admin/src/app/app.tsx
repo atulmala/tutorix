@@ -19,6 +19,7 @@ import { OrdersPage } from './pages/OrdersPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
 import { ClassBookingsPage } from './pages/ClassBookingsPage';
 import { ClassCancellationsPage } from './pages/ClassCancellationsPage';
+import { PostClassRefundClaimsPage } from './pages/PostClassRefundClaimsPage';
 
 export function App() {
   return (
@@ -53,6 +54,7 @@ export function App() {
           <Route path="orders/:orderId" element={<OrderDetailPage />} />
           <Route path="class-bookings" element={<ClassBookingsPage />} />
           <Route path="class-cancellations" element={<ClassCancellationsPage />} />
+          <Route path="post-class-refund-claims" element={<PostClassRefundClaimsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

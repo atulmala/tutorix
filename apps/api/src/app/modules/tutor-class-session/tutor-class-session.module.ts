@@ -1,6 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CommunicationModule } from '../communication/communication.module';
+import { StudentCartModule } from '../student-cart/student-cart.module';
 import { ProficiencyModule } from '../proficiency/proficiency.module';
 import { StudentModule } from '../student/student.module';
 import { TutorCalendar } from '../tutor-calendar/entities/tutor-calendar.entity';
@@ -27,6 +28,7 @@ import './enums/class-session-status.enum';
     ProficiencyModule,
     WalletModule,
     CommunicationModule,
+    forwardRef(() => StudentCartModule),
   ],
   providers: [TutorClassSessionService, TutorClassSessionResolver],
   exports: [TutorClassSessionService, TypeOrmModule],

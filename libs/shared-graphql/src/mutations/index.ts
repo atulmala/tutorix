@@ -31,4 +31,5 @@ export * from './communication.mutations';
 export * from './tutor-class-session.mutations';
 export { END_ONLINE_CLASS, JOIN_ONLINE_CLASS } from '../queries/online-class.queries';
 export * from './student-cart.mutations';
+export * from './post-class-refund-claim.mutations';
 // export * from './class.mutations';

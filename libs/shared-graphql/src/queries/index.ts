@@ -28,6 +28,7 @@ export * from './registration-settings.queries';
 export * from './class-pricing-settings.queries';
 export * from './communication.queries';
 export * from './tutor-class-session.queries';
+export * from './post-class-refund-claim.queries';
 export * from './online-class.queries';
 export * from './student-cart.queries';
 // export * from './class.queries';

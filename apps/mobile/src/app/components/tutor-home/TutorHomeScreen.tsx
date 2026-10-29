@@ -11,6 +11,7 @@ import {
   GET_MY_TUTOR_DETAIL,
   TUTOR_BOOKED_CLASS_SESSIONS,
   TUTOR_CLASS_BOOKINGS,
+  TUTOR_PENDING_POST_CLASS_REFUND_CLAIM_ALERT,
 } from '@tutorix/shared-graphql/queries';
 
 const HOME_BOOKING_HISTORY_INPUT = { page: 1, pageSize: 1 };
@@ -48,6 +49,7 @@ type TutorHomeScreenProps = {
   onOpenConcludedClasses?: () => void;
   onOpenBookingHistory?: () => void;
   onJoinOnlineClass?: (sessionId: string) => void;
+  onActOnRefundClaim?: (claimId: number) => void;
 };
 
 type MyTutorDetailData = {
@@ -193,6 +195,7 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
   onOpenConcludedClasses,
   onOpenBookingHistory,
   onJoinOnlineClass,
+  onActOnRefundClaim,
 }) => {
   const weekDays = useMemo(() => istHomeScheduleDays(), []);
   const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
@@ -207,6 +210,11 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
     variables: sessionVariables,
     fetchPolicy: 'network-only',
   });
+  const { data: refundAlertData } = useQuery(TUTOR_PENDING_POST_CLASS_REFUND_CLAIM_ALERT, {
+    fetchPolicy: 'network-only',
+  });
+  const refundAlert = refundAlertData?.tutorPendingPostClassRefundClaimAlert ?? null;
+  const [refundAlertDismissed, setRefundAlertDismissed] = useState(false);
   const [cancelClass, { loading: cancelling }] = useMutation(TUTOR_CANCEL_SCHEDULED_CLASS, {
     refetchQueries: [{ query: TUTOR_BOOKED_CLASS_SESSIONS, variables: sessionVariables }],
   });
@@ -301,6 +309,7 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
   const showPendingTasks = showRateCardTask || showCalendarTask;
 
   return (
+    <>
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={styles.content}
@@ -642,6 +651,50 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
         </Pressable>
       </View>
     </ScrollView>
+
+    <Modal
+      visible={refundAlert != null && !refundAlertDismissed}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setRefundAlertDismissed(true)}
+    >
+      <Pressable
+        style={styles.studentOverlay}
+        onPress={() => setRefundAlertDismissed(true)}
+        accessibilityLabel="Dismiss refund claim alert"
+      >
+        <Pressable style={styles.studentOverlayCard} onPress={() => undefined}>
+          <Text style={styles.refundAlertCopy}>
+            A class refund request has been raised. Please check concluded classes to view and act
+            on it before {refundAlert?.deadlineLabel ?? 'the deadline'}.
+          </Text>
+          <View style={styles.refundAlertActions}>
+            <Pressable
+              style={styles.refundAlertPrimary}
+              onPress={() => {
+                setRefundAlertDismissed(true);
+                if (refundAlert && onActOnRefundClaim) {
+                  onActOnRefundClaim(refundAlert.claimId);
+                }
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Act now on refund claim"
+            >
+              <Text style={styles.refundAlertPrimaryText}>Act now</Text>
+            </Pressable>
+            <Pressable
+              style={styles.refundAlertSecondary}
+              onPress={() => setRefundAlertDismissed(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Respond to refund claim later"
+            >
+              <Text style={styles.refundAlertSecondaryText}>Later</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+    </>
   );
 };
 
@@ -793,6 +846,23 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   studentOverlayRow: { marginTop: 6 },
+  refundAlertCopy: { fontSize: 14, lineHeight: 22, color: '#143055' },
+  refundAlertActions: { marginTop: 20, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  refundAlertPrimary: {
+    backgroundColor: '#143055',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  refundAlertPrimaryText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  refundAlertSecondary: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  refundAlertSecondaryText: { fontSize: 14, fontWeight: '700', color: '#143055' },
   studentName: { fontSize: 14, fontWeight: '600', color: '#143055' },
   classTime: { fontSize: 14, fontWeight: '800', color: '#143055' },
   classSubject: { marginTop: 4, fontSize: 14, color: '#143055' },

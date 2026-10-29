@@ -1,4 +1,5 @@
 import { Field, ID, Int, ObjectType } from '@nestjs/graphql';
+import { PostClassRefundClaimStudentStatusEnum } from '../../student-cart/enums/post-class-refund-claim-student-status.enum';
 import { ClassSessionDeliveryModeEnum } from '../enums/class-session-delivery-mode.enum';
 import { ClassSessionStatusEnum } from '../enums/class-session-status.enum';
 
@@ -57,6 +58,15 @@ export class StudentBookedClassSession {
 
   @Field()
   tutorName!: string;
+
+  @Field()
+  postClassRefundClaimEligible!: boolean;
+
+  @Field(() => Int, { nullable: true })
+  postClassRefundClaimId?: number | null;
+
+  @Field(() => PostClassRefundClaimStudentStatusEnum, { nullable: true })
+  postClassRefundClaimStudentStatus?: PostClassRefundClaimStudentStatusEnum | null;
 }
 
 @ObjectType()
@@ -90,4 +100,10 @@ export class TutorBookedClassSession {
 
   @Field(() => Date, { nullable: true })
   endedAt?: Date | null;
+
+  @Field(() => Int, { nullable: true })
+  postClassRefundClaimId?: number | null;
+
+  @Field()
+  postClassRefundClaimPendingTutorAction!: boolean;
 }

@@ -94,4 +94,11 @@ export class ClassCancellationRefundRequestService {
       ],
     });
   }
+
+  async markAiApproved(requestId: number): Promise<void> {
+    await this.requestRepo.update(
+      { id: requestId, deleted: false },
+      { aiStatus: ClassCancellationRefundAiStatusEnum.approved },
+    );
+  }
 }

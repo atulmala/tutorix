@@ -98,6 +98,24 @@ const DOCS_FAILED_VARS = [
 ];
 const TUTOR_APPROVED_VARS = ['firstName'];
 const TUTOR_APPLICATION_REVIEW_VARS = ['firstName'];
+const POST_CLASS_REFUND_CLAIM_TUTOR_VARS = [
+  'studentName',
+  'classTime',
+  'offeringName',
+  'refundReasonLabel',
+  'tutorResponseDeadline',
+];
+const POST_CLASS_REFUND_CLAIM_ALERT_VARS = ['tutorResponseDeadline', 'claimId'];
+const POST_CLASS_REFUND_CLAIM_DECISION_VARS = [
+  'studentName',
+  'tutorName',
+  'offeringName',
+  'classTime',
+  'actionLabel',
+  'refundMethodLabel',
+  'amountInr',
+  'adminComment',
+];
 
 const NONE: ChannelFlags = {
   email: false,
@@ -262,6 +280,38 @@ export const COMMUNICATION_CATALOG: CatalogEntry[] = [
     allowedVariables: TUTOR_APPLICATION_REVIEW_VARS,
     label: 'Tutor application review',
   },
+  {
+    event: CommunicationEvent.POST_CLASS_REFUND_CLAIM_RAISED,
+    audience: CommunicationAudience.TUTOR,
+    mandatory: false,
+    defaultChannels: { ...NONE, email: true },
+    allowedVariables: POST_CLASS_REFUND_CLAIM_TUTOR_VARS,
+    label: 'Post-class refund claim raised (tutor email)',
+  },
+  {
+    event: CommunicationEvent.POST_CLASS_REFUND_CLAIM_TUTOR_ALERT,
+    audience: CommunicationAudience.TUTOR,
+    mandatory: false,
+    defaultChannels: { ...NONE, onScreen: true },
+    allowedVariables: POST_CLASS_REFUND_CLAIM_ALERT_VARS,
+    label: 'Post-class refund claim tutor alert',
+  },
+  {
+    event: CommunicationEvent.POST_CLASS_REFUND_CLAIM_ADMIN_DECISION,
+    audience: CommunicationAudience.STUDENT,
+    mandatory: false,
+    defaultChannels: { ...NONE, email: true, push: true },
+    allowedVariables: POST_CLASS_REFUND_CLAIM_DECISION_VARS,
+    label: 'Post-class refund claim admin decision (student)',
+  },
+  {
+    event: CommunicationEvent.POST_CLASS_REFUND_CLAIM_ADMIN_DECISION,
+    audience: CommunicationAudience.TUTOR,
+    mandatory: false,
+    defaultChannels: { ...NONE, email: true, push: true },
+    allowedVariables: POST_CLASS_REFUND_CLAIM_DECISION_VARS,
+    label: 'Post-class refund claim admin decision (tutor)',
+  },
 ];
 
 export const ALL_CHANNELS: CommunicationChannel[] = [
@@ -400,6 +450,30 @@ export function samplePayload(event: CommunicationEvent): Record<string, string>
           'PAN Card: Photo is blurry\nAadhaar Card: Name does not match',
         failedDocumentsHtml:
           '<ul><li><strong>PAN Card</strong>: Photo is blurry</li><li><strong>Aadhaar Card</strong>: Name does not match</li></ul>',
+      };
+    case CommunicationEvent.POST_CLASS_REFUND_CLAIM_RAISED:
+      return {
+        studentName: 'Ada Lovelace',
+        classTime: 'Mon 18 Aug, 5:00–6:00 PM',
+        offeringName: 'Class 10 Maths',
+        refundReasonLabel: 'Technical issue (video, sound, or whiteboard)',
+        tutorResponseDeadline: 'Tue 19 Aug, 11:59 pm IST',
+      };
+    case CommunicationEvent.POST_CLASS_REFUND_CLAIM_TUTOR_ALERT:
+      return {
+        tutorResponseDeadline: 'Tue 19 Aug, 11:59 pm IST',
+        claimId: '12',
+      };
+    case CommunicationEvent.POST_CLASS_REFUND_CLAIM_ADMIN_DECISION:
+      return {
+        studentName: 'Ada Lovelace',
+        tutorName: 'Priya Sharma',
+        offeringName: 'Class 10 Maths',
+        classTime: 'Mon 18 Aug, 5:00–6:00 PM',
+        actionLabel: 'approved',
+        refundMethodLabel: 'Wallet',
+        amountInr: '500',
+        adminComment: '',
       };
   }
 }

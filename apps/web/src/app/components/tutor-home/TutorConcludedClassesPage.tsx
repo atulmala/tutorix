@@ -15,9 +15,17 @@ type BookedClass = {
   offeringLabel: string;
   studentName: string;
   isDemo: boolean;
+  postClassRefundClaimId?: number | null;
+  postClassRefundClaimPendingTutorAction?: boolean;
 };
 
-export const TutorConcludedClassesPage: React.FC = () => {
+type TutorConcludedClassesPageProps = {
+  onActOnRefundClaim?: (claimId: number) => void;
+};
+
+export const TutorConcludedClassesPage: React.FC<TutorConcludedClassesPageProps> = ({
+  onActOnRefundClaim,
+}) => {
   const scheduleRange = useMemo(() => istBookedClassQueryRange(), []);
   const { data, loading } = useQuery(TUTOR_BOOKED_CLASS_SESSIONS, {
     variables: {
@@ -56,6 +64,29 @@ export const TutorConcludedClassesPage: React.FC = () => {
                 ) : null}
               </p>
               <p className="mt-0.5 text-sm text-slate-500">Student · {row.studentName}</p>
+              {row.postClassRefundClaimId ? (
+                <p className="mt-2 text-xs font-bold uppercase tracking-wide text-amber-800">
+                  {row.postClassRefundClaimPendingTutorAction
+                    ? 'Refund claim — your response needed'
+                    : 'Refund claim raised'}
+                </p>
+              ) : null}
+              {row.postClassRefundClaimPendingTutorAction &&
+              row.postClassRefundClaimId &&
+              onActOnRefundClaim ? (
+                <button
+                  type="button"
+                  className="mt-3 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-extrabold text-white"
+                  onClick={() => {
+                    const claimId = row.postClassRefundClaimId;
+                    if (claimId != null) {
+                      onActOnRefundClaim(claimId);
+                    }
+                  }}
+                >
+                  Respond to claim
+                </button>
+              ) : null}
             </li>
           ))}
         </ul>
