@@ -20,6 +20,7 @@ import { OrderDetailPage } from './pages/OrderDetailPage';
 import { ClassBookingsPage } from './pages/ClassBookingsPage';
 import { ClassCancellationsPage } from './pages/ClassCancellationsPage';
 import { PostClassRefundClaimsPage } from './pages/PostClassRefundClaimsPage';
+import { TutorPayoutCalculationPage } from './pages/TutorPayoutCalculationPage';
 
 export function App() {
   return (
@@ -55,6 +56,10 @@ export function App() {
           <Route path="class-bookings" element={<ClassBookingsPage />} />
           <Route path="class-cancellations" element={<ClassCancellationsPage />} />
           <Route path="post-class-refund-claims" element={<PostClassRefundClaimsPage />} />
+          <Route
+            path="tutor-payout-calculation"
+            element={<TutorPayoutCalculationPage />}
+          />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

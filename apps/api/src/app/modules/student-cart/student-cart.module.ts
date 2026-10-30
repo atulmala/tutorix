@@ -16,6 +16,7 @@ import { TutorClassSessionEnrollmentEntity } from '../tutor-class-session/entiti
 import { TutorClassSessionEntity } from '../tutor-class-session/entities/tutor-class-session.entity';
 import { Tutor } from '../tutor/entities/tutor.entity';
 import { TutorOfferingEntity } from '../tutor/entities/tutor-offering.entity';
+import { ClassPricingSettingsModule } from '../class-pricing-settings/class-pricing-settings.module';
 import { TutorRateCardModule } from '../tutor-rate-card/tutor-rate-card.module';
 import { WalletModule } from '../wallet/wallet.module';
 import './enums/class-credit-status.enum';
@@ -43,6 +44,7 @@ import { AdminPostClassRefundClaimService } from './services/admin-post-class-re
 import { PostClassRefundClaimService } from './services/post-class-refund-claim.service';
 import { AdminClassCancellationRefundService } from './services/admin-class-cancellation-refund.service';
 import { AdminClassBookingService } from './services/admin-class-booking.service';
+import { AdminTutorPayoutCalculationService } from './services/admin-tutor-payout-calculation.service';
 import { ClassCancellationRefundAiService } from './services/class-cancellation-refund-ai.service';
 import { ClassCancellationRefundBatchService } from './services/class-cancellation-refund-batch.service';
 import { ClassCancellationRefundChecksService } from './services/class-cancellation-refund-checks.service';
@@ -79,6 +81,7 @@ import { TutorClassEmailBatchService } from './services/tutor-class-email-batch.
     StudentModule,
     OfferingsModule,
     TutorRateCardModule,
+    ClassPricingSettingsModule,
     ProficiencyModule,
     CommunicationModule,
     forwardRef(() => CommerceModule),
@@ -96,6 +99,7 @@ import { TutorClassEmailBatchService } from './services/tutor-class-email-batch.
     ClassCancellationRefundAiService,
     ClassCancellationRefundBatchService,
     AdminClassBookingService,
+    AdminTutorPayoutCalculationService,
     AdminClassCancellationRefundService,
     TutorClassBookingService,
     PostClassRefundClaimService,
@@ -109,6 +113,7 @@ import { TutorClassEmailBatchService } from './services/tutor-class-email-batch.
     StudentClassCreditService,
     TutorClassEmailBatchService,
     AdminClassBookingService,
+    AdminTutorPayoutCalculationService,
     AdminClassCancellationRefundService,
     ClassCancellationRefundPayoutService,
     ClassCancellationRefundBatchService,

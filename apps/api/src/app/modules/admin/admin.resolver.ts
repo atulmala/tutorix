@@ -34,7 +34,10 @@ import { AdminOrderListResult } from '../commerce/dto/admin/admin-order-list-res
 import { AdminOrderDetail } from '../commerce/dto/admin/admin-order-detail.dto';
 import { AdminClassBookingListInput } from '../student-cart/dto/admin/admin-class-booking-list.input';
 import { AdminClassBookingListResult } from '../student-cart/dto/admin/admin-class-booking-list-result.dto';
+import { AdminTutorPayoutCalculationInput } from '../student-cart/dto/admin/admin-tutor-payout-calculation.input';
+import { AdminTutorPayoutCalculationResult } from '../student-cart/dto/admin/admin-tutor-payout-calculation-result.dto';
 import { AdminClassBookingService } from '../student-cart/services/admin-class-booking.service';
+import { AdminTutorPayoutCalculationService } from '../student-cart/services/admin-tutor-payout-calculation.service';
 import { AdminClassCancellationRefundListInput } from '../student-cart/dto/admin/admin-class-cancellation-refund-list.input';
 import { AdminClassCancellationRefundListResult } from '../student-cart/dto/admin/admin-class-cancellation-refund-list-result.dto';
 import { AdminClassCancellationRefundDetail } from '../student-cart/dto/admin/admin-class-cancellation-refund-detail.dto';
@@ -73,6 +76,7 @@ export class AdminResolver {
     private readonly emailService: EmailService,
     private readonly communicationAdminService: CommunicationAdminService,
     private readonly adminClassBookingService: AdminClassBookingService,
+    private readonly adminTutorPayoutCalculationService: AdminTutorPayoutCalculationService,
     private readonly adminClassCancellationRefundService: AdminClassCancellationRefundService,
     private readonly classCancellationRefundPayoutService: ClassCancellationRefundPayoutService,
     private readonly classCancellationRefundBatchService: ClassCancellationRefundBatchService,
@@ -332,6 +336,18 @@ export class AdminResolver {
     @Args('input') input: AdminClassBookingListInput,
   ): Promise<AdminClassBookingListResult> {
     return this.adminClassBookingService.list(input);
+  }
+
+  @Query(() => AdminTutorPayoutCalculationResult, {
+    description:
+      'Tutor payout calculation rows for concluded classes in an IST date range (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminTutorPayoutCalculation(
+    @Args('input') input: AdminTutorPayoutCalculationInput,
+  ): Promise<AdminTutorPayoutCalculationResult> {
+    return this.adminTutorPayoutCalculationService.calculate(input);
   }
 
   @Query(() => AdminClassCancellationRefundListResult, {
