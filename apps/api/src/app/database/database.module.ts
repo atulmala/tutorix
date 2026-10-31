@@ -13,8 +13,8 @@ import { loadDatabaseCredentials } from './database-credentials.loader';
 
         return {
           ...options,
-          // Run migrations automatically on application start (optional)
-          migrationsRun: process.env.AUTO_RUN_MIGRATIONS === 'true',
+          // Migrations run in docker/docker-api-entrypoint.sh before the app starts.
+          migrationsRun: false,
         };
       },
     }),

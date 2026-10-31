@@ -10,7 +10,8 @@ RUN npm ci --legacy-peer-deps
 COPY . .
 
 ENV NX_DAEMON=false
-RUN npx nx run api:build
+RUN npx nx run api:build \
+  && npx tsc -p apps/api/tsconfig.migrations.json
 
 WORKDIR /app/dist/apps/api
 
@@ -27,10 +28,12 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 COPY --from=builder /app/dist/apps/api ./
+COPY docker/docker-api-entrypoint.sh /app/docker-api-entrypoint.sh
+RUN chmod +x /app/docker-api-entrypoint.sh
 
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD node -e "require('net').createConnection(3000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"
 
-CMD ["node", "main.js"]
+ENTRYPOINT ["/app/docker-api-entrypoint.sh"]

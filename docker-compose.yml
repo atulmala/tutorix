@@ -36,6 +36,7 @@ services:
       DB_NAME: ${DB_NAME:-tutorix}
       DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}
       AUTO_RUN_MIGRATIONS: ${AUTO_RUN_MIGRATIONS:-false}
+      BASELINE_MIGRATIONS: ${BASELINE_MIGRATIONS:-false}
       # Maps
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
       # Payments

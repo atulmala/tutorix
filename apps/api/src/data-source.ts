@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
 import { join } from 'path';
 import { loadAppSecrets } from './app/config/app-secrets.loader';
+import { resolveMigrationGlobs } from './app/database/migration-paths';
 
 const envPath = join(__dirname, '../../../.env');
 config({ path: envPath });
@@ -22,7 +23,7 @@ async function createCliDataSource(): Promise<DataSource> {
     database: process.env.DB_NAME || 'tutorix',
 
     entities: [join(__dirname, 'app', '**', '*.entity.ts')],
-    migrations: [join(__dirname, 'migrations', '*.ts')],
+    migrations: resolveMigrationGlobs(__dirname),
     migrationsTableName: 'migrations',
     // each: commit after every file so Postgres can use newly added enum values
     migrationsTransactionMode: 'each',
