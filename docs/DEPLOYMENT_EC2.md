@@ -263,12 +263,53 @@ Remember to remove it or firewall appropriately on production hosts.
 
 ## Database migrations
 
-The API container supports **`AUTO_RUN_MIGRATIONS`** (see [`database.module.ts`](../apps/api/src/app/database/database.module.ts)). In Compose it defaults to **`true`**, so migrations apply **once per startup** when the stack boots against an empty or outdated schema.
+Staging and production use **`DB_SYNCHRONIZE=false`**. Schema changes ship as TypeORM migrations in [`apps/api/src/migrations/`](../apps/api/src/migrations/).
+
+### How deploy runs migrations
+
+1. The API Docker image includes compiled migration files at **`/app/migrations/*.js`** (see [`docker/Dockerfile.api`](../docker/Dockerfile.api)).
+2. [`docker/docker-api-entrypoint.sh`](../docker/docker-api-entrypoint.sh) runs **`MIGRATIONS_ONLY=true node main.js`** when **`AUTO_RUN_MIGRATIONS=true`**, then starts the API.
+3. Nest does **not** auto-run migrations on boot (`migrationsRun: false`); the entrypoint is the single migration path in Docker.
+
+Recommended EC2 `.env`:
+
+```env
+DB_SYNCHRONIZE=false
+AUTO_RUN_MIGRATIONS=true
+```
+
+### Legacy databases (schema exists, empty `migrations` table)
+
+If RDS was created with **`DB_SYNCHRONIZE=true`**, replaying every migration from scratch will fail and risks data loss.
+
+**One-time recovery** on that host:
+
+1. Set **`BASELINE_MIGRATIONS=true`** in `.env` (keep **`AUTO_RUN_MIGRATIONS=true`**).
+2. Rebuild/restart the API container once. This **records** all current migration files in the `migrations` table **without** executing their SQL.
+3. Remove **`BASELINE_MIGRATIONS`** from `.env` and restart again.
+
+After baseline, only **new** migrations (added after baseline) run on deploy.
+
+If baseline is required but the flag is missing, the API container exits with an explicit error instead of replaying old migrations.
+
+### Local / CI
+
+From a machine with repo checkout and DB access:
+
+```bash
+npm run migration:run
+```
+
+Uses [`apps/api/src/data-source.ts`](../apps/api/src/data-source.ts) and Secrets Manager / `.env` credentials.
+
+### Fresh database
+
+Empty RDS (no app tables): leave **`BASELINE_MIGRATIONS` unset**. The entrypoint runs all pending migrations normally.
 
 **Trade-offs**
 
-- **Pros**: simple EC2 deploys without a separate migration job.
-- **Cons**: multiple replicas starting simultaneously could race; production teams sometimes disable auto-run and run migrations as an explicit job before rollout.
+- **Pros**: migrations run automatically on every API deploy; no separate job.
+- **Cons**: only one API container should start migrations at a time (default single-replica EC2 layout).
 
 To disable automatic migrations:
 
@@ -276,14 +317,9 @@ To disable automatic migrations:
 AUTO_RUN_MIGRATIONS=false
 ```
 
-Then apply migrations using **one** of:
+Then run `npm run migration:run` manually before or after deploy.
 
-1. **Host-run CLI** (requires Node + repo checkout + DB reachable):  
-   `npm run migration:run` — uses [`apps/api/src/data-source.ts`](../apps/api/src/data-source.ts) and `.env` with **`DB_*`** pointing at RDS or tunneled Postgres.
-
-2. **Temporary Compose API shell** with source mounted (advanced): mount repo and run the same script inside a Node image.
-
-Using **Amazon RDS** instead of Compose **`postgres`**: set **`DB_*`** in **`.env`** to RDS endpoints and credentials. Edit **`docker-compose.yml`** locally to remove the **`postgres`** service and the **`depends_on`** block under **`api`**, then ensure RDS security groups allow traffic **only from** the EC2 instance security group.
+Using **Amazon RDS**: set **`DOCKER_DB_HOST`** (or **`DB_HOST`**) in **`.env`** to the RDS endpoint. Ensure the RDS security group allows the EC2 instance.
 
 ## HTTPS
 

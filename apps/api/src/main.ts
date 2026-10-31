@@ -33,6 +33,14 @@ function buildCorsOrigins(): string[] {
 async function bootstrap() {
   await loadAppSecrets();
 
+  if (process.env.MIGRATIONS_ONLY === 'true') {
+    const { runPendingMigrations } = await import(
+      './app/database/run-pending-migrations'
+    );
+    await runPendingMigrations();
+    process.exit(0);
+  }
+
   const { NestFactory } = await import('@nestjs/core');
   const { AppModule } = await import('./app/app.module');
 

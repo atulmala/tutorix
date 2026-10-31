@@ -1,6 +1,7 @@
 import { DataSourceOptions } from 'typeorm';
 import { join } from 'path';
 import { DatabaseCredentials } from './database-credentials.loader';
+import { resolveMigrationGlobs } from './migration-paths';
 
 // Explicitly import all entities to ensure they're registered
 import { User } from '../modules/auth/entities/user.entity';
@@ -129,16 +130,13 @@ export function createDatabaseOptions(
       // Class,
     ],
 
-    // Migrations configuration
-    // Note: .ts migration files are not available in the Docker webpack bundle.
-    // Use DB_SYNCHRONIZE=true in Docker to auto-create schema from entities.
-    migrations: [join(__dirname, '..', '..', 'migrations', '*.ts')],
+    // Migrations: compiled .js in Docker (/app/migrations), source .ts for local CLI.
+    migrations: resolveMigrationGlobs(__dirname),
     migrationsTableName: 'migrations',
     migrationsTransactionMode: 'each',
 
-    // synchronize: auto-create/update schema from entities.
-    // Enable via DB_SYNCHRONIZE=true env (Docker/fresh DB).
-    // Never enable against a production DB with existing data you want to keep.
+    // synchronize: auto-create/update schema from entities (local/fresh DB only).
+    // Production/staging schema changes must go through TypeORM migrations.
     synchronize: process.env.DB_SYNCHRONIZE === 'true',
 
     // Logging configuration: disable SQL query logs (too verbose)
