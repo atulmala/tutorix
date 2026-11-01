@@ -1,6 +1,6 @@
 ---
 title: Docker deploy migration runner
-status: in-progress
+status: done
 jira: null
 created: 2026-10-31
 ---
