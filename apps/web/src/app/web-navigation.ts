@@ -152,3 +152,12 @@ export function walletReturnFromView(view: WebView): WalletReturnView | null {
   }
   return null;
 }
+
+export function isTutorWalletReturnView(view: WalletReturnView): boolean {
+  return (
+    view === 'tutor-home' ||
+    view === 'tutor-profile' ||
+    view === 'tutor-concluded-classes' ||
+    view === 'tutor-booking-history'
+  );
+}

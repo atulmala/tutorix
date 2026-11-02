@@ -4,6 +4,7 @@ import {
   defaultTutorPayoutPeriodIstDates,
   formatIstCalendarDate,
   istDateRangeToUtcBounds,
+  tutorPayoutHoldPeriodIstDates,
 } from './tutor-payout-calculation';
 import { istDayStartUtc } from './tutor-calendar';
 
@@ -23,6 +24,19 @@ describe('tutor-payout-calculation', () => {
       );
       expect(endDate).toBe('2026-10-23');
       expect(startDate).toBe('2026-10-17');
+    });
+  });
+
+  describe('tutorPayoutHoldPeriodIstDates', () => {
+    it('starts the day after the next payout period ends through today IST', () => {
+      const now = istDayStartUtc(2026, 9, 30);
+      const hold = tutorPayoutHoldPeriodIstDates(
+        new Date(now.getTime() + 12 * 60 * 60 * 1000),
+      );
+      expect(hold).toEqual({
+        startDate: '2026-10-24',
+        endDate: '2026-10-30',
+      });
     });
   });
 

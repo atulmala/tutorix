@@ -16,7 +16,7 @@ describe('TutorTabBar', () => {
 
     expect(getByLabelText('Home')).toBeTruthy();
     expect(getByLabelText('Calendar')).toBeTruthy();
-    expect(getByLabelText('Wallet')).toBeTruthy();
+    expect(getByLabelText('Earnings')).toBeTruthy();
     expect(getByLabelText('Profile')).toBeTruthy();
   });
 

@@ -12,6 +12,7 @@ import {
   TUTOR_BOOKED_CLASS_SESSIONS,
   TUTOR_CLASS_BOOKINGS,
   TUTOR_PENDING_POST_CLASS_REFUND_CLAIM_ALERT,
+  MY_TUTOR_EARNINGS_SUMMARY,
 } from '@tutorix/shared-graphql/queries';
 
 const HOME_BOOKING_HISTORY_INPUT = { page: 1, pageSize: 1 };
@@ -42,12 +43,14 @@ import {
   PENDING_CALENDAR_TASK_ACTION,
   PENDING_CALENDAR_TASK_MESSAGE,
 } from '@tutorix/shared-utils/tutor-calendar';
+import { formatInr, formatIstDateRangeLabel } from '@tutorix/shared-utils';
 
 type TutorHomeScreenProps = {
   onSetRateCard?: () => void;
   onUpdateCalendar?: () => void;
   onOpenConcludedClasses?: () => void;
   onOpenBookingHistory?: () => void;
+  onOpenEarnings?: () => void;
   onJoinOnlineClass?: (sessionId: string) => void;
   onActOnRefundClaim?: (claimId: number) => void;
 };
@@ -194,6 +197,7 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
   onUpdateCalendar,
   onOpenConcludedClasses,
   onOpenBookingHistory,
+  onOpenEarnings,
   onJoinOnlineClass,
   onActOnRefundClaim,
 }) => {
@@ -213,6 +217,17 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
   const { data: refundAlertData } = useQuery(TUTOR_PENDING_POST_CLASS_REFUND_CLAIM_ALERT, {
     fetchPolicy: 'network-only',
   });
+  const { data: earningsData } = useQuery(MY_TUTOR_EARNINGS_SUMMARY, {
+    fetchPolicy: 'cache-and-network',
+    skip: !onOpenEarnings,
+  });
+  const earningsSummary = earningsData?.myTutorEarningsSummary;
+  const nextPayoutLabel =
+    earningsSummary?.nextPayout &&
+    formatIstDateRangeLabel(
+      earningsSummary.nextPayout.startDate,
+      earningsSummary.nextPayout.endDate,
+    );
   const refundAlert = refundAlertData?.tutorPendingPostClassRefundClaimAlert ?? null;
   const [refundAlertDismissed, setRefundAlertDismissed] = useState(false);
   const [cancelClass, { loading: cancelling }] = useMutation(TUTOR_CANCEL_SCHEDULED_CLASS, {
@@ -614,6 +629,28 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
         </Modal>
       </View>
 
+      {onOpenEarnings && earningsSummary ? (
+        <View style={styles.concludedCard}>
+          <Text style={styles.concludedTitle}>Earnings</Text>
+          <Text style={styles.earningsAmount}>
+            {formatInr(earningsSummary.nextPayout.totalNetPayoutInr)}
+          </Text>
+          <Text style={styles.earningsSub}>
+            Next bank transfer{nextPayoutLabel ? ` · ${nextPayoutLabel} (IST)` : ''}
+          </Text>
+          {earningsSummary.inHold && earningsSummary.inHold.concludedClassCount > 0 ? (
+            <Text style={styles.earningsMeta}>
+              {formatInr(earningsSummary.inHold.totalNetPayoutInr)} still in hold (
+              {earningsSummary.inHold.concludedClassCount}{' '}
+              {earningsSummary.inHold.concludedClassCount === 1 ? 'class' : 'classes'})
+            </Text>
+          ) : null}
+          <Pressable style={styles.detailsButton} onPress={onOpenEarnings}>
+            <Text style={styles.detailsButtonText}>View earnings</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       <View style={styles.concludedCard}>
         <View style={styles.bookingHistoryRow}>
           <View style={styles.bookingHistoryLeft}>
@@ -876,6 +913,14 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   concludedTitle: { fontSize: 16, fontWeight: '800', color: '#143055' },
+  earningsAmount: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1d4ed8',
+    marginTop: 8,
+  },
+  earningsSub: { fontSize: 14, color: '#475569', marginTop: 4 },
+  earningsMeta: { fontSize: 12, color: '#64748b', marginTop: 4 },
   bookingHistoryRow: {
     flexDirection: 'row',
     alignItems: 'center',
