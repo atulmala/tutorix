@@ -53,6 +53,12 @@ import { AdminUpdateRegistrationSettingsInput } from '../registration-settings/d
 import { ClassPricingSettingsService } from '../class-pricing-settings/services/class-pricing-settings.service';
 import { ClassPricingSettingsEntity } from '../class-pricing-settings/entities/class-pricing-settings.entity';
 import { AdminUpdateClassPricingSettingsInput } from '../class-pricing-settings/dto/admin-update-class-pricing-settings.input';
+import { AdminCreatePaymentGatewayFeeInput } from '../payment-gateway-fee/dto/admin-create-payment-gateway-fee.input';
+import { AdminPaymentGatewayFeeConfigResult } from '../payment-gateway-fee/dto/admin-payment-gateway-fee-config.dto';
+import { AdminUpdatePaymentGatewayFeeInput } from '../payment-gateway-fee/dto/admin-update-payment-gateway-fee.input';
+import { AdminUpdatePaymentGatewayFeeSettingsInput } from '../payment-gateway-fee/dto/admin-update-payment-gateway-fee-settings.input';
+import { PaymentGatewayFeeConfigEntity } from '../payment-gateway-fee/entities/payment-gateway-fee-config.entity';
+import { PaymentGatewayFeeService } from '../payment-gateway-fee/services/payment-gateway-fee.service';
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 20;
@@ -76,6 +82,7 @@ export class AdminService {
     private readonly platformFeeService: PlatformFeeService,
     private readonly registrationSettingsService: RegistrationSettingsService,
     private readonly classPricingSettingsService: ClassPricingSettingsService,
+    private readonly paymentGatewayFeeService: PaymentGatewayFeeService,
   ) {}
 
   async getDashboardStats(): Promise<AdminDashboardStats> {
@@ -370,6 +377,28 @@ export class AdminService {
     input: AdminUpdateClassPricingSettingsInput,
   ): Promise<ClassPricingSettingsEntity> {
     return this.classPricingSettingsService.updateSettings(input);
+  }
+
+  async getPaymentGatewayFeeConfig(): Promise<AdminPaymentGatewayFeeConfigResult> {
+    return this.paymentGatewayFeeService.getAdminConfig();
+  }
+
+  async updatePaymentGatewayFeeSettings(
+    input: AdminUpdatePaymentGatewayFeeSettingsInput,
+  ): Promise<AdminPaymentGatewayFeeConfigResult> {
+    return this.paymentGatewayFeeService.updateSettings(input);
+  }
+
+  async updatePaymentGatewayFee(
+    input: AdminUpdatePaymentGatewayFeeInput,
+  ): Promise<PaymentGatewayFeeConfigEntity> {
+    return this.paymentGatewayFeeService.updateGateway(input);
+  }
+
+  async createPaymentGatewayFee(
+    input: AdminCreatePaymentGatewayFeeInput,
+  ): Promise<PaymentGatewayFeeConfigEntity> {
+    return this.paymentGatewayFeeService.createGateway(input);
   }
 
   private toAdminPlatformFeeConfig(

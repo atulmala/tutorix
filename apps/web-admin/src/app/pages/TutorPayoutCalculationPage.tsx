@@ -16,6 +16,10 @@ type PayoutRow = {
   commissionPercent: number;
   commissionInr: number;
   onlineChargesInr: number;
+  paymentGatewayProvider: string;
+  paymentGatewayFeeInr: number;
+  paymentGatewayGstInr: number;
+  paymentGatewayChargesInr: number;
   totalDeductionsInr: number;
   netPayoutInr: number;
 };
@@ -30,6 +34,9 @@ type PayoutData = {
     totalGrossInr: number;
     totalCommissionInr: number;
     totalOnlineChargesInr: number;
+    totalPaymentGatewayFeeInr: number;
+    totalPaymentGatewayGstInr: number;
+    totalPaymentGatewayChargesInr: number;
     totalDeductionsInr: number;
     totalNetPayoutInr: number;
   };
@@ -38,6 +45,8 @@ type PayoutData = {
 function formatInr(amount: number): string {
   return `₹${amount.toLocaleString('en-IN')}`;
 }
+
+const TABLE_COL_COUNT = 14;
 
 export function TutorPayoutCalculationPage() {
   const defaultPeriod = useMemo(() => defaultTutorPayoutPeriodIstDates(), []);
@@ -168,6 +177,10 @@ export function TutorPayoutCalculationPage() {
               <th className="px-3 py-2">Gross</th>
               <th className="px-3 py-2">Commission</th>
               <th className="px-3 py-2">Online charges</th>
+              <th className="px-3 py-2">Gateway</th>
+              <th className="px-3 py-2">PG fee</th>
+              <th className="px-3 py-2">PG GST</th>
+              <th className="px-3 py-2">PG total</th>
               <th className="px-3 py-2">Total deductions</th>
               <th className="px-3 py-2">Net payout</th>
             </tr>
@@ -175,14 +188,14 @@ export function TutorPayoutCalculationPage() {
           <tbody>
             {loading && !result ? (
               <tr>
-                <td className="px-3 py-6 text-muted" colSpan={10}>
+                <td className="px-3 py-6 text-muted" colSpan={TABLE_COL_COUNT}>
                   Loading…
                 </td>
               </tr>
             ) : null}
             {!loading && result && result.items.length === 0 ? (
               <tr>
-                <td className="px-3 py-6 text-muted" colSpan={10}>
+                <td className="px-3 py-6 text-muted" colSpan={TABLE_COL_COUNT}>
                   No concluded classes in this range.
                 </td>
               </tr>
@@ -200,6 +213,12 @@ export function TutorPayoutCalculationPage() {
                   <span className="ml-1 text-xs text-muted">({row.commissionPercent}%)</span>
                 </td>
                 <td className="px-3 py-2">{formatInr(row.onlineChargesInr)}</td>
+                <td className="px-3 py-2 font-mono text-xs uppercase">
+                  {row.paymentGatewayProvider}
+                </td>
+                <td className="px-3 py-2">{formatInr(row.paymentGatewayFeeInr)}</td>
+                <td className="px-3 py-2">{formatInr(row.paymentGatewayGstInr)}</td>
+                <td className="px-3 py-2">{formatInr(row.paymentGatewayChargesInr)}</td>
                 <td className="px-3 py-2">{formatInr(row.totalDeductionsInr)}</td>
                 <td className="px-3 py-2 font-medium">{formatInr(row.netPayoutInr)}</td>
               </tr>
@@ -215,6 +234,10 @@ export function TutorPayoutCalculationPage() {
                 <td className="px-3 py-3">{formatInr(result.totalGrossInr)}</td>
                 <td className="px-3 py-3">{formatInr(result.totalCommissionInr)}</td>
                 <td className="px-3 py-3">{formatInr(result.totalOnlineChargesInr)}</td>
+                <td className="px-3 py-3">—</td>
+                <td className="px-3 py-3">{formatInr(result.totalPaymentGatewayFeeInr)}</td>
+                <td className="px-3 py-3">{formatInr(result.totalPaymentGatewayGstInr)}</td>
+                <td className="px-3 py-3">{formatInr(result.totalPaymentGatewayChargesInr)}</td>
                 <td className="px-3 py-3">{formatInr(result.totalDeductionsInr)}</td>
                 <td className="px-3 py-3">{formatInr(result.totalNetPayoutInr)}</td>
               </tr>

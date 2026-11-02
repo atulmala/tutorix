@@ -26,6 +26,7 @@ export * from './payment.queries';
 export * from './wallet.queries';
 export * from './registration-settings.queries';
 export * from './class-pricing-settings.queries';
+export * from './payment-gateway-fee.queries';
 export * from './communication.queries';
 export * from './tutor-class-session.queries';
 export * from './post-class-refund-claim.queries';

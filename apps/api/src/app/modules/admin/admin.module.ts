@@ -16,6 +16,7 @@ import { CommerceModule } from '../commerce/commerce.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { RegistrationSettingsModule } from '../registration-settings/registration-settings.module';
 import { ClassPricingSettingsModule } from '../class-pricing-settings/class-pricing-settings.module';
+import { PaymentGatewayFeeModule } from '../payment-gateway-fee/payment-gateway-fee.module';
 import { CommunicationModule } from '../communication/communication.module';
 import { StudentCartModule } from '../student-cart/student-cart.module';
 import { AdminService } from './admin.service';
@@ -38,6 +39,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
     WalletModule,
     RegistrationSettingsModule,
     ClassPricingSettingsModule,
+    PaymentGatewayFeeModule,
     CommunicationModule,
     StudentCartModule,
   ],

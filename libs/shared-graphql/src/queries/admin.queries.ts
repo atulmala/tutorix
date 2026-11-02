@@ -582,6 +582,10 @@ export const GET_ADMIN_TUTOR_PAYOUT_CALCULATION = gql`
         commissionPercent
         commissionInr
         onlineChargesInr
+        paymentGatewayProvider
+        paymentGatewayFeeInr
+        paymentGatewayGstInr
+        paymentGatewayChargesInr
         totalDeductionsInr
         netPayoutInr
       }
@@ -592,6 +596,9 @@ export const GET_ADMIN_TUTOR_PAYOUT_CALCULATION = gql`
       totalGrossInr
       totalCommissionInr
       totalOnlineChargesInr
+      totalPaymentGatewayFeeInr
+      totalPaymentGatewayGstInr
+      totalPaymentGatewayChargesInr
       totalDeductionsInr
       totalNetPayoutInr
     }
