@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@apollo/client';
 import {
   GET_MY_TUTOR_CALENDAR_UPDATED_TILL,
   GET_MY_TUTOR_DETAIL,
+  MY_TUTOR_EARNINGS_SUMMARY,
   TUTOR_BOOKED_CLASS_SESSIONS,
   TUTOR_CANCEL_SCHEDULED_CLASS,
   TUTOR_CLASS_BOOKINGS,
@@ -28,6 +29,8 @@ import {
   PENDING_RATE_CARD_TASK_ACTION,
   PENDING_RATE_CARD_TASK_MESSAGE,
   type RateCardOfferingLike,
+  formatInr,
+  formatIstDateRangeLabel,
 } from '@tutorix/shared-utils';
 
 const HOME_BOOKING_HISTORY_INPUT = { page: 1, pageSize: 1 };
@@ -37,6 +40,7 @@ type TutorHomePageProps = {
   onUpdateCalendar?: () => void;
   onOpenConcludedClasses?: () => void;
   onOpenBookingHistory?: () => void;
+  onOpenEarnings?: () => void;
   onJoinOnlineClass?: (sessionId: string) => void;
   onActOnRefundClaim?: (claimId: number) => void;
 };
@@ -198,6 +202,7 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
   onUpdateCalendar,
   onOpenConcludedClasses,
   onOpenBookingHistory,
+  onOpenEarnings,
   onJoinOnlineClass,
   onActOnRefundClaim,
 }) => {
@@ -231,6 +236,17 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
   const { data: refundAlertData } = useQuery(TUTOR_PENDING_POST_CLASS_REFUND_CLAIM_ALERT, {
     fetchPolicy: 'network-only',
   });
+  const { data: earningsData } = useQuery(MY_TUTOR_EARNINGS_SUMMARY, {
+    fetchPolicy: 'cache-and-network',
+    skip: !onOpenEarnings,
+  });
+  const earningsSummary = earningsData?.myTutorEarningsSummary;
+  const nextPayoutLabel =
+    earningsSummary?.nextPayout &&
+    formatIstDateRangeLabel(
+      earningsSummary.nextPayout.startDate,
+      earningsSummary.nextPayout.endDate,
+    );
   const refundAlert = refundAlertData?.tutorPendingPostClassRefundClaimAlert;
   const [refundAlertDismissed, setRefundAlertDismissed] = useState(false);
   const [cancelClass, { loading: cancelling }] = useMutation(TUTOR_CANCEL_SCHEDULED_CLASS, {
@@ -663,6 +679,33 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
             )
           : null}
       </section>
+
+      {onOpenEarnings && earningsSummary ? (
+        <section className="rounded-[20px] bg-white p-5">
+          <h2 className="text-base font-extrabold text-[#143055]">Earnings</h2>
+          <p className="mt-2 text-2xl font-extrabold tabular-nums text-[#1d4ed8]">
+            {formatInr(earningsSummary.nextPayout.totalNetPayoutInr)}
+          </p>
+          <p className="mt-1 text-sm text-slate-600">
+            Next bank transfer
+            {nextPayoutLabel ? ` · ${nextPayoutLabel} (IST)` : null}
+          </p>
+          {earningsSummary.inHold && earningsSummary.inHold.concludedClassCount > 0 ? (
+            <p className="mt-1 text-xs text-slate-500">
+              {formatInr(earningsSummary.inHold.totalNetPayoutInr)} still in hold (
+              {earningsSummary.inHold.concludedClassCount}{' '}
+              {earningsSummary.inHold.concludedClassCount === 1 ? 'class' : 'classes'})
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={onOpenEarnings}
+            className="mt-3 rounded-xl bg-[#2563eb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+          >
+            View earnings
+          </button>
+        </section>
+      ) : null}
 
       <section className="rounded-[20px] bg-white p-5">
         <div className="flex items-center justify-between gap-4">

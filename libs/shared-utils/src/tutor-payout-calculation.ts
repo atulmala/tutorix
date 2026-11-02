@@ -135,6 +135,66 @@ export function defaultTutorPayoutPeriodIstDates(now: Date = new Date()): {
   };
 }
 
+/**
+ * Classes that ended after the next payout period and through today IST are still in hold.
+ * Returns null when there is no hold window (e.g. hold start is after today).
+ */
+export function tutorPayoutHoldPeriodIstDates(now: Date = new Date()): {
+  startDate: string;
+  endDate: string;
+} | null {
+  const nextPeriod = defaultTutorPayoutPeriodIstDates(now);
+  const endParts = parseIstCalendarDate(nextPeriod.endDate);
+  if (!endParts) {
+    return null;
+  }
+  const holdStart = addIstDaysUtc(
+    istDayStartUtc(endParts.year, endParts.month, endParts.day),
+    1,
+  );
+  const todayStart = istTodayStartUtc(now);
+  if (holdStart.getTime() > todayStart.getTime()) {
+    return null;
+  }
+  return {
+    startDate: formatIstCalendarDate(holdStart),
+    endDate: formatIstCalendarDate(todayStart),
+  };
+}
+
+const IST_MONTHS_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
+
+/** Human-readable IST date range for tutor earnings UI, e.g. `17 Oct – 23 Oct 2026`. */
+export function formatIstDateRangeLabel(startDate: string, endDate: string): string | null {
+  const startParts = parseIstCalendarDate(startDate);
+  const endParts = parseIstCalendarDate(endDate);
+  if (!startParts || !endParts) {
+    return null;
+  }
+  const startLabel = `${startParts.day} ${IST_MONTHS_SHORT[startParts.month]}`;
+  const endLabel = `${endParts.day} ${IST_MONTHS_SHORT[endParts.month]} ${endParts.year}`;
+  if (startParts.year === endParts.year && startParts.month === endParts.month) {
+    return `${startParts.day} – ${endLabel}`;
+  }
+  if (startParts.year === endParts.year) {
+    return `${startLabel} – ${endLabel}`;
+  }
+  return `${startLabel} ${startParts.year} – ${endLabel}`;
+}
+
 export function classEndedWithinUtcRange(
   startsAt: Date | string | null | undefined,
   durationMinutes: number | null | undefined,

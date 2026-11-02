@@ -108,8 +108,9 @@ export class AdminTutorPayoutCalculationService {
 
   async calculate(
     input: AdminTutorPayoutCalculationInput,
-    now: Date = new Date(),
+    options?: { tutorId?: number; now?: Date },
   ): Promise<AdminTutorPayoutCalculationResult> {
+    const now = options?.now ?? new Date();
     const bounds = istDateRangeToUtcBounds(input.startDate, input.endDate);
     if (!bounds) {
       throw new BadRequestException('Invalid or inverted date range');
@@ -133,7 +134,11 @@ export class AdminTutorPayoutCalculationService {
       .andWhere('credit.is_demo = false')
       .andWhere('calendar.starts_at IS NOT NULL');
 
-    applyAdminClassBookingTutorSearch(qb, input.tutorSearch);
+    if (options?.tutorId != null) {
+      qb.andWhere('tutor.id = :tutorId', { tutorId: options.tutorId });
+    } else {
+      applyAdminClassBookingTutorSearch(qb, input.tutorSearch);
+    }
 
     const rows = await qb.select([...CREDIT_SELECT]).getRawMany<RawPayoutCreditRow>();
 

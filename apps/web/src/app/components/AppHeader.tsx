@@ -8,6 +8,8 @@ import { WalletBalanceChip } from './wallet';
 type AppHeaderProps = {
   onLogout: () => void;
   onOpenWallet?: () => void;
+  /** When set, shows a text nav button instead of the student wallet balance chip. */
+  walletNavLabel?: string;
   onOpenCart?: () => void;
   onProfilePress?: () => void;
   onBack?: () => void;
@@ -19,6 +21,7 @@ type AppHeaderProps = {
 export const AppHeader: React.FC<AppHeaderProps> = ({
   onLogout,
   onOpenWallet,
+  walletNavLabel,
   onOpenCart,
   onProfilePress,
   onBack,
@@ -59,7 +62,17 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       </div>
       <div className="relative flex items-center gap-3">
         {onOpenCart ? <CartChip onOpenCart={onOpenCart} /> : null}
-        {onOpenWallet ? <WalletBalanceChip onOpenWallet={onOpenWallet} /> : null}
+        {onOpenWallet && walletNavLabel ? (
+          <button
+            type="button"
+            onClick={onOpenWallet}
+            className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-semibold text-[#1d4ed8] hover:bg-blue-100"
+          >
+            {walletNavLabel}
+          </button>
+        ) : onOpenWallet ? (
+          <WalletBalanceChip onOpenWallet={onOpenWallet} />
+        ) : null}
         {showRightProfile ? (
           <HeaderProfileAvatar user={currentUser} onNavigate={onProfilePress} />
         ) : null}

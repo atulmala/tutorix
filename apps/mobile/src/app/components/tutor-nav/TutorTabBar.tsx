@@ -97,7 +97,7 @@ export const TutorTabBar: React.FC<TutorTabBarProps> = ({
           icon={<CalendarIcon color={active === 'calendar' ? ACTIVE : INACTIVE} />}
         />
         <TabItem
-          label="Wallet"
+          label="Earnings"
           active={active === 'wallet'}
           onPress={onWallet}
           icon={<WalletIcon color={active === 'wallet' ? ACTIVE : INACTIVE} />}

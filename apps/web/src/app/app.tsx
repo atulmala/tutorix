@@ -18,6 +18,7 @@ import { ResetPassword } from './components/ResetPassword';
 import { PasswordResetAcknowledgement } from './components/PasswordResetAcknowledgement';
 import { TutorOnboarding } from './components/tutor-onboarding';
 import { TutorHomePage } from './components/tutor-home';
+import { TutorEarningsPage } from './components/tutor-earnings';
 import { TutorConcludedClassesPage } from './components/tutor-home/TutorConcludedClassesPage';
 import { TutorPostClassRefundClaimPage } from './components/tutor-home/TutorPostClassRefundClaimPage';
 import { TutorBookingHistoryPage } from './components/tutor-home/TutorBookingHistoryPage';
@@ -63,6 +64,7 @@ import { SessionLoadingGate } from './auth/SessionLoadingGate';
 import { LegalPage } from './components/LegalPage';
 import {
   isStudentCartReturnView,
+  isTutorWalletReturnView,
   studentViewAfterProfile,
   tutorViewAfterProfile,
   type StudentCartOverlay,
@@ -987,10 +989,11 @@ function AppContent() {
     const studentWallet =
       walletReturnView === 'student-cart-checkout' ||
       isStudentCartReturnView(walletReturnView);
+    const tutorWallet = isTutorWalletReturnView(walletReturnView);
     return (
       <div className="min-h-screen bg-subtle text-primary">
         <AppHeader
-          title="Wallet"
+          title={tutorWallet ? 'Earnings' : 'Wallet'}
           onLogout={handleLogout}
           onBack={handleWalletBack}
           onProfilePress={
@@ -999,7 +1002,14 @@ function AppContent() {
           onOpenWallet={() => undefined}
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
-          <WalletPage onBack={handleWalletBack} />
+          {tutorWallet ? (
+            <TutorEarningsPage
+              onBack={handleWalletBack}
+              onAddBankDetails={() => setCurrentView('tutor-profile')}
+            />
+          ) : (
+            <WalletPage onBack={handleWalletBack} />
+          )}
         </main>
       </div>
     );
@@ -1084,6 +1094,7 @@ function AppContent() {
           onLogout={handleLogout}
           onProfilePress={() => setCurrentView('tutor-profile')}
           onOpenWallet={() => handleOpenWallet('tutor-home')}
+          walletNavLabel="Earnings"
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-8">
           <TutorHomePage
@@ -1091,6 +1102,7 @@ function AppContent() {
             onUpdateCalendar={() => setCurrentView('tutor-calendar')}
             onOpenConcludedClasses={() => setCurrentView('tutor-concluded-classes')}
             onOpenBookingHistory={() => setCurrentView('tutor-booking-history')}
+            onOpenEarnings={() => handleOpenWallet('tutor-home')}
             onJoinOnlineClass={(sessionId) => {
               setOnlineClassSession({
                 sessionId,
@@ -1118,6 +1130,7 @@ function AppContent() {
           onLogout={handleLogout}
           onBack={() => setCurrentView('tutor-home')}
           onOpenWallet={() => handleOpenWallet('tutor-concluded-classes')}
+          walletNavLabel="Earnings"
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-8">
           <TutorConcludedClassesPage
@@ -1142,6 +1155,7 @@ function AppContent() {
             setCurrentView('tutor-concluded-classes');
           }}
           onOpenWallet={() => handleOpenWallet('tutor-concluded-classes')}
+          walletNavLabel="Earnings"
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-8">
           <TutorPostClassRefundClaimPage
@@ -1164,6 +1178,7 @@ function AppContent() {
           onLogout={handleLogout}
           onBack={() => setCurrentView('tutor-home')}
           onOpenWallet={() => handleOpenWallet('tutor-booking-history')}
+          walletNavLabel="Earnings"
         />
         <main className="mx-auto min-h-screen max-w-6xl px-4 py-8">
           <TutorBookingHistoryPage />
@@ -1180,6 +1195,7 @@ function AppContent() {
           onLogout={handleLogout}
           onBack={() => setCurrentView('tutor-home')}
           onOpenWallet={() => handleOpenWallet('tutor-home')}
+          walletNavLabel="Earnings"
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
           <TutorCalendarPage
@@ -1200,6 +1216,7 @@ function AppContent() {
           onLogout={handleLogout}
           onBack={() => setCurrentView('tutor-home')}
           onOpenWallet={() => handleOpenWallet('tutor-profile')}
+          walletNavLabel="Earnings"
         />
         <main className="mx-auto flex min-h-screen max-w-6xl justify-center px-4 py-10">
           <TutorProfilePage />

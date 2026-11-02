@@ -68,6 +68,7 @@ import {
 import { TutorCalendarScreen } from './components/tutor-calendar/TutorCalendarScreen';
 import { TutorNavHeader, TutorTabBar, type TutorTab } from './components/tutor-nav';
 import { WalletScreen } from './components/wallet';
+import { TutorEarningsScreen } from './components/tutor-earnings';
 import { NavHeader } from './components/NavHeader';
 import {
   isStudentCartReturnView,
@@ -1106,6 +1107,7 @@ function AppContent() {
         onUpdateCalendar={() => openTutorCalendar('tutorHome')}
         onOpenConcludedClasses={() => setCurrentView('tutorConcludedClasses')}
         onOpenBookingHistory={() => setCurrentView('tutorBookingHistory')}
+        onOpenEarnings={goTutorWallet}
         onJoinOnlineClass={(sessionId) => {
           setOnlineClassSession({
             sessionId,
@@ -1219,8 +1221,8 @@ function AppContent() {
       : tutorWallet
         ? renderTutorShell(
             'wallet',
-            <TutorNavHeader title="Wallet" onLogout={handleLogout} />,
-            <WalletScreen onBack={walletBack} />,
+            <TutorNavHeader title="Earnings" onLogout={handleLogout} />,
+            <TutorEarningsScreen onAddBankDetails={() => setCurrentView('tutorProfile')} />,
           )
         : (
           <View style={{ flex: 1 }}>

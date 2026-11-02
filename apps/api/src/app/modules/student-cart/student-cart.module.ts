@@ -19,6 +19,7 @@ import { TutorOfferingEntity } from '../tutor/entities/tutor-offering.entity';
 import { ClassPricingSettingsModule } from '../class-pricing-settings/class-pricing-settings.module';
 import { PaymentGatewayFeeModule } from '../payment-gateway-fee/payment-gateway-fee.module';
 import { TutorRateCardModule } from '../tutor-rate-card/tutor-rate-card.module';
+import { UserBankDetailsModule } from '../user-bank-details/user-bank-details.module';
 import { WalletModule } from '../wallet/wallet.module';
 import './enums/class-credit-status.enum';
 import './enums/class-credit-refund-method.enum';
@@ -41,11 +42,13 @@ import { StudentClassCreditEntity } from './entities/student-class-credit.entity
 import { TutorClassEmailQueueEntity } from './entities/tutor-class-email-queue.entity';
 import { PostClassRefundClaimResolver } from './resolvers/post-class-refund-claim.resolver';
 import { StudentCartResolver } from './resolvers/student-cart.resolver';
+import { TutorEarningsResolver } from './resolvers/tutor-earnings.resolver';
 import { AdminPostClassRefundClaimService } from './services/admin-post-class-refund-claim.service';
 import { PostClassRefundClaimService } from './services/post-class-refund-claim.service';
 import { AdminClassCancellationRefundService } from './services/admin-class-cancellation-refund.service';
 import { AdminClassBookingService } from './services/admin-class-booking.service';
 import { AdminTutorPayoutCalculationService } from './services/admin-tutor-payout-calculation.service';
+import { TutorEarningsService } from './services/tutor-earnings.service';
 import { ClassCancellationRefundAiService } from './services/class-cancellation-refund-ai.service';
 import { ClassCancellationRefundBatchService } from './services/class-cancellation-refund-batch.service';
 import { ClassCancellationRefundChecksService } from './services/class-cancellation-refund-checks.service';
@@ -82,6 +85,7 @@ import { TutorClassEmailBatchService } from './services/tutor-class-email-batch.
     StudentModule,
     OfferingsModule,
     TutorRateCardModule,
+    UserBankDetailsModule,
     ClassPricingSettingsModule,
     PaymentGatewayFeeModule,
     ProficiencyModule,
@@ -102,12 +106,14 @@ import { TutorClassEmailBatchService } from './services/tutor-class-email-batch.
     ClassCancellationRefundBatchService,
     AdminClassBookingService,
     AdminTutorPayoutCalculationService,
+    TutorEarningsService,
     AdminClassCancellationRefundService,
     TutorClassBookingService,
     PostClassRefundClaimService,
     AdminPostClassRefundClaimService,
     StudentCartResolver,
     PostClassRefundClaimResolver,
+    TutorEarningsResolver,
   ],
   exports: [
     PostClassRefundClaimService,
