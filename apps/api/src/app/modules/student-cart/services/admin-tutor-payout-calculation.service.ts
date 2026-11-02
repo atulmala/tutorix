@@ -8,6 +8,9 @@ import {
   scheduledClassHasEnded,
 } from '@tutorix/shared-utils';
 import { ClassPricingSettingsService } from '../../class-pricing-settings/services/class-pricing-settings.service';
+import { OrderItemEntity } from '../../commerce/entities/order-item.entity';
+import { PaymentGatewayProviderEnum } from '../../payment/enums/payment.enums';
+import { PaymentGatewayFeeService } from '../../payment-gateway-fee/services/payment-gateway-fee.service';
 import { ClassSessionDeliveryModeEnum } from '../../tutor-class-session/enums/class-session-delivery-mode.enum';
 import {
   applyAdminClassBookingTutorSearch,
@@ -89,6 +92,7 @@ type GroupBucket = {
   unitRateInr: number;
   deliveryMode: ClassSessionDeliveryModeEnum;
   concludedInRange: number;
+  paymentGatewayProvider: PaymentGatewayProviderEnum;
 };
 
 @Injectable()
@@ -96,7 +100,10 @@ export class AdminTutorPayoutCalculationService {
   constructor(
     @InjectRepository(StudentClassCreditEntity)
     private readonly creditRepo: Repository<StudentClassCreditEntity>,
+    @InjectRepository(OrderItemEntity)
+    private readonly orderItemRepo: Repository<OrderItemEntity>,
     private readonly classPricingSettingsService: ClassPricingSettingsService,
+    private readonly paymentGatewayFeeService: PaymentGatewayFeeService,
   ) {}
 
   async calculate(
@@ -156,13 +163,24 @@ export class AdminTutorPayoutCalculationService {
           unitRateInr: asNumber(row.unitRateInr),
           deliveryMode: row.deliveryMode,
           concludedInRange: 0,
+          paymentGatewayProvider: PaymentGatewayProviderEnum.razorpay,
         };
         buckets.set(orderItemId, bucket);
       }
       bucket.concludedInRange += 1;
     }
 
+    const orderItemIds = [...buckets.keys()];
+    const providerByOrderItemId =
+      await this.loadPaymentGatewayProviderByOrderItemId(orderItemIds);
+    for (const bucket of buckets.values()) {
+      bucket.paymentGatewayProvider =
+        providerByOrderItemId.get(bucket.orderItemId) ??
+        PaymentGatewayProviderEnum.razorpay;
+    }
+
     const settings = await this.classPricingSettingsService.getSettings();
+    const gatewayConfig = await this.paymentGatewayFeeService.getPayoutConfig();
     const pricingSettings = {
       commissionSlabThresholdInr: settings.commissionSlabThresholdInr,
       tutorCommissionPercentUpToSlab: settings.tutorCommissionPercentUpToSlab,
@@ -174,12 +192,20 @@ export class AdminTutorPayoutCalculationService {
       .map((group) => {
         const deliveryMode =
           group.deliveryMode === ClassSessionDeliveryModeEnum.online ? 'online' : 'offline';
+        const chargePercent = this.paymentGatewayFeeService.resolveChargePercent(
+          group.paymentGatewayProvider,
+          gatewayConfig,
+        );
         const amounts = computeTutorPayoutRow({
           rateInr: group.rateInr,
           unitRateInr: group.unitRateInr,
           concludedInRange: group.concludedInRange,
           deliveryMode,
           settings: pricingSettings,
+          paymentGateway: {
+            chargePercent,
+            gstRatePercent: gatewayConfig.gstRatePercent,
+          },
         });
         return {
           orderItemId: group.orderItemId,
@@ -192,6 +218,10 @@ export class AdminTutorPayoutCalculationService {
           commissionPercent: amounts.commissionPercent,
           commissionInr: amounts.commissionInr,
           onlineChargesInr: amounts.onlineChargesInr,
+          paymentGatewayProvider: group.paymentGatewayProvider,
+          paymentGatewayFeeInr: amounts.paymentGatewayFeeInr,
+          paymentGatewayGstInr: amounts.paymentGatewayGstInr,
+          paymentGatewayChargesInr: amounts.paymentGatewayChargesInr,
           totalDeductionsInr: amounts.totalDeductionsInr,
           netPayoutInr: amounts.netPayoutInr,
         };
@@ -211,12 +241,18 @@ export class AdminTutorPayoutCalculationService {
     let totalGrossInr = 0;
     let totalCommissionInr = 0;
     let totalOnlineChargesInr = 0;
+    let totalPaymentGatewayFeeInr = 0;
+    let totalPaymentGatewayGstInr = 0;
+    let totalPaymentGatewayChargesInr = 0;
     let totalDeductionsInr = 0;
     let totalNetPayoutInr = 0;
     for (const row of allRows) {
       totalGrossInr += row.grossInr;
       totalCommissionInr += row.commissionInr;
       totalOnlineChargesInr += row.onlineChargesInr;
+      totalPaymentGatewayFeeInr += row.paymentGatewayFeeInr;
+      totalPaymentGatewayGstInr += row.paymentGatewayGstInr;
+      totalPaymentGatewayChargesInr += row.paymentGatewayChargesInr;
       totalDeductionsInr += row.totalDeductionsInr;
       totalNetPayoutInr += row.netPayoutInr;
     }
@@ -234,8 +270,48 @@ export class AdminTutorPayoutCalculationService {
       totalGrossInr,
       totalCommissionInr,
       totalOnlineChargesInr,
+      totalPaymentGatewayFeeInr,
+      totalPaymentGatewayGstInr,
+      totalPaymentGatewayChargesInr,
       totalDeductionsInr,
       totalNetPayoutInr,
     };
+  }
+
+  private async loadPaymentGatewayProviderByOrderItemId(
+    orderItemIds: number[],
+  ): Promise<Map<number, PaymentGatewayProviderEnum>> {
+    const map = new Map<number, PaymentGatewayProviderEnum>();
+    if (orderItemIds.length === 0) {
+      return map;
+    }
+    const rows: { orderItemId: string; provider: PaymentGatewayProviderEnum | null }[] =
+      await this.orderItemRepo.manager.query(
+        `
+        SELECT oi.id AS "orderItemId", latest.provider AS provider
+        FROM commerce_order_item oi
+        LEFT JOIN LATERAL (
+          SELECT pa.provider
+          FROM commerce_payment_attempt pa
+          WHERE pa.order_id = oi.order_id
+            AND pa.status = 'paid'
+            AND pa.deleted = false
+          ORDER BY pa.id DESC
+          LIMIT 1
+        ) latest ON true
+        WHERE oi.id = ANY($1::int[])
+        `,
+        [orderItemIds],
+      );
+    for (const row of rows) {
+      const orderItemId = Number(row.orderItemId);
+      if (!Number.isFinite(orderItemId)) {
+        continue;
+      }
+      if (row.provider) {
+        map.set(orderItemId, row.provider);
+      }
+    }
+    return map;
   }
 }

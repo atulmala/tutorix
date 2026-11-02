@@ -11,12 +11,18 @@ export type TutorPayoutPricingSettings = ClassPricingCommissionSettings & {
   platformFeePerParticipantInr: number;
 };
 
+export type PaymentGatewayPayoutSettings = {
+  chargePercent: number;
+  gstRatePercent: number;
+};
+
 export type ComputeTutorPayoutRowInput = {
   rateInr: number;
   unitRateInr: number;
   concludedInRange: number;
   deliveryMode: TutorPayoutDeliveryMode;
   settings: TutorPayoutPricingSettings;
+  paymentGateway?: PaymentGatewayPayoutSettings;
 };
 
 export type TutorPayoutRowAmounts = {
@@ -24,9 +30,39 @@ export type TutorPayoutRowAmounts = {
   commissionPercent: number;
   commissionInr: number;
   onlineChargesInr: number;
+  paymentGatewayFeeInr: number;
+  paymentGatewayGstInr: number;
+  paymentGatewayChargesInr: number;
   totalDeductionsInr: number;
   netPayoutInr: number;
 };
+
+export function computePaymentGatewayChargeAmounts(
+  grossInr: number,
+  chargePercent: number,
+  gstRatePercent: number,
+): Pick<
+  TutorPayoutRowAmounts,
+  'paymentGatewayFeeInr' | 'paymentGatewayGstInr' | 'paymentGatewayChargesInr'
+> {
+  if (grossInr <= 0 || chargePercent <= 0) {
+    return {
+      paymentGatewayFeeInr: 0,
+      paymentGatewayGstInr: 0,
+      paymentGatewayChargesInr: 0,
+    };
+  }
+  const paymentGatewayFeeInr = Math.round((grossInr * chargePercent) / 100);
+  const paymentGatewayGstInr =
+    gstRatePercent > 0
+      ? Math.round((paymentGatewayFeeInr * gstRatePercent) / 100)
+      : 0;
+  return {
+    paymentGatewayFeeInr,
+    paymentGatewayGstInr,
+    paymentGatewayChargesInr: paymentGatewayFeeInr + paymentGatewayGstInr,
+  };
+}
 
 function pad2(n: number): string {
   return String(n).padStart(2, '0');
@@ -129,13 +165,30 @@ export function computeTutorPayoutRow(
       ? Math.max(0, input.settings.platformFeePerParticipantInr)
       : 0;
   const onlineChargesInr = feePerClass * concluded;
-  const totalDeductionsInr = commissionInr + onlineChargesInr;
+  const gatewayAmounts = input.paymentGateway
+    ? computePaymentGatewayChargeAmounts(
+        grossInr,
+        input.paymentGateway.chargePercent,
+        input.paymentGateway.gstRatePercent,
+      )
+    : {
+        paymentGatewayFeeInr: 0,
+        paymentGatewayGstInr: 0,
+        paymentGatewayChargesInr: 0,
+      };
+  const totalDeductionsInr =
+    commissionInr +
+    onlineChargesInr +
+    gatewayAmounts.paymentGatewayChargesInr;
   const netPayoutInr = grossInr - totalDeductionsInr;
   return {
     grossInr,
     commissionPercent,
     commissionInr,
     onlineChargesInr,
+    paymentGatewayFeeInr: gatewayAmounts.paymentGatewayFeeInr,
+    paymentGatewayGstInr: gatewayAmounts.paymentGatewayGstInr,
+    paymentGatewayChargesInr: gatewayAmounts.paymentGatewayChargesInr,
     totalDeductionsInr,
     netPayoutInr,
   };

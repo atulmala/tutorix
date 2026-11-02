@@ -17,6 +17,7 @@ import { TutorClassSessionEntity } from '../tutor-class-session/entities/tutor-c
 import { Tutor } from '../tutor/entities/tutor.entity';
 import { TutorOfferingEntity } from '../tutor/entities/tutor-offering.entity';
 import { ClassPricingSettingsModule } from '../class-pricing-settings/class-pricing-settings.module';
+import { PaymentGatewayFeeModule } from '../payment-gateway-fee/payment-gateway-fee.module';
 import { TutorRateCardModule } from '../tutor-rate-card/tutor-rate-card.module';
 import { WalletModule } from '../wallet/wallet.module';
 import './enums/class-credit-status.enum';
@@ -82,6 +83,7 @@ import { TutorClassEmailBatchService } from './services/tutor-class-email-batch.
     OfferingsModule,
     TutorRateCardModule,
     ClassPricingSettingsModule,
+    PaymentGatewayFeeModule,
     ProficiencyModule,
     CommunicationModule,
     forwardRef(() => CommerceModule),

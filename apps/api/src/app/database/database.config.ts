@@ -1,5 +1,4 @@
 import { DataSourceOptions } from 'typeorm';
-import { join } from 'path';
 import { DatabaseCredentials } from './database-credentials.loader';
 import { resolveMigrationGlobs } from './migration-paths';
 
@@ -49,6 +48,8 @@ import { UserWalletEntity } from '../modules/wallet/entities/user-wallet.entity'
 import { WalletTransactionEntity } from '../modules/wallet/entities/wallet-transaction.entity';
 import { RegistrationSettingsEntity } from '../modules/registration-settings/entities/registration-settings.entity';
 import { ClassPricingSettingsEntity } from '../modules/class-pricing-settings/entities/class-pricing-settings.entity';
+import { PaymentGatewayFeeConfigEntity } from '../modules/payment-gateway-fee/entities/payment-gateway-fee-config.entity';
+import { PaymentGatewayFeeSettingsEntity } from '../modules/payment-gateway-fee/entities/payment-gateway-fee-settings.entity';
 import { EmailSendEntity } from '../modules/communication/email/entities/email-send.entity';
 import { CommunicationRuleEntity } from '../modules/communication/entities/communication-rule.entity';
 import { CommunicationTemplateEntity } from '../modules/communication/entities/communication-template.entity';
@@ -120,6 +121,8 @@ export function createDatabaseOptions(
       WalletTransactionEntity,
       RegistrationSettingsEntity,
       ClassPricingSettingsEntity,
+      PaymentGatewayFeeSettingsEntity,
+      PaymentGatewayFeeConfigEntity,
       EmailSendEntity,
       CommunicationRuleEntity,
       CommunicationTemplateEntity,

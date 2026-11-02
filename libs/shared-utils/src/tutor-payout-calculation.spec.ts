@@ -82,7 +82,25 @@ describe('tutor-payout-calculation', () => {
       expect(row.commissionPercent).toBe(15);
       expect(row.commissionInr).toBe(Math.round(1400 * 0.15));
       expect(row.onlineChargesInr).toBe(0);
+      expect(row.paymentGatewayChargesInr).toBe(0);
       expect(row.netPayoutInr).toBe(1400 - row.commissionInr);
+    });
+
+    it('deducts payment gateway fee and GST on gross', () => {
+      const row = computeTutorPayoutRow({
+        rateInr: 500,
+        unitRateInr: 500,
+        concludedInRange: 3,
+        deliveryMode: 'online',
+        settings,
+        paymentGateway: { chargePercent: 2, gstRatePercent: 18 },
+      });
+      expect(row.grossInr).toBe(1500);
+      expect(row.paymentGatewayFeeInr).toBe(30);
+      expect(row.paymentGatewayGstInr).toBe(5);
+      expect(row.paymentGatewayChargesInr).toBe(35);
+      expect(row.totalDeductionsInr).toBe(150 + 60 + 35);
+      expect(row.netPayoutInr).toBe(1255);
     });
   });
 });

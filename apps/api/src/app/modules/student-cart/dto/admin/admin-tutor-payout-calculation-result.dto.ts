@@ -1,4 +1,5 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
+import { PaymentGatewayProviderEnum } from '../../../payment/enums/payment.enums';
 
 @ObjectType()
 export class AdminTutorPayoutCalculationRow {
@@ -32,7 +33,23 @@ export class AdminTutorPayoutCalculationRow {
   @Field(() => Int)
   onlineChargesInr!: number;
 
-  @Field(() => Int, { description: 'Commission plus online charges' })
+  @Field(() => PaymentGatewayProviderEnum, {
+    description: 'Gateway used for the order payment, or razorpay when none recorded',
+  })
+  paymentGatewayProvider!: PaymentGatewayProviderEnum;
+
+  @Field(() => Int, { description: 'Payment gateway fee before GST (INR)' })
+  paymentGatewayFeeInr!: number;
+
+  @Field(() => Int, { description: 'GST on payment gateway fee (INR)' })
+  paymentGatewayGstInr!: number;
+
+  @Field(() => Int, { description: 'Payment gateway fee plus GST (INR)' })
+  paymentGatewayChargesInr!: number;
+
+  @Field(() => Int, {
+    description: 'Commission, online charges, and payment gateway charges',
+  })
   totalDeductionsInr!: number;
 
   @Field(() => Int)
@@ -64,6 +81,15 @@ export class AdminTutorPayoutCalculationResult {
 
   @Field(() => Int)
   totalOnlineChargesInr!: number;
+
+  @Field(() => Int)
+  totalPaymentGatewayFeeInr!: number;
+
+  @Field(() => Int)
+  totalPaymentGatewayGstInr!: number;
+
+  @Field(() => Int)
+  totalPaymentGatewayChargesInr!: number;
 
   @Field(() => Int)
   totalDeductionsInr!: number;

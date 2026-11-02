@@ -27,6 +27,7 @@ import { CommerceModule } from './modules/commerce/commerce.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { RegistrationSettingsModule } from './modules/registration-settings/registration-settings.module';
 import { ClassPricingSettingsModule } from './modules/class-pricing-settings/class-pricing-settings.module';
+import { PaymentGatewayFeeModule } from './modules/payment-gateway-fee/payment-gateway-fee.module';
 import { CommunicationModule } from './modules/communication/communication.module';
 
 @Module({
@@ -56,6 +57,7 @@ import { CommunicationModule } from './modules/communication/communication.modul
     PaymentModule,
     RegistrationSettingsModule,
     ClassPricingSettingsModule,
+    PaymentGatewayFeeModule,
     CommunicationModule,
     // Add other modules here as they are created:
     // ClassesModule,

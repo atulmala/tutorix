@@ -63,6 +63,44 @@ export const ADMIN_UPDATE_CLASS_PRICING_SETTINGS = gql`
   }
 `;
 
+export const ADMIN_UPDATE_PAYMENT_GATEWAY_FEE_SETTINGS = gql`
+  mutation AdminUpdatePaymentGatewayFeeSettings(
+    $input: AdminUpdatePaymentGatewayFeeSettingsInput!
+  ) {
+    adminUpdatePaymentGatewayFeeSettings(input: $input) {
+      gstRatePercent
+      gateways {
+        id
+        provider
+        displayName
+        chargePercent
+      }
+    }
+  }
+`;
+
+export const ADMIN_UPDATE_PAYMENT_GATEWAY_FEE = gql`
+  mutation AdminUpdatePaymentGatewayFee($input: AdminUpdatePaymentGatewayFeeInput!) {
+    adminUpdatePaymentGatewayFee(input: $input) {
+      id
+      provider
+      displayName
+      chargePercent
+    }
+  }
+`;
+
+export const ADMIN_CREATE_PAYMENT_GATEWAY_FEE = gql`
+  mutation AdminCreatePaymentGatewayFee($input: AdminCreatePaymentGatewayFeeInput!) {
+    adminCreatePaymentGatewayFee(input: $input) {
+      id
+      provider
+      displayName
+      chargePercent
+    }
+  }
+`;
+
 export const ADMIN_UPDATE_REGISTRATION_SETTINGS = gql`
   mutation AdminUpdateRegistrationSettings(
     $input: AdminUpdateRegistrationSettingsInput!

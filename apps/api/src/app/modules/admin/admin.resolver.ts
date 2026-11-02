@@ -28,6 +28,11 @@ import { RegistrationSettingsEntity } from '../registration-settings/entities/re
 import { AdminUpdateRegistrationSettingsInput } from '../registration-settings/dto/admin-update-registration-settings.input';
 import { ClassPricingSettingsEntity } from '../class-pricing-settings/entities/class-pricing-settings.entity';
 import { AdminUpdateClassPricingSettingsInput } from '../class-pricing-settings/dto/admin-update-class-pricing-settings.input';
+import { AdminCreatePaymentGatewayFeeInput } from '../payment-gateway-fee/dto/admin-create-payment-gateway-fee.input';
+import { AdminPaymentGatewayFeeConfigResult } from '../payment-gateway-fee/dto/admin-payment-gateway-fee-config.dto';
+import { AdminUpdatePaymentGatewayFeeInput } from '../payment-gateway-fee/dto/admin-update-payment-gateway-fee.input';
+import { AdminUpdatePaymentGatewayFeeSettingsInput } from '../payment-gateway-fee/dto/admin-update-payment-gateway-fee-settings.input';
+import { PaymentGatewayFeeConfigEntity } from '../payment-gateway-fee/entities/payment-gateway-fee-config.entity';
 import { CommerceAdminService } from '../commerce/services/commerce-admin.service';
 import { AdminOrderListInput } from '../commerce/dto/admin/admin-order-list.input';
 import { AdminOrderListResult } from '../commerce/dto/admin/admin-order-list-result.dto';
@@ -303,6 +308,48 @@ export class AdminResolver {
     @Args('input') input: AdminUpdateClassPricingSettingsInput,
   ): Promise<ClassPricingSettingsEntity> {
     return this.adminService.updateClassPricingSettings(input);
+  }
+
+  @Query(() => AdminPaymentGatewayFeeConfigResult, {
+    description: 'Payment gateway fee percentages and GST on gateway charges (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminPaymentGatewayFeeConfig(): Promise<AdminPaymentGatewayFeeConfigResult> {
+    return this.adminService.getPaymentGatewayFeeConfig();
+  }
+
+  @Mutation(() => AdminPaymentGatewayFeeConfigResult, {
+    description: 'Update GST rate applied to payment gateway charges (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminUpdatePaymentGatewayFeeSettings(
+    @Args('input') input: AdminUpdatePaymentGatewayFeeSettingsInput,
+  ): Promise<AdminPaymentGatewayFeeConfigResult> {
+    return this.adminService.updatePaymentGatewayFeeSettings(input);
+  }
+
+  @Mutation(() => PaymentGatewayFeeConfigEntity, {
+    description: 'Update fee percent for a payment gateway provider (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminUpdatePaymentGatewayFee(
+    @Args('input') input: AdminUpdatePaymentGatewayFeeInput,
+  ): Promise<PaymentGatewayFeeConfigEntity> {
+    return this.adminService.updatePaymentGatewayFee(input);
+  }
+
+  @Mutation(() => PaymentGatewayFeeConfigEntity, {
+    description: 'Add a payment gateway fee row (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminCreatePaymentGatewayFee(
+    @Args('input') input: AdminCreatePaymentGatewayFeeInput,
+  ): Promise<PaymentGatewayFeeConfigEntity> {
+    return this.adminService.createPaymentGatewayFee(input);
   }
 
   @Query(() => AdminOrderListResult, {
