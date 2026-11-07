@@ -6,22 +6,28 @@ import { User } from '../../auth/entities/user.entity';
 export class UserBankDetailsEntity extends QBaseEntity {
   @Column({ name: 'user_id', unique: true })
   @Index()
-  userId: number;
+  userId!: number;
 
   @Column({ name: 'bank_name' })
-  bankName: string;
+  bankName!: string;
 
   @Column({ name: 'account_number' })
-  accountNumber: string;
+  accountNumber!: string;
 
   @Column({ name: 'ifsc_code', length: 11 })
-  ifscCode: string;
+  ifscCode!: string;
 
   @Column({ name: 'gst_number', type: 'varchar', nullable: true })
   gstNumber?: string | null;
 
   @Column({ name: 'pan_number', type: 'varchar', length: 10, nullable: true })
   panNumber?: string | null;
+
+  @Column({ name: 'razorpay_contact_id', type: 'varchar', nullable: true })
+  razorpayContactId?: string | null;
+
+  @Column({ name: 'razorpay_fund_account_id', type: 'varchar', nullable: true })
+  razorpayFundAccountId?: string | null;
 
   @OneToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

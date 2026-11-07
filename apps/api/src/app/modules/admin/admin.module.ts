@@ -19,6 +19,7 @@ import { ClassPricingSettingsModule } from '../class-pricing-settings/class-pric
 import { PaymentGatewayFeeModule } from '../payment-gateway-fee/payment-gateway-fee.module';
 import { CommunicationModule } from '../communication/communication.module';
 import { StudentCartModule } from '../student-cart/student-cart.module';
+import { PaymentProcessingModule } from '../payment-processing/payment-processing.module';
 import { AdminService } from './admin.service';
 import { AdminResolver } from './admin.resolver';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -42,6 +43,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
     PaymentGatewayFeeModule,
     CommunicationModule,
     StudentCartModule,
+    PaymentProcessingModule,
   ],
   providers: [AdminService, AdminResolver, RolesGuard],
   exports: [AdminService],

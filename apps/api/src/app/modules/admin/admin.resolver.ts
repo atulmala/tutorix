@@ -47,7 +47,16 @@ import { AdminClassCancellationRefundListInput } from '../student-cart/dto/admin
 import { AdminClassCancellationRefundListResult } from '../student-cart/dto/admin/admin-class-cancellation-refund-list-result.dto';
 import { AdminClassCancellationRefundDetail } from '../student-cart/dto/admin/admin-class-cancellation-refund-detail.dto';
 import { AdminClassCancellationRefundService } from '../student-cart/services/admin-class-cancellation-refund.service';
-import { ClassCancellationRefundPayoutService } from '../student-cart/services/class-cancellation-refund-payout.service';
+import {
+  AdminPaymentDisbursementDetail,
+  AdminPaymentDisbursementListResult,
+  AdminSubmitTutorPayoutDisbursementsResult,
+} from '../payment-processing/dto/admin/admin-payment-disbursement.dto';
+import {
+  AdminPaymentDisbursementListInput,
+  AdminSubmitTutorPayoutDisbursementsInput,
+} from '../payment-processing/dto/admin/admin-payment-disbursement.input';
+import { AdminPaymentProcessingService } from '../payment-processing/services/admin-payment-processing.service';
 import { ClassCancellationRefundBatchService } from '../student-cart/services/class-cancellation-refund-batch.service';
 import { AdminClassCancellationRefundBatchResult } from '../student-cart/dto/admin/admin-class-cancellation-refund-batch-result.dto';
 import { BatchJobTriggerEnum } from '../../batch-jobs/enums/batch-job-trigger.enum';
@@ -83,8 +92,8 @@ export class AdminResolver {
     private readonly adminClassBookingService: AdminClassBookingService,
     private readonly adminTutorPayoutCalculationService: AdminTutorPayoutCalculationService,
     private readonly adminClassCancellationRefundService: AdminClassCancellationRefundService,
-    private readonly classCancellationRefundPayoutService: ClassCancellationRefundPayoutService,
     private readonly classCancellationRefundBatchService: ClassCancellationRefundBatchService,
+    private readonly adminPaymentProcessingService: AdminPaymentProcessingService,
   ) {}
 
   @Query(() => AdminDashboardStats, {
@@ -420,7 +429,8 @@ export class AdminResolver {
   }
 
   @Mutation(() => AdminClassCancellationRefundDetail, {
-    description: 'Process payout for a class cancellation refund (admin only)',
+    description:
+      'Process payout for a class cancellation refund via payment hub (admin only)',
   })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
@@ -428,8 +438,67 @@ export class AdminResolver {
     @CurrentUser() user: User,
     @Args('requestId', { type: () => Int }) requestId: number,
   ): Promise<AdminClassCancellationRefundDetail> {
-    await this.classCancellationRefundPayoutService.processRefund(requestId, user.id);
+    await this.adminPaymentProcessingService.executeDisbursementForRefundRequest(
+      requestId,
+      user.id,
+    );
     return this.adminClassCancellationRefundService.getDetail(requestId);
+  }
+
+  @Query(() => AdminPaymentDisbursementListResult, {
+    description: 'Payment processing hub queue (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminPaymentDisbursements(
+    @Args('input') input: AdminPaymentDisbursementListInput,
+  ): Promise<AdminPaymentDisbursementListResult> {
+    return this.adminPaymentProcessingService.list(input);
+  }
+
+  @Query(() => AdminPaymentDisbursementDetail, {
+    description: 'Payment disbursement detail (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminPaymentDisbursementDetail(
+    @Args('id', { type: () => Int }) id: number,
+  ): Promise<AdminPaymentDisbursementDetail> {
+    return this.adminPaymentProcessingService.getDetail(id);
+  }
+
+  @Mutation(() => AdminPaymentDisbursementDetail, {
+    description: 'Execute a payment disbursement (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminExecutePaymentDisbursement(
+    @CurrentUser() user: User,
+    @Args('id', { type: () => Int }) id: number,
+  ): Promise<AdminPaymentDisbursementDetail> {
+    return this.adminPaymentProcessingService.executeDisbursement(id, user.id);
+  }
+
+  @Mutation(() => AdminPaymentDisbursementDetail, {
+    description: 'Sync gateway refund or RazorpayX payout status (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminSyncPaymentDisbursement(
+    @Args('id', { type: () => Int }) id: number,
+  ): Promise<AdminPaymentDisbursementDetail> {
+    return this.adminPaymentProcessingService.syncDisbursement(id);
+  }
+
+  @Mutation(() => AdminSubmitTutorPayoutDisbursementsResult, {
+    description: 'Queue tutor bank payouts for an IST period (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminSubmitTutorPayoutDisbursements(
+    @Args('input') input: AdminSubmitTutorPayoutDisbursementsInput,
+  ): Promise<AdminSubmitTutorPayoutDisbursementsResult> {
+    return this.adminPaymentProcessingService.submitTutorPayoutDisbursements(input);
   }
 
   @Mutation(() => AdminClassCancellationRefundBatchResult, {

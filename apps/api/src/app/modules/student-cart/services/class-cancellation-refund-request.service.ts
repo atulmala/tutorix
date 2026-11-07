@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { PaymentDisbursementEnqueueService } from '../../payment-processing/services/payment-disbursement-enqueue.service';
 import { ClassCancellationRefundRequestEntity } from '../entities/class-cancellation-refund-request.entity';
 import { ClassCreditCancellationEntity } from '../entities/class-credit-cancellation.entity';
 import { ClassCancellationRefundAiStatusEnum } from '../enums/class-cancellation-refund-ai-status.enum';
@@ -41,6 +42,7 @@ export class ClassCancellationRefundRequestService {
     private readonly requestRepo: Repository<ClassCancellationRefundRequestEntity>,
     @InjectRepository(ClassCreditCancellationEntity)
     private readonly cancellationRepo: Repository<ClassCreditCancellationEntity>,
+    private readonly disbursementEnqueueService: PaymentDisbursementEnqueueService,
   ) {}
 
   async createRequest(
@@ -100,5 +102,6 @@ export class ClassCancellationRefundRequestService {
       { id: requestId, deleted: false },
       { aiStatus: ClassCancellationRefundAiStatusEnum.approved },
     );
+    await this.disbursementEnqueueService.syncForRefundRequest(requestId);
   }
 }

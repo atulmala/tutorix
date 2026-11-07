@@ -10,6 +10,7 @@ import {
 import { Request } from 'express';
 import { PlatformFeePaymentService } from '../services/platform-fee-payment.service';
 import { RazorpayGateway } from '../services/payment-gateways';
+import { AdminPaymentProcessingService } from '../../payment-processing/services/admin-payment-processing.service';
 
 type RawBodyRequest = Request & { body: Buffer };
 
@@ -20,6 +21,7 @@ export class RazorpayWebhookController {
   constructor(
     private readonly platformFeePaymentService: PlatformFeePaymentService,
     private readonly razorpayGateway: RazorpayGateway,
+    private readonly adminPaymentProcessingService: AdminPaymentProcessingService,
   ) {}
 
   @Post('razorpay')
@@ -46,6 +48,7 @@ export class RazorpayWebhookController {
       payload?: {
         payment?: { entity?: { id?: string; order_id?: string } };
         order?: { entity?: { id?: string } };
+        payout?: { entity?: { id?: string; status?: string; utr?: string | null } };
       };
     };
     try {
@@ -77,6 +80,22 @@ export class RazorpayWebhookController {
       const orderId = payload.payload?.payment?.entity?.order_id;
       if (orderId) {
         await this.platformFeePaymentService.markPendingPaymentFailed(orderId);
+      }
+      return { received: true };
+    }
+
+    if (
+      event === 'payout.processed' ||
+      event === 'payout.failed' ||
+      event === 'payout.reversed'
+    ) {
+      const payoutEntity = payload.payload?.payout?.entity;
+      if (payoutEntity?.id) {
+        await this.adminPaymentProcessingService.handleRazorpayPayoutWebhook(
+          payoutEntity.id,
+          payoutEntity.status ?? event.replace('payout.', ''),
+          payoutEntity.utr ?? null,
+        );
       }
       return { received: true };
     }

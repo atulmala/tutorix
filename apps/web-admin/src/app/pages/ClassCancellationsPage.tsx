@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery } from '@apollo/client';
 import {
-  ADMIN_PROCESS_CLASS_CANCELLATION_REFUND,
   ADMIN_RUN_CLASS_CANCELLATION_REFUND_BATCH,
   GET_ADMIN_CLASS_CANCELLATION_REFUND_DETAIL,
   GET_ADMIN_CLASS_CANCELLATION_REFUNDS,
@@ -99,7 +98,6 @@ export function ClassCancellationsPage() {
   const [tab, setTab] = useState<Tab>('student');
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [processError, setProcessError] = useState<string | null>(null);
   const [batchMessage, setBatchMessage] = useState<string | null>(null);
 
   const listInput = useMemo(
@@ -122,18 +120,6 @@ export function ClassCancellationsPage() {
       variables: { requestId: selectedId ?? 0 },
       skip: selectedId == null,
       fetchPolicy: 'network-only',
-    },
-  );
-
-  const [processRefund, { loading: processing }] = useMutation(
-    ADMIN_PROCESS_CLASS_CANCELLATION_REFUND,
-    {
-      onCompleted: () => {
-        void refetch();
-        if (selectedId != null) {
-          void refetchDetail();
-        }
-      },
     },
   );
 
@@ -166,21 +152,16 @@ export function ClassCancellationsPage() {
 
   const detail = detailData?.adminClassCancellationRefundRequestDetail;
 
-  const handleProcess = async (requestId: number) => {
-    setProcessError(null);
-    try {
-      await processRefund({ variables: { requestId } });
-    } catch (err) {
-      setProcessError(err instanceof Error ? err.message : 'Could not process refund');
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-primary">Class cancellation</h1>
         <p className="mt-1 text-sm text-muted">
-          Review cancellation refunds, AI advisory status, and process payouts.
+          Review cancellation refunds and AI advisory status. Execute payouts from{' '}
+          <Link to="/payment-processing" className="text-primary underline">
+            Payment processing
+          </Link>
+          .
         </p>
       </div>
 
@@ -224,7 +205,6 @@ export function ClassCancellationsPage() {
         </button>
       </div>
 
-      {processError ? <p className="text-sm text-red-600">{processError}</p> : null}
       {batchMessage ? <p className="text-sm text-muted">{batchMessage}</p> : null}
 
       <div className="overflow-hidden rounded-xl border border-subtle bg-white">
@@ -294,18 +274,14 @@ export function ClassCancellationsPage() {
                     >
                       Details
                     </button>
-                    <button
-                      type="button"
-                      disabled={
-                        processing ||
-                        row.payoutStatus === 'completed' ||
-                        row.payoutStatus === 'processing'
-                      }
-                      className="rounded-lg bg-primary px-2 py-1 text-xs font-semibold text-white disabled:bg-gray-300"
-                      onClick={() => void handleProcess(row.id)}
-                    >
-                      Process refund
-                    </button>
+                    {row.payoutStatus !== 'completed' && row.aiStatus === 'approved' ? (
+                      <Link
+                        to={`/payment-processing?refundRequestId=${row.id}`}
+                        className="text-xs font-semibold text-primary underline"
+                      >
+                        Pay in hub
+                      </Link>
+                    ) : null}
                   </td>
                 </tr>
               ))

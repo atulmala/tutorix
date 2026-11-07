@@ -11,6 +11,8 @@ import { ClassCancellationRefundPayoutStatusEnum } from '../enums/class-cancella
 import { ClassCancellationRefundAiService } from './class-cancellation-refund-ai.service';
 import { ClassCancellationRefundChecksService } from './class-cancellation-refund-checks.service';
 import { ClassCancellationRefundPayoutService } from './class-cancellation-refund-payout.service';
+import { AdminPaymentProcessingService } from '../../payment-processing/services/admin-payment-processing.service';
+import { PaymentDisbursementEnqueueService } from '../../payment-processing/services/payment-disbursement-enqueue.service';
 
 @Injectable()
 export class ClassCancellationRefundBatchService {
@@ -22,6 +24,8 @@ export class ClassCancellationRefundBatchService {
     private readonly checksService: ClassCancellationRefundChecksService,
     private readonly aiService: ClassCancellationRefundAiService,
     private readonly payoutService: ClassCancellationRefundPayoutService,
+    private readonly paymentProcessingService: AdminPaymentProcessingService,
+    private readonly disbursementEnqueueService: PaymentDisbursementEnqueueService,
     @InjectRepository(ClassCancellationRefundRequestEntity)
     private readonly requestRepo: Repository<ClassCancellationRefundRequestEntity>,
   ) {}
@@ -123,6 +127,9 @@ export class ClassCancellationRefundBatchService {
         request.batchJobRunId = run.id;
         request.aiChecksJson = checks as unknown as Record<string, unknown>;
         await this.requestRepo.save(request);
+        if (request.aiStatus === ClassCancellationRefundAiStatusEnum.approved) {
+          await this.disbursementEnqueueService.syncForRefundRequest(request.id);
+        }
         analyzed += 1;
       }
 
@@ -132,6 +139,9 @@ export class ClassCancellationRefundBatchService {
         if (updated?.payoutStatus === ClassCancellationRefundPayoutStatusEnum.completed) {
           gatewaySynced += 1;
         }
+        await this.paymentProcessingService.syncStudentRefundDisbursementFromRequest(
+          request.id,
+        );
       }
 
       await this.batchJobRunService.finishRun(

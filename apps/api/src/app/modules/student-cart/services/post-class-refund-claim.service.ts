@@ -36,9 +36,8 @@ import { PostClassRefundClaimStudentStatusEnum } from '../enums/post-class-refun
 import { PostClassRefundTutorResponseStatusEnum } from '../enums/post-class-refund-tutor-response-status.enum';
 import { PostClassRefundClaimEntity } from '../entities/post-class-refund-claim.entity';
 import { StudentClassCreditEntity } from '../entities/student-class-credit.entity';
-import { ClassCancellationRefundPayoutService } from './class-cancellation-refund-payout.service';
-import { ClassCancellationRefundRequestService } from './class-cancellation-refund-request.service';
 import { ClassCreditCancellationService } from './class-credit-cancellation.service';
+import { ClassCancellationRefundRequestService } from './class-cancellation-refund-request.service';
 
 function asId(value: string | number): number {
   const id = Number(value);
@@ -68,7 +67,6 @@ export class PostClassRefundClaimService {
     private readonly studentService: StudentService,
     private readonly cancellationService: ClassCreditCancellationService,
     private readonly refundRequestService: ClassCancellationRefundRequestService,
-    private readonly refundPayoutService: ClassCancellationRefundPayoutService,
     private readonly communicationService: CommunicationService,
     @InjectRepository(PostClassRefundClaimEntity)
     private readonly claimRepo: Repository<PostClassRefundClaimEntity>,
@@ -198,14 +196,15 @@ export class PostClassRefundClaimService {
 
   async previewForStudent(user: User, enrollmentIdInput: string | number) {
     const student = await this.requireStudent(user);
-    const credit = await this.loadStudentCredit(student.id, asId(enrollmentIdInput));
+    const enrollmentId = asId(enrollmentIdInput);
+    const credit = await this.loadStudentCredit(student.id, enrollmentId);
     this.assertCanSubmit(credit);
     const { amountByCreditId, breakdownSnapshots } =
       await this.cancellationService.refundPreviewForStudentCredits(student.id, [credit]);
     const amountInr = amountByCreditId.get(credit.id) ?? 0;
     const snapshot = breakdownSnapshots.get(credit.orderItemId);
     return {
-      enrollmentId: credit.enrollmentId!,
+      enrollmentId,
       amountInr,
       breakdownText: snapshot?.breakdownText ?? '',
       allowedMethods: this.allowedRefundMethods(PostClassRefundClaimReasonEnum.technical_issue),
@@ -285,7 +284,10 @@ export class PostClassRefundClaimService {
         : amountByCreditId.get(credit.id) ?? 0;
     const snapshot = breakdownSnapshots.get(credit.orderItemId);
 
-    const calendar = credit.enrollment!.session!.tutorCalendar!;
+    const calendar = credit.enrollment?.session?.tutorCalendar;
+    if (!calendar) {
+      throw new BadRequestException('Class schedule not found');
+    }
     const startsAt = calendar.startsAt;
     const durationMinutes = calendar.durationMinutes ?? 60;
     const sessionTutorId = calendar.tutorId;
@@ -440,18 +442,13 @@ export class PostClassRefundClaimService {
       await this.refundRequestService.markAiApproved(refundRequestId);
       claim.cancellationRefundRequestId = refundRequestId;
       await this.claimRepo.save(claim);
-      const processed = await this.refundPayoutService.processRefund(refundRequestId, user.id);
-      if (processed.payoutStatus === ClassCancellationRefundPayoutStatusEnum.completed) {
-        claim.fulfilledAt = new Date();
-      }
-      await this.claimRepo.save(claim);
     } else {
       claim.fulfilledAt = new Date();
       await this.claimRepo.save(claim);
     }
 
     await this.emitAdminDecision(claim, credit, 'approved');
-    return (await this.requireClaim(claimId))!;
+    return this.requireClaim(claimId);
   }
 
   async adminReject(

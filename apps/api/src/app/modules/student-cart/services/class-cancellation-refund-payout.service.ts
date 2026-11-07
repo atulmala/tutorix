@@ -54,7 +54,22 @@ export class ClassCancellationRefundPayoutService {
     private readonly creditRepo: Repository<StudentClassCreditEntity>,
   ) {}
 
+  async executeClassCancellationRefundPayout(
+    requestId: number,
+    adminUserId: number,
+  ): Promise<ClassCancellationRefundRequestEntity> {
+    return this.runRefundPayout(requestId, adminUserId);
+  }
+
+  /** @deprecated Use payment hub executeClassCancellationRefundPayout */
   async processRefund(requestId: number, adminUserId: number): Promise<ClassCancellationRefundRequestEntity> {
+    return this.runRefundPayout(requestId, adminUserId);
+  }
+
+  private async runRefundPayout(
+    requestId: number,
+    adminUserId: number,
+  ): Promise<ClassCancellationRefundRequestEntity> {
     const request = await this.refundRequestService.findById(requestId);
     if (!request) {
       throw new NotFoundException('Refund request not found');

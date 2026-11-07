@@ -149,3 +149,40 @@ export const ADMIN_SEND_EMAIL = gql`
     }
   }
 `;
+
+export const ADMIN_EXECUTE_PAYMENT_DISBURSEMENT = gql`
+  mutation AdminExecutePaymentDisbursement($id: Int!) {
+    adminExecutePaymentDisbursement(id: $id) {
+      id
+      status
+      failureReason
+      processedAt
+      gatewayPayoutId
+      gatewayUtr
+    }
+  }
+`;
+
+export const ADMIN_SYNC_PAYMENT_DISBURSEMENT = gql`
+  mutation AdminSyncPaymentDisbursement($id: Int!) {
+    adminSyncPaymentDisbursement(id: $id) {
+      id
+      status
+      failureReason
+      gatewayUtr
+    }
+  }
+`;
+
+export const ADMIN_SUBMIT_TUTOR_PAYOUT_DISBURSEMENTS = gql`
+  mutation AdminSubmitTutorPayoutDisbursements(
+    $input: AdminSubmitTutorPayoutDisbursementsInput!
+  ) {
+    adminSubmitTutorPayoutDisbursements(input: $input) {
+      createdCount
+      skippedAlreadySubmitted
+      skippedMissingBank
+      skippedZeroAmount
+    }
+  }
+`;

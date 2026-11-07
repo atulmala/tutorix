@@ -8,6 +8,7 @@ import {
 import { User } from '../../auth/entities/user.entity';
 import { Tutor } from '../../tutor/entities/tutor.entity';
 import { UserBankDetailsService } from '../../user-bank-details/services/user-bank-details.service';
+import { TutorPayoutTransferEntity } from '../../payment-processing/entities/tutor-payout-transfer.entity';
 import {
   AdminTutorPayoutCalculationResult,
   AdminTutorPayoutCalculationRow,
@@ -66,6 +67,8 @@ export class TutorEarningsService {
   constructor(
     @InjectRepository(Tutor)
     private readonly tutorRepo: Repository<Tutor>,
+    @InjectRepository(TutorPayoutTransferEntity)
+    private readonly transferRepo: Repository<TutorPayoutTransferEntity>,
     private readonly adminTutorPayoutCalculationService: AdminTutorPayoutCalculationService,
     private readonly userBankDetailsService: UserBankDetailsService,
   ) {}
@@ -117,8 +120,20 @@ export class TutorEarningsService {
     };
   }
 
-  async listPaidTransfersForUser(_user: User): Promise<TutorPayoutTransfer[]> {
-    return [];
+  async listPaidTransfersForUser(user: User): Promise<TutorPayoutTransfer[]> {
+    const tutorId = await this.requireTutorId(user.id);
+    const rows = await this.transferRepo.find({
+      where: { tutorId, deleted: false },
+      order: { paidAt: 'DESC' },
+      take: 50,
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      paidAt: row.paidAt,
+      amountInr: row.amountInr,
+      bankAccountLast4: row.bankAccountLast4 ?? null,
+      utrReference: row.utrReference ?? null,
+    }));
   }
 
   private async calculateForTutor(

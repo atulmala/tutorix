@@ -56,6 +56,8 @@ import { CommunicationTemplateEntity } from '../modules/communication/entities/c
 import { CommunicationSendEntity } from '../modules/communication/entities/communication-send.entity';
 import { UserDeviceTokenEntity } from '../modules/communication/entities/user-device-token.entity';
 import { InAppMessageEntity } from '../modules/communication/entities/in-app-message.entity';
+import { PaymentDisbursementEntity } from '../modules/payment-processing/entities/payment-disbursement.entity';
+import { TutorPayoutTransferEntity } from '../modules/payment-processing/entities/tutor-payout-transfer.entity';
 // Add other entities as they are created
 
 /**
@@ -129,6 +131,8 @@ export function createDatabaseOptions(
       CommunicationSendEntity,
       UserDeviceTokenEntity,
       InAppMessageEntity,
+      PaymentDisbursementEntity,
+      TutorPayoutTransferEntity,
       // Add other entities here as they are created
       // Class,
     ],

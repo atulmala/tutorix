@@ -30,6 +30,7 @@ import { ClassCreditStatusEnum } from '../enums/class-credit-status.enum';
 
 type RawPayoutCreditRow = {
   orderItemId: string;
+  tutorId: string;
   studentFirstName: string | null;
   studentLastName: string | null;
   tutorFirstName: string | null;
@@ -48,6 +49,7 @@ type RawPayoutCreditRow = {
 
 const CREDIT_SELECT = [
   'credit.order_item_id AS "orderItemId"',
+  'tutor.id AS "tutorId"',
   'studentUser.firstName AS "studentFirstName"',
   'studentUser.lastName AS "studentLastName"',
   'tutorUser.firstName AS "tutorFirstName"',
@@ -85,6 +87,7 @@ function paidPartsFromRow(row: RawPayoutCreditRow): OrderItemPaidParts {
 
 type GroupBucket = {
   orderItemId: number;
+  tutorId: number;
   tutorName: string;
   studentName: string;
   classesInBooking: number;
@@ -108,7 +111,7 @@ export class AdminTutorPayoutCalculationService {
 
   async calculate(
     input: AdminTutorPayoutCalculationInput,
-    options?: { tutorId?: number; now?: Date },
+    options?: { tutorId?: number; now?: Date; includeAllRows?: boolean },
   ): Promise<AdminTutorPayoutCalculationResult> {
     const now = options?.now ?? new Date();
     const bounds = istDateRangeToUtcBounds(input.startDate, input.endDate);
@@ -117,7 +120,9 @@ export class AdminTutorPayoutCalculationService {
     }
 
     const page = Math.max(1, input.page ?? 1);
-    const pageSize = Math.min(100, Math.max(1, input.pageSize ?? 20));
+    const pageSize = options?.includeAllRows
+      ? Math.max(1, input.pageSize ?? 10_000)
+      : Math.min(100, Math.max(1, input.pageSize ?? 20));
 
     const qb = this.creditRepo
       .createQueryBuilder('credit')
@@ -155,11 +160,13 @@ export class AdminTutorPayoutCalculationService {
       }
 
       const orderItemId = asNumber(row.orderItemId);
+      const tutorId = asNumber(row.tutorId);
       const parts = paidPartsFromRow(row);
       let bucket = buckets.get(orderItemId);
       if (!bucket) {
         bucket = {
           orderItemId,
+          tutorId,
           tutorName: personDisplayName(row.tutorFirstName, row.tutorLastName) || 'Tutor',
           studentName:
             personDisplayName(row.studentFirstName, row.studentLastName) || 'Student',
@@ -214,6 +221,7 @@ export class AdminTutorPayoutCalculationService {
         });
         return {
           orderItemId: group.orderItemId,
+          tutorId: group.tutorId,
           tutorName: group.tutorName,
           studentName: group.studentName,
           classesInBooking: group.classesInBooking,

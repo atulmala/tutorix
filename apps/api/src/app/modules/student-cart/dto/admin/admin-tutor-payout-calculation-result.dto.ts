@@ -6,6 +6,9 @@ export class AdminTutorPayoutCalculationRow {
   @Field(() => Int)
   orderItemId!: number;
 
+  @Field(() => Int)
+  tutorId!: number;
+
   @Field()
   tutorName!: string;
 

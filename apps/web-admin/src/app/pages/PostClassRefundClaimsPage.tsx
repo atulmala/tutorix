@@ -68,7 +68,11 @@ export function PostClassRefundClaimsPage() {
     <div>
       <h1 className="text-2xl font-bold text-slate-900">Post class refund claims</h1>
       <p className="mt-1 text-sm text-slate-600">
-        Review student claims after concluded classes. Approve to process refunds.
+        Review student claims after concluded classes. Approve queues wallet or gateway refunds in{' '}
+        <Link to="/payment-processing" className="text-primary underline">
+          Payment processing
+        </Link>
+        .
       </p>
 
       {loading && items.length === 0 ? (

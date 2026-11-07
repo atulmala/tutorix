@@ -573,6 +573,7 @@ export const GET_ADMIN_TUTOR_PAYOUT_CALCULATION = gql`
     adminTutorPayoutCalculation(input: $input) {
       items {
         orderItemId
+        tutorId
         tutorName
         studentName
         classesInBooking
@@ -601,6 +602,68 @@ export const GET_ADMIN_TUTOR_PAYOUT_CALCULATION = gql`
       totalPaymentGatewayChargesInr
       totalDeductionsInr
       totalNetPayoutInr
+    }
+  }
+`;
+
+export const GET_ADMIN_PAYMENT_DISBURSEMENTS = gql`
+  query GetAdminPaymentDisbursements($input: AdminPaymentDisbursementListInput!) {
+    adminPaymentDisbursements(input: $input) {
+      items {
+        id
+        kind
+        status
+        payeeUserId
+        payeeName
+        amountInr
+        sourceType
+        sourceId
+        classCancellationRefundRequestId
+        tutorId
+        periodStartDate
+        periodEndDate
+        createdAt
+        failureReason
+      }
+      total
+      page
+      pageSize
+    }
+  }
+`;
+
+export const GET_ADMIN_PAYMENT_DISBURSEMENT_DETAIL = gql`
+  query GetAdminPaymentDisbursementDetail($id: Int!) {
+    adminPaymentDisbursementDetail(id: $id) {
+      id
+      kind
+      status
+      payeeUserId
+      payeeName
+      amountInr
+      sourceType
+      sourceId
+      classCancellationRefundRequestId
+      tutorId
+      periodStartDate
+      periodEndDate
+      createdAt
+      failureReason
+      orderId
+      studentId
+      refundMethod
+      refundPayoutStatus
+      gatewayPayoutId
+      gatewayUtr
+      walletTransactionId
+      processedAt
+      gatewayRefunds {
+        id
+        gatewayPaymentId
+        gatewayRefundId
+        amountInr
+        razorpayRefundStatus
+      }
     }
   }
 `;

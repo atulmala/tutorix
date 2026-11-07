@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { to: '/orders', label: 'Orders' },
   { to: '/class-bookings', label: 'Class bookings' },
   { to: '/class-cancellations', label: 'Class cancellation' },
+  { to: '/payment-processing', label: 'Payment processing' },
   { to: '/tutor-payout-calculation', label: 'Tutor payout calculation' },
   { to: '/post-class-refund-claims', label: 'Post class refund claims' },
 ] as const;

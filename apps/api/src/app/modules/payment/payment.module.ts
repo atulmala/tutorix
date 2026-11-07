@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { PaymentProcessingModule } from '../payment-processing/payment-processing.module';
 import './enums/payment.enums';
 import { PlatformFeePaymentEntity } from './entities/platform-fee-payment.entity';
 import { PlatformFeeModule } from '../platform-fee/platform-fee.module';
@@ -19,6 +20,7 @@ import { RazorpayWebhookController } from './controllers/razorpay-webhook.contro
     ConfigModule,
     PlatformFeeModule,
     forwardRef(() => CommerceModule),
+    forwardRef(() => PaymentProcessingModule),
     TypeOrmModule.forFeature([PlatformFeePaymentEntity]),
   ],
   controllers: [RazorpayWebhookController],

@@ -59,6 +59,8 @@ import { StudentCartService } from './services/student-cart.service';
 import { StudentClassCreditService } from './services/student-class-credit.service';
 import { TutorClassBookingService } from './services/tutor-class-booking.service';
 import { TutorClassEmailBatchService } from './services/tutor-class-email-batch.service';
+import { TutorPayoutTransferEntity } from '../payment-processing/entities/tutor-payout-transfer.entity';
+import { PaymentProcessingModule } from '../payment-processing/payment-processing.module';
 
 @Module({
   imports: [
@@ -78,6 +80,7 @@ import { TutorClassEmailBatchService } from './services/tutor-class-email-batch.
       TutorClassSessionEntity,
       TutorClassSessionEnrollmentEntity,
       TutorClassEmailQueueEntity,
+      TutorPayoutTransferEntity,
     ]),
     ConfigModule,
     BatchJobAuditModule,
@@ -93,6 +96,7 @@ import { TutorClassEmailBatchService } from './services/tutor-class-email-batch.
     forwardRef(() => CommerceModule),
     forwardRef(() => WalletModule),
     forwardRef(() => PaymentModule),
+    forwardRef(() => PaymentProcessingModule),
   ],
   providers: [
     StudentCartService,

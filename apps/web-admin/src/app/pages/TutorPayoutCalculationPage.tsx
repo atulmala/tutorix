@@ -1,7 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { useQuery } from '@apollo/client';
+import { Link } from 'react-router-dom';
+import { useMutation, useQuery } from '@apollo/client';
 import { defaultTutorPayoutPeriodIstDates } from '@tutorix/shared-utils';
-import { GET_ADMIN_TUTOR_PAYOUT_CALCULATION } from '@tutorix/shared-graphql';
+import {
+  ADMIN_SUBMIT_TUTOR_PAYOUT_DISBURSEMENTS,
+  GET_ADMIN_TUTOR_PAYOUT_CALCULATION,
+} from '@tutorix/shared-graphql';
 
 const PAGE_SIZE = 20;
 
@@ -59,6 +63,7 @@ export function TutorPayoutCalculationPage() {
     tutorSearch: '',
   });
   const [page, setPage] = useState(1);
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
 
   const input = useMemo(
     () => ({
@@ -81,6 +86,10 @@ export function TutorPayoutCalculationPage() {
 
   const result = data?.adminTutorPayoutCalculation;
 
+  const [submitForPayment, { loading: submitting }] = useMutation(
+    ADMIN_SUBMIT_TUTOR_PAYOUT_DISBURSEMENTS,
+  );
+
   function applyFilters() {
     setApplied({
       startDate: startDateDraft,
@@ -102,15 +111,45 @@ export function TutorPayoutCalculationPage() {
     setPage(1);
   }
 
+  async function submitTutorPayments() {
+    setSubmitMessage(null);
+    try {
+      const { data: submitData } = await submitForPayment({
+        variables: {
+          input: {
+            startDate: applied.startDate,
+            endDate: applied.endDate,
+            tutorSearch: applied.tutorSearch.trim() || undefined,
+          },
+        },
+      });
+      const stats = submitData?.adminSubmitTutorPayoutDisbursements;
+      if (stats) {
+        setSubmitMessage(
+          `Queued ${stats.createdCount} tutor payout(s). Skipped: ${stats.skippedAlreadySubmitted} already submitted, ${stats.skippedMissingBank} missing bank, ${stats.skippedZeroAmount} zero net.`,
+        );
+      }
+    } catch (err) {
+      setSubmitMessage(err instanceof Error ? err.message : 'Could not submit payouts');
+    }
+  }
+
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-6">
       <div>
         <h1 className="text-2xl font-semibold text-primary">Tutor payout calculation</h1>
         <p className="mt-1 text-sm text-muted">
           Concluded classes are counted by IST session end time. Default range uses a one-week
-          lag (through {defaultPeriod.endDate} when opened today).
+          lag (through {defaultPeriod.endDate} when opened today). Submit queues one bank payout
+          per tutor in{' '}
+          <Link to="/payment-processing" className="text-primary underline">
+            Payment processing
+          </Link>
+          .
         </p>
       </div>
+
+      {submitMessage ? <p className="text-sm text-muted">{submitMessage}</p> : null}
 
       <div className="space-y-4 rounded-xl border border-subtle bg-white p-4">
         <div className="flex flex-wrap items-end gap-4">
@@ -155,6 +194,14 @@ export function TutorPayoutCalculationPage() {
             onClick={resetToDefaultPeriod}
           >
             Default week
+          </button>
+          <button
+            type="button"
+            disabled={submitting}
+            className="rounded-md border border-primary px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50"
+            onClick={() => void submitTutorPayments()}
+          >
+            {submitting ? 'Submitting…' : 'Submit for payment'}
           </button>
         </div>
       </div>
