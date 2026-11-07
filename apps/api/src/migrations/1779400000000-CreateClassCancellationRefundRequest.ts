@@ -5,6 +5,14 @@ export class CreateClassCancellationRefundRequest1779400000000 implements Migrat
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
+      DO $$ BEGIN
+        CREATE TYPE "public"."class_credit_refund_method_enum" AS ENUM ('wallet', 'gateway');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+    `);
+
+    await queryRunner.query(`
       CREATE TYPE "public"."class_cancellation_refund_initiated_by_enum" AS ENUM('student', 'tutor')
     `);
     await queryRunner.query(`

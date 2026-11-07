@@ -32,6 +32,7 @@ export class ClassCreditCancellationEntity extends QBaseEntity {
     name: 'refund_method',
     type: 'enum',
     enum: ClassCreditRefundMethodEnum,
+    enumName: 'class_credit_refund_method_enum',
   })
   refundMethod!: ClassCreditRefundMethodEnum;
 
