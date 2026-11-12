@@ -20,6 +20,7 @@ import { OrderFulfillmentService } from './services/order-fulfillment.service';
 import { InvoiceService } from './services/invoice.service';
 import { CommerceAdminService } from './services/commerce-admin.service';
 import { PaymentSettlementBatchService } from './services/payment-settlement-batch.service';
+import { CashfreeSettlementBatchService } from './services/cashfree-settlement-batch.service';
 import { CommerceResolver } from './resolvers/commerce.resolver';
 
 @Module({
@@ -47,6 +48,7 @@ import { CommerceResolver } from './resolvers/commerce.resolver';
     CheckoutService,
     CommerceAdminService,
     PaymentSettlementBatchService,
+    CashfreeSettlementBatchService,
     CommerceResolver,
   ],
   exports: [
@@ -57,6 +59,7 @@ import { CommerceResolver } from './resolvers/commerce.resolver';
     InvoiceService,
     CommerceAdminService,
     PaymentSettlementBatchService,
+    CashfreeSettlementBatchService,
   ],
 })
 export class CommerceModule {}

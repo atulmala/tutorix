@@ -551,6 +551,8 @@ export const GET_ADMIN_CLASS_CANCELLATION_REFUND_DETAIL = gql`
         amountInr
         simulated
         razorpayRefundStatus
+        provider
+        cashfreeRefundStatus
       }
     }
   }
@@ -655,6 +657,7 @@ export const GET_ADMIN_PAYMENT_DISBURSEMENT_DETAIL = gql`
       refundPayoutStatus
       gatewayPayoutId
       gatewayUtr
+      payoutProvider
       walletTransactionId
       processedAt
       gatewayRefunds {
@@ -663,6 +666,8 @@ export const GET_ADMIN_PAYMENT_DISBURSEMENT_DETAIL = gql`
         gatewayRefundId
         amountInr
         razorpayRefundStatus
+        provider
+        cashfreeRefundStatus
       }
     }
   }

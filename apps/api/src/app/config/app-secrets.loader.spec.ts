@@ -131,6 +131,34 @@ describe('app-secrets.loader', () => {
       expect(env.JWT_SECRET).toBe('sm_jwt');
     });
 
+    it('applies live Cashfree keys from Secrets Manager only in production', async () => {
+      const cashfreeSecret = {
+        ...secretJson,
+        CASHFREE_APP_ID: 'cf_live_app',
+        CASHFREE_SECRET_KEY: 'cf_live_secret',
+        CASHFREE_ENV: 'production',
+        CASHFREE_PAYOUT_CLIENT_ID: 'cf_live_payout_id',
+        CASHFREE_PAYOUT_CLIENT_SECRET: 'cf_live_payout_secret',
+      };
+
+      const staging: NodeJS.ProcessEnv = {
+        TUTORIX_ENV: 'staging',
+        CASHFREE_APP_ID: 'cf_sandbox_app',
+        CASHFREE_ENV: 'sandbox',
+      };
+      await loadAppSecrets({ client: mockClient(cashfreeSecret), env: staging });
+      expect(staging.CASHFREE_APP_ID).toBe('cf_sandbox_app');
+      expect(staging.CASHFREE_ENV).toBe('sandbox');
+      expect(staging.CASHFREE_SECRET_KEY).toBeUndefined();
+      expect(staging.CASHFREE_PAYOUT_CLIENT_SECRET).toBeUndefined();
+
+      const production: NodeJS.ProcessEnv = { TUTORIX_ENV: 'production' };
+      await loadAppSecrets({ client: mockClient(cashfreeSecret), env: production });
+      expect(production.CASHFREE_APP_ID).toBe('cf_live_app');
+      expect(production.CASHFREE_ENV).toBe('production');
+      expect(production.CASHFREE_PAYOUT_CLIENT_SECRET).toBe('cf_live_payout_secret');
+    });
+
     it('does not overwrite AWS access keys', async () => {
       const env: NodeJS.ProcessEnv = {
         TUTORIX_ENV: 'production',

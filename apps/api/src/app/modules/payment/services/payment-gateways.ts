@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import {
   CreatePaymentOrderInput,
   PaymentGateway,
@@ -455,6 +455,70 @@ export class RazorpayGateway implements PaymentGateway {
   }
 }
 
+const CASHFREE_PG_API_VERSION = '2023-08-01';
+const CASHFREE_ORDER_ID_MAX_LENGTH = 45;
+const CASHFREE_REFUND_ID_MAX_LENGTH = 40;
+
+/** Merchant refund ids we send to Cashfree; used to tell Cashfree refunds apart from Razorpay ones. */
+export const CASHFREE_REFUND_ID_PREFIX = 'cfr-';
+
+export type CashfreeRefundStatus = 'processed' | 'pending' | 'failed';
+
+export function isCashfreeRefundId(refundId: string): boolean {
+  return refundId.startsWith(CASHFREE_REFUND_ID_PREFIX);
+}
+
+export function buildCashfreeOrderId(receipt: string, now: number = Date.now()): string {
+  const suffix = `_${now.toString(36)}`;
+  const base =
+    receipt.replace(/[^A-Za-z0-9_-]/g, '').slice(0, CASHFREE_ORDER_ID_MAX_LENGTH - suffix.length) ||
+    'ord';
+  return `${base}${suffix}`;
+}
+
+export function buildCashfreeRefundId(
+  refundRequestId: number,
+  paymentAttemptId: number,
+  now: number = Date.now(),
+): string {
+  return `${CASHFREE_REFUND_ID_PREFIX}${refundRequestId}-${paymentAttemptId}-${now.toString(36)}`.slice(
+    0,
+    CASHFREE_REFUND_ID_MAX_LENGTH,
+  );
+}
+
+export function normalizeCashfreeRefundStatus(
+  status: string | null | undefined,
+): CashfreeRefundStatus | null {
+  switch ((status ?? '').toUpperCase()) {
+    case 'SUCCESS':
+      return 'processed';
+    case 'PENDING':
+    case 'ONHOLD':
+      return 'pending';
+    case 'CANCELLED':
+    case 'FAILED':
+      return 'failed';
+    default:
+      return null;
+  }
+}
+
+function cashfreeCustomerPhone(phone: string | undefined): string | undefined {
+  const digits = phone?.replace(/\D/g, '') ?? '';
+  return digits.length >= 10 ? digits.slice(-10) : undefined;
+}
+
+/** Cashfree rejects order_tags values containing non-ASCII characters (e.g. `·`). */
+export function cashfreeTagValue(value: string): string {
+  return value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\x20-\x7E]+/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 @Injectable()
 export class CashfreeGateway implements PaymentGateway {
   readonly provider = PaymentGatewayProviderEnum.cashfree;
@@ -468,46 +532,112 @@ export class CashfreeGateway implements PaymentGateway {
     );
   }
 
+  getEnvironment(): 'sandbox' | 'production' {
+    return this.configService.get<string>('CASHFREE_ENV') === 'production'
+      ? 'production'
+      : 'sandbox';
+  }
+
   private getBaseUrl(): string {
-    const env = this.configService.get<string>('CASHFREE_ENV') ?? 'sandbox';
-    return env === 'production'
+    return this.getEnvironment() === 'production'
       ? 'https://api.cashfree.com/pg'
       : 'https://sandbox.cashfree.com/pg';
   }
 
-  async createOrder(input: CreatePaymentOrderInput): Promise<PaymentOrderSession> {
+  private getHeaders(withJsonBody = false): Record<string, string> {
     const appId = this.configService.get<string>('CASHFREE_APP_ID');
     const secretKey = this.configService.get<string>('CASHFREE_SECRET_KEY');
     if (!appId || !secretKey) {
       throw new Error('Cashfree credentials are not configured');
     }
+    return {
+      'x-client-id': appId,
+      'x-client-secret': secretKey,
+      'x-api-version': CASHFREE_PG_API_VERSION,
+      ...(withJsonBody ? { 'Content-Type': 'application/json' } : {}),
+    };
+  }
 
-    const orderId = input.receipt;
+  private isGatewayRefundSimulated(): boolean {
+    const env =
+      this.configService.get<string>('TUTORIX_ENV') ||
+      process.env.TUTORIX_ENV ||
+      '';
+    if (env !== 'development') {
+      return false;
+    }
+    const flag =
+      this.configService.get<string>('CLASS_CANCELLATION_GATEWAY_REFUND_SIMULATE') ||
+      process.env.CLASS_CANCELLATION_GATEWAY_REFUND_SIMULATE ||
+      '';
+    return flag.toLowerCase() === 'true';
+  }
+
+  private getWebhookNotifyUrl(): string | undefined {
+    const base = (
+      this.configService.get<string>('API_PUBLIC_BASE_URL') ||
+      process.env.API_PUBLIC_BASE_URL ||
+      ''
+    )
+      .trim()
+      .replace(/\/+$/, '');
+    if (!base.startsWith('https://')) {
+      return undefined;
+    }
+    return `${base}/api/webhooks/cashfree`;
+  }
+
+  async createOrder(input: CreatePaymentOrderInput): Promise<PaymentOrderSession> {
+    const headers = this.getHeaders(true);
+    const customerPhone = cashfreeCustomerPhone(input.customer?.phone);
+    if (!customerPhone) {
+      throw new Error(
+        'A 10-digit mobile number is required on your profile to pay with Cashfree',
+      );
+    }
+
+    const orderId = buildCashfreeOrderId(input.receipt);
+    const notifyUrl = this.getWebhookNotifyUrl();
+    const returnUrl = (
+      this.configService.get<string>('CASHFREE_RETURN_URL') ||
+      process.env.CASHFREE_RETURN_URL ||
+      ''
+    ).trim();
+    const orderTags: Record<string, string> = Object.fromEntries(
+      Object.entries(input.notes ?? {})
+        .filter(([, value]) => typeof value === 'string' && value.length > 0)
+        .slice(0, 10)
+        .map(([key, value]): [string, string] => [key.slice(0, 64), cashfreeTagValue(value).slice(0, 255)])
+        .filter(([, value]) => value.length > 0),
+    );
+
     const response = await fetch(`${this.getBaseUrl()}/orders`, {
       method: 'POST',
-      headers: {
-        'x-client-id': appId,
-        'x-client-secret': secretKey,
-        'x-api-version': '2023-08-01',
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         order_id: orderId,
         order_amount: input.amountInr,
         order_currency: 'INR',
         customer_details: {
-          customer_id: input.customer?.id ?? orderId,
+          customer_id: `u_${(input.customer?.id ?? orderId).replace(/[^A-Za-z0-9_-]/g, '')}`,
           customer_email: input.customer?.email,
-          customer_phone: input.customer?.phone,
+          customer_phone: customerPhone,
           customer_name: input.customer?.name,
         },
-        order_note: input.notes?.description,
+        order_meta: {
+          ...(notifyUrl ? { notify_url: notifyUrl } : {}),
+          ...(returnUrl
+            ? { return_url: `${returnUrl}${returnUrl.includes('?') ? '&' : '?'}order_id={order_id}` }
+            : {}),
+        },
+        order_note: input.notes?.description?.slice(0, 200),
+        ...(Object.keys(orderTags).length > 0 ? { order_tags: orderTags } : {}),
       }),
     });
 
     if (!response.ok) {
       const body = await response.text();
-      throw new Error(`Cashfree order creation failed: ${body}`);
+      throw new Error(`Cashfree order creation failed (${response.status}): ${body}`);
     }
 
     const order = (await response.json()) as {
@@ -525,37 +655,204 @@ export class CashfreeGateway implements PaymentGateway {
         paymentSessionId: order.payment_session_id,
         orderId: order.order_id,
         orderAmount: order.order_amount,
-        appId,
-        environment:
-          this.configService.get<string>('CASHFREE_ENV') ?? 'sandbox',
+        environment: this.getEnvironment(),
       },
     };
   }
 
+  /** Cashfree has no client-side signature; trust only a server-side order lookup. */
   async verifyPayment(input: VerifyPaymentInput): Promise<boolean> {
-    const appId = this.configService.get<string>('CASHFREE_APP_ID');
-    const secretKey = this.configService.get<string>('CASHFREE_SECRET_KEY');
-    if (!appId || !secretKey) {
+    if (!this.isConfigured()) {
       return false;
+    }
+    const captured = await this.fetchCapturedPaymentForOrder(input.orderId);
+    return captured != null;
+  }
+
+  async fetchCapturedPaymentForOrder(
+    orderId: string,
+  ): Promise<{ orderId: string; paymentId: string } | null> {
+    if (!this.isConfigured()) {
+      return null;
+    }
+
+    const orderResponse = await fetch(
+      `${this.getBaseUrl()}/orders/${encodeURIComponent(orderId)}`,
+      { method: 'GET', headers: this.getHeaders() },
+    );
+    if (orderResponse.status === 404) {
+      return null;
+    }
+    if (!orderResponse.ok) {
+      const body = await orderResponse.text();
+      throw new Error(`Cashfree order fetch failed (${orderResponse.status}): ${body}`);
+    }
+    const order = (await orderResponse.json()) as {
+      order_status?: string;
+      order_amount?: number;
+    };
+    if (order.order_status !== 'PAID') {
+      return null;
+    }
+
+    const paymentsResponse = await fetch(
+      `${this.getBaseUrl()}/orders/${encodeURIComponent(orderId)}/payments`,
+      { method: 'GET', headers: this.getHeaders() },
+    );
+    if (!paymentsResponse.ok) {
+      const body = await paymentsResponse.text();
+      throw new Error(
+        `Cashfree order payments fetch failed (${paymentsResponse.status}): ${body}`,
+      );
+    }
+    const payments = (await paymentsResponse.json()) as Array<{
+      cf_payment_id?: number | string;
+      payment_status?: string;
+      payment_amount?: number;
+    }>;
+    const success = (Array.isArray(payments) ? payments : []).find(
+      (payment) => payment.payment_status === 'SUCCESS',
+    );
+    if (success?.cf_payment_id == null) {
+      return null;
+    }
+    if (
+      order.order_amount != null &&
+      success.payment_amount != null &&
+      Math.round(success.payment_amount * 100) < Math.round(order.order_amount * 100)
+    ) {
+      return null;
+    }
+
+    return { orderId, paymentId: String(success.cf_payment_id) };
+  }
+
+  async fetchOrderStatus(orderId: string): Promise<string | null> {
+    if (!this.isConfigured()) {
+      return null;
+    }
+    const response = await fetch(
+      `${this.getBaseUrl()}/orders/${encodeURIComponent(orderId)}`,
+      { method: 'GET', headers: this.getHeaders() },
+    );
+    if (response.status === 404) {
+      return null;
+    }
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Cashfree order fetch failed (${response.status}): ${body}`);
+    }
+    const order = (await response.json()) as { order_status?: string };
+    return order.order_status ?? null;
+  }
+
+  async refundPayment(input: {
+    gatewayOrderId: string;
+    amountInr: number;
+    refundId: string;
+    note?: string;
+  }): Promise<string> {
+    if (!this.isConfigured()) {
+      throw new Error('Cashfree credentials are not configured');
+    }
+    if (input.amountInr < 1) {
+      throw new Error('Refund amount must be at least ₹1');
+    }
+
+    if (this.isGatewayRefundSimulated()) {
+      return `${SIMULATED_GATEWAY_REFUND_PREFIX}${input.refundId}`;
     }
 
     const response = await fetch(
-      `${this.getBaseUrl()}/orders/${encodeURIComponent(input.orderId)}/payments/${encodeURIComponent(input.paymentId)}`,
+      `${this.getBaseUrl()}/orders/${encodeURIComponent(input.gatewayOrderId)}/refunds`,
       {
-        method: 'GET',
-        headers: {
-          'x-client-id': appId,
-          'x-client-secret': secretKey,
-          'x-api-version': '2023-08-01',
-        },
+        method: 'POST',
+        headers: this.getHeaders(true),
+        body: JSON.stringify({
+          refund_amount: input.amountInr,
+          refund_id: input.refundId,
+          ...(input.note ? { refund_note: input.note.slice(0, 100) } : {}),
+        }),
       },
     );
-
     if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Cashfree refund failed (${response.status}): ${body}`);
+    }
+    const payload = (await response.json()) as { refund_id?: string };
+    return payload.refund_id ?? input.refundId;
+  }
+
+  async fetchRefundStatus(
+    gatewayOrderId: string,
+    refundId: string,
+  ): Promise<CashfreeRefundStatus | null> {
+    if (refundId.startsWith(SIMULATED_GATEWAY_REFUND_PREFIX)) {
+      return 'processed';
+    }
+    if (!this.isConfigured()) {
+      return null;
+    }
+    const response = await fetch(
+      `${this.getBaseUrl()}/orders/${encodeURIComponent(gatewayOrderId)}/refunds/${encodeURIComponent(refundId)}`,
+      { method: 'GET', headers: this.getHeaders() },
+    );
+    if (response.status === 404) {
+      return null;
+    }
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Cashfree refund fetch failed (${response.status}): ${body}`);
+    }
+    const payload = (await response.json()) as { refund_status?: string };
+    return normalizeCashfreeRefundStatus(payload.refund_status);
+  }
+
+  async fetchSettlementForOrder(
+    gatewayOrderId: string,
+  ): Promise<PaymentSettlementDetails | null> {
+    if (!this.isConfigured()) {
+      return null;
+    }
+    const response = await fetch(
+      `${this.getBaseUrl()}/orders/${encodeURIComponent(gatewayOrderId)}/settlements`,
+      { method: 'GET', headers: this.getHeaders() },
+    );
+    if (response.status === 404) {
+      return null;
+    }
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Cashfree settlement fetch failed (${response.status}): ${body}`);
+    }
+    const settlement = (await response.json()) as {
+      cf_settlement_id?: number | string | null;
+      transfer_utr?: string | null;
+      transfer_time?: string | null;
+    };
+    if (settlement.cf_settlement_id == null) {
+      return null;
+    }
+    return {
+      settlementId: String(settlement.cf_settlement_id),
+      utr: settlement.transfer_utr?.trim() || undefined,
+      settledAt: settlement.transfer_time ? new Date(settlement.transfer_time) : undefined,
+    };
+  }
+
+  verifyWebhookSignature(rawBody: string, timestamp: string, signature: string): boolean {
+    const secretKey = this.configService.get<string>('CASHFREE_SECRET_KEY');
+    if (!secretKey) {
       return false;
     }
-
-    const payment = (await response.json()) as { payment_status?: string };
-    return payment.payment_status === 'SUCCESS';
+    const expected = createHmac('sha256', secretKey)
+      .update(`${timestamp}${rawBody}`)
+      .digest('base64');
+    const expectedBuffer = Buffer.from(expected);
+    const signatureBuffer = Buffer.from(signature);
+    return (
+      expectedBuffer.length === signatureBuffer.length &&
+      timingSafeEqual(expectedBuffer, signatureBuffer)
+    );
   }
 }

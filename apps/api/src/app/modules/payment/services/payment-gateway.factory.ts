@@ -48,4 +48,8 @@ export class PaymentGatewayFactory {
     }
     return this.noOpGateway;
   }
+
+  getCashfreeGateway(): CashfreeGateway {
+    return this.cashfreeGateway;
+  }
 }

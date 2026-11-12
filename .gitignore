@@ -131,6 +131,9 @@ apps/api/src/schema.gql
 # Keep .env.example in git (it's a template)
 !.env.example
 
+# Payment gateway credential exports (e.g. Cashfree API key CSVs)
+/cashfree/
+
 # Terraform
 **/.terraform/
 **/.terraform.lock.hcl

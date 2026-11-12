@@ -9,6 +9,7 @@ import { BatchJobAuditModule } from './batch-job-audit.module';
 import { DocumentScreeningBatchCron } from './document-screening/document-screening-batch.cron';
 import { TutorOnboardingApprovalBatchCron } from './tutor-onboarding-approval/tutor-onboarding-approval-batch.cron';
 import { PaymentSettlementBatchCron } from './payment-settlement/payment-settlement-batch.cron';
+import { CashfreeSettlementBatchCron } from './payment-settlement/cashfree-settlement-batch.cron';
 import { TutorClassEmailBatchCron } from './tutor-class-email/tutor-class-email-batch.cron';
 import { ClassCancellationRefundBatchCron } from './class-cancellation-refund/class-cancellation-refund-batch.cron';
 import { PostClassRefundClaimDeadlineCron } from './post-class-refund-claim/post-class-refund-claim-deadline.cron';
@@ -31,6 +32,7 @@ import { PostClassRefundClaimDeadlineCron } from './post-class-refund-claim/post
     DocumentScreeningBatchCron,
     TutorOnboardingApprovalBatchCron,
     PaymentSettlementBatchCron,
+    CashfreeSettlementBatchCron,
     TutorClassEmailBatchCron,
     ClassCancellationRefundBatchCron,
     PostClassRefundClaimDeadlineCron,

@@ -29,6 +29,9 @@ export class UserBankDetailsEntity extends QBaseEntity {
   @Column({ name: 'razorpay_fund_account_id', type: 'varchar', nullable: true })
   razorpayFundAccountId?: string | null;
 
+  @Column({ name: 'cashfree_beneficiary_id', type: 'varchar', nullable: true })
+  cashfreeBeneficiaryId?: string | null;
+
   @OneToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user?: User;

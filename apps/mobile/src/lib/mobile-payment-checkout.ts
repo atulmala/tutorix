@@ -12,6 +12,7 @@ import {
   type ConfirmPaymentInput,
   type PaymentOrderSession,
 } from '@tutorix/shared-utils';
+import { openCashfreeMobileCheckout } from './cashfree-checkout';
 
 const CAPTURE_POLL_INTERVAL_MS = 2000;
 const CAPTURE_POLL_INITIAL_DELAY_MS = 3000;
@@ -175,6 +176,9 @@ function resolveGatewayOrderId(session: PaymentOrderSession): string {
 export async function openMobilePaymentCheckout(
   session: PaymentOrderSession,
 ): Promise<ConfirmPaymentInput> {
+  if (session.provider === 'cashfree') {
+    return openCashfreeMobileCheckout(session);
+  }
   const gatewayOrderId = resolveGatewayOrderId(session);
 
   const racers: Promise<ConfirmPaymentInput>[] = [

@@ -112,7 +112,7 @@ export async function openPaymentCheckout(
     if (!window.Cashfree) {
       throw new Error('Cashfree checkout script failed to load');
     }
-    const environment = String(payload.environment ?? 'sandbox');
+    const environment = payload.environment === 'production' ? 'production' : 'sandbox';
     const cashfree = window.Cashfree({ mode: environment });
     const result = await cashfree.checkout({
       paymentSessionId: payload.paymentSessionId,
@@ -124,8 +124,9 @@ export async function openPaymentCheckout(
     return {
       provider: 'cashfree',
       orderId: String(payload.orderId ?? session.orderId),
-      paymentId: String(payload.orderId ?? session.orderId),
-      signature: String(payload.paymentSessionId ?? ''),
+      paymentId: '',
+      signature: '',
+      fetchFromGateway: true,
     };
   }
 

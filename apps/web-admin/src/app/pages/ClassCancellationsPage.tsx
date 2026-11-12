@@ -92,6 +92,8 @@ type GatewayRefundDetail = {
   amountInr: number;
   simulated: boolean;
   razorpayRefundStatus?: string | null;
+  provider?: string | null;
+  cashfreeRefundStatus?: string | null;
 };
 
 export function ClassCancellationsPage() {
@@ -363,7 +365,27 @@ export function ClassCancellationsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(detail.gatewayRefunds as GatewayRefundDetail[]).map((row) => (
+                  {(detail.gatewayRefunds as GatewayRefundDetail[])
+                    .filter((row) => row.provider === 'cashfree')
+                    .map((row) => (
+                      <tr key={row.id} className="border-t border-subtle">
+                        <td className="px-2 py-2 tabular-nums">#{row.paymentAttemptId}</td>
+                        <td className="px-2 py-2 font-mono">{row.gatewayPaymentId}</td>
+                        <td className="px-2 py-2 font-mono">
+                          {row.gatewayRefundId}
+                          <span className="ml-2 rounded bg-sky-100 px-1.5 py-0.5 text-sky-800">
+                            Cashfree
+                          </span>
+                        </td>
+                        <td className="px-2 py-2 tabular-nums">{formatInr(row.amountInr)}</td>
+                        <td className="px-2 py-2 capitalize">
+                          Cashfree · {row.cashfreeRefundStatus ?? 'unknown'}
+                        </td>
+                      </tr>
+                    ))}
+                  {(detail.gatewayRefunds as GatewayRefundDetail[])
+                    .filter((row) => row.provider !== 'cashfree')
+                    .map((row) => (
                     <tr key={row.id} className="border-t border-subtle">
                       <td className="px-2 py-2 tabular-nums">#{row.paymentAttemptId}</td>
                       <td className="px-2 py-2 font-mono">

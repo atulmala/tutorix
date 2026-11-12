@@ -22,6 +22,16 @@ export function shouldSkipSecretsManagerKey(key: string): boolean {
 
 const RAZORPAY_KEYS = new Set(['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET']);
 
+/** Live Cashfree credentials; staging and dev keep sandbox keys from their own `.env`. */
+const CASHFREE_LIVE_KEYS = new Set([
+  'CASHFREE_APP_ID',
+  'CASHFREE_SECRET_KEY',
+  'CASHFREE_ENV',
+  'CASHFREE_PAYOUT_CLIENT_ID',
+  'CASHFREE_PAYOUT_CLIENT_SECRET',
+  'CASHFREE_PAYOUT_PUBLIC_KEY',
+]);
+
 export type TutorixEnv = 'development' | 'staging' | 'production' | 'test';
 
 export type SecretsManagerLike = {
@@ -58,6 +68,12 @@ export function resolveTutorixEnv(
 }
 
 export function shouldApplyRazorpayFromSecrets(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return resolveTutorixEnv(env) === 'production';
+}
+
+export function shouldApplyCashfreeFromSecrets(
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
   return resolveTutorixEnv(env) === 'production';
@@ -145,9 +161,11 @@ async function loadAppSecretsOnce(options?: {
   }
 
   const applyRazorpay = shouldApplyRazorpayFromSecrets(env);
+  const applyCashfree = shouldApplyCashfreeFromSecrets(env);
   for (const [key, raw] of Object.entries(parsed as Record<string, unknown>)) {
     if (shouldSkipSecretsManagerKey(key)) continue;
     if (RAZORPAY_KEYS.has(key) && !applyRazorpay) continue;
+    if (CASHFREE_LIVE_KEYS.has(key) && !applyCashfree) continue;
     if (typeof raw !== 'string' || raw.length === 0) continue;
     if (key === 'FIREBASE_SERVICE_ACCOUNT_JSON') {
       try {

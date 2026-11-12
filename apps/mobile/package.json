@@ -25,6 +25,7 @@
     "react-dom": "*",
     "react-native": "~0.79.3",
     "react-native-agora": "^4.6.4",
+    "react-native-cashfree-pg-sdk": "^2.5.1",
     "react-native-webview": "^14.0.1",
     "react-native-image-picker": "^8.2.1",
     "react-native-keychain": "^9.1.0",

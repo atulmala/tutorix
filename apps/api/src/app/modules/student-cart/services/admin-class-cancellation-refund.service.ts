@@ -5,6 +5,9 @@ import {
   RazorpayGateway,
   SIMULATED_GATEWAY_REFUND_PREFIX,
 } from '../../payment/services/payment-gateways';
+import { isCashfreeRefundId } from '../../payment/services/payment-gateways';
+import { PaymentGatewayProviderEnum } from '../../payment/enums/payment.enums';
+import { ClassCancellationRefundPayoutService } from './class-cancellation-refund-payout.service';
 import { personDisplayName } from '../admin-class-booking.utils';
 import { AdminClassCancellationGatewayRefund } from '../dto/admin/admin-class-cancellation-gateway-refund.dto';
 import { AdminClassCancellationRefundDetail } from '../dto/admin/admin-class-cancellation-refund-detail.dto';
@@ -25,6 +28,7 @@ export class AdminClassCancellationRefundService {
     @InjectRepository(ClassCreditGatewayRefundEntity)
     private readonly gatewayRefundRepo: Repository<ClassCreditGatewayRefundEntity>,
     private readonly razorpayGateway: RazorpayGateway,
+    private readonly refundPayoutService: ClassCancellationRefundPayoutService,
   ) {}
 
   async list(
@@ -169,6 +173,25 @@ export class AdminClassCancellationRefundService {
   ): Promise<AdminClassCancellationGatewayRefund[]> {
     return Promise.all(
       rows.map(async (row) => {
+        if (isCashfreeRefundId(row.gatewayRefundId)) {
+          let cashfreeRefundStatus: string | null = null;
+          try {
+            cashfreeRefundStatus = await this.refundPayoutService.fetchCashfreeRefundStatus(row);
+          } catch {
+            cashfreeRefundStatus = null;
+          }
+          return {
+            id: row.id,
+            paymentAttemptId: row.paymentAttemptId,
+            gatewayPaymentId: row.gatewayPaymentId,
+            gatewayRefundId: row.gatewayRefundId,
+            amountInr: row.amountInr,
+            simulated: false,
+            razorpayRefundStatus: null,
+            provider: PaymentGatewayProviderEnum.cashfree,
+            cashfreeRefundStatus,
+          };
+        }
         const simulated = row.gatewayRefundId.startsWith(
           SIMULATED_GATEWAY_REFUND_PREFIX,
         );
@@ -200,6 +223,9 @@ export class AdminClassCancellationRefundService {
   ): string | null {
     if (gatewayRefunds.length === 0) {
       return null;
+    }
+    if (gatewayRefunds.every((row) => row.provider === PaymentGatewayProviderEnum.cashfree)) {
+      return 'Use the refund IDs below in the Cashfree dashboard (sandbox vs production must match API keys).';
     }
     if (gatewayRefunds.some((row) => row.simulated)) {
       return 'CLASS_CANCELLATION_GATEWAY_REFUND_SIMULATE is enabled — gateway refunds exist only in Tutorix, not on the Razorpay dashboard.';

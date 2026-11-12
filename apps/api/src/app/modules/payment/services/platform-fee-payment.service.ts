@@ -13,6 +13,7 @@ import { PlatformFeeConfigEntity } from '../../platform-fee/entities/platform-fe
 import { PaymentGatewayFactory } from './payment-gateway.factory';
 import { PaymentGateway } from '../interfaces/payment-gateway.interface';
 import { RazorpayGateway } from './payment-gateways';
+import { CashfreeGateway } from './payment-gateways';
 import { PaymentOrderSessionDto } from '../dto/payment-order-session.dto';
 import { ConfirmPlatformFeePaymentInput } from '../dto/confirm-platform-fee-payment.input';
 import {
@@ -114,6 +115,32 @@ export class PlatformFeePaymentService {
     return { captured: true, paymentId: fetched.paymentId };
   }
 
+  async getCashfreeOrderCaptureStatus(
+    orderId: string,
+    user: User,
+  ): Promise<{ captured: boolean; paymentId?: string }> {
+    const pending = await this.paymentRepo.findOne({
+      where: {
+        gatewayOrderId: orderId,
+        userId: user.id,
+        status: PlatformFeePaymentStatusEnum.pending,
+        deleted: false,
+      },
+    });
+    if (!pending) {
+      throw new BadRequestException('Pending payment not found for this order');
+    }
+
+    const fetched = await this.paymentGatewayFactory
+      .getCashfreeGateway()
+      .fetchCapturedPaymentForOrder(orderId);
+    if (!fetched) {
+      return { captured: false };
+    }
+
+    return { captured: true, paymentId: fetched.paymentId };
+  }
+
   private async verifyGatewayPayment(
     gateway: PaymentGateway,
     input: {
@@ -123,6 +150,13 @@ export class PlatformFeePaymentService {
       fetchFromGateway?: boolean;
     },
   ): Promise<{ paymentId: string; verified: boolean }> {
+    if (gateway instanceof CashfreeGateway) {
+      const fetched = await gateway.fetchCapturedPaymentForOrder(input.orderId);
+      if (!fetched) {
+        return { paymentId: '', verified: false };
+      }
+      return { paymentId: fetched.paymentId, verified: true };
+    }
     if (input.fetchFromGateway) {
       if (!(gateway instanceof RazorpayGateway)) {
         throw new BadRequestException(
