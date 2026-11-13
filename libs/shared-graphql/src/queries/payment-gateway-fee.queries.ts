@@ -13,3 +13,22 @@ export const GET_ADMIN_PAYMENT_GATEWAY_FEE_CONFIG = gql`
     }
   }
 `;
+
+export const GET_ADMIN_PAYMENT_PROVIDER_SELECTION = gql`
+  query AdminPaymentProviderSelection {
+    adminPaymentProviderSelection {
+      activePaymentGateway
+      tutorPayoutProvider
+      paymentGatewayOptions {
+        provider
+        label
+        configured
+      }
+      tutorPayoutOptions {
+        provider
+        label
+        configured
+      }
+    }
+  }
+`;

@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PaymentModule } from '../payment/payment.module';
+import { PaymentGatewayFeeModule } from '../payment-gateway-fee/payment-gateway-fee.module';
 import { StudentCartModule } from '../student-cart/student-cart.module';
 import { UserBankDetailsModule } from '../user-bank-details/user-bank-details.module';
 import { Tutor } from '../tutor/entities/tutor.entity';
@@ -20,6 +21,7 @@ import { RazorpayXPayoutGateway } from './services/razorpayx-payout.gateway';
 import { RefundPayoutCompletionService } from './services/refund-payout-completion.service';
 import { CashfreePayoutGateway } from './services/cashfree-payout.gateway';
 import { CashfreeTutorPayoutService } from './services/cashfree-tutor-payout.service';
+import { AdminPaymentProviderSelectionService } from './services/admin-payment-provider-selection.service';
 
 @Module({
   imports: [
@@ -34,6 +36,7 @@ import { CashfreeTutorPayoutService } from './services/cashfree-tutor-payout.ser
       UserBankDetailsEntity,
     ]),
     forwardRef(() => PaymentModule),
+    PaymentGatewayFeeModule,
     UserBankDetailsModule,
     forwardRef(() => StudentCartModule),
   ],
@@ -44,8 +47,10 @@ import { CashfreeTutorPayoutService } from './services/cashfree-tutor-payout.ser
     CashfreePayoutGateway,
     CashfreeTutorPayoutService,
     AdminPaymentProcessingService,
+    AdminPaymentProviderSelectionService,
   ],
   exports: [
+    AdminPaymentProviderSelectionService,
     PaymentDisbursementEnqueueService,
     RefundPayoutCompletionService,
     AdminPaymentProcessingService,

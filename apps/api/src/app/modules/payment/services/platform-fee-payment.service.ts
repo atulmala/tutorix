@@ -102,7 +102,7 @@ export class PlatformFeePaymentService {
       throw new BadRequestException('Pending payment not found for this order');
     }
 
-    const gateway = this.paymentGatewayFactory.getActiveGateway();
+    const gateway = this.paymentGatewayFactory.getGatewayForProvider(pending.gatewayProvider);
     if (!(gateway instanceof RazorpayGateway)) {
       return { captured: false };
     }
@@ -444,7 +444,9 @@ export class PlatformFeePaymentService {
       throw new BadRequestException('Pending payment not found for this order');
     }
 
-    const gateway = this.paymentGatewayFactory.getActiveGateway();
+    const gateway = this.paymentGatewayFactory.getGatewayForProvider(
+      pending.gatewayProvider ?? input.provider,
+    );
     if (input.provider && gateway.provider !== input.provider) {
       throw new BadRequestException('Payment provider mismatch');
     }
@@ -667,7 +669,9 @@ export class PlatformFeePaymentService {
       throw new BadRequestException('Pending PT fee payment not found');
     }
 
-    const gateway = this.paymentGatewayFactory.getActiveGateway();
+    const gateway = this.paymentGatewayFactory.getGatewayForProvider(
+      pending.gatewayProvider ?? input.provider,
+    );
     if (input.provider && gateway.provider !== input.provider) {
       throw new BadRequestException('Payment provider mismatch');
     }

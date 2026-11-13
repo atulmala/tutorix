@@ -79,6 +79,27 @@ export const ADMIN_UPDATE_PAYMENT_GATEWAY_FEE_SETTINGS = gql`
   }
 `;
 
+export const ADMIN_UPDATE_PAYMENT_PROVIDER_SELECTION = gql`
+  mutation AdminUpdatePaymentProviderSelection(
+    $input: AdminUpdatePaymentProviderSelectionInput!
+  ) {
+    adminUpdatePaymentProviderSelection(input: $input) {
+      activePaymentGateway
+      tutorPayoutProvider
+      paymentGatewayOptions {
+        provider
+        label
+        configured
+      }
+      tutorPayoutOptions {
+        provider
+        label
+        configured
+      }
+    }
+  }
+`;
+
 export const ADMIN_UPDATE_PAYMENT_GATEWAY_FEE = gql`
   mutation AdminUpdatePaymentGatewayFee($input: AdminUpdatePaymentGatewayFeeInput!) {
     adminUpdatePaymentGatewayFee(input: $input) {

@@ -6,6 +6,7 @@ import './enums/payment.enums';
 import { PlatformFeePaymentEntity } from './entities/platform-fee-payment.entity';
 import { PlatformFeeModule } from '../platform-fee/platform-fee.module';
 import { CommerceModule } from '../commerce/commerce.module';
+import { PaymentGatewayFeeModule } from '../payment-gateway-fee/payment-gateway-fee.module';
 import {
   NoOpPaymentGateway,
   PaymentGatewayFactory,
@@ -22,6 +23,7 @@ import { CashfreeWebhookController } from './controllers/cashfree-webhook.contro
     PlatformFeeModule,
     forwardRef(() => CommerceModule),
     forwardRef(() => PaymentProcessingModule),
+    PaymentGatewayFeeModule,
     TypeOrmModule.forFeature([PlatformFeePaymentEntity]),
   ],
   controllers: [RazorpayWebhookController, CashfreeWebhookController],

@@ -77,6 +77,11 @@ import { CommunicationAdminService } from '../communication/communication.admin.
 import { AdminCommunicationCatalog } from '../communication/dto/admin-communication-catalog.dto';
 import { AdminUpdateCommunicationRuleInput } from '../communication/dto/admin-update-communication-rule.input';
 import { AdminUpdateCommunicationTemplateInput } from '../communication/dto/admin-update-communication-template.input';
+import { AdminPaymentProviderSelectionService } from '../payment-processing/services/admin-payment-provider-selection.service';
+import {
+  AdminPaymentProviderSelectionResult,
+  AdminUpdatePaymentProviderSelectionInput,
+} from '../payment-gateway-fee/dto/admin-payment-provider-selection.dto';
 
 @Resolver()
 export class AdminResolver {
@@ -94,6 +99,7 @@ export class AdminResolver {
     private readonly adminClassCancellationRefundService: AdminClassCancellationRefundService,
     private readonly classCancellationRefundBatchService: ClassCancellationRefundBatchService,
     private readonly adminPaymentProcessingService: AdminPaymentProcessingService,
+    private readonly adminPaymentProviderSelectionService: AdminPaymentProviderSelectionService,
   ) {}
 
   @Query(() => AdminDashboardStats, {
@@ -337,6 +343,27 @@ export class AdminResolver {
     @Args('input') input: AdminUpdatePaymentGatewayFeeSettingsInput,
   ): Promise<AdminPaymentGatewayFeeConfigResult> {
     return this.adminService.updatePaymentGatewayFeeSettings(input);
+  }
+
+  @Query(() => AdminPaymentProviderSelectionResult, {
+    description: 'Active student payment gateway and tutor payout provider (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminPaymentProviderSelection(): Promise<AdminPaymentProviderSelectionResult> {
+    return this.adminPaymentProviderSelectionService.getSelection();
+  }
+
+  @Mutation(() => AdminPaymentProviderSelectionResult, {
+    description: 'Switch the student payment gateway and/or tutor payout provider (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminUpdatePaymentProviderSelection(
+    @Args('input') input: AdminUpdatePaymentProviderSelectionInput,
+    @CurrentUser() admin: User,
+  ): Promise<AdminPaymentProviderSelectionResult> {
+    return this.adminPaymentProviderSelectionService.updateSelection(input, admin.id);
   }
 
   @Mutation(() => PaymentGatewayFeeConfigEntity, {

@@ -26,7 +26,7 @@ export class CashfreeTutorPayoutService {
     private readonly cashfreePayoutGateway: CashfreePayoutGateway,
   ) {}
 
-  isSelected(): boolean {
+  isSelected(): Promise<boolean> {
     return this.cashfreePayoutGateway.isSelected();
   }
 

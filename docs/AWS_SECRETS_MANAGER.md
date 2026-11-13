@@ -20,6 +20,8 @@ Razorpay values in this secret are the **live** keys. They are applied only when
 
 Cashfree live credentials follow the same rule. Add them to `tutorix/app` only for production: `CASHFREE_APP_ID`, `CASHFREE_SECRET_KEY`, `CASHFREE_ENV=production`, `CASHFREE_PAYOUT_CLIENT_ID`, `CASHFREE_PAYOUT_CLIENT_SECRET`, and optionally `CASHFREE_PAYOUT_PUBLIC_KEY`. Staging and local keep sandbox keys in `.env`.
 
+Which gateway is active (Razorpay or Cashfree) and which provider pays tutors (RazorpayX or Cashfree Payouts) is not an env setting. Admins choose it in the admin app under Fees & Charges > Active payment providers. `PAYMENT_GATEWAY` and `TUTOR_PAYOUT_PROVIDER` are ignored.
+
 ## What stays in `.env` / Compose (per environment)
 
 - `TUTORIX_ENV` — `development` | `staging` | `production`

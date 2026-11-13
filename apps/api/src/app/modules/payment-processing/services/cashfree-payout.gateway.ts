@@ -5,6 +5,8 @@ import { constants, createHash, createHmac, publicEncrypt, timingSafeEqual } fro
 import { Repository } from 'typeorm';
 import { User } from '../../auth/entities/user.entity';
 import { UserBankDetailsEntity } from '../../user-bank-details/entities/user-bank-details.entity';
+import { TutorPayoutProviderEnum } from '../../payment-gateway-fee/enums/tutor-payout-provider.enum';
+import { PaymentProviderSelectionService } from '../../payment-gateway-fee/services/payment-provider-selection.service';
 
 const CASHFREE_PAYOUT_API_VERSION = '2024-01-01';
 const CASHFREE_TRANSFER_ID_MAX_LENGTH = 40;
@@ -62,15 +64,13 @@ export class CashfreePayoutGateway {
     private readonly configService: ConfigService,
     @InjectRepository(UserBankDetailsEntity)
     private readonly bankDetailsRepo: Repository<UserBankDetailsEntity>,
+    private readonly providerSelection: PaymentProviderSelectionService,
   ) {}
 
-  /** Tutor payouts go through Cashfree only when TUTOR_PAYOUT_PROVIDER=cashfree. */
-  isSelected(): boolean {
-    const provider =
-      this.configService.get<string>('TUTOR_PAYOUT_PROVIDER') ||
-      process.env.TUTOR_PAYOUT_PROVIDER ||
-      '';
-    return provider.trim().toLowerCase() === TUTOR_PAYOUT_PROVIDER_CASHFREE;
+  /** Tutor payouts go through Cashfree only when it is the payout provider selected in admin. */
+  async isSelected(): Promise<boolean> {
+    const { tutorPayoutProvider } = await this.providerSelection.getSelection();
+    return tutorPayoutProvider === TutorPayoutProviderEnum.cashfree;
   }
 
   isConfigured(): boolean {

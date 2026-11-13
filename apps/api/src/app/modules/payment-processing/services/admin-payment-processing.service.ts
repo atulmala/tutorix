@@ -541,7 +541,7 @@ export class AdminPaymentProcessingService {
     row.processedByUserId = adminUserId;
     await this.disbursementRepo.save(row);
 
-    if (this.cashfreeTutorPayoutService.isSelected()) {
+    if (await this.cashfreeTutorPayoutService.isSelected()) {
       await this.cashfreeTutorPayoutService.executeTransfer(row, tutor.user, bank);
       return;
     }

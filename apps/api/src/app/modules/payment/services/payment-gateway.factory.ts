@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { PaymentGateway } from '../interfaces/payment-gateway.interface';
 import { PaymentGatewayProviderEnum } from '../enums/payment.enums';
+import { PaymentProviderSelectionService } from '../../payment-gateway-fee/services/payment-provider-selection.service';
 import { CashfreeGateway, RazorpayGateway } from './payment-gateways';
 
 @Injectable()
@@ -10,7 +10,7 @@ export class NoOpPaymentGateway implements PaymentGateway {
 
   async createOrder(): Promise<never> {
     throw new BadRequestException(
-      'Payment gateway is not configured. Set PAYMENT_GATEWAY and provider credentials.',
+      'The payment gateway selected in admin is not configured. Add its credentials or choose another gateway.',
     );
   }
 
@@ -22,31 +22,29 @@ export class NoOpPaymentGateway implements PaymentGateway {
 @Injectable()
 export class PaymentGatewayFactory {
   constructor(
-    private readonly configService: ConfigService,
     private readonly noOpGateway: NoOpPaymentGateway,
     private readonly razorpayGateway: RazorpayGateway,
     private readonly cashfreeGateway: CashfreeGateway,
+    private readonly providerSelection: PaymentProviderSelectionService,
   ) {}
 
-  getActiveGateway(): PaymentGateway {
-    const provider = this.configService.get<string>('PAYMENT_GATEWAY');
-    if (provider === PaymentGatewayProviderEnum.cashfree) {
-      if (this.cashfreeGateway.isConfigured()) {
-        return this.cashfreeGateway;
-      }
-    }
-    if (provider === PaymentGatewayProviderEnum.razorpay || !provider) {
-      if (this.razorpayGateway.isConfigured()) {
-        return this.razorpayGateway;
-      }
-    }
-    if (this.cashfreeGateway.isConfigured()) {
-      return this.cashfreeGateway;
-    }
-    if (this.razorpayGateway.isConfigured()) {
-      return this.razorpayGateway;
-    }
-    return this.noOpGateway;
+  /** Gateway for new orders, as selected in admin (Fees & Charges). */
+  async getActiveGateway(): Promise<PaymentGateway> {
+    const { paymentGateway } = await this.providerSelection.getSelection();
+    return this.getGatewayForProvider(paymentGateway);
+  }
+
+  /** Gateway an existing order was created with, regardless of the current admin selection. */
+  getGatewayForProvider(provider: PaymentGatewayProviderEnum | null | undefined): PaymentGateway {
+    const gateway =
+      provider === PaymentGatewayProviderEnum.cashfree ? this.cashfreeGateway : this.razorpayGateway;
+    return gateway.isConfigured() ? gateway : this.noOpGateway;
+  }
+
+  isProviderConfigured(provider: PaymentGatewayProviderEnum): boolean {
+    return provider === PaymentGatewayProviderEnum.cashfree
+      ? this.cashfreeGateway.isConfigured()
+      : this.razorpayGateway.isConfigured();
   }
 
   getCashfreeGateway(): CashfreeGateway {
