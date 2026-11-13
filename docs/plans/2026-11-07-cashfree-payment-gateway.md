@@ -149,6 +149,8 @@ Where the build differs from the plan above:
 
 ## Rollout
 
+> Since TUTORIX-96 (`docs/plans/2026-11-12-admin-payment-gateway-selection.md`), the `PAYMENT_GATEWAY` and `TUTOR_PAYOUT_PROVIDER` flags below are replaced by the admin setting under Fees & Charges > Active payment providers (defaults: Razorpay and RazorpayX).
+
 0. Mobile test: a Cashfree sandbox payment on iOS and Android release builds (see section 7) before building the rest of the mobile flow.
 1. Merge with `PAYMENT_GATEWAY=razorpay` and `TUTOR_PAYOUT_PROVIDER` unset, so behaviour doesn't change.
 2. Staging: switch both to Cashfree with sandbox keys and run the test matrix, including the Razorpay regression.

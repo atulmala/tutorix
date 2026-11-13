@@ -105,7 +105,7 @@ export class CheckoutService {
 
     await this.orderService.markOrderPendingPayment(order);
 
-    const gateway = this.paymentGatewayFactory.getActiveGateway();
+    const gateway = await this.paymentGatewayFactory.getActiveGateway();
     const receipt = buildRazorpayReceiptFromOrderNumber(order.orderNumber);
     const session = await gateway.createOrder({
       amountInr: line.amountDueInr,

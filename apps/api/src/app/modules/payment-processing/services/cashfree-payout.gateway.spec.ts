@@ -9,6 +9,9 @@ import {
   CashfreePayoutGateway,
   normalizeCashfreeTransferStatus,
 } from './cashfree-payout.gateway';
+import { PaymentGatewayProviderEnum } from '../../payment/enums/payment.enums';
+import { TutorPayoutProviderEnum } from '../../payment-gateway-fee/enums/tutor-payout-provider.enum';
+import { PaymentProviderSelectionService } from '../../payment-gateway-fee/services/payment-provider-selection.service';
 
 function jsonResponse(body: unknown, status = 200) {
   return {
@@ -34,21 +37,28 @@ describe('CashfreePayoutGateway', () => {
   let gateway: CashfreePayoutGateway;
   let fetchMock: jest.Mock;
 
+  const selection = {
+    paymentGateway: PaymentGatewayProviderEnum.razorpay,
+    tutorPayoutProvider: TutorPayoutProviderEnum.razorpayx,
+  };
+  const providerSelection = { getSelection: jest.fn(async () => selection) };
+
   beforeEach(() => {
     jest.clearAllMocks();
-    config.TUTOR_PAYOUT_PROVIDER = undefined;
+    selection.tutorPayoutProvider = TutorPayoutProviderEnum.razorpayx;
     gateway = new CashfreePayoutGateway(
       configService,
       bankRepo as unknown as Repository<UserBankDetailsEntity>,
+      providerSelection as unknown as PaymentProviderSelectionService,
     );
     fetchMock = jest.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
   });
 
-  it('is only selected when TUTOR_PAYOUT_PROVIDER=cashfree', () => {
-    expect(gateway.isSelected()).toBe(false);
-    config.TUTOR_PAYOUT_PROVIDER = 'cashfree';
-    expect(gateway.isSelected()).toBe(true);
+  it('is only selected when Cashfree is the payout provider chosen in admin', async () => {
+    await expect(gateway.isSelected()).resolves.toBe(false);
+    selection.tutorPayoutProvider = TutorPayoutProviderEnum.cashfree;
+    await expect(gateway.isSelected()).resolves.toBe(true);
   });
 
   it('creates a beneficiary once per bank account and stores its id', async () => {

@@ -5,9 +5,11 @@ import {
   ADMIN_UPDATE_CLASS_PRICING_SETTINGS,
   ADMIN_UPDATE_PAYMENT_GATEWAY_FEE,
   ADMIN_UPDATE_PAYMENT_GATEWAY_FEE_SETTINGS,
+  ADMIN_UPDATE_PAYMENT_PROVIDER_SELECTION,
   ADMIN_UPDATE_PLATFORM_FEE,
   GET_ADMIN_CLASS_PRICING_SETTINGS,
   GET_ADMIN_PAYMENT_GATEWAY_FEE_CONFIG,
+  GET_ADMIN_PAYMENT_PROVIDER_SELECTION,
   GET_ADMIN_PLATFORM_FEES,
 } from '@tutorix/shared-graphql';
 
@@ -396,6 +398,176 @@ function draftsFromGateways(gateways: GatewayFeeRow[]): Record<string, GatewayDr
   return drafts;
 }
 
+type PaymentProviderOption = {
+  provider: string;
+  label: string;
+  configured: boolean;
+};
+
+type PaymentProviderSelection = {
+  activePaymentGateway: string;
+  tutorPayoutProvider: string;
+  paymentGatewayOptions: PaymentProviderOption[];
+  tutorPayoutOptions: PaymentProviderOption[];
+};
+
+type AdminPaymentProviderSelectionData = {
+  adminPaymentProviderSelection: PaymentProviderSelection;
+};
+
+function providerLabel(options: PaymentProviderOption[], provider: string): string {
+  return options.find((option) => option.provider === provider)?.label ?? provider;
+}
+
+function PaymentProviderSelectionSection() {
+  const { data, loading, error, refetch } = useQuery<AdminPaymentProviderSelectionData>(
+    GET_ADMIN_PAYMENT_PROVIDER_SELECTION,
+    { fetchPolicy: 'network-only' },
+  );
+  const [gatewayDraft, setGatewayDraft] = useState('');
+  const [payoutDraft, setPayoutDraft] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
+
+  useEffect(() => {
+    const selection = data?.adminPaymentProviderSelection;
+    if (!selection) {
+      return;
+    }
+    setGatewayDraft(selection.activePaymentGateway);
+    setPayoutDraft(selection.tutorPayoutProvider);
+  }, [data]);
+
+  const [updateSelection, { loading: saving }] = useMutation(
+    ADMIN_UPDATE_PAYMENT_PROVIDER_SELECTION,
+    {
+      onCompleted: () => {
+        setSaved(true);
+        setErrorText(null);
+        void refetch();
+        window.setTimeout(() => setSaved(false), 2000);
+      },
+      onError: (err) => setErrorText(err.message),
+    },
+  );
+
+  if (loading) {
+    return <p className="text-sm text-muted">Loading payment providers…</p>;
+  }
+  if (error) {
+    return <p className="text-sm text-red-700">{error.message}</p>;
+  }
+  const selection = data?.adminPaymentProviderSelection;
+  if (!selection) {
+    return null;
+  }
+
+  const gatewayChanged = gatewayDraft !== selection.activePaymentGateway;
+  const payoutChanged = payoutDraft !== selection.tutorPayoutProvider;
+
+  const save = () => {
+    const changes: string[] = [];
+    if (gatewayChanged) {
+      changes.push(
+        `New student payments will use ${providerLabel(selection.paymentGatewayOptions, gatewayDraft)}.`,
+      );
+    }
+    if (payoutChanged) {
+      changes.push(
+        `New tutor payouts will use ${providerLabel(selection.tutorPayoutOptions, payoutDraft)}.`,
+      );
+    }
+    if (
+      !window.confirm(
+        `${changes.join('\n')}\n\nPayments and payouts already in progress are unaffected. Continue?`,
+      )
+    ) {
+      return;
+    }
+    void updateSelection({
+      variables: {
+        input: {
+          ...(gatewayChanged ? { activePaymentGateway: gatewayDraft } : {}),
+          ...(payoutChanged ? { tutorPayoutProvider: payoutDraft } : {}),
+        },
+      },
+    });
+  };
+
+  const renderSelect = (
+    id: string,
+    label: string,
+    value: string,
+    current: string,
+    options: PaymentProviderOption[],
+    onChange: (value: string) => void,
+  ) => (
+    <div>
+      <label htmlFor={id} className="block text-sm font-medium text-primary">
+        {label}
+      </label>
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 h-10 w-full max-w-xs rounded-lg border border-subtle bg-white px-3 text-sm"
+      >
+        {options.map((option) => (
+          <option
+            key={option.provider}
+            value={option.provider}
+            disabled={!option.configured && option.provider !== current}
+          >
+            {option.label}
+            {option.configured ? '' : ' (not configured)'}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4 rounded-xl border border-subtle bg-white p-6">
+      <div>
+        <h2 className="text-lg font-semibold text-primary">Active payment providers</h2>
+        <p className="mt-1 text-sm text-muted">
+          Which provider handles new student payments and new tutor bank payouts. Changes apply
+          immediately; payments and payouts already in progress finish on the provider they
+          started with. Provider credentials are managed on the server.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-end gap-6">
+        {renderSelect(
+          'active-payment-gateway',
+          'Student payments',
+          gatewayDraft,
+          selection.activePaymentGateway,
+          selection.paymentGatewayOptions,
+          setGatewayDraft,
+        )}
+        {renderSelect(
+          'tutor-payout-provider',
+          'Tutor payouts',
+          payoutDraft,
+          selection.tutorPayoutProvider,
+          selection.tutorPayoutOptions,
+          setPayoutDraft,
+        )}
+        <button
+          type="button"
+          disabled={saving || (!gatewayChanged && !payoutChanged)}
+          onClick={save}
+          className="h-10 rounded-lg bg-primary px-4 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {saving ? 'Saving…' : 'Save providers'}
+        </button>
+        {saved ? <span className="text-sm text-green-700">Saved.</span> : null}
+      </div>
+      {errorText ? <p className="text-sm text-red-700">{errorText}</p> : null}
+    </div>
+  );
+}
+
 function PaymentGatewayFeeSection() {
   const { data, loading, error, refetch } = useQuery<AdminPaymentGatewayFeeData>(
     GET_ADMIN_PAYMENT_GATEWAY_FEE_CONFIG,
@@ -698,6 +870,7 @@ export function FeesAndChargesPage() {
       ) : null}
 
       <ClassPricingSection />
+      <PaymentProviderSelectionSection />
       <PaymentGatewayFeeSection />
     </div>
   );

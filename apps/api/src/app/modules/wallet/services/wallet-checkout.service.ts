@@ -267,7 +267,7 @@ export class WalletCheckoutService {
     });
     await this.orderService.markOrderPendingPayment(order);
 
-    const gateway = this.paymentGatewayFactory.getActiveGateway();
+    const gateway = await this.paymentGatewayFactory.getActiveGateway();
     const receipt = buildRazorpayReceiptFromOrderNumber(order.orderNumber);
     const session = await gateway.createOrder({
       amountInr: input.amountInr,
@@ -328,7 +328,7 @@ export class WalletCheckoutService {
       throw new BadRequestException('Invalid wallet top-up order');
     }
 
-    const gateway = this.paymentGatewayFactory.getActiveGateway();
+    const gateway = this.paymentGatewayFactory.getGatewayForProvider(attempt.provider);
     if (input.provider && gateway.provider !== input.provider) {
       throw new BadRequestException('Payment provider mismatch');
     }
