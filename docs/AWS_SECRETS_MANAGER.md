@@ -18,6 +18,8 @@ The API loads shared secrets from one Secrets Manager JSON, `tutorix/app`, in `u
 
 Razorpay values in this secret are the **live** keys. They are applied only when `TUTORIX_ENV=production`.
 
+Cashfree live credentials follow the same rule. Add them to `tutorix/app` only for production: `CASHFREE_APP_ID`, `CASHFREE_SECRET_KEY`, `CASHFREE_ENV=production`, `CASHFREE_PAYOUT_CLIENT_ID`, `CASHFREE_PAYOUT_CLIENT_SECRET`, and optionally `CASHFREE_PAYOUT_PUBLIC_KEY`. Staging and local keep sandbox keys in `.env`.
+
 ## What stays in `.env` / Compose (per environment)
 
 - `TUTORIX_ENV` — `development` | `staging` | `production`
@@ -25,6 +27,7 @@ Razorpay values in this secret are the **live** keys. They are applied only when
 - `DB_HOST`, `DB_PORT`, `DB_NAME`
 - `FRONTEND_URL`, `CORS_ORIGINS`, S3 bucket + `S3_DOCUMENTS_BUCKET_REGION`, SES
 - **Staging/local only:** `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` test keys (`rzp_test_...`)
+- **Staging/local only:** Cashfree sandbox keys (`CASHFREE_*` with `CASHFREE_ENV=sandbox`)
 - **All Agora online-class keys** (`AGORA_*`, including `AGORA_RTC_WEBHOOK_SECRET`) — set on each EC2 host in `.env` and passed through `docker-compose.yml`. **Do not** add them to `tutorix/app`; the loader ignores any `AGORA_*` keys in Secrets Manager.
 - **Local only:** `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`. EC2 uses instance role `TutorixEC2Role`
 
@@ -39,7 +42,8 @@ Razorpay values in this secret are the **live** keys. They are applied only when
 3. Never overwrite `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `DB_HOST`, `DB_PORT`, `DB_NAME`.
 4. **Ignore every `AGORA_*` key** in the secret (Agora lives in server `.env` only).
 5. Apply `RAZORPAY_*` from the secret **only** when `TUTORIX_ENV=production`.
-6. Fail closed if the fetch fails or `DB_USERNAME` / `DB_PASSWORD` are missing.
+6. Apply the Cashfree live keys listed above **only** when `TUTORIX_ENV=production`.
+7. Fail closed if the fetch fails or `DB_USERNAME` / `DB_PASSWORD` are missing.
 
 ## IAM
 

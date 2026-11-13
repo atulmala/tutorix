@@ -12,6 +12,13 @@ import { CommunicationService } from '../../communication/communication.service'
 import { PaymentAttemptEntity } from '../../commerce/entities/payment-attempt.entity';
 import { PaymentAttemptStatusEnum } from '../../commerce/enums/commerce.enums';
 import { RazorpayGateway } from '../../payment/services/payment-gateways';
+import {
+  buildCashfreeRefundId,
+  CashfreeGateway,
+  CashfreeRefundStatus,
+  isCashfreeRefundId,
+} from '../../payment/services/payment-gateways';
+import { PaymentGatewayProviderEnum } from '../../payment/enums/payment.enums';
 import { WalletService } from '../../wallet/services/wallet.service';
 import { WalletTransactionEntity } from '../../wallet/entities/wallet-transaction.entity';
 import { allocateGatewayRefund } from '../class-credit-refund-allocation.util';
@@ -52,6 +59,7 @@ export class ClassCancellationRefundPayoutService {
     private readonly gatewayRefundRepo: Repository<ClassCreditGatewayRefundEntity>,
     @InjectRepository(StudentClassCreditEntity)
     private readonly creditRepo: Repository<StudentClassCreditEntity>,
+    private readonly cashfreeGateway: CashfreeGateway,
   ) {}
 
   async executeClassCancellationRefundPayout(
@@ -215,6 +223,13 @@ export class ClassCancellationRefundPayoutService {
 
     let allProcessed = true;
     for (const row of gatewayRows) {
+      if (isCashfreeRefundId(row.gatewayRefundId)) {
+        const cashfreeStatus = await this.fetchCashfreeRefundStatus(row);
+        if (cashfreeStatus !== 'processed') {
+          allProcessed = false;
+        }
+        continue;
+      }
       const status = await this.razorpayGateway.fetchRefundStatus(row.gatewayRefundId);
       if (status !== 'processed') {
         allProcessed = false;
@@ -313,8 +328,24 @@ export class ClassCancellationRefundPayoutService {
       gatewayRefundId: string;
       amountInr: number;
     }> = [];
+    const cashfreeAttemptById = new Map(
+      attempts
+        .filter((attempt) => attempt.provider === PaymentGatewayProviderEnum.cashfree)
+        .map((attempt) => [attempt.id, attempt]),
+    );
     for (const slice of slices) {
       try {
+        const cashfreeAttempt = cashfreeAttemptById.get(slice.paymentAttemptId);
+        if (cashfreeAttempt) {
+          const cashfreeRefundId = await this.cashfreeGateway.refundPayment({
+            gatewayOrderId: cashfreeAttempt.gatewayOrderId,
+            amountInr: slice.amountInr,
+            refundId: buildCashfreeRefundId(refundRequestId, cashfreeAttempt.id),
+            note: `Class cancellation refund ${refundRequestId}`,
+          });
+          completed.push({ ...slice, gatewayRefundId: cashfreeRefundId });
+          continue;
+        }
         const gatewayRefundId = await this.razorpayGateway.refundPayment(
           slice.gatewayPaymentId,
           slice.amountInr,
@@ -338,6 +369,26 @@ export class ClassCancellationRefundPayoutService {
       }
     }
     return completed;
+  }
+
+  async fetchCashfreeRefundStatus(row: {
+    paymentAttemptId: number;
+    gatewayRefundId: string;
+  }): Promise<CashfreeRefundStatus | null> {
+    const attempt = await this.paymentAttemptRepo.findOne({
+      where: { id: row.paymentAttemptId },
+    });
+    if (!attempt) {
+      return null;
+    }
+    return this.cashfreeGateway.fetchRefundStatus(attempt.gatewayOrderId, row.gatewayRefundId);
+  }
+
+  async findRefundRequestIdForGatewayRefund(gatewayRefundId: string): Promise<number | null> {
+    const row = await this.gatewayRefundRepo.findOne({
+      where: { gatewayRefundId, deleted: false },
+    });
+    return row?.refundRequestId ?? null;
   }
 
   private async emitRefundCompleted(

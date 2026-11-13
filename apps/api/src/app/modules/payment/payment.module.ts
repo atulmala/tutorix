@@ -14,6 +14,7 @@ import { CashfreeGateway, RazorpayGateway } from './services/payment-gateways';
 import { PlatformFeePaymentService } from './services/platform-fee-payment.service';
 import { PaymentResolver } from './resolvers/payment.resolver';
 import { RazorpayWebhookController } from './controllers/razorpay-webhook.controller';
+import { CashfreeWebhookController } from './controllers/cashfree-webhook.controller';
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { RazorpayWebhookController } from './controllers/razorpay-webhook.contro
     forwardRef(() => PaymentProcessingModule),
     TypeOrmModule.forFeature([PlatformFeePaymentEntity]),
   ],
-  controllers: [RazorpayWebhookController],
+  controllers: [RazorpayWebhookController, CashfreeWebhookController],
   providers: [
     NoOpPaymentGateway,
     RazorpayGateway,
@@ -32,6 +33,11 @@ import { RazorpayWebhookController } from './controllers/razorpay-webhook.contro
     PlatformFeePaymentService,
     PaymentResolver,
   ],
-  exports: [PlatformFeePaymentService, PaymentGatewayFactory, RazorpayGateway],
+  exports: [
+    PlatformFeePaymentService,
+    PaymentGatewayFactory,
+    RazorpayGateway,
+    CashfreeGateway,
+  ],
 })
 export class PaymentModule {}

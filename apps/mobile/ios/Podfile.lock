@@ -70,6 +70,15 @@ PODS:
   - AgoraRtm/RtmBasic (2.2.6)
   - AgoraRtm/RtmKit (2.2.6)
   - boost (1.84.0)
+  - CashfreeAnalyticsSDK (2.5.2):
+    - CFNetworkSDK (= 2.5.2)
+  - CashfreePG (2.5.2):
+    - CashfreePGUISDK (= 2.5.2)
+  - CashfreePGCoreSDK (2.5.2):
+    - CashfreeAnalyticsSDK (= 2.5.2)
+  - CashfreePGUISDK (2.5.2):
+    - CashfreePGCoreSDK (= 2.5.2)
+  - CFNetworkSDK (2.5.2)
   - DoubleConversion (1.1.6)
   - fast_float (6.1.4)
   - FBLazyVector (0.79.7)
@@ -1573,6 +1582,9 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - react-native-cashfree-pg-sdk (2.5.1):
+    - CashfreePG (= 2.5.2)
+    - React-Core
   - react-native-document-picker (12.0.1):
     - DoubleConversion
     - glog
@@ -2280,6 +2292,7 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - react-native-agora (from `../../../node_modules/react-native-agora`)
+  - react-native-cashfree-pg-sdk (from `../node_modules/react-native-cashfree-pg-sdk`)
   - "react-native-document-picker (from `../node_modules/@react-native-documents/picker`)"
   - react-native-image-picker (from `../node_modules/react-native-image-picker`)
   - react-native-razorpay (from `../node_modules/react-native-razorpay`)
@@ -2333,6 +2346,11 @@ SPEC REPOS:
     - AgoraIrisRTM_iOS
     - AgoraRtcEngine_iOS
     - AgoraRtm
+    - CashfreeAnalyticsSDK
+    - CashfreePG
+    - CashfreePGCoreSDK
+    - CashfreePGUISDK
+    - CFNetworkSDK
     - Firebase
     - FirebaseABTesting
     - FirebaseAnalytics
@@ -2438,6 +2456,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
   react-native-agora:
     :path: "../../../node_modules/react-native-agora"
+  react-native-cashfree-pg-sdk:
+    :path: "../node_modules/react-native-cashfree-pg-sdk"
   react-native-document-picker:
     :path: "../node_modules/@react-native-documents/picker"
   react-native-image-picker:
@@ -2537,6 +2557,11 @@ SPEC CHECKSUMS:
   AgoraRtcEngine_iOS: 2ac3c06dd68eff8e895b5529e59a10a05da63878
   AgoraRtm: bd7a04a21f8063f7105540da0243e6b0a93c116e
   boost: 7e761d76ca2ce687f7cc98e698152abd03a18f90
+  CashfreeAnalyticsSDK: d628c6cbdc73c6575a69060785e01634b70f6b48
+  CashfreePG: 55a4fd8b53d7849ba76562f0a8ddb17cc4a747e7
+  CashfreePGCoreSDK: 018e8682b1390cffd6dfecc6c7be40a6b9c8e6f8
+  CashfreePGUISDK: faac14cfd135c4cdc90ee69a0cb9061d353286d4
+  CFNetworkSDK: a22324ee71e9875f8251c08d18aebdabefef8dbd
   DoubleConversion: cb417026b2400c8f53ae97020b2be961b59470cb
   fast_float: 06eeec4fe712a76acc9376682e4808b05ce978b6
   FBLazyVector: b60fe06f0f15b7d7408f169442176e69e8eeacde
@@ -2596,6 +2621,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: b47a3289a3fe38e665347e48579f67a37be42bb3
   React-microtasksnativemodule: c1a3d5195c3985a2246f130ad3f3cad587b79b03
   react-native-agora: d7e7a3282cb5ed9d92ca6fb234babb93d80ed487
+  react-native-cashfree-pg-sdk: 8fa67448221edf89a77aaac2c24cdebc60d47048
   react-native-document-picker: cb6b9add778edf8d6ba3db436aaf69d897af266f
   react-native-image-picker: c73e6edfdbc2bbc1c12b3fe9c2149441fa08f149
   react-native-razorpay: 80ac5bad8523d7b0785cd8360a63759bdb7ef2f7

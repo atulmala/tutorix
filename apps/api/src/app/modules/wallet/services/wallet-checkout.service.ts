@@ -31,6 +31,7 @@ import { PlatformFeeConfigEntity } from '../../platform-fee/entities/platform-fe
 import { PaymentGatewayFactory } from '../../payment/services/payment-gateway.factory';
 import { PaymentGateway } from '../../payment/interfaces/payment-gateway.interface';
 import { RazorpayGateway } from '../../payment/services/payment-gateways';
+import { CashfreeGateway } from '../../payment/services/payment-gateways';
 import { PaymentOrderSessionDto } from '../../payment/dto/payment-order-session.dto';
 import { PaymentOrderSession } from '../../payment/interfaces/payment-gateway.interface';
 import {
@@ -564,6 +565,13 @@ export class WalletCheckoutService {
       fetchFromGateway?: boolean;
     },
   ): Promise<{ paymentId: string; verified: boolean }> {
+    if (gateway instanceof CashfreeGateway) {
+      const fetched = await gateway.fetchCapturedPaymentForOrder(input.orderId);
+      if (!fetched) {
+        return { paymentId: '', verified: false };
+      }
+      return { paymentId: fetched.paymentId, verified: true };
+    }
     if (input.fetchFromGateway) {
       if (!(gateway instanceof RazorpayGateway)) {
         throw new BadRequestException(

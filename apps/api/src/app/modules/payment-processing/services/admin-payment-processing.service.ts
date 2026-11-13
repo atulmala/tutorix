@@ -38,6 +38,9 @@ import { PaymentDisbursementSourceTypeEnum } from '../enums/payment-disbursement
 import { PaymentDisbursementStatusEnum } from '../enums/payment-disbursement-status.enum';
 import { PaymentDisbursementEnqueueService } from './payment-disbursement-enqueue.service';
 import { RazorpayXPayoutGateway } from './razorpayx-payout.gateway';
+import { CashfreeTutorPayoutService } from './cashfree-tutor-payout.service';
+import { isCashfreeRefundId } from '../../payment/services/payment-gateways';
+import { PaymentGatewayProviderEnum } from '../../payment/enums/payment.enums';
 import { RefundPayoutCompletionService } from './refund-payout-completion.service';
 
 function personName(user?: User | null): string {
@@ -72,6 +75,7 @@ export class AdminPaymentProcessingService {
     private readonly completionService: RefundPayoutCompletionService,
     private readonly razorpayXPayoutGateway: RazorpayXPayoutGateway,
     private readonly razorpayGateway: RazorpayGateway,
+    private readonly cashfreeTutorPayoutService: CashfreeTutorPayoutService,
   ) {}
 
   async list(input: AdminPaymentDisbursementListInput): Promise<AdminPaymentDisbursementListResult> {
@@ -153,6 +157,26 @@ export class AdminPaymentProcessingService {
       });
       const gatewayRefunds: AdminPaymentDisbursementGatewayRefund[] = [];
       for (const gatewayRow of gatewayRows) {
+        if (isCashfreeRefundId(gatewayRow.gatewayRefundId)) {
+          let cashfreeRefundStatus: string | null = null;
+          try {
+            cashfreeRefundStatus = await this.refundPayoutService.fetchCashfreeRefundStatus(
+              gatewayRow,
+            );
+          } catch {
+            cashfreeRefundStatus = null;
+          }
+          gatewayRefunds.push({
+            id: gatewayRow.id,
+            gatewayPaymentId: gatewayRow.gatewayPaymentId,
+            gatewayRefundId: gatewayRow.gatewayRefundId,
+            amountInr: gatewayRow.amountInr,
+            razorpayRefundStatus: null,
+            provider: PaymentGatewayProviderEnum.cashfree,
+            cashfreeRefundStatus,
+          });
+          continue;
+        }
         let razorpayRefundStatus: string | null = null;
         try {
           razorpayRefundStatus = await this.razorpayGateway.fetchRefundStatus(
@@ -517,6 +541,14 @@ export class AdminPaymentProcessingService {
     row.processedByUserId = adminUserId;
     await this.disbursementRepo.save(row);
 
+    if (this.cashfreeTutorPayoutService.isSelected()) {
+      await this.cashfreeTutorPayoutService.executeTransfer(row, tutor.user, bank);
+      return;
+    }
+    if (row.payoutProvider) {
+      row.payoutProvider = null;
+    }
+
     try {
       const fundAccountId = await this.razorpayXPayoutGateway.ensureFundAccountForUser(
         tutor.user,
@@ -545,6 +577,10 @@ export class AdminPaymentProcessingService {
   }
 
   private async syncTutorPayoutFromGateway(row: PaymentDisbursementEntity): Promise<void> {
+    if (this.cashfreeTutorPayoutService.isCashfreeDisbursement(row)) {
+      await this.cashfreeTutorPayoutService.sync(row);
+      return;
+    }
     if (!row.gatewayPayoutId) {
       return;
     }
@@ -634,6 +670,7 @@ export class AdminPaymentProcessingService {
       periodEndDate: row.periodEndDate ?? null,
       createdAt: row.createdDate,
       failureReason: row.failureReason ?? null,
+      payoutProvider: row.payoutProvider ?? null,
     };
   }
 }

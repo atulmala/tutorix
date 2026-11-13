@@ -276,11 +276,32 @@ export function PaymentProcessingPage() {
           {detail.failureReason ? (
             <p className="text-red-600">{detail.failureReason}</p>
           ) : null}
-          {detail.gatewayPayoutId ? (
+          {detail.gatewayPayoutId && detail.payoutProvider === 'cashfree' ? (
+            <p>Cashfree transfer: {detail.gatewayPayoutId}</p>
+          ) : detail.gatewayPayoutId ? (
             <p>RazorpayX payout: {detail.gatewayPayoutId}</p>
           ) : null}
           {detail.gatewayUtr ? <p>UTR: {detail.gatewayUtr}</p> : null}
-          {detail.gatewayRefunds?.map(
+          {detail.gatewayRefunds
+            ?.filter((refund: { provider?: string | null }) => refund.provider === 'cashfree')
+            .map(
+              (refund: {
+                id: number;
+                gatewayPaymentId: string;
+                gatewayRefundId: string;
+                amountInr: number;
+                cashfreeRefundStatus?: string | null;
+              }) => (
+                <p key={refund.id}>
+                  Cashfree refund {refund.gatewayRefundId} on payment {refund.gatewayPaymentId} ·{' '}
+                  {formatInr(refund.amountInr)}
+                  {refund.cashfreeRefundStatus ? ` · ${refund.cashfreeRefundStatus}` : ''}
+                </p>
+              ),
+            )}
+          {detail.gatewayRefunds
+            ?.filter((refund: { provider?: string | null }) => refund.provider !== 'cashfree')
+            .map(
             (refund: {
               id: number;
               gatewayPaymentId: string;

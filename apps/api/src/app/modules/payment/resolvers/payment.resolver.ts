@@ -8,6 +8,7 @@ import { PlatformFeePaymentService } from '../services/platform-fee-payment.serv
 import { ConfirmPlatformFeePaymentInput } from '../dto/confirm-platform-fee-payment.input';
 import { CheckoutResultDto } from '../../commerce/dto/checkout-result.dto';
 import { RazorpayOrderCaptureStatusDto } from '../dto/razorpay-order-capture-status.dto';
+import { CashfreeOrderCaptureStatusDto } from '../dto/cashfree-order-capture-status.dto';
 
 @Resolver()
 export class PaymentResolver {
@@ -25,6 +26,21 @@ export class PaymentResolver {
     @Args('orderId') orderId: string,
   ): Promise<RazorpayOrderCaptureStatusDto> {
     return this.platformFeePaymentService.getRazorpayOrderCaptureStatus(
+      orderId,
+      user,
+    );
+  }
+
+  @Query(() => CashfreeOrderCaptureStatusDto, {
+    description:
+      'Read-only check whether a Cashfree order has a successful payment (mobile checkout fallback)',
+  })
+  @UseGuards(JwtAuthGuard)
+  async cashfreeOrderCaptureStatus(
+    @CurrentUser() user: User,
+    @Args('orderId') orderId: string,
+  ): Promise<CashfreeOrderCaptureStatusDto> {
+    return this.platformFeePaymentService.getCashfreeOrderCaptureStatus(
       orderId,
       user,
     );

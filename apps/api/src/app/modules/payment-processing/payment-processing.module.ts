@@ -18,6 +18,8 @@ import { AdminPaymentProcessingService } from './services/admin-payment-processi
 import { PaymentDisbursementEnqueueService } from './services/payment-disbursement-enqueue.service';
 import { RazorpayXPayoutGateway } from './services/razorpayx-payout.gateway';
 import { RefundPayoutCompletionService } from './services/refund-payout-completion.service';
+import { CashfreePayoutGateway } from './services/cashfree-payout.gateway';
+import { CashfreeTutorPayoutService } from './services/cashfree-tutor-payout.service';
 
 @Module({
   imports: [
@@ -39,6 +41,8 @@ import { RefundPayoutCompletionService } from './services/refund-payout-completi
     PaymentDisbursementEnqueueService,
     RefundPayoutCompletionService,
     RazorpayXPayoutGateway,
+    CashfreePayoutGateway,
+    CashfreeTutorPayoutService,
     AdminPaymentProcessingService,
   ],
   exports: [
@@ -46,6 +50,8 @@ import { RefundPayoutCompletionService } from './services/refund-payout-completi
     RefundPayoutCompletionService,
     AdminPaymentProcessingService,
     RazorpayXPayoutGateway,
+    CashfreePayoutGateway,
+    CashfreeTutorPayoutService,
   ],
 })
 export class PaymentProcessingModule {}

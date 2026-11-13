@@ -46,6 +46,12 @@ export class AdminPaymentDisbursementListItem {
 
   @Field(() => String, { nullable: true })
   failureReason?: string | null;
+
+  @Field(() => String, {
+    nullable: true,
+    description: 'Payout provider for tutor payouts; null means RazorpayX',
+  })
+  payoutProvider?: string | null;
 }
 
 @ObjectType()
@@ -79,6 +85,12 @@ export class AdminPaymentDisbursementGatewayRefund {
 
   @Field(() => String, { nullable: true })
   razorpayRefundStatus?: string | null;
+
+  @Field(() => String, { nullable: true })
+  provider?: string | null;
+
+  @Field(() => String, { nullable: true })
+  cashfreeRefundStatus?: string | null;
 }
 
 @ObjectType()

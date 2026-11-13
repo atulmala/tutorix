@@ -107,4 +107,9 @@ export class PaymentDisbursementEntity extends QBaseEntity {
   @Field(() => String, { nullable: true })
   @Column({ name: 'gateway_utr', type: 'varchar', nullable: true })
   gatewayUtr?: string | null;
+
+  /** Null means RazorpayX (all payouts created before Cashfree). */
+  @Field(() => String, { nullable: true })
+  @Column({ name: 'payout_provider', type: 'varchar', length: 32, nullable: true })
+  payoutProvider?: string | null;
 }
