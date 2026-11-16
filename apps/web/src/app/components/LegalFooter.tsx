@@ -20,6 +20,14 @@ export const LegalFooter: React.FC<LegalFooterProps> = ({
         Terms of Service
       </a>
       {signupPrefix ? '.' : null}
+      <br />
+      <a href="/refunds" className="font-semibold text-[#1d4ed8] hover:underline">
+        Refunds &amp; Cancellations
+      </a>
+      {' · '}
+      <a href="/contact" className="font-semibold text-[#1d4ed8] hover:underline">
+        Contact Us
+      </a>
     </p>
   );
 };

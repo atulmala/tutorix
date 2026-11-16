@@ -32,7 +32,9 @@ react {
 
     /* Bundling */
     //   A list containing the node command and its flags. Default is just 'node'.
-    // nodeExecutableAndArgs = ["node"]
+    //   Only release variants are bundled, and they must inline .env.store
+    //   (production URLs) even when built with plain `./gradlew bundleRelease`.
+    nodeExecutableAndArgs = ["env", "TUTORIX_STORE_BUILD=1", "node"]
     //
     //   The command to run when bundling. By default is 'bundle'
     // bundleCommand = "ram-bundle"
@@ -65,7 +67,7 @@ react {
 /**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -124,6 +126,26 @@ android {
             def uploadStorePassword = tutorixProp('TUTORIX_UPLOAD_STORE_PASSWORD')
             def uploadKeyAlias = tutorixProp('TUTORIX_UPLOAD_KEY_ALIAS')
             def uploadKeyPassword = tutorixProp('TUTORIX_UPLOAD_KEY_PASSWORD')
+            def releaseRequested = gradle.startParameter.taskNames.any {
+                it.toLowerCase().contains('release')
+            }
+            if (releaseRequested) {
+                def missing = [
+                    TUTORIX_UPLOAD_STORE_FILE: uploadStoreFile,
+                    TUTORIX_UPLOAD_STORE_PASSWORD: uploadStorePassword,
+                    TUTORIX_UPLOAD_KEY_ALIAS: uploadKeyAlias,
+                    TUTORIX_UPLOAD_KEY_PASSWORD: uploadKeyPassword,
+                ].findAll { !it.value }.keySet()
+                if (!missing.isEmpty()) {
+                    throw new GradleException(
+                        "Release signing is not configured. Set ${missing.join(', ')} " +
+                        "in the environment, android/local.properties, or gradle.properties.")
+                }
+                if (!file(uploadStoreFile).exists()) {
+                    throw new GradleException(
+                        "Release keystore not found at ${file(uploadStoreFile)} (TUTORIX_UPLOAD_STORE_FILE).")
+                }
+            }
             if (uploadStoreFile && uploadStorePassword && uploadKeyAlias && uploadKeyPassword) {
                 storeFile file(uploadStoreFile)
                 storePassword uploadStorePassword
@@ -139,6 +161,7 @@ android {
         release {
             signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }

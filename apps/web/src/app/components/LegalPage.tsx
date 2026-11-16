@@ -123,9 +123,18 @@ function TermsBody() {
       </p>
       <h2 className="text-base font-semibold">Payments</h2>
       <p className="text-muted">
-        Registration fees and wallet top-ups are processed by Razorpay (UPI,
-        cards, and netbanking). Wallet balances are for Tutorix platform fees and
+        Registration fees, class bookings, and wallet top-ups are priced in
+        Indian Rupees (INR) and processed by Razorpay or Cashfree (UPI, cards,
+        and netbanking). Wallet balances are for Tutorix platform fees and
         related tutoring services.
+      </p>
+      <h2 className="text-base font-semibold">Cancellations and refunds</h2>
+      <p className="text-muted">
+        Class cancellations and refunds follow our{' '}
+        <a className="text-[#1d4ed8] hover:underline" href="/refunds">
+          Refunds &amp; Cancellations
+        </a>{' '}
+        policy.
       </p>
       <h2 className="text-base font-semibold">Contact</h2>
       <p className="text-muted">

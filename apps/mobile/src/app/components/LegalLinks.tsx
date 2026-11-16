@@ -1,33 +1,40 @@
 import React from 'react';
 import { Linking, StyleSheet, Text } from 'react-native';
-import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../config';
+import {
+  CONTACT_US_URL,
+  PRIVACY_POLICY_URL,
+  REFUND_POLICY_URL,
+  TERMS_OF_SERVICE_URL,
+} from '../config';
 
 type LegalLinksProps = {
   prefix?: boolean;
 };
 
+const LegalLink: React.FC<{ url: string; label: string }> = ({ url, label }) => (
+  <Text
+    style={styles.link}
+    accessibilityRole="link"
+    onPress={() => {
+      void Linking.openURL(url);
+    }}
+  >
+    {label}
+  </Text>
+);
+
 export const LegalLinks: React.FC<LegalLinksProps> = ({ prefix = false }) => {
   return (
     <Text style={styles.text}>
       {prefix ? 'By continuing you agree to our ' : null}
-      <Text
-        style={styles.link}
-        onPress={() => {
-          void Linking.openURL(PRIVACY_POLICY_URL);
-        }}
-      >
-        Privacy Policy
-      </Text>
+      <LegalLink url={PRIVACY_POLICY_URL} label="Privacy Policy" />
       {' and '}
-      <Text
-        style={styles.link}
-        onPress={() => {
-          void Linking.openURL(TERMS_OF_SERVICE_URL);
-        }}
-      >
-        Terms of Service
-      </Text>
+      <LegalLink url={TERMS_OF_SERVICE_URL} label="Terms of Service" />
       {prefix ? '.' : null}
+      {'\n'}
+      <LegalLink url={REFUND_POLICY_URL} label="Refunds & Cancellations" />
+      {' · '}
+      <LegalLink url={CONTACT_US_URL} label="Contact Us" />
     </Text>
   );
 };

@@ -63,6 +63,34 @@ module.exports = function (api) {
     };
   };
 
+  // Release bundles drop console.log/info/debug; console.warn/error stay for Crashlytics context.
+  const removeDebugConsolePlugin = function ({ types: t }) {
+    const stripped = new Set(['log', 'info', 'debug']);
+    return {
+      visitor: {
+        CallExpression(path) {
+          const callee = path.node.callee;
+          if (
+            callee.type !== 'MemberExpression' ||
+            callee.computed ||
+            callee.object.type !== 'Identifier' ||
+            callee.object.name !== 'console' ||
+            callee.property.type !== 'Identifier' ||
+            !stripped.has(callee.property.name)
+          ) {
+            return;
+          }
+          if (path.parentPath.isExpressionStatement()) {
+            path.parentPath.remove();
+          } else {
+            path.replaceWith(t.identifier('undefined'));
+          }
+        },
+      },
+    };
+  };
+  const isProduction = api.env('production');
+
   if (
     process.env.NX_TASK_TARGET_TARGET === 'build' ||
     process.env.NX_TASK_TARGET_TARGET?.includes('storybook')
@@ -83,6 +111,8 @@ module.exports = function (api) {
     presets: [
       ['module:@react-native/babel-preset', { useTransformReactJSX: true }],
     ],
-    plugins: [inlineEnvPlugin],
+    plugins: isProduction
+      ? [inlineEnvPlugin, removeDebugConsolePlugin]
+      : [inlineEnvPlugin],
   };
 };

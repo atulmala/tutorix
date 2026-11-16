@@ -75,7 +75,6 @@ export function getMobileGraphQLEndpoint(): string {
  * Uses process.env for environment variables (React Native)
  */
 export function createApolloClient() {
-  console.log('[Apollo Client - Mobile] Creating Apollo Client instance...');
   const endpoint = getMobileGraphQLEndpoint();
   const httpLink = createHttpLinkForClient(endpoint);
   const authLink = createAuthLink();
@@ -108,8 +107,7 @@ export function createApolloClient() {
     // DevTools will auto-connect in development mode (when __DEV__ is true)
     // Removing the option to avoid deprecation warnings
   });
-  
-  console.log('[Apollo Client - Mobile] Apollo Client created successfully');
+
   return client;
 }
 

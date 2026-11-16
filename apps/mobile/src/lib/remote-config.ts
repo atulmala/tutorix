@@ -1,12 +1,13 @@
 import remoteConfig from '@react-native-firebase/remote-config';
 import {
   ANDROID_PLAY_STORE_URL,
+  APP_VERSION,
   IOS_APP_STORE_URL,
 } from '../app/config';
 
 export const REMOTE_CONFIG_DEFAULTS = {
   min_supported_version: '1.0.0',
-  latest_version: '1.0.0',
+  latest_version: APP_VERSION,
   ios_store_url: IOS_APP_STORE_URL,
   android_store_url: ANDROID_PLAY_STORE_URL,
   force_update_message:

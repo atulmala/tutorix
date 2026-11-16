@@ -1,6 +1,7 @@
 import {
   PRODUCTION_MOBILE_GRAPHQL_ENDPOINT,
   isInsecureMobileGraphQLEndpoint,
+  isProductionMobileUrl,
   resolveMobileGraphQLEndpoint,
 } from './endpoint';
 
@@ -55,7 +56,18 @@ describe('resolveMobileGraphQLEndpoint', () => {
     ).toBe(PRODUCTION_MOBILE_GRAPHQL_ENDPOINT);
   });
 
-  it('keeps an explicit HTTPS env in release', () => {
+  it('keeps a production HTTPS env in release', () => {
+    expect(
+      resolveMobileGraphQLEndpoint({
+        isDev: false,
+        env: {
+          NX_GRAPHQL_ENDPOINT: 'https://tutorix.tech/api/graphql',
+        },
+      }),
+    ).toBe('https://tutorix.tech/api/graphql');
+  });
+
+  it('rejects a non-production HTTPS env in release', () => {
     expect(
       resolveMobileGraphQLEndpoint({
         isDev: false,
@@ -63,6 +75,33 @@ describe('resolveMobileGraphQLEndpoint', () => {
           NX_GRAPHQL_ENDPOINT: 'https://dev.tutorix.tech/api/graphql',
         },
       }),
+    ).toBe(PRODUCTION_MOBILE_GRAPHQL_ENDPOINT);
+  });
+
+  it('keeps a staging HTTPS env in __DEV__', () => {
+    expect(
+      resolveMobileGraphQLEndpoint({
+        isDev: true,
+        env: {
+          NX_GRAPHQL_ENDPOINT: 'https://dev.tutorix.tech/api/graphql',
+        },
+      }),
     ).toBe('https://dev.tutorix.tech/api/graphql');
+  });
+});
+
+describe('isProductionMobileUrl', () => {
+  it('accepts production hosts over https', () => {
+    expect(isProductionMobileUrl('https://www.tutorix.tech')).toBe(true);
+    expect(isProductionMobileUrl('https://TUTORIX.tech/privacy')).toBe(true);
+  });
+
+  it('rejects other hosts, http, and invalid values', () => {
+    expect(isProductionMobileUrl('https://dev.tutorix.tech')).toBe(false);
+    expect(isProductionMobileUrl('http://www.tutorix.tech')).toBe(false);
+    expect(isProductionMobileUrl('https://www.tutorix.tech.evil.com')).toBe(
+      false,
+    );
+    expect(isProductionMobileUrl('not a url')).toBe(false);
   });
 });

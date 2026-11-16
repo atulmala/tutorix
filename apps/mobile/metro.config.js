@@ -55,7 +55,8 @@ const workspaceNativeDeps = {
  * @type {import('metro-config').MetroConfig}
  */
 const customConfig = {
-  cacheVersion: 'mobile-agora-commonjs-native-check-v2',
+  // Env values are inlined by Babel, so store and dev transforms must not share cache entries.
+  cacheVersion: `mobile-agora-commonjs-native-check-v2${storeBuild ? '-store' : ''}`,
   transformer: {
     babelTransformerPath: require.resolve('react-native-svg-transformer'),
   },
@@ -78,6 +79,7 @@ const customConfig = {
       '@apollo/client': path.resolve(__dirname, 'node_modules/@apollo/client'),
       '@react-native-async-storage/async-storage': path.resolve(__dirname, 'node_modules/@react-native-async-storage/async-storage'),
       'react-native-razorpay': path.resolve(__dirname, 'node_modules/react-native-razorpay'),
+      'react-native-keychain': path.resolve(__dirname, 'node_modules/react-native-keychain'),
       ...workspaceNativeDeps,
     },
     nodeModulesPaths: [
