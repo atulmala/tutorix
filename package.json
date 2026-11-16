@@ -16,6 +16,7 @@
     "mobile:android:run": "nx run-android mobile",
     "mobile:store:android": "bash scripts/mobile-store-build.sh android",
     "mobile:store:ios": "bash scripts/mobile-store-build.sh ios",
+    "mobile:version:bump": "node scripts/mobile-bump-version.mjs",
     "build:api": "nx build api",
     "build:web": "nx build web",
     "build:admin": "nx build web-admin",

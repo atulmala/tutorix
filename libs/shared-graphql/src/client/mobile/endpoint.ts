@@ -1,13 +1,30 @@
 /**
  * GraphQL endpoint for the React Native app.
  *
- * Dev (`__DEV__`) may use localhost / LAN. Store/release builds never do:
- * a missing or loopback env value falls back to production HTTPS so a local
- * `.env` cannot ship into Play / App Store binaries.
+ * Dev (`__DEV__`) may use localhost / LAN. Store/release builds only talk to
+ * production hosts: any other env value falls back to production HTTPS so a
+ * local or staging `.env` cannot ship into Play / App Store binaries.
  */
 
 export const PRODUCTION_MOBILE_GRAPHQL_ENDPOINT =
   'https://www.tutorix.tech/api/graphql';
+
+export const PRODUCTION_MOBILE_HOSTS: readonly string[] = [
+  'www.tutorix.tech',
+  'tutorix.tech',
+];
+
+export function isProductionMobileUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === 'https:' &&
+      PRODUCTION_MOBILE_HOSTS.includes(url.hostname.toLowerCase())
+    );
+  } catch {
+    return false;
+  }
+}
 
 const DEV_DEFAULT_ENDPOINT = 'http://localhost:3000/api/graphql';
 
@@ -47,7 +64,7 @@ export function resolveMobileGraphQLEndpoint(options: {
     return fromEnv || DEV_DEFAULT_ENDPOINT;
   }
 
-  if (fromEnv && !isInsecureMobileGraphQLEndpoint(fromEnv)) {
+  if (fromEnv && isProductionMobileUrl(fromEnv)) {
     return fromEnv;
   }
 
@@ -64,7 +81,7 @@ function isDevRuntime(): boolean {
  * - GRAPHQL_ENDPOINT
  * - VITE_GRAPHQL_ENDPOINT (root `.env`; copied onto NX_ at Metro load)
  *
- * Release/store: HTTPS only. Use `TUTORIX_STORE_BUILD=1` (see
+ * Release/store: production HTTPS hosts only. Use `TUTORIX_STORE_BUILD=1` (see
  * `apps/mobile/.env.store` and `npm run mobile:store:android` /
  * `mobile:store:ios`) so Babel inlines production URLs.
  */

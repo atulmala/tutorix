@@ -25,5 +25,5 @@ if [[ "$PLATFORM" == "android" ]]; then
 else
   cd apps/mobile
   npx react-native build-ios --mode Release
-  echo "For App Store upload, archive in Xcode with TUTORIX_STORE_BUILD=1 in the scheme environment, or run this script first so the Release bundle is production."
+  echo "For App Store upload, archive in Xcode (Product > Archive). Release bundles always use apps/mobile/.env.store."
 fi

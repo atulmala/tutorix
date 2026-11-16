@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  React Native loads bundled JS images and raw assets by resource name at
+  runtime, so resource shrinking cannot see those references.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/*,@raw/*" />
