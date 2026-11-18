@@ -1,5 +1,6 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 import { QBaseEntity } from '../../../common/base-entities/base.entity';
+import { PaymentDisbursementEntity } from '../../payment-processing/entities/payment-disbursement.entity';
 import { OrderEntity } from '../../commerce/entities/order.entity';
 import { OrderItemEntity } from '../../commerce/entities/order-item.entity';
 import { Student } from '../../student/entities/student.entity';
@@ -81,4 +82,15 @@ export class StudentClassCreditEntity extends QBaseEntity {
   })
   @JoinColumn({ name: 'enrollment_id' })
   enrollment?: TutorClassSessionEnrollmentEntity | null;
+
+  @Column({ name: 'tutor_payout_disbursement_id', type: 'integer', nullable: true })
+  @Index()
+  tutorPayoutDisbursementId?: number | null;
+
+  @ManyToOne(() => PaymentDisbursementEntity, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'tutor_payout_disbursement_id' })
+  tutorPayoutDisbursement?: PaymentDisbursementEntity | null;
 }

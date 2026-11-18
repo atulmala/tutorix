@@ -1,5 +1,5 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
-import { IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 
 @InputType()
 export class AdminTutorPayoutCalculationInput {
@@ -30,4 +30,14 @@ export class AdminTutorPayoutCalculationInput {
   @Min(1)
   @Max(100)
   pageSize?: number;
+
+  @Field(() => Boolean, {
+    nullable: true,
+    defaultValue: false,
+    description:
+      'When true, exclude classes already linked to a payout or with an active post-class dispute',
+  })
+  @IsOptional()
+  @IsBoolean()
+  settlementMode?: boolean;
 }

@@ -57,6 +57,10 @@ import { AdminCreatePaymentGatewayFeeInput } from '../payment-gateway-fee/dto/ad
 import { AdminPaymentGatewayFeeConfigResult } from '../payment-gateway-fee/dto/admin-payment-gateway-fee-config.dto';
 import { AdminUpdatePaymentGatewayFeeInput } from '../payment-gateway-fee/dto/admin-update-payment-gateway-fee.input';
 import { AdminUpdatePaymentGatewayFeeSettingsInput } from '../payment-gateway-fee/dto/admin-update-payment-gateway-fee-settings.input';
+import {
+  AdminTutorPayoutSettingsResult,
+  AdminUpdateTutorPayoutSettingsInput,
+} from '../payment-gateway-fee/dto/admin-tutor-payout-settings.dto';
 import { PaymentGatewayFeeConfigEntity } from '../payment-gateway-fee/entities/payment-gateway-fee-config.entity';
 import { PaymentGatewayFeeService } from '../payment-gateway-fee/services/payment-gateway-fee.service';
 
@@ -387,6 +391,16 @@ export class AdminService {
     input: AdminUpdatePaymentGatewayFeeSettingsInput,
   ): Promise<AdminPaymentGatewayFeeConfigResult> {
     return this.paymentGatewayFeeService.updateSettings(input);
+  }
+
+  async getTutorPayoutSettings(): Promise<AdminTutorPayoutSettingsResult> {
+    return this.paymentGatewayFeeService.getTutorPayoutSettings();
+  }
+
+  async updateTutorPayoutSettings(
+    input: AdminUpdateTutorPayoutSettingsInput,
+  ): Promise<AdminTutorPayoutSettingsResult> {
+    return this.paymentGatewayFeeService.updateTutorPayoutSettings(input);
   }
 
   async updatePaymentGatewayFee(

@@ -8,9 +8,11 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import {
   MyTutorEarningsSummary,
+  MyTutorMonthlyEarnings,
   MyTutorPayoutPeriodDetail,
   TutorPayoutTransfer,
 } from '../dto/tutor/tutor-earnings.dto';
+import { TutorPayoutMonthInput } from '../dto/tutor/tutor-payout-month.input';
 import { TutorPayoutPeriodInput } from '../dto/tutor/tutor-payout-period.input';
 import { TutorEarningsService } from '../services/tutor-earnings.service';
 
@@ -20,12 +22,25 @@ export class TutorEarningsResolver {
 
   @Query(() => MyTutorEarningsSummary, {
     name: 'myTutorEarningsSummary',
-    description: 'Estimated tutor earnings for the next payout period and hold window',
+    description: 'Tutor earnings summary for the current IST calendar month',
   })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TUTOR)
   async myTutorEarningsSummary(@CurrentUser() user: User): Promise<MyTutorEarningsSummary> {
     return this.tutorEarningsService.getSummaryForUser(user);
+  }
+
+  @Query(() => MyTutorMonthlyEarnings, {
+    name: 'myTutorMonthlyEarnings',
+    description: 'Monthly tutor earnings buckets (payable, dispute window, carry-forward)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TUTOR)
+  async myTutorMonthlyEarnings(
+    @CurrentUser() user: User,
+    @Args('input') input: TutorPayoutMonthInput,
+  ): Promise<MyTutorMonthlyEarnings> {
+    return this.tutorEarningsService.getMonthlyEarningsForUser(user, input);
   }
 
   @Query(() => MyTutorPayoutPeriodDetail, {
@@ -43,7 +58,7 @@ export class TutorEarningsResolver {
 
   @Query(() => [TutorPayoutTransfer], {
     name: 'myTutorPayoutTransfers',
-    description: 'Bank transfers already paid to the tutor (empty until payout records exist)',
+    description: 'Bank transfers already paid to the tutor',
   })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TUTOR)

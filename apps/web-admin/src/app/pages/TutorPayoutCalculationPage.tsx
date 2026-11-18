@@ -1,10 +1,16 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery } from '@apollo/client';
-import { defaultTutorPayoutPeriodIstDates } from '@tutorix/shared-utils';
+import {
+  defaultSettlementMonthPeriod,
+  formatIstMonthLabel,
+  istMonthBounds,
+} from '@tutorix/shared-utils';
 import {
   ADMIN_SUBMIT_TUTOR_PAYOUT_DISBURSEMENTS,
+  ADMIN_UPDATE_TUTOR_PAYOUT_SETTINGS,
   GET_ADMIN_TUTOR_PAYOUT_CALCULATION,
+  GET_ADMIN_TUTOR_PAYOUT_SETTINGS,
 } from '@tutorix/shared-graphql';
 
 const PAGE_SIZE = 20;
@@ -52,10 +58,16 @@ function formatInr(amount: number): string {
 
 const TABLE_COL_COUNT = 14;
 
+function monthInputValue(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
 export function TutorPayoutCalculationPage() {
-  const defaultPeriod = useMemo(() => defaultTutorPayoutPeriodIstDates(), []);
+  const defaultPeriod = useMemo(() => defaultSettlementMonthPeriod(), []);
+  const [monthDraft, setMonthDraft] = useState(monthInputValue(defaultPeriod.year, defaultPeriod.month));
   const [startDateDraft, setStartDateDraft] = useState(defaultPeriod.startDate);
   const [endDateDraft, setEndDateDraft] = useState(defaultPeriod.endDate);
+  const [settlementDayDraft, setSettlementDayDraft] = useState('3');
   const [tutorSearchDraft, setTutorSearchDraft] = useState('');
   const [applied, setApplied] = useState({
     startDate: defaultPeriod.startDate,
@@ -72,9 +84,22 @@ export function TutorPayoutCalculationPage() {
       tutorSearch: applied.tutorSearch.trim() || undefined,
       page,
       pageSize: PAGE_SIZE,
+      settlementMode: true,
     }),
     [applied, page],
   );
+
+  const { data: settingsData, refetch: refetchSettings } = useQuery(
+    GET_ADMIN_TUTOR_PAYOUT_SETTINGS,
+    { fetchPolicy: 'cache-and-network' },
+  );
+
+  useEffect(() => {
+    const day = settingsData?.adminTutorPayoutSettings?.tutorPayoutSettlementDayOfMonth;
+    if (day != null) {
+      setSettlementDayDraft(String(day));
+    }
+  }, [settingsData?.adminTutorPayoutSettings?.tutorPayoutSettlementDayOfMonth]);
 
   const { data, loading, error, refetch } = useQuery<PayoutData>(
     GET_ADMIN_TUTOR_PAYOUT_CALCULATION,
@@ -89,6 +114,22 @@ export function TutorPayoutCalculationPage() {
   const [submitForPayment, { loading: submitting }] = useMutation(
     ADMIN_SUBMIT_TUTOR_PAYOUT_DISBURSEMENTS,
   );
+  const [updateSettlementDay, { loading: savingSettings }] = useMutation(
+    ADMIN_UPDATE_TUTOR_PAYOUT_SETTINGS,
+  );
+
+  function applyMonthPicker() {
+    const m = /^(\d{4})-(\d{2})$/.exec(monthDraft);
+    if (!m) {
+      return;
+    }
+    const bounds = istMonthBounds(Number(m[1]), Number(m[2]));
+    if (!bounds) {
+      return;
+    }
+    setStartDateDraft(bounds.startDate);
+    setEndDateDraft(bounds.endDate);
+  }
 
   function applyFilters() {
     setApplied({
@@ -100,7 +141,8 @@ export function TutorPayoutCalculationPage() {
   }
 
   function resetToDefaultPeriod() {
-    const period = defaultTutorPayoutPeriodIstDates();
+    const period = defaultSettlementMonthPeriod();
+    setMonthDraft(monthInputValue(period.year, period.month));
     setStartDateDraft(period.startDate);
     setEndDateDraft(period.endDate);
     setApplied((prev) => ({
@@ -109,6 +151,17 @@ export function TutorPayoutCalculationPage() {
       endDate: period.endDate,
     }));
     setPage(1);
+  }
+
+  async function saveSettlementDay() {
+    const day = Number(settlementDayDraft);
+    if (!Number.isFinite(day)) {
+      return;
+    }
+    await updateSettlementDay({
+      variables: { input: { tutorPayoutSettlementDayOfMonth: day } },
+    });
+    await refetchSettings();
   }
 
   async function submitTutorPayments() {
@@ -139,9 +192,8 @@ export function TutorPayoutCalculationPage() {
       <div>
         <h1 className="text-2xl font-semibold text-primary">Tutor payout calculation</h1>
         <p className="mt-1 text-sm text-muted">
-          Concluded classes are counted by IST session end time. Default range uses a one-week
-          lag (through {defaultPeriod.endDate} when opened today). Submit queues one bank payout
-          per tutor in{' '}
+          Monthly settlement: undisputed classes concluded through the selected month (IST). Submit
+          creates ready disbursements for manual bank transfer in{' '}
           <Link to="/payment-processing" className="text-primary underline">
             Payment processing
           </Link>
@@ -153,6 +205,24 @@ export function TutorPayoutCalculationPage() {
 
       <div className="space-y-4 rounded-xl border border-subtle bg-white p-4">
         <div className="flex flex-wrap items-end gap-4">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-primary">Payout month (IST)</span>
+            <input
+              type="month"
+              className="rounded-md border border-subtle px-3 py-2"
+              value={monthDraft}
+              onChange={(e) => setMonthDraft(e.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className="rounded-md border border-subtle px-4 py-2 text-sm font-medium text-primary"
+            onClick={() => {
+              applyMonthPicker();
+            }}
+          >
+            Use month
+          </button>
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium text-primary">From (IST)</span>
             <input
@@ -193,7 +263,7 @@ export function TutorPayoutCalculationPage() {
             className="rounded-md border border-subtle px-4 py-2 text-sm font-medium text-primary"
             onClick={resetToDefaultPeriod}
           >
-            Default week
+            Previous month
           </button>
           <button
             type="button"
@@ -203,6 +273,32 @@ export function TutorPayoutCalculationPage() {
           >
             {submitting ? 'Submitting…' : 'Submit for payment'}
           </button>
+        </div>
+        <div className="flex flex-wrap items-end gap-4 border-t border-subtle pt-4">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-primary">Settlement day of month (tutor messaging)</span>
+            <input
+              type="number"
+              min={3}
+              max={28}
+              className="w-24 rounded-md border border-subtle px-3 py-2"
+              value={settlementDayDraft}
+              onChange={(e) => setSettlementDayDraft(e.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={savingSettings}
+            className="rounded-md border border-subtle px-4 py-2 text-sm font-medium text-primary disabled:opacity-50"
+            onClick={() => void saveSettlementDay()}
+          >
+            {savingSettings ? 'Saving…' : 'Save settlement day'}
+          </button>
+          <p className="text-xs text-muted">
+            Changes apply from the next calendar month. Tutors see: payout for{' '}
+            {formatIstMonthLabel(defaultPeriod.year, defaultPeriod.month) ?? 'month'} on day{' '}
+            {settlementDayDraft} of the following month.
+          </p>
         </div>
       </div>
 

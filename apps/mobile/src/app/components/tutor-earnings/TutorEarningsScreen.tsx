@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,17 +11,16 @@ import {
 import { useQuery } from '@apollo/client';
 import {
   MY_TUTOR_EARNINGS_SUMMARY,
+  MY_TUTOR_MONTHLY_EARNINGS,
   MY_TUTOR_PAYOUT_PERIOD_DETAIL,
   MY_TUTOR_PAYOUT_TRANSFERS,
 } from '@tutorix/shared-graphql/queries';
-import { formatInr, formatIstDateRangeLabel } from '@tutorix/shared-utils';
-
-type PeriodTotals = {
-  startDate: string;
-  endDate: string;
-  concludedClassCount: number;
-  totalNetPayoutInr: number;
-};
+import {
+  formatInr,
+  formatIstMonthLabel,
+  istCurrentYearMonth,
+  istMonthBounds,
+} from '@tutorix/shared-utils';
 
 type TutorPayoutLineItem = {
   orderItemId: number;
@@ -59,23 +59,133 @@ type TutorEarningsScreenProps = {
   onAddBankDetails?: () => void;
 };
 
-type EarningsTab = 'upcoming' | 'paid';
+type EarningsTab = 'monthly' | 'paid';
 
-function periodLabel(period: PeriodTotals | null | undefined): string {
-  if (!period) {
-    return '';
+function monthValue(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+function parseMonthValue(value: string): { year: number; month: number } | null {
+  const m = /^(\d{4})-(\d{2})$/.exec(value.trim());
+  if (!m) {
+    return null;
   }
-  return formatIstDateRangeLabel(period.startDate, period.endDate) ?? `${period.startDate} – ${period.endDate}`;
+  return { year: Number(m[1]), month: Number(m[2]) };
+}
+
+const EARLIEST_PAYOUT_MONTH_YEAR = 2020;
+
+function buildMonthOptions(): { value: string; label: string }[] {
+  const { year: endYear, month: endMonth } = istCurrentYearMonth();
+  const options: { value: string; label: string }[] = [];
+  let year = endYear;
+  let month = endMonth;
+  while (year > EARLIEST_PAYOUT_MONTH_YEAR || (year === EARLIEST_PAYOUT_MONTH_YEAR && month >= 1)) {
+    const value = monthValue(year, month);
+    options.push({
+      value,
+      label: formatIstMonthLabel(year, month) ?? value,
+    });
+    month -= 1;
+    if (month < 1) {
+      year -= 1;
+      month = 12;
+    }
+    if (year < EARLIEST_PAYOUT_MONTH_YEAR) {
+      break;
+    }
+  }
+  return options;
+}
+
+function MonthDropdown({
+  value,
+  onSelect,
+}: {
+  value: string;
+  onSelect: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const options = useMemo(() => buildMonthOptions(), []);
+  const parsed = parseMonthValue(value);
+  const selectedLabel =
+    options.find((option) => option.value === value)?.label ??
+    (parsed ? formatIstMonthLabel(parsed.year, parsed.month) : null) ??
+    value;
+
+  return (
+    <View>
+      <Text style={styles.filterLabel}>Month (IST)</Text>
+      <Pressable
+        onPress={() => setOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Select month"
+        style={styles.dropdown}
+      >
+        <Text style={styles.dropdownText} numberOfLines={1}>
+          {selectedLabel}
+        </Text>
+        <Text style={styles.chevron}>▾</Text>
+      </Pressable>
+      {open ? (
+        <Modal transparent animationType="fade" visible onRequestClose={() => setOpen(false)}>
+          <View style={styles.pickerOverlay}>
+            <View style={styles.pickerCard}>
+              <Text style={styles.pickerTitle}>Select month</Text>
+              <ScrollView style={styles.pickerScroll}>
+                {options.map((option) => (
+                  <Pressable
+                    key={option.value}
+                    onPress={() => {
+                      onSelect(option.value);
+                      setOpen(false);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: option.value === value }}
+                    accessibilityLabel={option.label}
+                    style={styles.pickerOption}
+                  >
+                    <Text
+                      style={[
+                        styles.pickerOptionText,
+                        option.value === value ? styles.pickerOptionTextSelected : null,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <Pressable
+                onPress={() => setOpen(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close month picker"
+                style={styles.pickerCancel}
+              >
+                <Text style={styles.pickerCancelText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      ) : null}
+    </View>
+  );
 }
 
 export function TutorEarningsScreen({ onAddBankDetails }: TutorEarningsScreenProps) {
-  const [tab, setTab] = useState<EarningsTab>('upcoming');
-  const [detailPeriod, setDetailPeriod] = useState<{ startDate: string; endDate: string } | null>(
-    null,
-  );
+  const defaultMonth = istCurrentYearMonth();
+  const [tab, setTab] = useState<EarningsTab>('monthly');
+  const [monthDraft, setMonthDraft] = useState(monthValue(defaultMonth.year, defaultMonth.month));
+
+  const parsed = parseMonthValue(monthDraft) ?? defaultMonth;
 
   const { data: summaryData, loading: summaryLoading } = useQuery(MY_TUTOR_EARNINGS_SUMMARY, {
     fetchPolicy: 'cache-and-network',
+  });
+  const { data: monthlyData, loading: monthlyLoading } = useQuery(MY_TUTOR_MONTHLY_EARNINGS, {
+    variables: { input: { year: parsed.year, month: parsed.month } },
+    fetchPolicy: 'cache-and-network',
+    skip: tab !== 'monthly',
   });
   const { data: transfersData, loading: transfersLoading } = useQuery<MyTutorPayoutTransfersData>(
     MY_TUTOR_PAYOUT_TRANSFERS,
@@ -86,20 +196,19 @@ export function TutorEarningsScreen({ onAddBankDetails }: TutorEarningsScreenPro
   );
 
   const summary = summaryData?.myTutorEarningsSummary;
-  const nextPayout = summary?.nextPayout;
-  const inHold = summary?.inHold;
+  const monthly = monthlyData?.myTutorMonthlyEarnings;
+  const monthBounds = istMonthBounds(parsed.year, parsed.month);
+  const detailRange = monthly
+    ? { startDate: monthly.startDate, endDate: monthly.endDate }
+    : monthBounds
+      ? { startDate: monthBounds.startDate, endDate: monthBounds.endDate }
+      : null;
 
-  const detailInput = detailPeriod ?? nextPayout ?? null;
   const { data: detailData, loading: detailLoading } = useQuery<MyTutorPayoutPeriodDetailData>(
     MY_TUTOR_PAYOUT_PERIOD_DETAIL,
     {
-      variables: {
-        input: {
-          startDate: detailInput?.startDate ?? '',
-          endDate: detailInput?.endDate ?? '',
-        },
-      },
-      skip: !detailInput || tab !== 'upcoming',
+      variables: { input: detailRange ?? { startDate: '', endDate: '' } },
+      skip: !detailRange || tab !== 'monthly',
       fetchPolicy: 'network-only',
     },
   );
@@ -107,33 +216,30 @@ export function TutorEarningsScreen({ onAddBankDetails }: TutorEarningsScreenPro
   const activeDetail: PayoutPeriodDetail | undefined = detailData?.myTutorPayoutPeriodDetail;
   const payoutLineItems: TutorPayoutLineItem[] = activeDetail?.items ?? [];
   const transfers: TutorPayoutTransferItem[] = transfersData?.myTutorPayoutTransfers ?? [];
-  const showDetailFor = detailPeriod ?? nextPayout;
 
   const helpCopy = useMemo(
     () => [
-      'You are paid for concluded paid classes (free demos are not included).',
-      'After a class ends, earnings stay in a short hold before they are included in the next bank transfer.',
-      'Platform commission, online class fees, and payment processing are deducted from gross earnings.',
+      'You are paid monthly for concluded paid classes (demos are excluded).',
+      'Students can raise a refund claim for two days after a class ends.',
+      'Classes under dispute or from earlier months may be paid in the next settlement.',
+      'Platform commission, online fees, and payment processing are deducted from gross earnings.',
     ],
     [],
   );
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      <Text style={styles.lead}>Estimated amounts until a transfer is marked paid.</Text>
+      <Text style={styles.lead}>Monthly estimates until a transfer is marked paid.</Text>
 
       <View style={styles.tabs}>
-        {(['upcoming', 'paid'] as const).map((key) => (
+        {(['monthly', 'paid'] as const).map((key) => (
           <Pressable
             key={key}
             style={[styles.tab, tab === key ? styles.tabActive : null]}
-            onPress={() => {
-              setTab(key);
-              setDetailPeriod(null);
-            }}
+            onPress={() => setTab(key)}
           >
             <Text style={[styles.tabText, tab === key ? styles.tabTextActive : null]}>
-              {key === 'upcoming' ? 'On the way' : 'Paid to bank'}
+              {key === 'monthly' ? 'By month' : 'Paid to bank'}
             </Text>
           </Pressable>
         ))}
@@ -143,8 +249,10 @@ export function TutorEarningsScreen({ onAddBankDetails }: TutorEarningsScreenPro
         <ActivityIndicator style={styles.loader} color="#2563eb" />
       ) : null}
 
-      {tab === 'upcoming' ? (
+      {tab === 'monthly' ? (
         <View style={styles.section}>
+          <MonthDropdown value={monthDraft} onSelect={setMonthDraft} />
+
           {summary && !summary.bankDetailsComplete ? (
             <View style={styles.banner}>
               <Text style={styles.bannerTitle}>Add bank details to receive payouts</Text>
@@ -156,73 +264,67 @@ export function TutorEarningsScreen({ onAddBankDetails }: TutorEarningsScreenPro
             </View>
           ) : null}
 
-          {nextPayout ? (
-            <Pressable
-              style={styles.card}
-              onPress={() =>
-                setDetailPeriod({ startDate: nextPayout.startDate, endDate: nextPayout.endDate })
-              }
-            >
-              <Text style={styles.cardEyebrow}>Next bank transfer</Text>
-              <Text style={styles.cardAmount}>{formatInr(nextPayout.totalNetPayoutInr)}</Text>
-              <Text style={styles.cardSub}>{periodLabel(nextPayout)} (IST)</Text>
-              <Text style={styles.cardMeta}>
-                {nextPayout.concludedClassCount}{' '}
-                {nextPayout.concludedClassCount === 1 ? 'class' : 'classes'} · Estimated
-              </Text>
-            </Pressable>
+          {(monthlyLoading || summaryLoading) && !monthly ? (
+            <ActivityIndicator style={styles.loader} color="#2563eb" />
           ) : null}
 
-          {inHold && inHold.concludedClassCount > 0 ? (
-            <Pressable
-              style={styles.card}
-              onPress={() =>
-                setDetailPeriod({ startDate: inHold.startDate, endDate: inHold.endDate })
-              }
-            >
-              <Text style={styles.cardEyebrowMuted}>Still in hold</Text>
-              <Text style={styles.cardAmountSmall}>{formatInr(inHold.totalNetPayoutInr)}</Text>
-              <Text style={styles.cardSub}>{periodLabel(inHold)} (IST)</Text>
-              <Text style={styles.cardMeta}>
-                {inHold.concludedClassCount}{' '}
-                {inHold.concludedClassCount === 1 ? 'class' : 'classes'} · Estimated
-              </Text>
-            </Pressable>
-          ) : null}
+          {monthly ? (
+            <>
+              <View style={styles.card}>
+                <Text style={styles.cardEyebrow}>Payable</Text>
+                <Text style={styles.cardAmount}>{formatInr(monthly.payable.totalNetPayoutInr)}</Text>
+                <Text style={styles.cardSub}>{monthly.monthLabel}</Text>
+                <Text style={styles.cardMeta}>{monthly.settlementNote}</Text>
+              </View>
 
-          {showDetailFor ? (
-            <View style={styles.card}>
-              <Text style={styles.breakdownTitle}>
-                Breakdown · {periodLabel(showDetailFor)}
-              </Text>
-              {detailLoading && !activeDetail ? (
-                <ActivityIndicator style={styles.loader} color="#2563eb" />
-              ) : activeDetail ? (
-                <>
-                  <Row label="Gross earnings" value={formatInr(activeDetail.totalGrossInr)} bold />
-                  <Row label="Commission" value={`−${formatInr(activeDetail.totalCommissionInr)}`} />
-                  <Row
-                    label="Online class charges"
-                    value={`−${formatInr(activeDetail.totalOnlineChargesInr)}`}
-                  />
-                  <Row
-                    label="Payment processing"
-                    value={`−${formatInr(activeDetail.totalPaymentGatewayChargesInr)}`}
-                  />
-                  <Row label="Net payout" value={formatInr(activeDetail.totalNetPayoutInr)} bold />
-                  {payoutLineItems.map((row) => (
-                    <View key={row.orderItemId} style={styles.lineItem}>
-                      <Text style={styles.lineTitle}>{row.studentName}</Text>
-                      <Text style={styles.lineSub}>
-                        {row.concludedInRange} of {row.classesInBooking} classes ·{' '}
-                        {formatInr(row.rateInr)}/class
-                      </Text>
-                      <Text style={styles.lineNet}>Net {formatInr(row.netPayoutInr)}</Text>
-                    </View>
-                  ))}
-                </>
+              {monthly.inDisputeWindow && monthly.inDisputeWindow.concludedClassCount > 0 ? (
+                <View style={styles.card}>
+                  <Text style={styles.cardEyebrowMuted}>In dispute window</Text>
+                  <Text style={styles.cardAmountSmall}>
+                    {formatInr(monthly.inDisputeWindow.totalNetPayoutInr)}
+                  </Text>
+                </View>
               ) : null}
-            </View>
+
+              {monthly.underDispute.concludedClassCount > 0 ? (
+                <View style={styles.card}>
+                  <Text style={styles.cardEyebrowMuted}>Under dispute</Text>
+                  <Text style={styles.cardAmountSmall}>
+                    {formatInr(monthly.underDispute.totalNetPayoutInr)}
+                  </Text>
+                </View>
+              ) : null}
+
+              {monthly.carriedForward.concludedClassCount > 0 ? (
+                <View style={styles.card}>
+                  <Text style={styles.cardEyebrowMuted}>Carried to next payout</Text>
+                  <Text style={styles.cardAmountSmall}>
+                    {formatInr(monthly.carriedForward.totalNetPayoutInr)}
+                  </Text>
+                </View>
+              ) : null}
+
+              <View style={styles.card}>
+                <Text style={styles.breakdownTitle}>Breakdown · {monthly.monthLabel}</Text>
+                {detailLoading && !activeDetail ? (
+                  <ActivityIndicator style={styles.loader} color="#2563eb" />
+                ) : activeDetail ? (
+                  <>
+                    <Row label="Gross earnings" value={formatInr(activeDetail.totalGrossInr)} bold />
+                    <Row label="Net payout" value={formatInr(activeDetail.totalNetPayoutInr)} bold />
+                    {payoutLineItems.map((row) => (
+                      <View key={row.orderItemId} style={styles.lineItem}>
+                        <Text style={styles.lineTitle}>{row.studentName}</Text>
+                        <Text style={styles.lineSub}>
+                          {row.concludedInRange} of {row.classesInBooking} classes
+                        </Text>
+                        <Text style={styles.lineNet}>Net {formatInr(row.netPayoutInr)}</Text>
+                      </View>
+                    ))}
+                  </>
+                ) : null}
+              </View>
+            </>
           ) : null}
 
           <View style={styles.help}>
@@ -289,6 +391,45 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { padding: 16, paddingBottom: 32 },
   lead: { fontSize: 14, color: '#64748b', marginBottom: 12 },
+  filterLabel: { fontSize: 12, fontWeight: '700', color: '#64748b', marginBottom: 4 },
+  dropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    marginBottom: 8,
+  },
+  dropdownText: { flex: 1, fontSize: 16, fontWeight: '700', color: '#143055' },
+  chevron: { fontSize: 14, fontWeight: '700', color: '#64748b' },
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 39, 68, 0.45)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  pickerCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    maxHeight: '70%',
+  },
+  pickerTitle: { fontSize: 18, fontWeight: '800', color: '#143055', marginBottom: 8 },
+  pickerScroll: { maxHeight: 320 },
+  pickerOption: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  pickerOptionText: { fontSize: 16, fontWeight: '600', color: '#143055' },
+  pickerOptionTextSelected: { color: '#2563eb' },
+  pickerCancel: { marginTop: 8, paddingVertical: 12, alignItems: 'center' },
+  pickerCancelText: { fontSize: 16, fontWeight: '700', color: '#64748b' },
   tabs: {
     flexDirection: 'row',
     backgroundColor: '#f1f5f9',

@@ -1,24 +1,51 @@
 import { gql } from '@apollo/client';
 
+const TUTOR_MONTHLY_EARNINGS_BUCKET = gql`
+  fragment TutorMonthlyEarningsBucket on TutorMonthlyEarningsBucket {
+    concludedClassCount
+    totalNetPayoutInr
+  }
+`;
+
 export const MY_TUTOR_EARNINGS_SUMMARY = gql`
   query MyTutorEarningsSummary {
     myTutorEarningsSummary {
       bankDetailsComplete
-      nextPayout {
-        startDate
-        endDate
+      year
+      month
+      payable {
         concludedClassCount
-        totalGrossInr
-        totalDeductionsInr
         totalNetPayoutInr
       }
-      inHold {
-        startDate
-        endDate
+      deferred {
         concludedClassCount
-        totalGrossInr
-        totalDeductionsInr
         totalNetPayoutInr
+      }
+      deferredNote
+    }
+  }
+`;
+
+export const MY_TUTOR_MONTHLY_EARNINGS = gql`
+  ${TUTOR_MONTHLY_EARNINGS_BUCKET}
+  query MyTutorMonthlyEarnings($input: TutorPayoutMonthInput!) {
+    myTutorMonthlyEarnings(input: $input) {
+      monthLabel
+      startDate
+      endDate
+      settlementDayOfMonth
+      settlementNote
+      payable {
+        ...TutorMonthlyEarningsBucket
+      }
+      inDisputeWindow {
+        ...TutorMonthlyEarningsBucket
+      }
+      underDispute {
+        ...TutorMonthlyEarningsBucket
+      }
+      carriedForward {
+        ...TutorMonthlyEarningsBucket
       }
     }
   }

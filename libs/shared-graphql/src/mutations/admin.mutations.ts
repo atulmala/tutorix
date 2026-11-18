@@ -195,6 +195,14 @@ export const ADMIN_SYNC_PAYMENT_DISBURSEMENT = gql`
   }
 `;
 
+export const ADMIN_UPDATE_TUTOR_PAYOUT_SETTINGS = gql`
+  mutation AdminUpdateTutorPayoutSettings($input: AdminUpdateTutorPayoutSettingsInput!) {
+    adminUpdateTutorPayoutSettings(input: $input) {
+      tutorPayoutSettlementDayOfMonth
+    }
+  }
+`;
+
 export const ADMIN_SUBMIT_TUTOR_PAYOUT_DISBURSEMENTS = gql`
   mutation AdminSubmitTutorPayoutDisbursements(
     $input: AdminSubmitTutorPayoutDisbursementsInput!
