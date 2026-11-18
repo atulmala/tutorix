@@ -32,6 +32,10 @@ import { AdminCreatePaymentGatewayFeeInput } from '../payment-gateway-fee/dto/ad
 import { AdminPaymentGatewayFeeConfigResult } from '../payment-gateway-fee/dto/admin-payment-gateway-fee-config.dto';
 import { AdminUpdatePaymentGatewayFeeInput } from '../payment-gateway-fee/dto/admin-update-payment-gateway-fee.input';
 import { AdminUpdatePaymentGatewayFeeSettingsInput } from '../payment-gateway-fee/dto/admin-update-payment-gateway-fee-settings.input';
+import {
+  AdminTutorPayoutSettingsResult,
+  AdminUpdateTutorPayoutSettingsInput,
+} from '../payment-gateway-fee/dto/admin-tutor-payout-settings.dto';
 import { PaymentGatewayFeeConfigEntity } from '../payment-gateway-fee/entities/payment-gateway-fee-config.entity';
 import { CommerceAdminService } from '../commerce/services/commerce-admin.service';
 import { AdminOrderListInput } from '../commerce/dto/admin/admin-order-list.input';
@@ -364,6 +368,26 @@ export class AdminResolver {
     @CurrentUser() admin: User,
   ): Promise<AdminPaymentProviderSelectionResult> {
     return this.adminPaymentProviderSelectionService.updateSelection(input, admin.id);
+  }
+
+  @Query(() => AdminTutorPayoutSettingsResult, {
+    description: 'Tutor monthly payout settlement settings (admin only)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminTutorPayoutSettings(): Promise<AdminTutorPayoutSettingsResult> {
+    return this.adminService.getTutorPayoutSettings();
+  }
+
+  @Mutation(() => AdminTutorPayoutSettingsResult, {
+    description: 'Update tutor monthly payout settlement day (effective from next calendar month)',
+  })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminUpdateTutorPayoutSettings(
+    @Args('input') input: AdminUpdateTutorPayoutSettingsInput,
+  ): Promise<AdminTutorPayoutSettingsResult> {
+    return this.adminService.updateTutorPayoutSettings(input);
   }
 
   @Mutation(() => PaymentGatewayFeeConfigEntity, {

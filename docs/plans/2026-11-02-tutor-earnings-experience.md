@@ -7,6 +7,8 @@ created: 2026-11-02
 
 # Tutor earnings experience
 
+> **Note:** Weekly payout periods were superseded by [2026-11-18-monthly-tutor-payouts.md](2026-11-18-monthly-tutor-payouts.md) (monthly buckets and settlement).
+
 ## Summary
 
 Tutor-facing earnings hub (mobile tab + web header): estimated next payout and in-hold totals, period breakdown aligned with admin payout calculation, paid transfers placeholder, home summary card.

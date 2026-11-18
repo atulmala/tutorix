@@ -43,7 +43,7 @@ import {
   PENDING_CALENDAR_TASK_ACTION,
   PENDING_CALENDAR_TASK_MESSAGE,
 } from '@tutorix/shared-utils/tutor-calendar';
-import { formatInr, formatIstDateRangeLabel } from '@tutorix/shared-utils';
+import { formatInr } from '@tutorix/shared-utils';
 
 type TutorHomeScreenProps = {
   onSetRateCard?: () => void;
@@ -222,12 +222,6 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
     skip: !onOpenEarnings,
   });
   const earningsSummary = earningsData?.myTutorEarningsSummary;
-  const nextPayoutLabel =
-    earningsSummary?.nextPayout &&
-    formatIstDateRangeLabel(
-      earningsSummary.nextPayout.startDate,
-      earningsSummary.nextPayout.endDate,
-    );
   const refundAlert = refundAlertData?.tutorPendingPostClassRefundClaimAlert ?? null;
   const [refundAlertDismissed, setRefundAlertDismissed] = useState(false);
   const [cancelClass, { loading: cancelling }] = useMutation(TUTOR_CANCEL_SCHEDULED_CLASS, {
@@ -633,16 +627,16 @@ export const TutorHomeScreen: React.FC<TutorHomeScreenProps> = ({
         <View style={styles.concludedCard}>
           <Text style={styles.concludedTitle}>Earnings</Text>
           <Text style={styles.earningsAmount}>
-            {formatInr(earningsSummary.nextPayout.totalNetPayoutInr)}
+            {formatInr(earningsSummary.payable.totalNetPayoutInr)}
           </Text>
           <Text style={styles.earningsSub}>
-            Next bank transfer{nextPayoutLabel ? ` · ${nextPayoutLabel} (IST)` : ''}
+            Payable this month (IST) · {earningsSummary.payable.concludedClassCount}{' '}
+            {earningsSummary.payable.concludedClassCount === 1 ? 'class' : 'classes'}
           </Text>
-          {earningsSummary.inHold && earningsSummary.inHold.concludedClassCount > 0 ? (
+          {earningsSummary.deferred && earningsSummary.deferred.concludedClassCount > 0 ? (
             <Text style={styles.earningsMeta}>
-              {formatInr(earningsSummary.inHold.totalNetPayoutInr)} still in hold (
-              {earningsSummary.inHold.concludedClassCount}{' '}
-              {earningsSummary.inHold.concludedClassCount === 1 ? 'class' : 'classes'})
+              {earningsSummary.deferredNote ??
+                `${formatInr(earningsSummary.deferred.totalNetPayoutInr)} deferred`}
             </Text>
           ) : null}
           <Pressable style={styles.detailsButton} onPress={onOpenEarnings}>

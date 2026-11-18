@@ -2,45 +2,29 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
-  defaultTutorPayoutPeriodIstDates,
-  tutorPayoutHoldPeriodIstDates,
+  formatIstMonthLabel,
+  istCurrentMonthToDatePeriod,
+  istCurrentYearMonth,
+  istMonthBounds,
 } from '@tutorix/shared-utils';
 import { User } from '../../auth/entities/user.entity';
+import { PaymentGatewayFeeService } from '../../payment-gateway-fee/services/payment-gateway-fee.service';
 import { Tutor } from '../../tutor/entities/tutor.entity';
 import { UserBankDetailsService } from '../../user-bank-details/services/user-bank-details.service';
 import { TutorPayoutTransferEntity } from '../../payment-processing/entities/tutor-payout-transfer.entity';
-import {
-  AdminTutorPayoutCalculationResult,
-  AdminTutorPayoutCalculationRow,
-} from '../dto/admin/admin-tutor-payout-calculation-result.dto';
+import { AdminTutorPayoutCalculationRow } from '../dto/admin/admin-tutor-payout-calculation-result.dto';
 import {
   MyTutorEarningsSummary,
+  MyTutorMonthlyEarnings,
   MyTutorPayoutPeriodDetail,
+  TutorMonthlyEarningsBucket,
   TutorPayoutLineItem,
-  TutorPayoutPeriodTotals,
   TutorPayoutTransfer,
 } from '../dto/tutor/tutor-earnings.dto';
+import { TutorPayoutMonthInput } from '../dto/tutor/tutor-payout-month.input';
 import { TutorPayoutPeriodInput } from '../dto/tutor/tutor-payout-period.input';
+import { TutorPayoutCreditBucketEnum } from '../enums/tutor-payout-credit-bucket.enum';
 import { AdminTutorPayoutCalculationService } from './admin-tutor-payout-calculation.service';
-
-function concludedClassCount(rows: AdminTutorPayoutCalculationRow[]): number {
-  return rows.reduce((sum, row) => sum + row.concludedInRange, 0);
-}
-
-function totalsFromCalculation(
-  startDate: string,
-  endDate: string,
-  result: AdminTutorPayoutCalculationResult,
-): TutorPayoutPeriodTotals {
-  return {
-    startDate,
-    endDate,
-    concludedClassCount: concludedClassCount(result.items),
-    totalGrossInr: result.totalGrossInr,
-    totalDeductionsInr: result.totalDeductionsInr,
-    totalNetPayoutInr: result.totalNetPayoutInr,
-  };
-}
 
 function toLineItem(row: AdminTutorPayoutCalculationRow): TutorPayoutLineItem {
   return {
@@ -62,6 +46,10 @@ function toLineItem(row: AdminTutorPayoutCalculationRow): TutorPayoutLineItem {
   };
 }
 
+function emptyBucket(): TutorMonthlyEarningsBucket {
+  return { concludedClassCount: 0, totalNetPayoutInr: 0 };
+}
+
 @Injectable()
 export class TutorEarningsService {
   constructor(
@@ -71,31 +59,168 @@ export class TutorEarningsService {
     private readonly transferRepo: Repository<TutorPayoutTransferEntity>,
     private readonly adminTutorPayoutCalculationService: AdminTutorPayoutCalculationService,
     private readonly userBankDetailsService: UserBankDetailsService,
+    private readonly paymentGatewayFeeService: PaymentGatewayFeeService,
   ) {}
 
   async getSummaryForUser(user: User, now: Date = new Date()): Promise<MyTutorEarningsSummary> {
     const tutorId = await this.requireTutorId(user.id);
     const bankDetailsComplete = await this.userBankDetailsService.isCompleteForUser(user.id);
+    const { year, month } = istCurrentYearMonth(now);
+    const monthly = await this.getMonthlyEarningsForTutor(tutorId, { year, month }, now);
 
-    const nextPeriod = defaultTutorPayoutPeriodIstDates(now);
-    const nextResult = await this.calculateForTutor(tutorId, nextPeriod, now);
+    const deferredCount =
+      monthly.carriedForward.concludedClassCount + monthly.underDispute.concludedClassCount;
+    const deferredNet =
+      monthly.carriedForward.totalNetPayoutInr + monthly.underDispute.totalNetPayoutInr;
 
-    const holdPeriod = tutorPayoutHoldPeriodIstDates(now);
-    let inHold: TutorPayoutPeriodTotals | null = null;
-    if (holdPeriod) {
-      const holdResult = await this.calculateForTutor(tutorId, holdPeriod, now);
-      inHold = totalsFromCalculation(holdPeriod.startDate, holdPeriod.endDate, holdResult);
+    let deferredNote: string | null = null;
+    if (deferredCount > 0) {
+      const parts: string[] = [];
+      if (monthly.carriedForward.concludedClassCount > 0) {
+        parts.push(
+          `${monthly.carriedForward.concludedClassCount} class(es) from earlier months expected in the next payout`,
+        );
+      }
+      if (monthly.underDispute.concludedClassCount > 0) {
+        parts.push(
+          `${monthly.underDispute.concludedClassCount} class(es) under student dispute`,
+        );
+      }
+      deferredNote = parts.join('; ');
     }
 
     return {
       bankDetailsComplete,
-      nextPayout: totalsFromCalculation(
-        nextPeriod.startDate,
-        nextPeriod.endDate,
-        nextResult,
-      ),
-      inHold,
+      year,
+      month,
+      payable: monthly.payable,
+      deferred:
+        deferredCount > 0
+          ? { concludedClassCount: deferredCount, totalNetPayoutInr: deferredNet }
+          : null,
+      deferredNote,
     };
+  }
+
+  async getMonthlyEarningsForUser(
+    user: User,
+    input: TutorPayoutMonthInput,
+    now: Date = new Date(),
+  ): Promise<MyTutorMonthlyEarnings> {
+    const tutorId = await this.requireTutorId(user.id);
+    return this.getMonthlyEarningsForTutor(tutorId, input, now);
+  }
+
+  private async getMonthlyEarningsForTutor(
+    tutorId: number,
+    input: TutorPayoutMonthInput,
+    now: Date,
+  ): Promise<MyTutorMonthlyEarnings> {
+    const monthBounds = istMonthBounds(input.year, input.month);
+    if (!monthBounds) {
+      throw new BadRequestException('Invalid month');
+    }
+    const current = istCurrentYearMonth(now);
+    const isCurrentMonth = current.year === input.year && current.month === input.month;
+
+    const selection = isCurrentMonth
+      ? istCurrentMonthToDatePeriod(now)
+      : { startDate: monthBounds.startDate, endDate: monthBounds.endDate };
+
+    const payable = await this.bucketTotals(
+      tutorId,
+      input.year,
+      input.month,
+      TutorPayoutCreditBucketEnum.payable,
+      { startDate: selection.startDate, endDate: selection.endDate },
+      now,
+    );
+
+    const inDisputeWindowTotals = isCurrentMonth
+      ? await this.bucketTotals(
+          tutorId,
+          input.year,
+          input.month,
+          TutorPayoutCreditBucketEnum.in_dispute_window,
+          { startDate: selection.startDate, endDate: selection.endDate },
+          now,
+        )
+      : null;
+
+    const underDispute = await this.bucketTotals(
+      tutorId,
+      input.year,
+      input.month,
+      TutorPayoutCreditBucketEnum.under_dispute,
+      { startDate: monthBounds.startDate, endDate: selection.endDate },
+      now,
+    );
+
+    const carriedForward = await this.bucketTotals(
+      tutorId,
+      input.year,
+      input.month,
+      TutorPayoutCreditBucketEnum.carried_forward,
+      { startDate: selection.startDate, endDate: selection.endDate },
+      now,
+    );
+
+    const settlementDay = await this.paymentGatewayFeeService.effectiveSettlementDayForEarningsMonth(
+      input.year,
+      input.month,
+    );
+    const settlementNote = this.paymentGatewayFeeService.buildSettlementNote(
+      input.year,
+      input.month,
+      settlementDay,
+    );
+
+    return {
+      monthLabel: formatIstMonthLabel(input.year, input.month) ?? `${input.year}-${input.month}`,
+      startDate: monthBounds.startDate,
+      endDate: isCurrentMonth ? selection.endDate : monthBounds.endDate,
+      settlementDayOfMonth: settlementDay,
+      settlementNote,
+      payable: {
+        concludedClassCount: payable.concludedClassCount,
+        totalNetPayoutInr: payable.totalNetPayoutInr,
+      },
+      inDisputeWindow:
+        isCurrentMonth && inDisputeWindowTotals
+          ? inDisputeWindowTotals.concludedClassCount > 0
+            ? {
+                concludedClassCount: inDisputeWindowTotals.concludedClassCount,
+                totalNetPayoutInr: inDisputeWindowTotals.totalNetPayoutInr,
+              }
+            : emptyBucket()
+          : null,
+      underDispute: {
+        concludedClassCount: underDispute.concludedClassCount,
+        totalNetPayoutInr: underDispute.totalNetPayoutInr,
+      },
+      carriedForward: {
+        concludedClassCount: carriedForward.concludedClassCount,
+        totalNetPayoutInr: carriedForward.totalNetPayoutInr,
+      },
+    };
+  }
+
+  private async bucketTotals(
+    tutorId: number,
+    year: number,
+    month: number,
+    bucket: TutorPayoutCreditBucketEnum,
+    selection: { startDate: string; endDate: string },
+    now: Date,
+  ) {
+    return this.adminTutorPayoutCalculationService.totalsForTutorBucket(
+      tutorId,
+      year,
+      month,
+      bucket,
+      selection,
+      now,
+    );
   }
 
   async getPeriodDetailForUser(
@@ -104,7 +229,16 @@ export class TutorEarningsService {
     now: Date = new Date(),
   ): Promise<MyTutorPayoutPeriodDetail> {
     const tutorId = await this.requireTutorId(user.id);
-    const result = await this.calculateForTutor(tutorId, input, now);
+    const result = await this.adminTutorPayoutCalculationService.calculate(
+      {
+        startDate: input.startDate,
+        endDate: input.endDate,
+        page: 1,
+        pageSize: 500,
+        settlementMode: false,
+      },
+      { tutorId, now },
+    );
     return {
       startDate: input.startDate,
       endDate: input.endDate,
@@ -134,22 +268,6 @@ export class TutorEarningsService {
       bankAccountLast4: row.bankAccountLast4 ?? null,
       utrReference: row.utrReference ?? null,
     }));
-  }
-
-  private async calculateForTutor(
-    tutorId: number,
-    period: { startDate: string; endDate: string },
-    now: Date,
-  ): Promise<AdminTutorPayoutCalculationResult> {
-    return this.adminTutorPayoutCalculationService.calculate(
-      {
-        startDate: period.startDate,
-        endDate: period.endDate,
-        page: 1,
-        pageSize: 500,
-      },
-      { tutorId, now },
-    );
   }
 
   private async requireTutorId(userId: number): Promise<number> {

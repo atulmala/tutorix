@@ -2,7 +2,10 @@ import {
   type ClassPricingCommissionSettings,
   tutorCommissionPercentForClassRate,
 } from './class-pricing-settings';
-import { classEndedAtUtc } from './post-class-refund-claim';
+import {
+  classEndedAtUtc,
+  postClassRefundClaimDeadlineUtc,
+} from './post-class-refund-claim';
 import { addIstDaysUtc, istDayStartUtc, istTodayStartUtc, toIstParts } from './tutor-calendar';
 
 export type TutorPayoutDeliveryMode = 'online' | 'offline';
@@ -119,6 +122,117 @@ export function istDateRangeToUtcBounds(
     return null;
   }
   return { rangeStartUtc, rangeEndExclusiveUtc };
+}
+
+const IST_MONTHS_LONG = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+] as const;
+
+/** IST calendar month (1–12) length in days. */
+export function istDaysInMonth(year: number, month1to12: number): number {
+  if (month1to12 < 1 || month1to12 > 12) {
+    return 0;
+  }
+  return new Date(Date.UTC(year, month1to12, 0)).getUTCDate();
+}
+
+/** Current IST calendar year and month (1–12). */
+export function istCurrentYearMonth(now: Date = new Date()): { year: number; month: number } {
+  const p = toIstParts(now);
+  return { year: p.year, month: p.month + 1 };
+}
+
+/** Full IST calendar month as inclusive `YYYY-MM-DD` bounds. `month` is 1–12. */
+export function istMonthBounds(
+  year: number,
+  month1to12: number,
+): { startDate: string; endDate: string } | null {
+  if (month1to12 < 1 || month1to12 > 12) {
+    return null;
+  }
+  const month0 = month1to12 - 1;
+  const lastDay = istDaysInMonth(year, month1to12);
+  if (lastDay < 1) {
+    return null;
+  }
+  return {
+    startDate: formatIstCalendarDate(istDayStartUtc(year, month0, 1)),
+    endDate: formatIstCalendarDate(istDayStartUtc(year, month0, lastDay)),
+  };
+}
+
+/** Default admin settlement range: previous full IST calendar month. */
+export function defaultSettlementMonthPeriod(now: Date = new Date()): {
+  year: number;
+  month: number;
+  startDate: string;
+  endDate: string;
+} {
+  const { year, month } = istCurrentYearMonth(now);
+  let prevYear = year;
+  let prevMonth = month - 1;
+  if (prevMonth < 1) {
+    prevMonth = 12;
+    prevYear -= 1;
+  }
+  const bounds = istMonthBounds(prevYear, prevMonth);
+  if (!bounds) {
+    return { year: prevYear, month: prevMonth, startDate: '', endDate: '' };
+  }
+  return { year: prevYear, month: prevMonth, ...bounds };
+}
+
+/** Human-readable IST month label, e.g. `October 2026`. `month` is 1–12. */
+export function formatIstMonthLabel(year: number, month1to12: number): string | null {
+  if (month1to12 < 1 || month1to12 > 12) {
+    return null;
+  }
+  return `${IST_MONTHS_LONG[month1to12 - 1]} ${year}`;
+}
+
+/**
+ * True when the student post-class refund dispute window has closed.
+ * Used for current-month tutor earnings previews.
+ */
+export function classEligibleForPayoutView(
+  startsAt: Date | string | null | undefined,
+  durationMinutes: number | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  const deadline = postClassRefundClaimDeadlineUtc(startsAt, durationMinutes);
+  if (!deadline) {
+    return false;
+  }
+  return now.getTime() >= deadline.getTime();
+}
+
+/** Month-to-date range for the current IST calendar month through today. */
+export function istCurrentMonthToDatePeriod(now: Date = new Date()): {
+  year: number;
+  month: number;
+  startDate: string;
+  endDate: string;
+} {
+  const { year, month } = istCurrentYearMonth(now);
+  const monthStart = istMonthBounds(year, month);
+  const today = formatIstCalendarDate(istTodayStartUtc(now));
+  return {
+    year,
+    month,
+    startDate: monthStart?.startDate ?? today,
+    endDate: today,
+  };
 }
 
 /** Default 7-day payout window ending on (today IST − 7 days), inclusive. */

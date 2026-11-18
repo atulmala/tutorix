@@ -570,6 +570,14 @@ export const GET_ADMIN_EMAIL_STATUS = gql`
   }
 `;
 
+export const GET_ADMIN_TUTOR_PAYOUT_SETTINGS = gql`
+  query GetAdminTutorPayoutSettings {
+    adminTutorPayoutSettings {
+      tutorPayoutSettlementDayOfMonth
+    }
+  }
+`;
+
 export const GET_ADMIN_TUTOR_PAYOUT_CALCULATION = gql`
   query GetAdminTutorPayoutCalculation($input: AdminTutorPayoutCalculationInput!) {
     adminTutorPayoutCalculation(input: $input) {

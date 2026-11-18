@@ -1,9 +1,13 @@
 import {
   classEndedWithinUtcRange,
+  classEligibleForPayoutView,
   computeTutorPayoutRow,
+  defaultSettlementMonthPeriod,
   defaultTutorPayoutPeriodIstDates,
   formatIstCalendarDate,
+  formatIstMonthLabel,
   istDateRangeToUtcBounds,
+  istMonthBounds,
   tutorPayoutHoldPeriodIstDates,
 } from './tutor-payout-calculation';
 import { istDayStartUtc } from './tutor-calendar';
@@ -16,6 +20,66 @@ const settings = {
 };
 
 describe('tutor-payout-calculation', () => {
+  describe('istMonthBounds', () => {
+    it('returns full October 2026', () => {
+      expect(istMonthBounds(2026, 10)).toEqual({
+        startDate: '2026-10-01',
+        endDate: '2026-10-31',
+      });
+    });
+
+    it('handles February in a leap year', () => {
+      expect(istMonthBounds(2028, 2)).toEqual({
+        startDate: '2028-02-01',
+        endDate: '2028-02-29',
+      });
+    });
+  });
+
+  describe('defaultSettlementMonthPeriod', () => {
+    it('returns previous calendar month in IST', () => {
+      const now = istDayStartUtc(2026, 10, 5);
+      const period = defaultSettlementMonthPeriod(new Date(now.getTime() + 12 * 60 * 60 * 1000));
+      expect(period.year).toBe(2026);
+      expect(period.month).toBe(10);
+      expect(period.startDate).toBe('2026-10-01');
+      expect(period.endDate).toBe('2026-10-31');
+    });
+
+    it('rolls back to December when viewing January', () => {
+      const now = istDayStartUtc(2027, 0, 10);
+      const period = defaultSettlementMonthPeriod(new Date(now.getTime() + 12 * 60 * 60 * 1000));
+      expect(period).toEqual({
+        year: 2026,
+        month: 12,
+        startDate: '2026-12-01',
+        endDate: '2026-12-31',
+      });
+    });
+  });
+
+  describe('formatIstMonthLabel', () => {
+    it('formats month name', () => {
+      expect(formatIstMonthLabel(2026, 10)).toBe('October 2026');
+    });
+  });
+
+  describe('classEligibleForPayoutView', () => {
+    it('is false before dispute deadline', () => {
+      const startsAt = istDayStartUtc(2026, 9, 1);
+      startsAt.setUTCHours(startsAt.getUTCHours() + 16);
+      const now = istDayStartUtc(2026, 9, 2);
+      expect(classEligibleForPayoutView(startsAt, 60, now)).toBe(false);
+    });
+
+    it('is true after dispute deadline', () => {
+      const startsAt = istDayStartUtc(2026, 9, 1);
+      startsAt.setUTCHours(startsAt.getUTCHours() + 16);
+      const now = istDayStartUtc(2026, 9, 4);
+      expect(classEligibleForPayoutView(startsAt, 60, now)).toBe(true);
+    });
+  });
+
   describe('defaultTutorPayoutPeriodIstDates', () => {
     it('returns a 7-day window ending 7 IST days before now', () => {
       const now = istDayStartUtc(2026, 9, 30);

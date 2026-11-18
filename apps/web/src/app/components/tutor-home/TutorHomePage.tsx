@@ -30,7 +30,6 @@ import {
   PENDING_RATE_CARD_TASK_MESSAGE,
   type RateCardOfferingLike,
   formatInr,
-  formatIstDateRangeLabel,
 } from '@tutorix/shared-utils';
 
 const HOME_BOOKING_HISTORY_INPUT = { page: 1, pageSize: 1 };
@@ -241,12 +240,6 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
     skip: !onOpenEarnings,
   });
   const earningsSummary = earningsData?.myTutorEarningsSummary;
-  const nextPayoutLabel =
-    earningsSummary?.nextPayout &&
-    formatIstDateRangeLabel(
-      earningsSummary.nextPayout.startDate,
-      earningsSummary.nextPayout.endDate,
-    );
   const refundAlert = refundAlertData?.tutorPendingPostClassRefundClaimAlert;
   const [refundAlertDismissed, setRefundAlertDismissed] = useState(false);
   const [cancelClass, { loading: cancelling }] = useMutation(TUTOR_CANCEL_SCHEDULED_CLASS, {
@@ -684,17 +677,16 @@ export const TutorHomePage: React.FC<TutorHomePageProps> = ({
         <section className="rounded-[20px] bg-white p-5">
           <h2 className="text-base font-extrabold text-[#143055]">Earnings</h2>
           <p className="mt-2 text-2xl font-extrabold tabular-nums text-[#1d4ed8]">
-            {formatInr(earningsSummary.nextPayout.totalNetPayoutInr)}
+            {formatInr(earningsSummary.payable.totalNetPayoutInr)}
           </p>
           <p className="mt-1 text-sm text-slate-600">
-            Next bank transfer
-            {nextPayoutLabel ? ` · ${nextPayoutLabel} (IST)` : null}
+            Payable this month (IST) · {earningsSummary.payable.concludedClassCount}{' '}
+            {earningsSummary.payable.concludedClassCount === 1 ? 'class' : 'classes'}
           </p>
-          {earningsSummary.inHold && earningsSummary.inHold.concludedClassCount > 0 ? (
+          {earningsSummary.deferred && earningsSummary.deferred.concludedClassCount > 0 ? (
             <p className="mt-1 text-xs text-slate-500">
-              {formatInr(earningsSummary.inHold.totalNetPayoutInr)} still in hold (
-              {earningsSummary.inHold.concludedClassCount}{' '}
-              {earningsSummary.inHold.concludedClassCount === 1 ? 'class' : 'classes'})
+              {earningsSummary.deferredNote ??
+                `${formatInr(earningsSummary.deferred.totalNetPayoutInr)} deferred`}
             </p>
           ) : null}
           <button

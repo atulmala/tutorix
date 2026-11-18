@@ -316,15 +316,16 @@ export class AdminPaymentProcessingService {
   async submitTutorPayoutDisbursements(
     input: AdminSubmitTutorPayoutDisbursementsInput,
   ): Promise<AdminSubmitTutorPayoutDisbursementsResult> {
-    const calculation = await this.adminTutorPayoutCalculationService.calculate(
+    const calculation = await this.adminTutorPayoutCalculationService.calculateWithMeta(
       {
         startDate: input.startDate,
         endDate: input.endDate,
         tutorSearch: input.tutorSearch,
         page: 1,
         pageSize: 10_000,
+        settlementMode: true,
       },
-      { includeAllRows: true },
+      { includeAllRows: true, settlementMode: true },
     );
 
     const byTutor = new Map<
@@ -398,6 +399,8 @@ export class AdminPaymentProcessingService {
         continue;
       }
 
+      const creditIds = calculation.creditIdsByTutorId.get(bucket.tutorId) ?? [];
+
       if (existing?.status === PaymentDisbursementStatusEnum.failed) {
         existing.status = PaymentDisbursementStatusEnum.ready;
         existing.amountInr = bucket.netTotal;
@@ -408,11 +411,15 @@ export class AdminPaymentProcessingService {
         };
         existing.failureReason = null;
         await this.disbursementRepo.save(existing);
+        await this.adminTutorPayoutCalculationService.stampCreditsForDisbursement(
+          creditIds,
+          existing.id,
+        );
         createdCount += 1;
         continue;
       }
 
-      await this.disbursementRepo.save(
+      const saved = await this.disbursementRepo.save(
         this.disbursementRepo.create({
           kind: PaymentDisbursementKindEnum.tutor_bank_payout,
           status: PaymentDisbursementStatusEnum.ready,
@@ -428,6 +435,10 @@ export class AdminPaymentProcessingService {
             lines: bucket.lines,
           },
         }),
+      );
+      await this.adminTutorPayoutCalculationService.stampCreditsForDisbursement(
+        creditIds,
+        saved.id,
       );
       createdCount += 1;
     }
@@ -613,6 +624,9 @@ export class AdminPaymentProcessingService {
       row.status = PaymentDisbursementStatusEnum.failed;
       row.failureReason = `RazorpayX payout ${normalized}`;
       await this.disbursementRepo.save(row);
+      if (row.kind === PaymentDisbursementKindEnum.tutor_bank_payout) {
+        await this.adminTutorPayoutCalculationService.clearCreditsLinkedToDisbursement(row.id);
+      }
       return;
     }
 

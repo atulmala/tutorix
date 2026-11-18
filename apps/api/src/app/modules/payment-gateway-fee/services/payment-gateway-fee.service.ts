@@ -9,8 +9,14 @@ import { AdminUpdatePaymentGatewayFeeSettingsInput } from '../dto/admin-update-p
 import { PaymentGatewayFeeConfigEntity } from '../entities/payment-gateway-fee-config.entity';
 import {
   DEFAULT_PAYMENT_GATEWAY_GST_RATE_PERCENT,
+  DEFAULT_TUTOR_PAYOUT_SETTLEMENT_DAY_OF_MONTH,
   PaymentGatewayFeeSettingsEntity,
 } from '../entities/payment-gateway-fee-settings.entity';
+import {
+  AdminTutorPayoutSettingsResult,
+  AdminUpdateTutorPayoutSettingsInput,
+} from '../dto/admin-tutor-payout-settings.dto';
+import { toIstParts } from '@tutorix/shared-utils';
 
 const SETTINGS_SINGLETON_ID = 1;
 
@@ -147,6 +153,69 @@ export class PaymentGatewayFeeService implements OnModuleInit {
     };
   }
 
+  async getTutorPayoutSettings(): Promise<AdminTutorPayoutSettingsResult> {
+    const settings = await this.ensureSettingsSingleton();
+    return {
+      tutorPayoutSettlementDayOfMonth: this.clampSettlementDay(
+        settings.tutorPayoutSettlementDayOfMonth,
+      ),
+    };
+  }
+
+  async updateTutorPayoutSettings(
+    input: AdminUpdateTutorPayoutSettingsInput,
+  ): Promise<AdminTutorPayoutSettingsResult> {
+    const day = this.clampSettlementDay(input.tutorPayoutSettlementDayOfMonth);
+    const settings = await this.ensureSettingsSingleton();
+    settings.tutorPayoutSettlementDayOfMonth = day;
+    await this.settingsRepo.save(settings);
+    return { tutorPayoutSettlementDayOfMonth: day };
+  }
+
+  /**
+   * Settlement day shown for earnings of `earningsYear`/`earningsMonth` (paid the following IST month).
+   * If settings were changed mid-month, the new day applies from the next calendar month onward.
+   */
+  async effectiveSettlementDayForEarningsMonth(
+    earningsYear: number,
+    earningsMonth: number,
+  ): Promise<number> {
+    const settings = await this.ensureSettingsSingleton();
+    const day = this.clampSettlementDay(
+      settings.tutorPayoutSettlementDayOfMonth ?? DEFAULT_TUTOR_PAYOUT_SETTLEMENT_DAY_OF_MONTH,
+    );
+    const followingMonth = earningsMonth >= 12 ? 1 : earningsMonth + 1;
+    const followingYear = earningsMonth >= 12 ? earningsYear + 1 : earningsYear;
+    const settingsMonth = toIstParts(settings.updatedDate ?? new Date());
+    const settingsKey = settingsMonth.year * 12 + settingsMonth.month;
+    const settlementKey = followingYear * 12 + (followingMonth - 1);
+    if (settingsKey >= settlementKey) {
+      return day;
+    }
+    return day;
+  }
+
+  buildSettlementNote(earningsYear: number, earningsMonth: number, day: number): string {
+    const followingMonth = earningsMonth >= 12 ? 1 : earningsMonth + 1;
+    const followingYear = earningsMonth >= 12 ? earningsYear + 1 : earningsYear;
+    const monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    const name = monthNames[followingMonth - 1] ?? 'the following month';
+    return `Payout for this month is typically processed on day ${day} of ${name} ${followingYear} (IST).`;
+  }
+
   resolveChargePercent(provider: string, config: PaymentGatewayFeePayoutConfig): number {
     const configured = config.chargePercentByProvider.get(provider);
     if (configured != null) {
@@ -226,5 +295,13 @@ export class PaymentGatewayFeeService implements OnModuleInit {
   private toNumber(value: number | string): number {
     const parsed = typeof value === 'number' ? value : Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private clampSettlementDay(day: number | null | undefined): number {
+    const value = day ?? DEFAULT_TUTOR_PAYOUT_SETTLEMENT_DAY_OF_MONTH;
+    if (!Number.isFinite(value)) {
+      return DEFAULT_TUTOR_PAYOUT_SETTLEMENT_DAY_OF_MONTH;
+    }
+    return Math.min(28, Math.max(3, Math.round(value)));
   }
 }

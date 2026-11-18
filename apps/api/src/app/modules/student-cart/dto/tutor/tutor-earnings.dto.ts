@@ -23,20 +23,75 @@ export class TutorPayoutPeriodTotals {
 }
 
 @ObjectType()
+export class TutorMonthlyEarningsBucket {
+  @Field(() => Int)
+  concludedClassCount!: number;
+
+  @Field(() => Int)
+  totalNetPayoutInr!: number;
+}
+
+@ObjectType()
+export class MyTutorMonthlyEarnings {
+  @Field()
+  monthLabel!: string;
+
+  @Field()
+  startDate!: string;
+
+  @Field()
+  endDate!: string;
+
+  @Field(() => Int)
+  settlementDayOfMonth!: number;
+
+  @Field()
+  settlementNote!: string;
+
+  @Field(() => TutorMonthlyEarningsBucket, {
+    description: 'Undisputed classes eligible for the next settlement run',
+  })
+  payable!: TutorMonthlyEarningsBucket;
+
+  @Field(() => TutorMonthlyEarningsBucket, {
+    nullable: true,
+    description: 'Current month only: concluded but still inside the student dispute window',
+  })
+  inDisputeWindow!: TutorMonthlyEarningsBucket | null;
+
+  @Field(() => TutorMonthlyEarningsBucket, {
+    description: 'Classes with a pending or approved post-class refund claim',
+  })
+  underDispute!: TutorMonthlyEarningsBucket;
+
+  @Field(() => TutorMonthlyEarningsBucket, {
+    description: 'Earlier months: eligible now and expected in the next payout',
+  })
+  carriedForward!: TutorMonthlyEarningsBucket;
+}
+
+@ObjectType()
 export class MyTutorEarningsSummary {
   @Field(() => Boolean)
   bankDetailsComplete!: boolean;
 
-  @Field(() => TutorPayoutPeriodTotals, {
-    description: 'Estimated net for the default next bank transfer period',
-  })
-  nextPayout!: TutorPayoutPeriodTotals;
+  @Field(() => Int)
+  year!: number;
 
-  @Field(() => TutorPayoutPeriodTotals, {
+  @Field(() => Int)
+  month!: number;
+
+  @Field(() => TutorMonthlyEarningsBucket)
+  payable!: TutorMonthlyEarningsBucket;
+
+  @Field(() => TutorMonthlyEarningsBucket, {
     nullable: true,
-    description: 'Classes still in the post-class hold window before the next period',
+    description: 'Deferred from earlier months or under dispute (summary card)',
   })
-  inHold!: TutorPayoutPeriodTotals | null;
+  deferred!: TutorMonthlyEarningsBucket | null;
+
+  @Field(() => String, { nullable: true })
+  deferredNote!: string | null;
 }
 
 @ObjectType()

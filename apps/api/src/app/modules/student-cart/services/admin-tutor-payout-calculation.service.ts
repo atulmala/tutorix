@@ -1,16 +1,27 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import {
+  classEligibleForPayoutView,
   classEndedWithinUtcRange,
   computeTutorPayoutRow,
+  formatIstCalendarDate,
   istDateRangeToUtcBounds,
+  istDayStartUtc,
+  istMonthBounds,
+  addIstDaysUtc,
+  parseIstCalendarDate,
   scheduledClassHasEnded,
+  type IstDateRangeUtcBounds,
 } from '@tutorix/shared-utils';
 import { ClassPricingSettingsService } from '../../class-pricing-settings/services/class-pricing-settings.service';
 import { OrderItemEntity } from '../../commerce/entities/order-item.entity';
 import { PaymentGatewayProviderEnum } from '../../payment/enums/payment.enums';
-import { PaymentGatewayFeeService } from '../../payment-gateway-fee/services/payment-gateway-fee.service';
+import {
+  PaymentGatewayFeePayoutConfig,
+  PaymentGatewayFeeService,
+} from '../../payment-gateway-fee/services/payment-gateway-fee.service';
+import { PaymentDisbursementStatusEnum } from '../../payment-processing/enums/payment-disbursement-status.enum';
 import { ClassSessionDeliveryModeEnum } from '../../tutor-class-session/enums/class-session-delivery-mode.enum';
 import {
   applyAdminClassBookingTutorSearch,
@@ -27,8 +38,11 @@ import {
 } from '../dto/admin/admin-tutor-payout-calculation-result.dto';
 import { StudentClassCreditEntity } from '../entities/student-class-credit.entity';
 import { ClassCreditStatusEnum } from '../enums/class-credit-status.enum';
+import { PostClassRefundAdminStatusEnum } from '../enums/post-class-refund-admin-status.enum';
+import { TutorPayoutCreditBucketEnum } from '../enums/tutor-payout-credit-bucket.enum';
 
 type RawPayoutCreditRow = {
+  creditId: string;
   orderItemId: string;
   tutorId: string;
   studentFirstName: string | null;
@@ -45,9 +59,13 @@ type RawPayoutCreditRow = {
   orderItemCgstInr: string | null;
   orderItemSgstInr: string | null;
   orderItemIgstInr: string | null;
+  tutorPayoutDisbursementId: string | null;
+  linkedDisbursementStatus: PaymentDisbursementStatusEnum | null;
+  claimAdminStatus: PostClassRefundAdminStatusEnum | null;
 };
 
 const CREDIT_SELECT = [
+  'credit.id AS "creditId"',
   'credit.order_item_id AS "orderItemId"',
   'tutor.id AS "tutorId"',
   'studentUser.firstName AS "studentFirstName"',
@@ -64,7 +82,27 @@ const CREDIT_SELECT = [
   'orderItem.cgst_inr AS "orderItemCgstInr"',
   'orderItem.sgst_inr AS "orderItemSgstInr"',
   'orderItem.igst_inr AS "orderItemIgstInr"',
+  'credit.tutor_payout_disbursement_id AS "tutorPayoutDisbursementId"',
+  'linkedDisbursement.status AS "linkedDisbursementStatus"',
+  'claim.admin_status AS "claimAdminStatus"',
 ] as const;
+
+const CARRY_FORWARD_RANGE_START = '2020-01-01';
+
+export type TutorPayoutCalculateOptions = {
+  tutorId?: number;
+  now?: Date;
+  includeAllRows?: boolean;
+  settlementMode?: boolean;
+  requireOutsideDisputeWindow?: boolean;
+  restrictToBucket?: TutorPayoutCreditBucketEnum;
+  viewYear?: number;
+  viewMonth?: number;
+};
+
+export type AdminTutorPayoutCalculationWithMeta = AdminTutorPayoutCalculationResult & {
+  creditIdsByTutorId: Map<number, number[]>;
+};
 
 function asNumber(value: string | number | null | undefined, fallback = 0): number {
   if (value == null || value === '') {
@@ -85,6 +123,31 @@ function paidPartsFromRow(row: RawPayoutCreditRow): OrderItemPaidParts {
   };
 }
 
+function isActiveDisbursementLink(row: RawPayoutCreditRow): boolean {
+  if (row.tutorPayoutDisbursementId == null || row.tutorPayoutDisbursementId === '') {
+    return false;
+  }
+  const status = row.linkedDisbursementStatus;
+  if (!status) {
+    return true;
+  }
+  return (
+    status !== PaymentDisbursementStatusEnum.cancelled &&
+    status !== PaymentDisbursementStatusEnum.failed
+  );
+}
+
+function hasActivePostClassDispute(row: RawPayoutCreditRow): boolean {
+  const status = row.claimAdminStatus;
+  if (!status) {
+    return false;
+  }
+  return (
+    status === PostClassRefundAdminStatusEnum.pending ||
+    status === PostClassRefundAdminStatusEnum.approved
+  );
+}
+
 type GroupBucket = {
   orderItemId: number;
   tutorId: number;
@@ -96,6 +159,7 @@ type GroupBucket = {
   deliveryMode: ClassSessionDeliveryModeEnum;
   concludedInRange: number;
   paymentGatewayProvider: PaymentGatewayProviderEnum;
+  creditIds: number[];
 };
 
 @Injectable()
@@ -111,60 +175,101 @@ export class AdminTutorPayoutCalculationService {
 
   async calculate(
     input: AdminTutorPayoutCalculationInput,
-    options?: { tutorId?: number; now?: Date; includeAllRows?: boolean },
+    options?: TutorPayoutCalculateOptions,
   ): Promise<AdminTutorPayoutCalculationResult> {
+    return this.calculateWithMeta(input, {
+      ...options,
+      settlementMode: options?.settlementMode ?? input.settlementMode === true,
+    });
+  }
+
+  async calculateWithMeta(
+    input: AdminTutorPayoutCalculationInput,
+    options?: TutorPayoutCalculateOptions,
+  ): Promise<AdminTutorPayoutCalculationWithMeta> {
     const now = options?.now ?? new Date();
-    const bounds = istDateRangeToUtcBounds(input.startDate, input.endDate);
-    if (!bounds) {
+    const settlementMode = options?.settlementMode ?? input.settlementMode === true;
+    const selectionBounds = istDateRangeToUtcBounds(input.startDate, input.endDate);
+    if (!selectionBounds) {
       throw new BadRequestException('Invalid or inverted date range');
     }
+
+    const viewMonthBounds =
+      options?.viewYear != null && options?.viewMonth != null
+        ? istMonthBounds(options.viewYear, options.viewMonth)
+        : null;
+    const viewMonthUtc =
+      viewMonthBounds != null
+        ? istDateRangeToUtcBounds(viewMonthBounds.startDate, viewMonthBounds.endDate)
+        : null;
+    const carryForwardBounds =
+      viewMonthBounds != null && viewMonthUtc != null
+        ? istDateRangeToUtcBounds(
+            CARRY_FORWARD_RANGE_START,
+            this.dayBeforeIstDate(viewMonthBounds.startDate),
+          )
+        : null;
 
     const page = Math.max(1, input.page ?? 1);
     const pageSize = options?.includeAllRows
       ? Math.max(1, input.pageSize ?? 10_000)
       : Math.min(100, Math.max(1, input.pageSize ?? 20));
 
-    const qb = this.creditRepo
-      .createQueryBuilder('credit')
-      .innerJoin('credit.student', 'student')
-      .innerJoin('student.user', 'studentUser')
-      .innerJoin('credit.tutor', 'tutor')
-      .innerJoin('tutor.user', 'tutorUser')
-      .innerJoin('credit.orderItem', 'orderItem')
-      .innerJoin('credit.enrollment', 'enrollment')
-      .innerJoin('enrollment.session', 'session')
-      .innerJoin('session.tutorCalendar', 'calendar')
-      .where('credit.deleted = false')
-      .andWhere('credit.status = :scheduled', { scheduled: ClassCreditStatusEnum.scheduled })
-      .andWhere('credit.is_demo = false')
-      .andWhere('calendar.starts_at IS NOT NULL');
-
-    if (options?.tutorId != null) {
-      qb.andWhere('tutor.id = :tutorId', { tutorId: options.tutorId });
-    } else {
-      applyAdminClassBookingTutorSearch(qb, input.tutorSearch);
-    }
-
+    const qb = this.buildCreditQueryBuilder(input, options);
     const rows = await qb.select([...CREDIT_SELECT]).getRawMany<RawPayoutCreditRow>();
 
-    const buckets = new Map<number, GroupBucket>();
+    const buckets = new Map<string, GroupBucket>();
+    const creditIdsByTutorId = new Map<number, number[]>();
 
     for (const row of rows) {
       const durationMinutes =
         row.durationMinutes == null ? null : asNumber(row.durationMinutes, 60);
-      if (
-        !scheduledClassHasEnded(row.startsAt, durationMinutes, now) ||
-        !classEndedWithinUtcRange(row.startsAt, durationMinutes, bounds, now)
-      ) {
+      if (!scheduledClassHasEnded(row.startsAt, durationMinutes, now)) {
         continue;
+      }
+
+      const bucket = this.resolveCreditBucket(row, durationMinutes, now, {
+        selectionBounds,
+        viewMonthUtc,
+        carryForwardBounds,
+        restrictToBucket: options?.restrictToBucket,
+      });
+
+      if (options?.restrictToBucket != null) {
+        if (bucket !== options.restrictToBucket) {
+          continue;
+        }
+      } else {
+        const inSelectionRange = classEndedWithinUtcRange(
+          row.startsAt,
+          durationMinutes,
+          selectionBounds,
+          now,
+        );
+        if (!inSelectionRange) {
+          continue;
+        }
+        if (settlementMode && (isActiveDisbursementLink(row) || hasActivePostClassDispute(row))) {
+          continue;
+        }
+        if (
+          settlementMode &&
+          options?.requireOutsideDisputeWindow === true &&
+          !classEligibleForPayoutView(row.startsAt, durationMinutes, now)
+        ) {
+          continue;
+        }
       }
 
       const orderItemId = asNumber(row.orderItemId);
       const tutorId = asNumber(row.tutorId);
+      const creditId = asNumber(row.creditId);
+      const bucketKey = `${tutorId}:${orderItemId}`;
       const parts = paidPartsFromRow(row);
-      let bucket = buckets.get(orderItemId);
-      if (!bucket) {
-        bucket = {
+
+      let group = buckets.get(bucketKey);
+      if (!group) {
+        group = {
           orderItemId,
           tutorId,
           tutorName: personDisplayName(row.tutorFirstName, row.tutorLastName) || 'Tutor',
@@ -176,18 +281,26 @@ export class AdminTutorPayoutCalculationService {
           deliveryMode: row.deliveryMode,
           concludedInRange: 0,
           paymentGatewayProvider: PaymentGatewayProviderEnum.razorpay,
+          creditIds: [],
         };
-        buckets.set(orderItemId, bucket);
+        buckets.set(bucketKey, group);
       }
-      bucket.concludedInRange += 1;
+      group.concludedInRange += 1;
+      group.creditIds.push(creditId);
+
+      if (settlementMode) {
+        const list = creditIdsByTutorId.get(tutorId) ?? [];
+        list.push(creditId);
+        creditIdsByTutorId.set(tutorId, list);
+      }
     }
 
-    const orderItemIds = [...buckets.keys()];
+    const orderItemIds = [...new Set([...buckets.values()].map((b) => b.orderItemId))];
     const providerByOrderItemId =
       await this.loadPaymentGatewayProviderByOrderItemId(orderItemIds);
-    for (const bucket of buckets.values()) {
-      bucket.paymentGatewayProvider =
-        providerByOrderItemId.get(bucket.orderItemId) ??
+    for (const group of buckets.values()) {
+      group.paymentGatewayProvider =
+        providerByOrderItemId.get(group.orderItemId) ??
         PaymentGatewayProviderEnum.razorpay;
     }
 
@@ -200,7 +313,215 @@ export class AdminTutorPayoutCalculationService {
       platformFeePerParticipantInr: settings.platformFeePerParticipantInr,
     };
 
-    const allRows: AdminTutorPayoutCalculationRow[] = [...buckets.values()]
+    const allRows = this.mapBucketsToRows(buckets, pricingSettings, gatewayConfig);
+    return this.paginateResult(allRows, page, pageSize, creditIdsByTutorId);
+  }
+
+  async listEligibleCreditIdsForTutor(
+    tutorId: number,
+    startDate: string,
+    endDate: string,
+    now: Date = new Date(),
+  ): Promise<number[]> {
+    const result = await this.calculateWithMeta(
+      {
+        startDate,
+        endDate,
+        page: 1,
+        pageSize: 10_000,
+        settlementMode: true,
+      },
+      {
+        tutorId,
+        now,
+        includeAllRows: true,
+        settlementMode: true,
+      },
+    );
+    return result.creditIdsByTutorId.get(tutorId) ?? [];
+  }
+
+  async stampCreditsForDisbursement(
+    creditIds: number[],
+    disbursementId: number,
+  ): Promise<void> {
+    if (creditIds.length === 0) {
+      return;
+    }
+    await this.creditRepo.update({ id: In(creditIds) }, { tutorPayoutDisbursementId: disbursementId });
+  }
+
+  async clearCreditsLinkedToDisbursement(disbursementId: number): Promise<void> {
+    await this.creditRepo.update(
+      { tutorPayoutDisbursementId: disbursementId },
+      { tutorPayoutDisbursementId: null },
+    );
+  }
+
+  async totalsForTutorBucket(
+    tutorId: number,
+    year: number,
+    month: number,
+    bucket: TutorPayoutCreditBucketEnum,
+    selection: { startDate: string; endDate: string },
+    now: Date,
+  ): Promise<{ concludedClassCount: number; totalNetPayoutInr: number }> {
+    const monthBounds = istMonthBounds(year, month);
+    if (!monthBounds) {
+      return { concludedClassCount: 0, totalNetPayoutInr: 0 };
+    }
+
+    let range = selection;
+    if (bucket === TutorPayoutCreditBucketEnum.carried_forward) {
+      range = {
+        startDate: CARRY_FORWARD_RANGE_START,
+        endDate: this.dayBeforeIstDate(monthBounds.startDate),
+      };
+    }
+
+    const settlementMode =
+      bucket === TutorPayoutCreditBucketEnum.payable ||
+      bucket === TutorPayoutCreditBucketEnum.carried_forward;
+
+    const result = await this.calculateWithMeta(
+      {
+        startDate: range.startDate,
+        endDate: range.endDate,
+        page: 1,
+        pageSize: 10_000,
+        settlementMode,
+      },
+      {
+        tutorId,
+        now,
+        includeAllRows: true,
+        settlementMode,
+        requireOutsideDisputeWindow:
+          bucket === TutorPayoutCreditBucketEnum.payable ||
+          bucket === TutorPayoutCreditBucketEnum.carried_forward,
+        restrictToBucket: bucket,
+        viewYear: year,
+        viewMonth: month,
+      },
+    );
+    const concludedClassCount = result.items.reduce((s, row) => s + row.concludedInRange, 0);
+    return { concludedClassCount, totalNetPayoutInr: result.totalNetPayoutInr };
+  }
+
+  dayBeforeIstDate(isoDate: string): string {
+    const parts = parseIstCalendarDate(isoDate);
+    if (!parts) {
+      return isoDate;
+    }
+    const dayStart = istDayStartUtc(parts.year, parts.month, parts.day);
+    return formatIstCalendarDate(addIstDaysUtc(dayStart, -1));
+  }
+
+  private resolveCreditBucket(
+    row: RawPayoutCreditRow,
+    durationMinutes: number | null,
+    now: Date,
+    ctx: {
+      selectionBounds: IstDateRangeUtcBounds;
+      viewMonthUtc: IstDateRangeUtcBounds | null;
+      carryForwardBounds: IstDateRangeUtcBounds | null;
+      restrictToBucket?: TutorPayoutCreditBucketEnum;
+    },
+  ): TutorPayoutCreditBucketEnum | null {
+    if (ctx.viewMonthUtc == null || ctx.restrictToBucket == null) {
+      return TutorPayoutCreditBucketEnum.payable;
+    }
+
+    const endedInViewMonth = classEndedWithinUtcRange(
+      row.startsAt,
+      durationMinutes,
+      ctx.viewMonthUtc,
+      now,
+    );
+    const endedInCarryRange =
+      ctx.carryForwardBounds != null &&
+      classEndedWithinUtcRange(row.startsAt, durationMinutes, ctx.carryForwardBounds, now);
+
+    if (hasActivePostClassDispute(row)) {
+      if (endedInViewMonth || endedInCarryRange) {
+        return TutorPayoutCreditBucketEnum.under_dispute;
+      }
+      return null;
+    }
+
+    if (isActiveDisbursementLink(row)) {
+      return null;
+    }
+
+    if (endedInCarryRange && !endedInViewMonth) {
+      if (classEligibleForPayoutView(row.startsAt, durationMinutes, now)) {
+        return TutorPayoutCreditBucketEnum.carried_forward;
+      }
+      return null;
+    }
+
+    if (endedInViewMonth) {
+      if (!classEndedWithinUtcRange(row.startsAt, durationMinutes, ctx.selectionBounds, now)) {
+        return null;
+      }
+      if (!classEligibleForPayoutView(row.startsAt, durationMinutes, now)) {
+        return TutorPayoutCreditBucketEnum.in_dispute_window;
+      }
+      return TutorPayoutCreditBucketEnum.payable;
+    }
+
+    return null;
+  }
+
+  private buildCreditQueryBuilder(
+    input: AdminTutorPayoutCalculationInput,
+    options?: TutorPayoutCalculateOptions,
+  ) {
+    const qb = this.creditRepo
+      .createQueryBuilder('credit')
+      .innerJoin('credit.student', 'student')
+      .innerJoin('student.user', 'studentUser')
+      .innerJoin('credit.tutor', 'tutor')
+      .innerJoin('tutor.user', 'tutorUser')
+      .innerJoin('credit.orderItem', 'orderItem')
+      .innerJoin('credit.enrollment', 'enrollment')
+      .innerJoin('enrollment.session', 'session')
+      .innerJoin('session.tutorCalendar', 'calendar')
+      .leftJoin(
+        'payment_disbursement',
+        'linkedDisbursement',
+        'linkedDisbursement.id = credit.tutor_payout_disbursement_id AND linkedDisbursement.deleted = false',
+      )
+      .leftJoin(
+        'post_class_refund_claim',
+        'claim',
+        'claim.enrollment_id = credit.enrollment_id AND claim.deleted = false',
+      )
+      .where('credit.deleted = false')
+      .andWhere('credit.status = :scheduled', { scheduled: ClassCreditStatusEnum.scheduled })
+      .andWhere('credit.is_demo = false')
+      .andWhere('calendar.starts_at IS NOT NULL');
+
+    if (options?.tutorId != null) {
+      qb.andWhere('tutor.id = :tutorId', { tutorId: options.tutorId });
+    } else {
+      applyAdminClassBookingTutorSearch(qb, input.tutorSearch);
+    }
+
+    return qb;
+  }
+
+  private mapBucketsToRows(
+    buckets: Map<string, GroupBucket>,
+    pricingSettings: {
+      commissionSlabThresholdInr: number;
+      tutorCommissionPercentUpToSlab: number;
+      tutorCommissionPercentAboveSlab: number;
+      platformFeePerParticipantInr: number;
+    },
+    gatewayConfig: PaymentGatewayFeePayoutConfig,
+  ): AdminTutorPayoutCalculationRow[] {
+    return [...buckets.values()]
       .map((group) => {
         const deliveryMode =
           group.deliveryMode === ClassSessionDeliveryModeEnum.online ? 'online' : 'offline';
@@ -250,7 +571,14 @@ export class AdminTutorPayoutCalculationService {
         }
         return a.orderItemId - b.orderItemId;
       });
+  }
 
+  private paginateResult(
+    allRows: AdminTutorPayoutCalculationRow[],
+    page: number,
+    pageSize: number,
+    creditIdsByTutorId: Map<number, number[]>,
+  ): AdminTutorPayoutCalculationWithMeta {
     let totalGrossInr = 0;
     let totalCommissionInr = 0;
     let totalOnlineChargesInr = 0;
@@ -288,6 +616,7 @@ export class AdminTutorPayoutCalculationService {
       totalPaymentGatewayChargesInr,
       totalDeductionsInr,
       totalNetPayoutInr,
+      creditIdsByTutorId,
     };
   }
 
