@@ -2,6 +2,7 @@ import React from 'react';
 import { Linking, StyleSheet, Text } from 'react-native';
 import {
   CONTACT_US_URL,
+  DELETE_ACCOUNT_URL,
   PRIVACY_POLICY_URL,
   REFUND_POLICY_URL,
   TERMS_OF_SERVICE_URL,
@@ -35,6 +36,8 @@ export const LegalLinks: React.FC<LegalLinksProps> = ({ prefix = false }) => {
       <LegalLink url={REFUND_POLICY_URL} label="Refunds & Cancellations" />
       {' · '}
       <LegalLink url={CONTACT_US_URL} label="Contact Us" />
+      {' · '}
+      <LegalLink url={DELETE_ACCOUNT_URL} label="Delete account" />
     </Text>
   );
 };

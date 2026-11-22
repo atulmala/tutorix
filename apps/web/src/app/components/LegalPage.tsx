@@ -89,7 +89,11 @@ function PrivacyBody() {
       <h2 className="text-base font-semibold">Retention and deletion</h2>
       <p className="text-muted">
         You can delete your account from the Tutorix mobile app (Account → Delete
-        account) or by emailing{' '}
+        account), on our{' '}
+        <a className="text-[#1d4ed8] hover:underline" href="/delete-account">
+          account and data deletion
+        </a>{' '}
+        page, or by emailing{' '}
         <a className="text-[#1d4ed8] hover:underline" href="mailto:info@tutorix.tech">
           info@tutorix.tech
         </a>

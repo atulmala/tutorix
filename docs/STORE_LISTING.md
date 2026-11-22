@@ -9,6 +9,7 @@ Use this when submitting `apps/mobile` (`com.tutorix.tech`, version `1.0.0`) to 
 | Website | https://www.tutorix.tech |
 | Privacy | https://www.tutorix.tech/privacy |
 | Terms | https://www.tutorix.tech/terms |
+| Account / data deletion | https://www.tutorix.tech/delete-account |
 | Support email | info@tutorix.tech |
 | Play listing (after publish) | https://play.google.com/store/apps/details?id=com.tutorix.tech |
 | App Store listing | Paste the numeric `idXXXXXXXX` URL after the first listing exists |
@@ -51,15 +52,20 @@ Registration fees and wallet top-ups pay for **services consumed outside the app
 
 Guideline fit: Apple **3.1.3(e)** — goods and services used outside the app. If review cites **3.1.1**, reply with that exception. Do not add IAP unless review requires it.
 
-Demo accounts (create these on **production** before submit and fill the passwords here):
+**Sign-in:** email and password only (no OTP, no SMS). On the login screen, enter the email below and the app-review password supplied in this console — do not expect a phone verification step.
 
-- Tutor: `reviewer-tutor@tutorix.tech` / ________
-- Student: `reviewer-student@tutorix.tech` / ________
+Demo accounts (**production**; passwords only in App Store Connect / Play Console — do not commit them to git):
+
+- Tutor: `atulmala@gmail.com` / _(app review password)_
+- Student: `info+baboon@tutorix.tech` / _(app review password)_
+
+Suggested flow: student — browse tutors and bookings; tutor — profile and availability. Wallet top-ups use Razorpay if you need to exercise checkout.
 
 Support URL for reviewers: https://www.tutorix.tech/privacy
 
 ## App Store Connect
 
+- App Review: sign-in required. **Email + password only** (no OTP). Primary demo user often the student account; include the tutor account in Notes if both roles must be tested.
 - Category: Education.
 - Support URL: https://www.tutorix.tech/privacy
 - Privacy policy: https://www.tutorix.tech/privacy
@@ -72,8 +78,10 @@ Support URL for reviewers: https://www.tutorix.tech/privacy
 
 ## Google Play Console
 
+- App access: restricted if login is required; provide the same demo emails, **password-only** sign-in note, and passwords in the console.
 - App category: Education.
 - Privacy policy: https://www.tutorix.tech/privacy
+- Account deletion URL (Data safety): https://www.tutorix.tech/delete-account
 - Data safety: same categories as the privacy labels above (account info, financial, photos/files, device/app IDs, crash and analytics). Collected for app functionality / analytics. Not sold. Encrypted in transit.
 - Photos and videos declaration: camera and library are used for profile photos and identity/qualification documents. Camera hardware is **not required**.
 - IARC rating questionnaire: education / tutoring.

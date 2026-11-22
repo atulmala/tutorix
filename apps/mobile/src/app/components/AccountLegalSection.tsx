@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -12,6 +13,7 @@ import {
   CHANGE_PASSWORD,
   DELETE_MY_ACCOUNT,
 } from '@tutorix/shared-graphql/mutations';
+import { DELETE_ACCOUNT_URL } from '../config';
 import { LegalLinks } from './LegalLinks';
 import { ChangePasswordModal } from './ChangePasswordModal';
 
@@ -90,6 +92,19 @@ export const AccountLegalSection: React.FC<AccountLegalSectionProps> = ({
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Account</Text>
       <LegalLinks />
+      <Text style={styles.deletionInfo}>
+        You can also read how to request deletion on the web:{' '}
+        <Text
+          style={styles.deletionLink}
+          accessibilityRole="link"
+          onPress={() => {
+            void Linking.openURL(DELETE_ACCOUNT_URL);
+          }}
+        >
+          Delete account and data
+        </Text>
+        .
+      </Text>
       <TouchableOpacity
         style={styles.changeButton}
         onPress={() => {
@@ -146,6 +161,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0f172a',
     marginBottom: 12,
+  },
+  deletionInfo: {
+    marginTop: 12,
+    fontSize: 12,
+    color: '#64748b',
+    lineHeight: 18,
+  },
+  deletionLink: {
+    color: '#1d4ed8',
+    fontWeight: '600',
   },
   changeButton: {
     marginTop: 16,

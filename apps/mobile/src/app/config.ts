@@ -48,3 +48,4 @@ export const PRIVACY_POLICY_URL = `${legalOrigin()}/privacy`;
 export const TERMS_OF_SERVICE_URL = `${legalOrigin()}/terms`;
 export const REFUND_POLICY_URL = `${legalOrigin()}/refunds`;
 export const CONTACT_US_URL = `${legalOrigin()}/contact`;
+export const DELETE_ACCOUNT_URL = `${legalOrigin()}/delete-account`;

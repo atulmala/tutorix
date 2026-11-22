@@ -28,6 +28,10 @@ export const LegalFooter: React.FC<LegalFooterProps> = ({
       <a href="/contact" className="font-semibold text-[#1d4ed8] hover:underline">
         Contact Us
       </a>
+      {' · '}
+      <a href="/delete-account" className="font-semibold text-[#1d4ed8] hover:underline">
+        Delete account
+      </a>
     </p>
   );
 };

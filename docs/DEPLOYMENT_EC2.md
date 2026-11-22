@@ -339,7 +339,14 @@ Compose ships HTTP only. Typical patterns:
 | S3 upload failures | Bucket policy, IAM role / keys, **`S3_DOCUMENTS_BUCKET`**, region; Docker needs **IMDS hop limit 2** for instance role |
 | **`CredentialsProviderError`** in API | Role attached to EC2? Hop limit 2? Remove empty **`AWS_ACCESS_KEY_ID`** from `.env` or pass valid keys via Compose |
 
+## Environment uptime (production vs staging)
+
+After store release, **production** (`tutorix-production`, `www.tutorix.tech`) must run **24×7**. **Staging** (`tutorix-dev`, `dev.tutorix.tech`) stays **stopped** unless you are testing.
+
+See **[ENVIRONMENT_UPTIME.md](./ENVIRONMENT_UPTIME.md)** for instance IDs, disabling the old 09:00–22:00 IST EventBridge schedule, and `scripts/tutorix-aws-env.sh`.
+
 ## Related docs
 
+- [ENVIRONMENT_UPTIME.md](./ENVIRONMENT_UPTIME.md) — EC2 start/stop policy and CLI
 - [DOCUMENT_UPLOAD_STEPS.md](./DOCUMENT_UPLOAD_STEPS.md) — S3 env vars
 - [MIGRATIONS_GUIDE.md](./MIGRATIONS_GUIDE.md) — TypeORM migrations CLI on developer machines
