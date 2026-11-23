@@ -10,6 +10,7 @@ Use this when submitting `apps/mobile` (`com.tutorix.tech`, version `1.0.0`) to 
 | Privacy | https://www.tutorix.tech/privacy |
 | Terms | https://www.tutorix.tech/terms |
 | Account / data deletion | https://www.tutorix.tech/delete-account |
+| Feature graphic (1024×500, Play only) | [`docs/store-assets/google-play-feature-graphic-1024x500.png`](./store-assets/google-play-feature-graphic-1024x500.png) |
 | Support email | info@tutorix.tech |
 | Play listing (after publish) | https://play.google.com/store/apps/details?id=com.tutorix.tech |
 | App Store listing | Paste the numeric `idXXXXXXXX` URL after the first listing exists |
