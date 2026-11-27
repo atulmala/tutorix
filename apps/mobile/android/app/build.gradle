@@ -111,7 +111,7 @@ android {
         applicationId "com.tutorix.tech"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
+        versionCode 6
         versionName "1.0.0"
     }
     signingConfigs {
@@ -171,6 +171,12 @@ android {
             pickFirsts += ['**/libaosl.so']
         }
     }
+}
+
+// react-native-agora pulls io.agora.rtc:full-screen-sharing, which adds
+// FOREGROUND_SERVICE_MEDIA_PROJECTION. We only use camera/mic in online class.
+configurations.configureEach {
+    exclude group: 'io.agora.rtc', module: 'full-screen-sharing'
 }
 
 // pickFirsts can keep RTM's bundled libaosl.so, which is older than the

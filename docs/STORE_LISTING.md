@@ -66,10 +66,13 @@ Support URL for reviewers: https://www.tutorix.tech/privacy
 
 ## App Store Connect
 
+Step-by-step archive and upload: [`APP_STORE_IOS_SUBMIT.md`](./APP_STORE_IOS_SUBMIT.md).
+
 - App Review: sign-in required. **Email + password only** (no OTP). Primary demo user often the student account; include the tutor account in Notes if both roles must be tested.
 - Category: Education.
 - Support URL: https://www.tutorix.tech/privacy
 - Privacy policy: https://www.tutorix.tech/privacy
+- Account deletion (app + web): https://www.tutorix.tech/delete-account
 - Marketing URL: https://www.tutorix.tech
 - Screenshots: 6.7" required. Do not include IAP screens.
 - Privacy nutrition labels: match [`PrivacyInfo.xcprivacy`](../apps/mobile/ios/Mobile/PrivacyInfo.xcprivacy) — contact info, physical address, payment/bank details, photos and documents, user ID, device ID, crash data, product interaction. No tracking. No precise or coarse device location (address is typed / Places HTTP).
@@ -79,6 +82,7 @@ Support URL for reviewers: https://www.tutorix.tech/privacy
 
 ## Google Play Console
 
+- **Foreground services / media projection:** Online classes use Agora for live camera/mic only. The Android app does **not** capture or share the device screen on Android (participants can **view** screen share from others, e.g. web). `app/build.gradle` excludes Agora’s `full-screen-sharing` artifact; the app manifest also uses `tools:node="remove"` for any leftover projection entries. After build, verify: `unzip -p app-release.aab base/manifest/AndroidManifest.xml | strings | grep -i MEDIA_PROJECTION` (no output). **Play Console still showing media projection?** The draft release may still include an older AAB (e.g. versionCode 3–5 with Agora screen-sharing). Use **View app bundles and APKs** on the release, remove superseded bundles, upload only the latest AAB, and update **Internal / Closed / Open** test tracks if they still host an old bundle (paused tracks do not deactivate bundles). Revert the Gradle exclude and declare **Media and content projection, streaming** when Android gains outbound screen share.
 - App access: restricted if login is required; provide the same demo emails, **password-only** sign-in note, and passwords in the console.
 - App category: Education.
 - Privacy policy: https://www.tutorix.tech/privacy

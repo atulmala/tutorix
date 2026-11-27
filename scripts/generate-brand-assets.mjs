@@ -27,6 +27,15 @@ const IOS_ICONS = [
   { idiom: 'iphone', size: '40x40', scale: '3x', px: 120, file: 'icon-40@3x.png' },
   { idiom: 'iphone', size: '60x60', scale: '2x', px: 120, file: 'icon-60@2x.png' },
   { idiom: 'iphone', size: '60x60', scale: '3x', px: 180, file: 'icon-60@3x.png' },
+  { idiom: 'ipad', size: '20x20', scale: '1x', px: 20, file: 'icon-ipad-20.png' },
+  { idiom: 'ipad', size: '20x20', scale: '2x', px: 40, file: 'icon-20@2x.png' },
+  { idiom: 'ipad', size: '29x29', scale: '1x', px: 29, file: 'icon-ipad-29.png' },
+  { idiom: 'ipad', size: '29x29', scale: '2x', px: 58, file: 'icon-29@2x.png' },
+  { idiom: 'ipad', size: '40x40', scale: '1x', px: 40, file: 'icon-ipad-40.png' },
+  { idiom: 'ipad', size: '40x40', scale: '2x', px: 80, file: 'icon-40@2x.png' },
+  { idiom: 'ipad', size: '76x76', scale: '1x', px: 76, file: 'icon-ipad-76.png' },
+  { idiom: 'ipad', size: '76x76', scale: '2x', px: 152, file: 'icon-ipad-76@2x.png' },
+  { idiom: 'ipad', size: '83.5x83.5', scale: '2x', px: 167, file: 'icon-ipad-83.5@2x.png' },
   { idiom: 'ios-marketing', size: '1024x1024', scale: '1x', px: 1024, file: 'icon-1024.png' },
 ];
 
